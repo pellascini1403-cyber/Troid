@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { damp, DEG2RAD } from '@/core/math';
-import type { ActorViewState } from '@/gameplay/actorView';
+import type { ActorViewState } from '@/gameplay/actorViewState';
 import type { CharacterModel } from './CharacterModel';
 
 export interface ActorVisualOptions {

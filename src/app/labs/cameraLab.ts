@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { createRenderer } from '@/render/createRenderer';
 import { AssetManager } from '@/assets/AssetManager';
 import { ActorVisual } from '@/assets/ActorVisual';
-import { createActorViewState } from '@/gameplay/actorView';
+import { createActorViewState } from '@/gameplay/actorViewState';
 import { MANNEQUIN } from '@/content/models';
 import { CameraRig, type CameraConfig } from '@/camera/CameraRig';
 import { CameraView } from '@/camera/CameraView';

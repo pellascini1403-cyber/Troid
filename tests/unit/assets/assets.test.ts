@@ -4,7 +4,7 @@ import { AssetManager, type GltfLike } from '@/assets/AssetManager';
 import { CharacterModel, type ModelAsset } from '@/assets/CharacterModel';
 import { ActorVisual } from '@/assets/ActorVisual';
 import { validateModel } from '@/assets/validateModel';
-import { createActorViewState } from '@/gameplay/actorView';
+import { createActorViewState } from '@/gameplay/actorViewState';
 import { MANNEQUIN } from '@/content/models';
 import { ANIM_STATES, SOCKET_IDS } from '@/models/vocabulary';
 import type { ModelDefinition } from '@/models/ModelDefinition';

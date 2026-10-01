@@ -1,3 +1,5 @@
+import type { MovementTuning } from './MovementTuning';
+
 /**
  * Static description of the player character. Grows with each phase: F3 = identity + model + body,
  * F5 adds `movement`, F6 adds `combat`. Everything tunable lives here, in one place.
@@ -11,4 +13,5 @@ export interface PlayerDefinition {
     halfWidth: number;
     height: number;
   };
+  movement: MovementTuning;
 }
