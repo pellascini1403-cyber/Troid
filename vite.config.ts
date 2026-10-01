@@ -12,6 +12,15 @@ export default defineConfig({
     host: false, // use `npm run dev:lan` to test on a phone in the same network
     port: 5173,
   },
+  optimizeDeps: {
+    // Pre-bundle everything we import from three so the dev server never re-optimises (and reloads) mid-session.
+    include: [
+      'three',
+      'three/addons/loaders/GLTFLoader.js',
+      'three/addons/utils/SkeletonUtils.js',
+      'three/addons/utils/BufferGeometryUtils.js',
+    ],
+  },
   build: {
     target: 'es2022',
     sourcemap: true,

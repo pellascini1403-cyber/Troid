@@ -2,10 +2,11 @@
  * Takes a screenshot of the running game in headless Chromium.
  *
  *   npm run shot -- --q "?debug=1" --out .shots/boot.png --w 844 --h 390 --wait 800
+ *   add --prod to run against the production build in dist/ (run `npm run build` first)
  */
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { launchBrowser, openPage, startServer } from './harness';
+import { launchBrowser, openPage, startPreview, startServer } from './harness';
 
 function arg(name: string, fallback: string): string {
   const i = process.argv.indexOf(`--${name}`);
@@ -19,11 +20,14 @@ const width = Number(arg('w', '844'));
 const height = Number(arg('h', '390'));
 const dpr = Number(arg('dpr', '1'));
 const waitMs = Number(arg('wait', '800'));
+const ready = arg('ready', '');
+const prod = process.argv.includes('--prod');
 
-const server = await startServer();
+const server = prod ? await startPreview() : await startServer();
 const browser = await launchBrowser();
 try {
   const { page, errors } = await openPage(browser, `${server.url}/${query}`, { width, height, dpr });
+  if (ready) await page.waitForFunction(ready, undefined, { timeout: 30000 });
   await page.waitForTimeout(waitMs);
   mkdirSync(dirname(out), { recursive: true });
   await page.screenshot({ path: out });

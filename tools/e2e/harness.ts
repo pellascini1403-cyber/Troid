@@ -1,5 +1,5 @@
 import { chromium, type Browser, type Page, type ConsoleMessage } from 'playwright-core';
-import { createServer, type ViteDevServer } from 'vite';
+import { createServer, preview, type PreviewServer, type ViteDevServer } from 'vite';
 
 /** Chromium preinstalled in the cloud container (override with TROID_CHROMIUM). */
 export const CHROMIUM_PATH = process.env.TROID_CHROMIUM ?? '/opt/pw-browsers/chromium';
@@ -19,6 +19,17 @@ export async function startServer(): Promise<DevServer> {
   const url = server.resolvedUrls?.local[0];
   if (!url) throw new Error('Vite did not report a local URL');
   return { url: url.replace(/\/$/, ''), close: () => server.close() };
+}
+
+/** Serves the PRODUCTION build (`dist/`) — proves relative base paths and copied assets work. */
+export async function startPreview(): Promise<DevServer> {
+  const server: PreviewServer = await preview({
+    logLevel: 'error',
+    preview: { host: '127.0.0.1', port: 5198, strictPort: false },
+  });
+  const url = server.resolvedUrls?.local[0];
+  if (!url) throw new Error('Vite preview did not report a local URL');
+  return { url: url.replace(/\/$/, ''), close: () => new Promise((res) => server.httpServer.close(() => res())) };
 }
 
 export async function launchBrowser(): Promise<Browser> {
@@ -65,7 +76,11 @@ export async function openPage(browser: Browser, url: string, opts: OpenOptions 
     else if (m.type() === 'warning') warnings.push(m.text());
   });
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
-  page.on('requestfailed', (r) => errors.push(`requestfailed: ${r.url()} ${r.failure()?.errorText ?? ''}`));
+  page.on('requestfailed', (r) => {
+    const reason = r.failure()?.errorText ?? '';
+    if (reason.includes('ERR_ABORTED')) return; // navigation / HMR reload aborting in-flight module fetches
+    errors.push(`requestfailed: ${r.url()} ${reason}`);
+  });
   await page.goto(url, { waitUntil: 'load' });
   return { page, errors, warnings };
 }

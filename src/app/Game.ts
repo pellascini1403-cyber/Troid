@@ -2,6 +2,12 @@ import * as THREE from 'three';
 import { createRenderer } from '@/render/createRenderer';
 import { DisposableStore } from '@/core/lifecycle';
 import { TICK_SECONDS } from '@/core/time';
+import { AssetManager } from '@/assets/AssetManager';
+import { PlayerVisual } from '@/player/PlayerVisual';
+import { createActorViewState, type ActorViewState } from '@/gameplay/actorView';
+import { ANIM_STATES, type AnimState } from '@/models/vocabulary';
+import { MODELS } from '@/content/models';
+import { PLAYER } from '@/content/player';
 import { GameLoop } from './GameLoop';
 import { listen } from './dom';
 
@@ -17,9 +23,11 @@ export class Game {
   /** Owns every listener / resource of this Game; `dispose()` releases them all. */
   private readonly lifecycle = new DisposableStore();
   private readonly loop: GameLoop;
-  private readonly player: THREE.Mesh;
+  private readonly assets = new AssetManager(import.meta.env.BASE_URL);
+  private playerVisual: PlayerVisual | null = null;
+  private readonly playerView: ActorViewState = createActorViewState();
+  private demoStates: AnimState[] = [];
   private simTime = 0;
-  private prevSimTime = 0;
 
   constructor(private readonly host: HTMLElement) {
     const canvas = document.createElement('canvas');
@@ -65,14 +73,11 @@ export class Game {
       fg.rotation.z = Math.PI;
       this.scene.add(fg);
     }
-    this.player = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 1.1, 4, 10), mat(0xffffff));
-    this.player.position.set(0, 0.9, 0);
-    this.player.castShadow = true;
-    this.scene.add(this.player);
+    void this.loadPlayer();
 
     this.loop = new GameLoop({
       tick: () => this.tick(),
-      frame: (alpha) => this.render(alpha),
+      frame: (alpha, dt) => this.render(alpha, dt),
     });
 
     listen(this.lifecycle, window, 'resize', () => this.resize());
@@ -97,15 +102,38 @@ export class Game {
     this.lifecycle.dispose();
   }
 
-  /** One fixed simulation step. */
-  private tick(): void {
-    this.prevSimTime = this.simTime;
-    this.simTime += TICK_SECONDS;
+  /** F3 demo: the real model pipeline (GLB → CharacterModel → ActorVisual) cycling through logical states. */
+  private async loadPlayer(): Promise<void> {
+    const def = MODELS[PLAYER.modelId];
+    if (!def) throw new Error(`player model "${PLAYER.modelId}" is not in the content registry`);
+    const model = await this.assets.instantiate(def);
+    if (this.lifecycle.disposed) return model.dispose();
+    this.playerVisual = new PlayerVisual(model);
+    this.scene.add(this.playerVisual.root);
+    this.lifecycle.add(() => this.playerVisual?.dispose());
+    this.demoStates = ANIM_STATES.filter((s) => def.clips[s] !== undefined);
+    this.playerView.y = this.playerView.prevY = 0;
   }
 
-  private render(alpha: number): void {
-    const t = this.prevSimTime + (this.simTime - this.prevSimTime) * alpha;
-    this.camera.position.x = Math.sin(t / 2.5) * 6;
+  /** One fixed simulation step. */
+  private tick(): void {
+    this.simTime += TICK_SECONDS;
+    const v = this.playerView;
+    v.prevX = v.x;
+    v.prevY = v.y;
+    if (this.demoStates.length > 0) {
+      const slot = Math.floor(this.simTime / 1.4);
+      const state = this.demoStates[slot % this.demoStates.length] as AnimState;
+      if (state !== v.anim) {
+        v.anim = state;
+        v.animSerial++;
+      }
+      v.facing = Math.floor(slot / this.demoStates.length) % 2 === 0 ? 1 : -1;
+    }
+  }
+
+  private render(alpha: number, realDt: number): void {
+    this.playerVisual?.sync(this.playerView, alpha, realDt);
     this.renderer.render(this.scene, this.camera);
   }
 

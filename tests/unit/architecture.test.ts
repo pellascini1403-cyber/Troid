@@ -15,8 +15,8 @@ const SRC = resolve(__dirname, '../../src');
 
 /** Modules that are pure by default. */
 const PURE_MODULES = new Set([
-  'core', 'gameplay', 'player', 'combat', 'enemies', 'bosses', 'world', 'progression', 'save', 'input', 'camera',
-  'content',
+  'core', 'models', 'gameplay', 'player', 'combat', 'enemies', 'bosses', 'world', 'progression', 'save', 'input',
+  'camera', 'content',
 ]);
 /** Modules that are view / platform by default. */
 const VIEW_MODULES = new Set(['render', 'vfx', 'ui', 'audio', 'assets', 'debug', 'app']);
