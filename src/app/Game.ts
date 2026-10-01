@@ -8,8 +8,24 @@ import { createActorViewState, type ActorViewState } from '@/gameplay/actorView'
 import { ANIM_STATES, type AnimState } from '@/models/vocabulary';
 import { MODELS } from '@/content/models';
 import { PLAYER } from '@/content/player';
+import { CameraRig, DEFAULT_CAMERA, type CameraConfig, type CameraTarget } from '@/camera/CameraRig';
+import { CameraView } from '@/camera/CameraView';
 import { GameLoop } from './GameLoop';
 import { listen } from './dom';
+
+/** `?cam=ortho` `?fov=20` `?vh=18` `?pitch=5` — try camera options on a real device without rebuilding. */
+export function cameraConfigFromQuery(q: URLSearchParams): Partial<CameraConfig> {
+  const cfg: Partial<CameraConfig> = {};
+  if (q.get('cam') === 'ortho') cfg.projection = 'orthographic';
+  const num = (key: string) => (q.has(key) && Number.isFinite(Number(q.get(key))) ? Number(q.get(key)) : undefined);
+  const fov = num('fov');
+  const vh = num('vh');
+  const pitch = num('pitch');
+  if (fov !== undefined) cfg.fovDeg = fov;
+  if (vh !== undefined) cfg.viewHeight = vh;
+  if (pitch !== undefined) cfg.pitchDeg = pitch;
+  return cfg;
+}
 
 /**
  * F1 walking skeleton: proves the toolchain end to end (Vite → three → WebGL2 → Chromium → capture).
@@ -19,7 +35,8 @@ import { listen } from './dom';
 export class Game {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
-  readonly camera: THREE.PerspectiveCamera;
+  readonly cameraView = new CameraView(DEFAULT_CAMERA.near, DEFAULT_CAMERA.far);
+  readonly cameraRig: CameraRig;
   /** Owns every listener / resource of this Game; `dispose()` releases them all. */
   private readonly lifecycle = new DisposableStore();
   private readonly loop: GameLoop;
@@ -28,6 +45,8 @@ export class Game {
   private readonly playerView: ActorViewState = createActorViewState();
   private demoStates: AnimState[] = [];
   private simTime = 0;
+  private aspect = 16 / 9;
+  private snapCamera = true;
 
   constructor(private readonly host: HTMLElement) {
     const canvas = document.createElement('canvas');
@@ -37,13 +56,7 @@ export class Game {
     this.scene.background = new THREE.Color(0x9fb8a0);
     this.scene.fog = new THREE.Fog(0x9fb8a0, 30, 140);
 
-    // View height 16 m at the gameplay plane, narrow FOV: little distortion, real parallax.
-    const fov = 28;
-    const viewHeight = 16;
-    this.camera = new THREE.PerspectiveCamera(fov, 16 / 9, 0.5, 400);
-    const dist = viewHeight / 2 / Math.tan(THREE.MathUtils.degToRad(fov / 2));
-    this.camera.position.set(0, 5, dist);
-    this.camera.lookAt(0, 5, 0);
+    this.cameraRig = new CameraRig(cameraConfigFromQuery(new URLSearchParams(location.search)));
 
     const hemi = new THREE.HemisphereLight(0xdfeccf, 0x3d4a3a, 1.1);
     this.scene.add(hemi);
@@ -129,19 +142,37 @@ export class Game {
         v.animSerial++;
       }
       v.facing = Math.floor(slot / this.demoStates.length) % 2 === 0 ? 1 : -1;
+      // demo locomotion so the camera has something to follow (the real controller arrives in F5)
+      const speed = state === 'run' ? 9 : state === 'walk' ? 4.5 : state === 'dash' ? 22 : 0;
+      v.x = Math.max(-34, Math.min(34, v.x + v.facing * speed * TICK_SECONDS));
     }
   }
 
   private render(alpha: number, realDt: number): void {
     this.playerVisual?.sync(this.playerView, alpha, realDt);
-    this.renderer.render(this.scene, this.camera);
+    // The camera follows the INTERPOLATED position, exactly what is drawn, so camera and player never jitter apart.
+    const v = this.playerView;
+    const target: CameraTarget = {
+      x: v.prevX + (v.x - v.prevX) * alpha,
+      y: v.prevY + (v.y - v.prevY) * alpha,
+      vx: (v.x - v.prevX) * 60,
+      vy: 0,
+      facing: v.facing,
+      grounded: true,
+    };
+    if (this.snapCamera) {
+      this.cameraRig.snapTo(target, this.aspect);
+      this.snapCamera = false;
+    }
+    const pose = this.cameraRig.update(realDt, target, this.aspect);
+    const camera = this.cameraView.apply(pose, this.aspect);
+    this.renderer.render(this.scene, camera);
   }
 
   private resize(): void {
     const w = this.host.clientWidth || window.innerWidth;
     const h = this.host.clientHeight || window.innerHeight;
     this.renderer.setSize(w, h, false);
-    this.camera.aspect = w / h;
-    this.camera.updateProjectionMatrix();
+    this.aspect = w / h;
   }
 }

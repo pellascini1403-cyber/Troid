@@ -52,6 +52,8 @@ export interface ModelDefinition {
     style: 'toon' | 'keep';
     outline?: OutlineSpec;
     rim?: RimSpec;
+    /** Minimum lit fraction of the albedo even in shadow (default 0.5 for characters). */
+    lightFloor?: number;
     /** Forces every material to this colour (white mannequin, flat-colour placeholders). */
     baseColor?: number;
   };

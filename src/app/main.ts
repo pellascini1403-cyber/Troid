@@ -10,6 +10,9 @@ if (lab === 'model') {
   // Dev tooling is code-split: it never loads (nor weighs) in a normal session.
   const { startModelLab } = await import('./labs/modelLab');
   await startModelLab(host, params);
+} else if (lab === 'camera') {
+  const { startCameraLab } = await import('./labs/cameraLab');
+  await startCameraLab(host, params);
 } else {
   const game = new Game(host);
   game.start();

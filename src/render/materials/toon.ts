@@ -14,6 +14,7 @@ export interface ToonUniforms {
   uRimPower: { value: number };
   uFlash: { value: number };
   uFlashColor: { value: THREE.Color };
+  uLightFloor: { value: number };
 }
 
 export interface ToonOptions {
@@ -28,6 +29,11 @@ export interface ToonOptions {
   /** 0 disables the rim. */
   rimStrength?: number;
   rimPower?: number;
+  /**
+   * Minimum lit fraction of the albedo (0..1), applied even in full shadow. Characters use ≈ 0.5 so a white
+   * mannequin in a dark corner never drops to murky grey: readability beats physical shading (see ART_DIRECTION §3).
+   */
+  lightFloor?: number;
   transparent?: boolean;
   opacity?: number;
   side?: THREE.Side;
@@ -57,11 +63,13 @@ uniform float uRimStrength;
 uniform float uRimPower;
 uniform float uFlash;
 uniform vec3 uFlashColor;
+uniform float uLightFloor;
 `;
 
 // Inserted right before <opaque_fragment>, where `outgoingLight` and view-space `normal` are in scope.
 const FX_FRAGMENT = /* glsl */ `
 {
+  outgoingLight = max( outgoingLight, diffuseColor.rgb * uLightFloor );
   vec3 rimN = normalize( normal );
   vec3 rimV = normalize( vViewPosition );
   float rimF = pow( 1.0 - saturate( dot( rimN, rimV ) ), uRimPower );
@@ -92,6 +100,7 @@ export function createToonMaterial(opts: ToonOptions = {}): THREE.MeshToonMateri
     uRimPower: { value: opts.rimPower ?? 3 },
     uFlash: { value: 0 },
     uFlashColor: { value: new THREE.Color(0xffffff) },
+    uLightFloor: { value: opts.lightFloor ?? 0 },
   };
   material.userData.toon = uniforms;
 

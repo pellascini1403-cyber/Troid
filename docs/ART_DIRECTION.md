@@ -73,11 +73,31 @@ Toon de 3–4 tonos con rampa por región, vértice coloreado para variación y 
 las caras superiores), roughness controlada. Piedra, madera, vegetación y metal se distinguen por valor y
 rampa, no por texturas fotográficas. Todo comparte el mismo lenguaje.
 
-## 8. Cámara — estudio (se completa en F4)
+## 8. Cámara — estudio y decisión (F4)
 
-Candidatas: **ortográfica**, **perspectiva FOV estrecho (20–30°)**, **perspectiva FOV medio (40°)**.
-Criterio: lateralidad jugable (distorsión mínima en el plano `z=0`) + profundidad visual (parallax real). Los
-resultados con capturas y la decisión final se registran aquí cuando exista `CameraRig`.
+La misma escena (capas FAR/MID/WORLD/FOREGROUND, plataformas con volumen, pilares que cruzan el plano de juego, tres
+maniquís) renderizada por `CameraRig` con **idéntico centro y altura visible (15 m)**, de modo que solo cambia la
+proyección. Reproducible con `?lab=camera` (`&cells=ortho,20,26`).
+
+![Estudio de cámara](img/camera-study.png)
+
+| Proyección | Lo que se ve | Veredicto |
+|---|---|---|
+| Ortográfica | Sin caras laterales, suelo como banda plana, nada de convergencia. Parece un 2D con modelos 3D. | ✗ incumple «no quiero 2D puro» |
+| Perspectiva 12° | Casi ortográfica; apenas hay profundidad. | ✗ |
+| Perspectiva 20° | Caras laterales visibles, suelo con fuga suave, cero deformación de personajes. | ✔ válida (arenas, salas planas) |
+| **Perspectiva 26°** | Volumen claro en plataformas y pilares, suelo que se aleja, parallax entre capas, personajes del borde sin deformación apreciable. | ✔ **por defecto** |
+| Perspectiva 36° | Pilares inclinados, personajes de los bordes empiezan a deformarse. | ⚠ solo para momentos cinematográficos |
+| Perspectiva 50° | Plataformas torcidas, el plano jugable deja de leerse como lateral. | ✗ |
+
+**Decisión:** perspectiva con **FOV vertical 26°** y **pitch 3.5°**, `viewHeight = 15 m`. Razones: (1) el parallax y el
+volumen salen de la geometría real, sin trucos; (2) a 26° un personaje en el borde de una pantalla 20:9 se ve a ≈ 24°
+fuera de eje: sigue leyéndose «de lado»; (3) la proyección es solo una decisión artística porque el rig fija la altura
+visible en el plano de juego: cambiarla **no** altera el tamaño del jugador ni cuánto nivel se ve.
+Cambia por sala (`RoomDefinition.camera`) o por URL para probar en el móvil: `?fov=20`, `?cam=ortho`, `?vh=18`.
+
+Nota de legibilidad descubierta en el estudio: un maniquí blanco en sombra caía a gris oscuro (~30 %).
+Los personajes llevan un **suelo de luz** (`look.lightFloor`, 0.5 por defecto) para que nunca se hundan en el fondo.
 
 ## 9. Criterio visual final (checklist antes de dar por buena una decisión visual)
 

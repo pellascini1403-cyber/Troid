@@ -111,6 +111,7 @@ export class CharacterModel {
         rimColor: look.rim?.color,
         rimStrength: look.rim?.strength ?? 0,
         rimPower: look.rim?.power,
+        lightFloor: look.lightFloor ?? 0.5,
         transparent: false,
       });
       toon.name = src.name;

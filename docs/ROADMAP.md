@@ -8,7 +8,7 @@ Objetivo: 15–30 min de juego (ver §43 del brief). Cada fase termina con: `npm
 | **F1** | Inspección, ADR, arquitectura, scaffold, esqueleto que renderiza en Chromium | ✅ |
 | **F2** | Core: math, EventBus, Scheduler, StateMachine, Pool, Rng, Observable, DisposableStore, FixedStepper, tuning | ✅ |
 | **F3** | Maniquí 3D blanco rigged (GLB generado), `AssetManager`, `CharacterModel`, `AnimationController`, sockets, materiales toon | ✅ |
-| **F4** | `CameraRig` 2.5D + estudio ortográfica vs perspectiva | ⬜ |
+| **F4** | `CameraRig` 2.5D + estudio ortográfica vs perspectiva | ✅ |
 | **F5** | Colisión cinemática, locomoción, salto (coyote/buffer), dash, input de teclado, debug base | ⬜ |
 | **F6** | Ataque básico (startup/active/recovery), hitbox, daño, knockback, hit-stop, shake, hit flash | ⬜ |
 | **F7** | 4 enemigos 3D + IA por FSM, muerte | ⬜ |
