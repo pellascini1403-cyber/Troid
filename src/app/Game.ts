@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 import { createRenderer } from '@/render/createRenderer';
+import { DisposableStore } from '@/core/lifecycle';
+import { TICK_SECONDS } from '@/core/time';
+import { GameLoop } from './GameLoop';
+import { listen } from './dom';
 
 /**
  * F1 walking skeleton: proves the toolchain end to end (Vite → three → WebGL2 → Chromium → capture).
@@ -10,10 +14,12 @@ export class Game {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
   readonly camera: THREE.PerspectiveCamera;
-  private raf = 0;
-  private running = false;
-  private readonly onResize = () => this.resize();
+  /** Owns every listener / resource of this Game; `dispose()` releases them all. */
+  private readonly lifecycle = new DisposableStore();
+  private readonly loop: GameLoop;
   private readonly player: THREE.Mesh;
+  private simTime = 0;
+  private prevSimTime = 0;
 
   constructor(private readonly host: HTMLElement) {
     const canvas = document.createElement('canvas');
@@ -64,28 +70,43 @@ export class Game {
     this.player.castShadow = true;
     this.scene.add(this.player);
 
-    window.addEventListener('resize', this.onResize);
+    this.loop = new GameLoop({
+      tick: () => this.tick(),
+      frame: (alpha) => this.render(alpha),
+    });
+
+    listen(this.lifecycle, window, 'resize', () => this.resize());
+    // Mobile: never simulate (or burn battery) while the page is hidden, and never replay the time away.
+    listen(this.lifecycle, document, 'visibilitychange', () => {
+      if (document.hidden) this.loop.stop();
+      else this.loop.start();
+    });
+    this.lifecycle.add(() => {
+      this.loop.stop();
+      this.renderer.dispose();
+      this.renderer.domElement.remove();
+    });
     this.resize();
   }
 
   start(): void {
-    if (this.running) return;
-    this.running = true;
-    const frame = (t: number) => {
-      if (!this.running) return;
-      this.camera.position.x = Math.sin(t / 2500) * 6;
-      this.renderer.render(this.scene, this.camera);
-      this.raf = requestAnimationFrame(frame);
-    };
-    this.raf = requestAnimationFrame(frame);
+    this.loop.start();
   }
 
   dispose(): void {
-    this.running = false;
-    cancelAnimationFrame(this.raf);
-    window.removeEventListener('resize', this.onResize);
-    this.renderer.dispose();
-    this.renderer.domElement.remove();
+    this.lifecycle.dispose();
+  }
+
+  /** One fixed simulation step. */
+  private tick(): void {
+    this.prevSimTime = this.simTime;
+    this.simTime += TICK_SECONDS;
+  }
+
+  private render(alpha: number): void {
+    const t = this.prevSimTime + (this.simTime - this.prevSimTime) * alpha;
+    this.camera.position.x = Math.sin(t / 2.5) * 6;
+    this.renderer.render(this.scene, this.camera);
   }
 
   private resize(): void {
