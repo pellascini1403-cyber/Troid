@@ -106,6 +106,8 @@ export interface CameraPose {
   viewHalfWidth: number;
   /** Centre of the view on the gameplay plane (before shake). */
   center: Vec2;
+  /** Shake displacement in metres (already included in `lookAt`/`position`; the 2D view applies it on its own). */
+  shake: Vec2;
 }
 
 const DEG = Math.PI / 180;
@@ -165,6 +167,7 @@ export class CameraRig {
       viewHeight: this.viewHeight,
       viewHalfWidth: (this.viewHeight / 2) * this.aspect,
       center: { x: 0, y: 0 },
+      shake: { x: 0, y: 0 },
     };
   }
 
@@ -355,6 +358,8 @@ export class CameraRig {
     p.viewHalfWidth = half.w;
     p.center.x = cx;
     p.center.y = cy;
+    p.shake.x = shakeX;
+    p.shake.y = shakeY;
     p.lookAt.x = cx + shakeX;
     p.lookAt.y = cy + shakeY;
     p.lookAt.z = 0;

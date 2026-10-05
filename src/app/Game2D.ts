@@ -1,7 +1,7 @@
 import { Sprite } from 'pixi.js';
 import { canvasTexture } from '@/assets/proceduralTextures';
 import { CAMERA_2D } from '@/camera/camera2d';
-import { CameraRig, type CameraTarget } from '@/camera/CameraRig';
+import type { CameraTarget } from '@/camera/CameraRig';
 import { ABILITIES, PLAYER, ROOMS } from '@/content';
 import { DisposableStore } from '@/core/lifecycle';
 import { ColliderOverlay2D } from '@/debug/ColliderOverlay2D';
@@ -16,6 +16,7 @@ import { InputManager } from '@/input/InputManager';
 import { attachKeyboardMouse } from '@/input/sources/KeyboardMouseSource';
 import { PALETTE } from '@/presentation/palette';
 import { viewY } from '@/presentation/worldTransform';
+import { CameraAdapter2D } from '@/render/CameraAdapter2D';
 import { Renderer2D } from '@/render/Renderer2D';
 import { RoomView2D } from '@/render/RoomView2D';
 import { listen } from './dom';
@@ -39,14 +40,13 @@ export class Game2D {
   private readonly lifecycle = new DisposableStore();
   private readonly fps = new FpsMeter();
   private readonly loop: GameLoop;
-  private readonly cameraRig: CameraRig;
+  private readonly camera: CameraAdapter2D;
   private readonly roomView: RoomView2D;
   private readonly bindings = structuredClone(DEFAULT_BINDINGS);
   /** S1 placeholder: replaced by the sprite pipeline in S3. */
   private readonly playerSprite: Sprite;
   private colliders: ColliderOverlay2D | null = null;
   private panel: DebugPanel | null = null;
-  private snapCamera = true;
 
   /** Pixi's `Application.init` is asynchronous, hence the factory. */
   static async create(host: HTMLElement, query = new URLSearchParams(location.search)): Promise<Game2D> {
@@ -74,7 +74,7 @@ export class Game2D {
 
     // ---- camera ----
     const { bounds: _bounds, ...roomCamera } = this.session.room.camera ?? {};
-    this.cameraRig = new CameraRig({ ...CAMERA_2D, ...roomCamera, ...options.camera });
+    this.camera = new CameraAdapter2D(renderer, { ...roomCamera, ...options.camera });
 
     // ---- input ----
     attachKeyboardMouse(this.lifecycle, this.input, () => this.bindings);
@@ -150,8 +150,7 @@ export class Game2D {
     const room = this.session.room;
     this.roomView.build(room);
     this.colliders?.setRoom(this.session.collision);
-    this.cameraRig.setBounds(room.camera?.bounds ?? room.bounds, 0);
-    this.snapCamera = true;
+    this.camera.setRoom(room);
   }
 
   private render(alpha: number, realDt: number): void {
@@ -168,17 +167,7 @@ export class Game2D {
 
     // The camera follows the INTERPOLATED position — exactly what is drawn — so camera and player never jitter apart.
     const target: CameraTarget = { x, y, vx: p.body.vx, vy: p.body.vy, facing: p.facing, grounded: p.body.grounded };
-    const aspect = this.renderer.viewport.contentAspect;
-    if (this.snapCamera) {
-      this.cameraRig.snapTo(target, aspect);
-      this.snapCamera = false;
-    }
-    const pose = this.cameraRig.update(realDt, target, aspect);
-    this.renderer.applyCamera(
-      pose.center,
-      { x: pose.lookAt.x - pose.center.x, y: pose.lookAt.y - pose.center.y, rollRad: pose.rollRad },
-      pose.viewHeight,
-    );
+    this.camera.update(realDt, target);
 
     if (this.debug.get('colliders') && this.colliders) this.colliders.updateBodies([p.body]);
     this.loop.timeScale = this.debug.get('timeScale');
@@ -284,7 +273,7 @@ export class Game2D {
       teleport: (x: number, y: number) => {
         this.session.player.respawn(x, y, this.session.player.facing);
         this.session.collision.probeGround(this.session.player.body);
-        this.snapCamera = true;
+        this.camera.snap();
       },
       state: () => {
         const b = this.session.player.body;
@@ -296,6 +285,7 @@ export class Game2D {
           // `calls` keeps the field the 3D scenes used; `draws` is the same number under its real name
           calls: this.counter.median, triangles: 0,
           draws: this.counter.median, drawsMax: this.counter.max,
+          camera: { x: this.camera.centre.x, y: this.camera.centre.y, viewHeight: this.camera.rig.pose.viewHeight },
           view: { contentWidth: vp.contentWidth, contentHeight: vp.contentHeight, ppm: vp.ppm, resolution: vp.resolution, visibleWidth: vp.visibleWidth, barX: vp.barX, barY: vp.barY, rotateDevice: vp.rotateDevice },
           canvas: { cssWidth: this.renderer.app.canvas.clientWidth, cssHeight: this.renderer.app.canvas.clientHeight, width: this.renderer.app.canvas.width, height: this.renderer.app.canvas.height },
         };

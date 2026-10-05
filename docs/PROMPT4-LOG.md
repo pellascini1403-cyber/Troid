@@ -10,7 +10,7 @@
 |---|---|---|
 | **S0** baseline y etiqueta | ✅ | (ver historial) |
 | **S1** spike Pixi | ✅ | (ver historial) |
-| S2 cámara 2D | ⬜ | |
+| **S2** cámara 2D | ✅ | (ver historial) |
 | S3 sprites y animación | ⬜ | |
 | S4 retirar Three.js | ⬜ | |
 | S5 agacharse | ⬜ | |
@@ -78,3 +78,20 @@ El lote de Pixi v8 agrupa hasta 16 texturas distintas por llamada, por eso las c
 - El jugador de este paso es una **caja gris con muesca** (provisional, no es el personaje): S3 lo sustituye por el *placeholder* abstracto del pipeline de sprites.
 - La comprobación de resize/DPR/proporciones (que el plan asignaba en parte a S2) se hizo ya aquí porque `viewport` es una función pura; S2 se centra en el comportamiento de la **cámara**.
 - `__troid.ready()` es inmediato en 2D (todavía no hay assets que cargar de forma asíncrona).
+
+
+---
+
+## S2 — Cámara 2D ✅
+
+**Qué existe ahora**
+- `render/CameraAdapter2D.ts`: la matemática del `CameraRig` de F4 (seguimiento amortiguado, zona muerta, anticipación, política vertical por suelo, límites, zoom, *shake*) gobernando el contenedor del mundo. **No sabe de Pixi** (recibe un `CameraSink`), así que se prueba en Node. Recibe el aspecto del **área de juego** (4:3–21:9 tras el *clamp* del viewport), de modo que una sala nunca revela más ancho del diseñado.
+- `CameraRig`: único cambio, **aditivo** (`pose.shake`: el desplazamiento del *shake* en metros). Los 30 tests del rig siguen intactos; los campos de pose 3D se retiran en S4.
+- `Game2D` usa el adaptador (`setRoom`, `snap`, `update`); `window.__troid.state()` expone `camera` (centro y altura visible).
+- `viewHeight` = 13.5 m (GAME-SPEC §16); el rig usa los valores de partida de `camera/camera2d.ts` (desplazamiento y +2.3 m, zona muerta ±1.2 × ±1.4, anticipación 3.0 m).
+
+**Tests (15 nuevos en `tests/unit/camera/cameraAdapter2d.test.ts`)**: la vista **no muestra nada fuera de la sala** en 5 tamaños (4:3, 16:9, 19.5:9, 21:9 y 32:9 con barras) recorriendo toda la sala; la altura visible es exactamente `viewHeight` y el ancho sigue la proporción recortada; una sala más pequeña que la vista se centra; la anticipación empuja la vista hacia donde va el jugador (en ambos sentidos); la cámara se queda quieta si el jugador se detiene dentro de la zona muerta; no salta ante un movimiento brusco; `snap()` corta al cambiar de sala; el bloqueo de arena suaviza los límites sin saltos; el zoom mantiene la altura pedida; el *shake* desplaza y se extingue por completo.
+
+**E2E `camera-2d`** (dev y producción): a 844×390 la vista queda recortada contra el muro izquierdo y el jugador por la izquierda del centro; al correr la cámara acompaña (|cámara − jugador| < 3.2 m); contra el muro derecho nunca se ve más allá de la sala; a 21:9 muestra 31.5 m y a 4:3 18 m, ambos dentro de la sala. Capturas revisadas.
+
+**Hallazgo (sin cambios de diseño):** a velocidad de carrera el seguimiento amortiguado + la zona muerta (≈ 1.2 m + 1.7 m de retraso) compensan casi exactamente la anticipación de 3 m, así que el jugador corre cerca del centro de la pantalla; sin anticipación se iría hacia el borde (el test lo mide comparando con anticipación 0). El sesgo hacia donde mira queda dentro de la zona muerta (0.9 m < 1.2 m) y solo actúa con la cámara en movimiento. Son los números de F4/GAME-SPEC §16; se retocan como datos si el *playtest* lo pide.
