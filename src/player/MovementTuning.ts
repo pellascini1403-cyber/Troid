@@ -61,6 +61,20 @@ export interface MovementTuning {
     /** Seconds a dash press is remembered (so it fires the moment it becomes available). */
     buffer: number;
   };
+
+  /** Crouching (docs/GAME-SPEC-2D.md §6): a posture with collision consequences, not just an animation. */
+  crouch: {
+    /** Height of the collision body while crouched, metres (standing height lives in `PlayerDefinition.body`). */
+    height: number;
+    /** Height of the vulnerable region while crouched: hits at head height miss. */
+    hurtboxHeight: number;
+    /** Top walking speed while crouched, m/s (the ground accelerations still apply). */
+    speed: number;
+    /** `move.y` at or below `-enter` starts a crouch... */
+    enter: number;
+    /** ...and it can only end once `move.y` is back at or above `-exit` (hysteresis) AND there is room to stand. */
+    exit: number;
+  };
 }
 
 export const DEFAULT_MOVEMENT: MovementTuning = {
@@ -96,5 +110,13 @@ export const DEFAULT_MOVEMENT: MovementTuning = {
     airDashes: 1,
     ascentRetention: 0.8,
     buffer: 0.1,
+  },
+
+  crouch: {
+    height: 1.0,
+    hurtboxHeight: 0.9,
+    speed: 3.0,
+    enter: 0.6,
+    exit: 0.4,
   },
 };

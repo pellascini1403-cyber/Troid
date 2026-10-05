@@ -13,7 +13,7 @@
 | **S2** cámara 2D | ✅ | (ver historial) |
 | **S3** sprites y animación | ✅ | (ver historial) |
 | **S4** retirar Three.js | ✅ | (ver historial) |
-| S5 agacharse | ⬜ | |
+| **S5** agacharse | ✅ | (ver historial) |
 | S6 combate | ⬜ | |
 | S7 VFX | ⬜ | |
 | S8 muerte, reaparición, i18n | ⬜ | |
@@ -164,3 +164,33 @@ El lote de Pixi v8 agrupa hasta 16 texturas distintas por llamada, por eso las c
 **E2E (dev y producción): 5/5** (`movement`, `render`, `camera`, `sprites`, `stress`), **sin ningún aviso de consola** (desaparece el `THREE.WebGLShadowMap` del prototipo).
 
 **Docs:** [replace-sprites.md](guides/replace-sprites.md) (guía de *sprite sets*, sucesora de la de glTF, que queda con banner de obsoleta) y README actualizado. Los documentos históricos (`ARCHITECTURE.md`, `ART_DIRECTION.md`, `AUDIT`, ADR-0001/0002) se conservan.
+
+
+---
+
+## S5 — Agacharse ✅ (solo entrada PC; el táctil es del Prompt 5)
+
+Agacharse es un **estado con consecuencias de colisión** ([GAME-SPEC §6](GAME-SPEC-2D.md)), no una animación.
+
+| Regla del spec | Implementación | Verificado |
+|---|---|---|
+| Cuerpo 1.7 m → **1.0 m** (mismo ancho) | `MovementTuning.crouch.height`; `PlayerController.setCrouched` cambia `body.height` con los pies fijos | test + E2E (`bodyHeight`) |
+| Hurtbox 1.55 m → **0.9 m** (los golpes a la cabeza fallan) | `PlayerDefinition.body.hurtbox` (como en el WIP) + `Player.hurtbox()` según la postura | test: un golpe a 1.2–1.5 m acierta de pie y **falla agachado**; la hurtbox siempre cabe en el cuerpo |
+| Velocidad agachado **3.0 m/s** | tope `crouch.speed` sobre las aceleraciones de suelo (un gesto leve sigue siendo más lento) | test + E2E (vx = 3.00) |
+| Entrada `move.y ≤ −0.6`, salida `≥ −0.4` | histéresis en `updateFree` | test (−0.5 no entra; −0.45 no sale; −0.4 sale) |
+| Espacio para levantarse; **agachado forzado** bajo techo | `CollisionWorld.hasRoom(body, standHeight)` | test + E2E: soltar `S` bajo el techo **mantiene** el agachado hasta salir |
+| **Dash agachado** (el cuerpo mantiene la altura y el deslizamiento sigue bajo el pasaje) | la postura es una propiedad del cuerpo, independiente del estado `dash`; al acabar vuelve a `crouch` y se levanta cuando se permite | test (altura 1.0 durante todo el dash; queda agachado bajo techo; se levanta al salir) + E2E |
+| Salto desde agachado **solo con espacio**; sobre *one-way*, agachado + salto = atravesar | `canLeaveCrouch()`; la rama de atravesar sigue siendo la existente | test (sin espacio no hay salto; con espacio, de pie; *one-way* se atraviesa también desde el agachado) |
+| La cámara no se mueve | el objetivo es la posición de los **pies** | E2E (`camera.y` constante) |
+
+**Diseño.** `PlayerStateId` gana `crouch`; `free` y `crouch` comparten una sola rutina (`updateFree(crouching)`), de modo que **la lógica de movimiento, salto y gravedad no se duplicó ni se tocó**: solo se añadió el tope de velocidad, las salidas de postura y la condición «hay espacio» al salto. El único cambio de `MovementTuning` es el bloque `crouch` (los valores existentes están intactos).
+
+**Desviaciones y notas**
+- El spec pedía comprobar el espacio con `overlapsSolid` sobre el rectángulo de pie. `hasRoom` usa `overlapsSolid` pero **solo sobre la franja que queda encima del cuerpo actual**: es equivalente (lo ocupado no puede colisionar) y no se deja engañar por el ruido de punto flotante en los pies.
+- Un dash agachado usa la animación **`crouchWalk` rápida** (no `dash`): la pose estirada del placeholder sobresaldría del techo bajo. Es una decisión del placeholder; el arte final decidirá si añade un clip de deslizamiento.
+- `content/rooms/crouchTest.ts` (`?room=crouch_test`): sandbox con pasajes de 1.2 m y 1.4 m (los extremos del rango de GAME-SPEC §6). `movement_test` **no se tocó** (su túnel de 2.1 m no exige agacharse). El primer pasaje «solo agachado» del juego es el de la sala R1 (S10).
+
+**Tests: +29 (242 → 271)** en `tests/integration/crouch.test.ts` (archivo nuevo): postura e histéresis (9), techos bajos (5: cabe de lado a lado, agachado forzado, sin salto sin espacio, 1.4/1.0/0.95 m, *one-way* no bloquea), dash (5), hurtbox (3), reset, **determinismo** (traza tick a tick idéntica), **fuzz de 2000 ticks sin quedar nunca dentro de un sólido**, animación (1) y `hasRoom` (3).
+**Puerta de regresión: los 40 tests de `movement.test.ts` no se modificaron** (`git status` limpio) y pasan.
+
+**E2E `crouch` (dev y producción, 6/6 en total):** `S` agacha (1.7 → 1.0, sprite `crouch_`), cámara quieta, caminar agachado a 3.0 m/s (`crouchWalk_`), pasaje de 1.2 m, agachado forzado al soltar `S` bajo el techo, sale y se levanta; de pie queda bloqueado por el pasaje de 1.4 m; dash agachado con cuerpo 1.0 m; ≤ 60 *draw calls*. Capturas revisadas.

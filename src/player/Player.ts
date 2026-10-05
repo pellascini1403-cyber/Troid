@@ -1,3 +1,4 @@
+import type { Rect } from '@/core/math';
 import { Actor } from '@/gameplay/Actor';
 import type { SimServices } from '@/gameplay/SimServices';
 import type { InputFrame } from '@/input/InputFrame';
@@ -27,6 +28,20 @@ export class Player extends Actor {
     this.publishAnimation();
   }
 
+  /**
+   * The vulnerable region this tick (world space). It is smaller than the body and it LOSES THE HEAD when crouched:
+   * a hit at head height misses a crouched player (docs/GAME-SPEC-2D.md §6). Combat reads this, never the sprite.
+   */
+  hurtbox(out: Rect = { x0: 0, y0: 0, x1: 0, y1: 0 }): Rect {
+    const hb = this.def.body.hurtbox;
+    const h = this.controller.crouched ? this.def.movement.crouch.hurtboxHeight : hb.height;
+    out.x0 = this.body.x - hb.halfWidth;
+    out.x1 = this.body.x + hb.halfWidth;
+    out.y0 = this.body.y;
+    out.y1 = this.body.y + h;
+    return out;
+  }
+
   /** Back to a clean slate at `(x, y)` (respawn, room entry). Abilities and progression are not touched. */
   respawn(x: number, y: number, facing: 1 | -1 = 1): void {
     this.teleport(x, y, facing);
@@ -49,6 +64,8 @@ export class Player extends Actor {
       landTicks: c.landTicks,
       walkSpeed: m.walkSpeed,
       runSpeed: m.runSpeed,
+      crouching: c.crouched,
+      crouchSpeed: m.crouch.speed,
     });
     this.view.anim = out.anim;
     this.view.animSpeed = out.speed;

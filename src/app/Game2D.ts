@@ -279,6 +279,7 @@ export class Game2D {
         return {
           x: b.x, y: b.y, vx: b.vx, vy: b.vy, grounded: b.grounded,
           anim: this.session.player.view.anim, state: this.session.player.controller.state,
+          crouched: this.session.player.controller.crouched, bodyHeight: b.height,
           sprite: {
             set: ps.spriteSetId, frame: ps.frame, facing: ps.root.scale.x, visible: ps.root.visible,
             hand: anchor('hand_r'), grip: anchor('weapon_grip'), tip: anchor('weapon_tip'),

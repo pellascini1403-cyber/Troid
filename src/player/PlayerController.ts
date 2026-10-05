@@ -6,7 +6,7 @@ import type { SimServices } from '@/gameplay/SimServices';
 import type { MovementTuning } from './MovementTuning';
 import type { Player } from './Player';
 
-export type PlayerStateId = 'free' | 'dash';
+export type PlayerStateId = 'free' | 'crouch' | 'dash';
 
 /**
  * PLAYER LOGIC (movement): turns one `InputFrame` into velocities and moves the body.
@@ -16,6 +16,10 @@ export type PlayerStateId = 'free' | 'dash';
  * announces what happened through the event bus.
  *
  * Tick order: timers → state update (decide velocities) → integrate (move + collide + landing).
+ *
+ * Posture: `crouch` is a state AND a body shape (docs/GAME-SPEC-2D.md §6). The shape (`crouched`) is what the world
+ * sees: the collision body is 1.0 m instead of 1.7 m and the hurtbox loses the head. It survives a dash (a crouched
+ * dash slides under low passages) and it can only end when there is room to stand.
  */
 export class PlayerController {
   private readonly fsm: StateMachine<PlayerController, PlayerStateId>;
@@ -40,6 +44,8 @@ export class PlayerController {
 
   private jumping = false;
   private jumpCut = false;
+  /** The body is currently the crouched size. Independent of the state so a dash can keep the shape. */
+  private crouching = false;
   private dashDir: 1 | -1 = 1;
   /** Upward speed at the moment the dash started (restored partially when it ends). */
   private dashSavedVy = 0;
@@ -48,7 +54,15 @@ export class PlayerController {
     this.fsm = new StateMachine<PlayerController, PlayerStateId>(
       this,
       {
-        free: { update: (c) => c.updateFree() },
+        free: { update: (c) => c.updateFree(false) },
+        crouch: {
+          enter: (c) => c.setCrouched(true),
+          update: (c) => c.updateFree(true),
+          // A dash keeps the crouched shape; every other exit goes through `canStand()` first.
+          exit: (c, to) => {
+            if (to === 'free') c.setCrouched(false);
+          },
+        },
         dash: { enter: (c) => c.enterDash(), update: (c) => c.updateDash(), exit: (c) => c.exitDash() },
       },
       'free',
@@ -60,6 +74,10 @@ export class PlayerController {
   }
   get dashing(): boolean {
     return this.fsm.current === 'dash';
+  }
+  /** The body is the crouched size (also true while dashing out of a crouch, or when forced by a low ceiling). */
+  get crouched(): boolean {
+    return this.crouching;
   }
   get isInvulnerable(): boolean {
     return this.invulnerable > 0;
@@ -88,6 +106,9 @@ export class PlayerController {
     this.dropThrough = this.jumpHeldTicks = this.airDashesUsed = this.invulnerable = this.landTicks = 0;
     this.jumping = this.jumpCut = false;
     this.fsm.go('free');
+    // Hard reset of the shape (respawn / room change): the spawn point is always free, so no room check.
+    this.crouching = false;
+    this.player.body.height = this.player.def.body.height;
   }
 
   // ------------------------------------------------------------------------------------------------ timers
@@ -106,7 +127,8 @@ export class PlayerController {
 
   // -------------------------------------------------------------------------------------------- free state
 
-  private updateFree(): void {
+  /** One routine for the two ground-capable states: `crouching` only changes the speed cap and the posture exits. */
+  private updateFree(crouching: boolean): void {
     const p = this.player;
     const b = p.body;
     const t = this.tuning;
@@ -133,7 +155,9 @@ export class PlayerController {
         this.coyote = 0;
         b.grounded = false;
         b.ground = null;
-      } else if (grounded || this.coyote > 0) {
+      } else if ((grounded || this.coyote > 0) && this.canLeaveCrouch()) {
+        // from a crouch the body stands up first; without room there is no jump (the press expires with its buffer)
+        this.setCrouched(false);
         this.startJump(grounded);
       }
     }
@@ -149,7 +173,8 @@ export class PlayerController {
     }
 
     // ---- horizontal: accelerate toward the target speed, snappier when reversing ----
-    const target = sign(mx) * speedForMagnitude(Math.abs(mx), t);
+    const top = speedForMagnitude(Math.abs(mx), t);
+    const target = sign(mx) * (crouching ? Math.min(top, t.crouch.speed) : top);
     const air = !b.grounded;
     let accel: number;
     if (target === 0) {
@@ -168,8 +193,34 @@ export class PlayerController {
     else if (air && Math.abs(b.vy) < t.apexThreshold && inp.jumpHeld) g *= t.apexGravityMultiplier;
     b.vy = Math.max(b.vy - g * TICK_SECONDS, -t.maxFallSpeed);
 
-    // ---- dash ----
+    // ---- posture: in / out of the crouch, with hysteresis; standing up needs room ----
+    if (crouching) {
+      const pushingDown = inp.move.y < -t.crouch.exit;
+      if ((!b.grounded || !pushingDown) && this.canStand()) this.fsm.go('free');
+    } else if (b.grounded && inp.move.y <= -t.crouch.enter) {
+      this.fsm.go('crouch');
+    }
+
+    // ---- dash (overrides the posture change: a dash keeps whatever shape the body has) ----
     if (this.dashBuffer > 0 && this.canDash()) this.fsm.go('dash');
+  }
+
+  // ----------------------------------------------------------------------------------------------- posture
+
+  /** Is there room for the standing body where the feet are? (Crouched under a low ceiling: no.) */
+  private canStand(): boolean {
+    return this.sim.collision.hasRoom(this.player.body, this.player.def.body.height);
+  }
+
+  /** A crouched player may only jump (or stand) when the standing body fits. */
+  private canLeaveCrouch(): boolean {
+    return !this.crouching || this.canStand();
+  }
+
+  private setCrouched(on: boolean): void {
+    if (this.crouching === on) return;
+    this.crouching = on;
+    this.player.body.height = on ? this.tuning.crouch.height : this.player.def.body.height;
   }
 
   private startJump(fromGround: boolean): void {
@@ -224,17 +275,24 @@ export class PlayerController {
     b.vx = this.dashDir * t.dash.speed;
     b.vy = 0;
     if (b.hitLeft || b.hitRight) {
-      this.fsm.go('free'); // slammed into a wall: the dash is over
+      this.fsm.go(this.postDashState()); // slammed into a wall: the dash is over
       return;
     }
-    // Dash-jump: on the ground (or within coyote) a jump press ends the dash and takes off at run speed.
-    if (this.jumpBuffer > 0 && (b.grounded || this.coyote > 0)) {
+    // Dash-jump: on the ground (or within coyote) a jump press ends the dash and takes off at run speed
+    // (from a crouched dash only if the body can stand).
+    if (this.jumpBuffer > 0 && (b.grounded || this.coyote > 0) && this.canLeaveCrouch()) {
+      this.setCrouched(false);
       this.fsm.go('free');
       this.startJump(b.grounded);
       b.vx = this.dashDir * t.runSpeed;
       return;
     }
-    if (--this.dashTicksLeft <= 0) this.fsm.go('free');
+    if (--this.dashTicksLeft <= 0) this.fsm.go(this.postDashState());
+  }
+
+  /** A dash that started crouched ends crouched: `crouch` then stands up as soon as it is allowed (see `updateFree`). */
+  private postDashState(): PlayerStateId {
+    return this.crouching ? 'crouch' : 'free';
   }
 
   private exitDash(): void {

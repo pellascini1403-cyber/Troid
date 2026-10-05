@@ -9,12 +9,13 @@ import { mkdirSync } from 'node:fs';
 import { launchBrowser, openPage, startPreview, startServer, type OpenedPage } from './harness';
 import type { Ctx, GameState, Scenario } from './scenario';
 import { camera } from './scenarios/camera';
+import { crouch } from './scenarios/crouch';
 import { movement } from './scenarios/movement';
 import { render } from './scenarios/render';
 import { sprites } from './scenarios/sprites';
 import { stress } from './scenarios/stress';
 
-const ALL: Scenario[] = [movement, render, camera, sprites, stress];
+const ALL: Scenario[] = [movement, crouch, render, camera, sprites, stress];
 const filter = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const prod = process.argv.includes('--prod');
 const selected = ALL.filter((s) => !filter || s.name.includes(filter));

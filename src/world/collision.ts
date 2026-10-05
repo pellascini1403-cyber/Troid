@@ -136,6 +136,21 @@ export class CollisionWorld {
   }
 
   /**
+   * Would the body still be free of solids if it were `height` tall (feet where they are)? Used to stand up from a
+   * crouch: only the band ABOVE the current body is checked, because the part already occupied cannot collide.
+   * One-way platforms never block standing up.
+   */
+  hasRoom(b: KinematicBody, height: number): boolean {
+    if (height <= b.height) return true;
+    const r = this.tmp;
+    r.x0 = b.x - b.halfW;
+    r.x1 = b.x + b.halfW;
+    r.y0 = b.y + b.height;
+    r.y1 = b.y + height;
+    return !this.overlapsSolid(r);
+  }
+
+  /**
    * Moves a body by (dx, dy), resolving collisions. Writes contact flags and zeroes the velocity component
    * that was blocked. `dropThrough` lets the body fall through one-way platforms this call.
    */

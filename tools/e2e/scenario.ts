@@ -18,6 +18,9 @@ export interface Ctx {
 export interface GameState {
   x: number; y: number; vx: number; vy: number; grounded: boolean; anim: string; state: string;
   tick: number; fps: number; calls: number; triangles: number;
+  /** The body is the crouched size, and its current collision height in metres. */
+  crouched?: boolean;
+  bodyHeight?: number;
   /** 2D view only: median / worst GL draw calls per frame over the last 120 frames. */
   draws?: number;
   drawsMax?: number;

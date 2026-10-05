@@ -11,7 +11,10 @@ export interface PlayerDefinition {
   /** Collision body. Position of the player is the centre of the feet. */
   body: {
     halfWidth: number;
+    /** Standing height. The crouched height is `movement.crouch.height`. */
     height: number;
+    /** Vulnerable region while standing: deliberately smaller than the body so near-misses feel fair. */
+    hurtbox: { halfWidth: number; height: number };
   };
   movement: MovementTuning;
 }
