@@ -4,6 +4,10 @@ Metroidvania de acción y exploración con **vista lateral 2.5D** y personajes/m
 pensado primero para **iOS y Android** y jugable en **PC**. Este repositorio contiene la base técnica y la
 *vertical slice* «Ancient Forest Ruins» (15–30 min).
 
+> ⚠️ **Cambio de dirección en curso (2026-10-05):** el brief más reciente pide **2D con sprites**, no 3D/2.5D. Estado real, plan y
+> decisiones pendientes: [`docs/AUDIT-2026-10.md`](docs/AUDIT-2026-10.md) · [ADR-0002](docs/adr/0002-direction-2d.md) (propuesta).
+> Lo que sigue describe el prototipo F1–F5 (3D), que es lo que hoy se ejecuta.
+
 > Estado y plan por fases: [`docs/ROADMAP.md`](docs/ROADMAP.md) · Arquitectura: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) ·
 > Por qué este stack: [`docs/adr/0001-stack.md`](docs/adr/0001-stack.md) · Arte: [`docs/ART_DIRECTION.md`](docs/ART_DIRECTION.md)
 

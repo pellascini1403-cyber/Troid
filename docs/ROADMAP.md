@@ -1,5 +1,10 @@
 # Roadmap — Vertical slice «Ancient Forest Ruins»
 
+> ⚠️ **Obsoleto desde 2026-10-05.** Este plan (F1–F19) corresponde a la dirección 3D 2.5D del primer brief. El plan vigente
+> (propuesto, pendiente de confirmar D1/D2) está en [`AUDIT-2026-10.md` §7](AUDIT-2026-10.md#7-plan-de-fases-ordenado-por-dependencias)
+> y [ADR-0002](adr/0002-direction-2d.md). F1, F2 y la lógica de F4/F5 (simulación, input, cámara) siguen siendo la base; el maniquí 3D (F3)
+> y la vista 3D se reemplazan. El trabajo a medias de F6 está en la rama `wip/f6-combat-core`.
+
 Objetivo: 15–30 min de juego (ver §43 del brief). Cada fase termina con: `npm run check` en verde
 (typecheck + tests), build de producción y — cuando hay algo visible — captura en Chromium a 844×390.
 

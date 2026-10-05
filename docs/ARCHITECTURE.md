@@ -3,6 +3,10 @@
 > Documento vivo. Fuente de verdad de las decisiones estructurales; si el código y este documento
 > discrepan, se corrige uno de los dos en la misma PR. Stack y motivos: [ADR-0001](adr/0001-stack.md).
 
+> ⚠️ **Parcialmente obsoleto (2026-10-05).** Los principios, la simulación, el input, el sistema de eventos y el test de arquitectura
+> siguen vigentes. Lo que describe de Three.js, glTF y la cámara 3D corresponde al prototipo 3D y se reemplazará si se confirma
+> [ADR-0002](adr/0002-direction-2d.md) (propuesta). Mapa actual y arquitectura propuesta: [AUDIT-2026-10 §3 y §5](AUDIT-2026-10.md).
+
 ## 1. Principios
 
 1. **La simulación no sabe que existe un renderizador.** Todo lo que decide el resultado del juego

@@ -1,6 +1,7 @@
 # ADR-0001 — Stack tecnológico
 
-**Estado:** aceptada · **Fecha:** 2026-10-01 · **Fase:** F1
+**Estado:** aceptada (la parte de Three.js / glTF queda **en revisión** por [ADR-0002](0002-direction-2d.md), propuesta) ·
+**Fecha:** 2026-10-01 · **Fase:** F1
 
 ## Contexto: qué se encontró al inspeccionar el repositorio
 
