@@ -12,7 +12,7 @@
 | **S1** spike Pixi | ✅ | (ver historial) |
 | **S2** cámara 2D | ✅ | (ver historial) |
 | **S3** sprites y animación | ✅ | (ver historial) |
-| S4 retirar Three.js | ⬜ | |
+| **S4** retirar Three.js | ✅ | (ver historial) |
 | S5 agacharse | ⬜ | |
 | S6 combate | ⬜ | |
 | S7 VFX | ⬜ | |
@@ -126,3 +126,41 @@ El lote de Pixi v8 agrupa hasta 16 texturas distintas por llamada, por eso las c
 - La ruta de atlas **en archivo** (`<atlas>.json` + imagen) está implementada y probada con datos en memoria (incluido el recorte); no se ha ejercitado con un archivo real porque aún no hay arte.
 - El laboratorio dibuja ~100 formas de depuración (con `pixelLine`, que rompe el lote) y por eso sus *draw calls* (≈ 126) no son presupuesto; el de la escena de juego se mide en `movement-2d`.
 - Los *hooks* `step`/`teleport` actualizan el sprite inmediatamente (los tests leen el estado presentado justo después de avanzar).
+
+
+---
+
+## S4 — Retirar Three.js ✅
+
+**Puerta de salida cumplida:** `grep -rn "from 'three"` en `src/`, `tests/` y `tools/` está **vacío** (solo queda la cadena `'three'` dentro de la regla del test de arquitectura que lo prohíbe); `three` y `@types/three` ya no están en `package.json` ni en `package-lock.json`; la única dependencia de runtime es `pixi.js`.
+
+**Borrado (todo sigue en el *tag* `proto-3d-f5` / rama `archive/proto-3d-f5`):**
+- Vista 3D: `app/Game.ts`, `render/{SunRig,createRenderer,dispose}.ts`, `render/materials/{outline,toon}.ts`, `world/view/RoomBlockout.ts`, `player/PlayerVisual.ts`, `camera/CameraView.ts`, `debug/ColliderOverlay.ts`.
+- Pipeline glTF: `assets/{ActorVisual,AnimationController,AssetManager,CharacterModel,validateModel}.ts`, `models/` (`ModelDefinition`, `vocabulary` → ya vive en `presentation/`), `content/models.ts`, `public/assets/models/mannequin.glb`, `tools/gen/` (generador de modelos) y el script `gen:models`.
+- Laboratorios 3D: `app/labs/{modelLab,cameraLab}.ts`.
+- Tests: `tests/unit/assets/assets.test.ts` (los **23 ya estaban portados en S3**) y `tests/helpers/loadGlb.ts`.
+- Re-exports transitorios de S3: `gameplay/actorViewState.ts` (los imports apuntan a `presentation/`), `models/vocabulary.ts`. `PlayerDefinition.modelId` desaparece (queda `spriteSetId`).
+
+**Modificado**
+- `app/main.ts`: la vista 2D es **la** vista (`?view=2d` ya no hace falta; se ignora); rutas `?lab=sprites` y `?lab=stress`.
+- `camera/CameraRig.ts`: sin pose 3D (`position`, `lookAt`, `projection`, `fovDeg`, `distance`; config `projection`, `fovDeg`, `pitchDeg`, `swayDeg`, `near`, `far`; `distanceForView`). Queda lo que usa la vista 2D: `center`, `viewHeight`, `viewHalfWidth`, `shake`, `rollRad`. La matemática de seguimiento, zona muerta, anticipación, política vertical, límites, zoom y *shake* **no cambia**.
+- `app/options.ts`: `?cam/fov/pitch` desaparecen; `?vh=` se conserva.
+- `vite.config.ts`: `optimizeDeps` pre-empaqueta `pixi.js` en vez de `three`.
+- Escenarios E2E: sin variante 3D; `movement-2d` → `movement`, `render-2d` → `render`, `camera-2d` → `camera`, `sprites-2d` → `sprites`, `stress-2d` → `stress`.
+- `?lab=sprites&set=<id>` muestra cualquier *sprite set* registrado.
+
+**Test de arquitectura (16 → 19):** módulos puros actualizados (`models` fuera; `abilities`, `interaction`, `i18n` declarados para los pasos siguientes), «puros no importan `pixi.js`», **`three` prohibido en todo `src/`**, `presentation/` e `i18n/` solo importan `core/`, `ui/` no importa `pixi.js` ni `render/` y `render/vfx/assets` no importan `ui/`. Sin cambios: `core` aislado, solo `app/`/`content/` importan `content/`, los 11 patrones de determinismo.
+
+**Tests: 265 → 242** — −23 (assets 3D, portados en S3), −4 y +1 en `cameraRig` (30 → 27: se retiran *pitch*, proyección ortográfica, *sway* y «distancia para cualquier FOV» porque ese comportamiento ya no existe; se añade «la pose informa exactamente `viewHeight`», cuyo equivalente de render ya lo cubren `worldTransform`/`viewport`/`cameraAdapter2d`; el de *shake* se adapta a `pose.shake`), +3 en `architecture`. **Los 40 de movimiento no se tocaron** (`git status tests/integration` limpio) y siguen verdes.
+
+**Tamaño del bundle ✅** (build de producción, gzip de todos los `.js`)
+
+| | Antes (S3) | Después (S4) |
+|---|---:|---:|
+| JS total | 377.6 KB (39 archivos) | **211.0 KB** (30 archivos) |
+| *Chunk* de Three (`createRenderer`) | 156.7 KB | — |
+| `dist/` completo (con *sourcemaps*) | 7.9 MB | 3.7 MB |
+
+**E2E (dev y producción): 5/5** (`movement`, `render`, `camera`, `sprites`, `stress`), **sin ningún aviso de consola** (desaparece el `THREE.WebGLShadowMap` del prototipo).
+
+**Docs:** [replace-sprites.md](guides/replace-sprites.md) (guía de *sprite sets*, sucesora de la de glTF, que queda con banner de obsoleta) y README actualizado. Los documentos históricos (`ARCHITECTURE.md`, `ART_DIRECTION.md`, `AUDIT`, ADR-0001/0002) se conservan.

@@ -2,6 +2,7 @@ import { Container, Graphics, Sprite, Text, type Texture } from 'pixi.js';
 import { SpriteAssetManager, type LoadedSpriteSet } from '@/assets/SpriteAssetManager';
 import { DrawCallCounter } from '@/debug/DrawCallCounter';
 import { createPixiSpriteLoader } from '@/assets/spriteLoader';
+import { PROCEDURAL_ATLASES, SPRITE_SETS } from '@/content';
 import { PLAYER_PLACEHOLDER, PLAYER_PLACEHOLDER_SPEC } from '@/content/placeholders/playerPlaceholder';
 import { PALETTE } from '@/presentation/palette';
 import { buildPlaceholderSet } from '@/presentation/placeholder';
@@ -18,7 +19,8 @@ import { Renderer2D } from '@/render/Renderer2D';
  * same `ActorViewState` the simulation writes. It is the successor of the glTF model lab: how to look at a sprite set
  * without playing, and how to check what the validator reports.
  *
- *   ?s=24  px per metre of the sheet · ?variant=1  start with the second art resolution (swap check)
+ *   ?set=<id>  any sprite set registered in `content/sprites.ts` (default: the player's placeholder)
+ *   ?s=24      px per metre of the sheet · ?variant=1  start with the second art resolution (swap check)
  *
  * `window.__sprites` lets the E2E scenario drive it.
  */
@@ -31,12 +33,13 @@ export async function startSpriteLab(host: HTMLElement, params: URLSearchParams)
   // The same pose table at a DIFFERENT art resolution: proves the pipeline measures sprites in metres, not pixels.
   const variantBuilt = buildPlaceholderSet({ ...PLAYER_PLACEHOLDER_SPEC, id: 'player_placeholder_lowres', artPxPerMeter: 36 });
   const sprites = new SpriteAssetManager<Texture>(
-    createPixiSpriteLoader({
-      procedural: { [PLAYER_PLACEHOLDER.def.id]: PLAYER_PLACEHOLDER, [variantBuilt.def.id]: variantBuilt },
-    }),
+    createPixiSpriteLoader({ procedural: { ...PROCEDURAL_ATLASES, [variantBuilt.def.id]: variantBuilt } }),
     { validate: false },
   );
-  const main = await sprites.acquire(PLAYER_PLACEHOLDER.def);
+  const setId = params.get('set') ?? PLAYER_PLACEHOLDER.def.id;
+  const setDef = SPRITE_SETS[setId];
+  if (!setDef) throw new Error(`unknown sprite set "${setId}" (registered: ${Object.keys(SPRITE_SETS).join(', ')})`);
+  const main = await sprites.acquire(setDef);
   const lowres = await sprites.acquire(variantBuilt.def);
 
   const counter = new DrawCallCounter();

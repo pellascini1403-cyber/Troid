@@ -1,27 +1,18 @@
 import { clamp, damp, smoothDamp, type SmoothState, type Vec2 } from '@/core/math';
 
 /**
- * Side-scroller camera as pure math. Nothing here knows about three.js: `update()` returns a `CameraPose`
- * and `CameraView` applies it to a real camera. That keeps every behaviour testable in node.
+ * Side-scroller camera as pure math. Nothing here knows about the renderer: `update()` returns a `CameraPose`
+ * (the centre of the view, its visible size and the shake) and `render/CameraAdapter2D` applies it to the PixiJS
+ * world container. That keeps every behaviour testable in node.
  *
- * Mental model: the rig tracks a CENTRE point on the gameplay plane (z = 0). The 3D camera is then placed
- * `distance` metres in front of that point (slightly above and rotated), so the visible height AT THE GAMEPLAY
- * PLANE is always exactly `viewHeight`, whatever projection or FOV is used. That makes the projection a pure
- * art-direction choice: it never changes how big the player looks or how much of the level is visible.
+ * Mental model: the rig tracks a CENTRE point on the gameplay plane and a visible height `viewHeight` in metres;
+ * the visible width follows the aspect ratio. The projection is flat (2D), so nothing else decides how big the
+ * player looks or how much of the level is visible.
  */
 
-export type Projection = 'perspective' | 'orthographic';
-
 export interface CameraConfig {
-  projection: Projection;
-  /** Vertical FOV (perspective only). Narrow = flatter and more "side-on"; wide = more parallax and distortion. */
-  fovDeg: number;
-  /** Visible world height at the gameplay plane, metres. */
+  /** Visible world height, metres. */
   viewHeight: number;
-  /** Fixed downward tilt in degrees: shows platform tops and adds volume. */
-  pitchDeg: number;
-  /** Extra yaw (degrees) reached at the far ends of the room: a slow parallax drift. 0 disables it. */
-  swayDeg: number;
   /** Target position relative to the screen centre in metres: +y puts the player lower on screen. */
   offset: Vec2;
   /** Region around the screen centre where the target can move without moving the camera. */
@@ -54,16 +45,10 @@ export interface CameraConfig {
     /** Trauma lost per second. */
     decay: number;
   };
-  near: number;
-  far: number;
 }
 
 export const DEFAULT_CAMERA: CameraConfig = {
-  projection: 'perspective',
-  fovDeg: 26,
   viewHeight: 15,
-  pitchDeg: 3.5,
-  swayDeg: 0,
   offset: { x: 0, y: 2.6 },
   deadZone: { halfWidth: 1.4, halfHeight: 1.6 },
   smoothTime: { x: 0.2, y: 0.32, fall: 0.14 },
@@ -72,8 +57,6 @@ export const DEFAULT_CAMERA: CameraConfig = {
   zoomSmoothTime: 0.5,
   boundsSmoothTime: 0.6,
   shake: { maxOffset: 0.45, maxRollDeg: 1.4, frequency: 17, decay: 1.7 },
-  near: 0.5,
-  far: 600,
 };
 
 export interface CameraTarget {
@@ -85,7 +68,7 @@ export interface CameraTarget {
   grounded: boolean;
 }
 
-/** World rectangle (gameplay plane) the VIEW must stay inside. */
+/** World rectangle the VIEW must stay inside. */
 export interface CameraBounds {
   x0: number;
   y0: number;
@@ -94,28 +77,19 @@ export interface CameraBounds {
 }
 
 export interface CameraPose {
-  position: { x: number; y: number; z: number };
-  lookAt: { x: number; y: number; z: number };
+  /** Shake roll, radians. */
   rollRad: number;
-  projection: Projection;
-  fovDeg: number;
-  /** Distance from the gameplay plane (perspective) — also used as the ortho camera standoff. */
-  distance: number;
-  /** Current visible height / half width at the gameplay plane (after zoom). */
+  /** Current visible height / half width (after zoom). */
   viewHeight: number;
   viewHalfWidth: number;
-  /** Centre of the view on the gameplay plane (before shake). */
+  /** Centre of the view (before shake). */
   center: Vec2;
-  /** Shake displacement in metres (already included in `lookAt`/`position`; the 2D view applies it on its own). */
+  /** Shake displacement in metres, applied on top of `center` by the view. */
   shake: Vec2;
 }
 
 const DEG = Math.PI / 180;
 const MAX_DT = 0.1;
-
-export function distanceForView(viewHeight: number, fovDeg: number): number {
-  return viewHeight / 2 / Math.tan((fovDeg * DEG) / 2);
-}
 
 /** Cheap smooth noise in [-1, 1]; deterministic (no Math.random) so shake is testable. */
 function noise(t: number, seed: number): number {
@@ -158,12 +132,7 @@ export class CameraRig {
     this.viewHeight = this.config.viewHeight;
     this.zoomVelocity = { value: this.viewHeight, velocity: 0 };
     this.pose = {
-      position: { x: 0, y: 0, z: 0 },
-      lookAt: { x: 0, y: 0, z: 0 },
       rollRad: 0,
-      projection: this.config.projection,
-      fovDeg: this.config.fovDeg,
-      distance: distanceForView(this.viewHeight, this.config.fovDeg),
       viewHeight: this.viewHeight,
       viewHalfWidth: (this.viewHeight / 2) * this.aspect,
       center: { x: 0, y: 0 },
@@ -320,7 +289,7 @@ export class CameraRig {
     return clamp(value, lo + half, hi - half);
   }
 
-  /** Turns the smoothed centre into the final 3D pose (clamps, focus, shake, pitch, sway). */
+  /** Turns the smoothed centre into the final pose (clamps, focus, shake). */
   private compose(_dt: number): void {
     const cfg = this.config;
     const half = this.halfExtents();
@@ -340,32 +309,13 @@ export class CameraRig {
     const shakeY = t * cfg.shake.maxOffset * noise(f, 7.7);
     const roll = t * cfg.shake.maxRollDeg * DEG * noise(f, 13.1);
 
-    // pitch + optional sway (yaw grows toward the ends of the room)
-    let yaw = 0;
-    if (cfg.swayDeg !== 0 && this.bounds) {
-      const mid = (this.bounds.x0 + this.bounds.x1) / 2;
-      const span = Math.max(1, (this.bounds.x1 - this.bounds.x0) / 2);
-      yaw = clamp((cx - mid) / span, -1, 1) * cfg.swayDeg * DEG;
-    }
-    const pitch = cfg.pitchDeg * DEG;
-    const distance = cfg.projection === 'perspective' ? distanceForView(this.viewHeight, cfg.fovDeg) : 60;
-
     const p = this.pose;
-    p.projection = cfg.projection;
-    p.fovDeg = cfg.fovDeg;
-    p.distance = distance;
     p.viewHeight = this.viewHeight;
     p.viewHalfWidth = half.w;
     p.center.x = cx;
     p.center.y = cy;
     p.shake.x = shakeX;
     p.shake.y = shakeY;
-    p.lookAt.x = cx + shakeX;
-    p.lookAt.y = cy + shakeY;
-    p.lookAt.z = 0;
-    p.position.x = cx + shakeX + distance * Math.sin(yaw) * Math.cos(pitch);
-    p.position.y = cy + shakeY + distance * Math.sin(pitch);
-    p.position.z = distance * Math.cos(yaw) * Math.cos(pitch);
     p.rollRad = roll;
   }
 }

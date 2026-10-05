@@ -1,5 +1,5 @@
 import { createBody, type KinematicBody } from '@/world/collision';
-import { createActorViewState, type ActorViewState } from './actorViewState';
+import { createActorViewState, type ActorViewState } from '@/presentation/actorViewState';
 
 export type Team = 'player' | 'enemy' | 'neutral';
 

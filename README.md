@@ -1,12 +1,12 @@
 # Troid
 
 Metroidvania 2D de acción y exploración, pensado primero para **iOS y Android** y jugable en **PC**.
-Dirección definitiva: **2D puro con sprites**, renderer **PixiJS v8** (todavía no instalado), energía cian/azul, controles móviles por gestos.
+Dirección definitiva: **2D puro con sprites**, renderer **PixiJS v8**, energía cian/azul, controles móviles por gestos.
 Este repositorio contiene la base técnica y, en construcción, la *vertical slice* «Ancient Forest Ruins» (15–30 min).
 
-> ⚠️ **Estado real (2026-10-05):** lo que hoy se ejecuta (`npm run dev`) es el **prototipo F1–F5 con vista 3D** (Three.js), que se retira en el Prompt 4
-> (paso S4). La simulación —movimiento, input, cámara (matemática), debug— es la base que se **conserva**. El Prompt 3 dejó la especificación
-> completa; no se ha iniciado la migración del renderer.
+> **Estado real (2026-10-05):** el Prompt 4 está migrando el juego a 2D. Ya corre **PixiJS v8** (cámara 2D, sprites con animación por fases y
+> *placeholder* abstracto del protagonista) y **Three.js está retirado** del código y de las dependencias; el último estado 3D está en el *tag*
+> `proto-3d-f5` (y en la rama `archive/proto-3d-f5`). Avance paso a paso: [bitácora del Prompt 4](docs/PROMPT4-LOG.md).
 
 > **Documentación vigente:** [GAME-SPEC-2D](docs/GAME-SPEC-2D.md) (qué se construye) · [ARCHITECTURE-2D](docs/ARCHITECTURE-2D.md) (cómo) ·
 > [MIGRATION-2D](docs/MIGRATION-2D.md) (orden, riesgos, criterios) · [ADR-0003](docs/adr/0003-arquitectura-2d-definitiva.md) (decisiones) ·
@@ -29,16 +29,18 @@ Herramientas de desarrollo (usan el Chromium preinstalado, ver `TROID_CHROMIUM`)
 
 ```bash
 npm run shot -- --out .shots/boot.png --w 844 --h 390   # captura del juego en tamaño teléfono
-npm run gen:models                                         # regenera los .glb placeholder
+npm run test:e2e                                           # escenarios E2E con Playwright (--prod: contra el build)
 ```
+
+Laboratorios (solo desarrollo): `?lab=sprites` (hoja de contacto de un *sprite set* con sus anclas) y `?lab=stress` (presupuesto de render).
 
 ## Estructura
 
 ```
-src/        código (módulos por responsabilidad; ver docs/ARCHITECTURE.md §2)
-tests/      unit · integration · e2e
-tools/      generadores de modelos y arnés E2E
-public/     assets estáticos (modelos .glb, audio, skins de UI)
+src/        código (módulos por responsabilidad; ver docs/ARCHITECTURE-2D.md §2)
+tests/      unit · integration
+tools/      arnés E2E (Playwright)
+public/     assets estáticos (atlas de sprites, audio, skins de UI)
 docs/       arquitectura, ADR, dirección de arte, guías
 ```
 

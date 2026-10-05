@@ -3,20 +3,22 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 
 /**
- * Enforces the layering described in docs/ARCHITECTURE.md §2.
+ * Enforces the layering described in docs/ARCHITECTURE-2D.md §2 and docs/MIGRATION-2D.md §6.
  *
- *  - "sim" files (pure TypeScript) never touch three / the DOM / wall-clock time / Math.random
+ *  - "sim" files (pure TypeScript) never touch pixi.js / the DOM / wall-clock time / Math.random
  *    and never import view or platform modules.
- *  - "view" files may use anything.
+ *  - "view" files may use anything (except what is forbidden repository-wide: three.js was retired in S4).
  *  - `content/` (concrete game data) is injected into the simulation, never imported by it.
+ *  - `presentation/` (the sim → view vocabulary) and `i18n/` only depend on `core/`.
+ *  - `ui/` (the DOM HUD) never touches the renderer, and the renderer never touches `ui/`.
  */
 
 const SRC = resolve(__dirname, '../../src');
 
 /** Modules that are pure by default. */
 const PURE_MODULES = new Set([
-  'core', 'models', 'presentation', 'gameplay', 'player', 'combat', 'enemies', 'bosses', 'world', 'progression', 'save', 'input',
-  'camera', 'content',
+  'core', 'presentation', 'gameplay', 'player', 'combat', 'abilities', 'enemies', 'bosses', 'interaction', 'world', 'progression',
+  'save', 'i18n', 'input', 'camera', 'content',
 ]);
 /** Modules that are view / platform by default. */
 const VIEW_MODULES = new Set(['render', 'vfx', 'ui', 'audio', 'assets', 'debug', 'app']);
@@ -88,12 +90,39 @@ describe('architecture: layering', () => {
     expect(unknown, `Unknown module folders: declare them in tests/unit/architecture.test.ts and docs/ARCHITECTURE.md`).toEqual([]);
   });
 
-  it('pure (simulation) files never import three or view modules', () => {
+  it('three.js is retired: nothing in src/ imports it', () => {
+    const offenders = files.flatMap((f) => f.imports.filter((i) => i === 'three' || i.startsWith('three/')).map((i) => `${f.rel} → ${i}`));
+    expect(offenders).toEqual([]);
+  });
+
+  it('pure (simulation) files never import pixi.js or view modules', () => {
     const offenders = pure.flatMap((f) =>
       f.imports
-        .filter((i) => i === 'three' || i.startsWith('three/') || VIEW_MODULES.has(i.split('/')[0] ?? ''))
+        .filter((i) => i === 'pixi.js' || i.startsWith('pixi.js/') || i.startsWith('@pixi/') || VIEW_MODULES.has(i.split('/')[0] ?? ''))
         .map((i) => `${f.rel} → ${i}`),
     );
+    expect(offenders).toEqual([]);
+  });
+
+  it('presentation/ and i18n/ only import core/ (they are the vocabulary shared by both layers)', () => {
+    const offenders = files
+      .filter((f) => f.module === 'presentation' || f.module === 'i18n')
+      .flatMap((f) =>
+        f.imports
+          .filter((i) => {
+            const mod = i.split('/')[0] ?? '';
+            return (PURE_MODULES.has(mod) || VIEW_MODULES.has(mod)) && mod !== 'core' && mod !== f.module;
+          })
+          .map((i) => `${f.rel} → ${i}`),
+      );
+    expect(offenders).toEqual([]);
+  });
+
+  it('ui/ never imports pixi.js or render/, and render/, vfx/ and assets/ never import ui/', () => {
+    const offenders = [
+      ...files.filter((f) => f.module === 'ui').flatMap((f) => f.imports.filter((i) => i === 'pixi.js' || i.startsWith('pixi.js/') || i.startsWith('render/')).map((i) => `${f.rel} → ${i}`)),
+      ...files.filter((f) => ['render', 'vfx', 'assets'].includes(f.module)).flatMap((f) => f.imports.filter((i) => i.startsWith('ui/')).map((i) => `${f.rel} → ${i}`)),
+    ];
     expect(offenders).toEqual([]);
   });
 

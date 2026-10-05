@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CameraRig, DEFAULT_CAMERA, distanceForView, type CameraBounds, type CameraTarget } from '@/camera/CameraRig';
+import { CameraRig, DEFAULT_CAMERA, type CameraBounds, type CameraTarget } from '@/camera/CameraRig';
 
 const ASPECT = 16 / 9;
 const still = (x = 0, y = 0): CameraTarget => ({ x, y, vx: 0, vy: 0, facing: 1, grounded: true });
@@ -18,18 +18,17 @@ function run(rig: CameraRig, seconds: number, target: (t: number) => CameraTarge
   return { x: rig.center.x, y: rig.center.y, xs, ys };
 }
 
-/** Rig with the sway/shake noise and the facing bias out of the way unless a test needs them. */
+/** Rig with the shake noise and the facing bias out of the way unless a test needs them. */
 const plain = (extra: Partial<typeof DEFAULT_CAMERA> = {}) =>
   new CameraRig({ offset: { x: 0, y: 0 }, lookAhead: { ...DEFAULT_CAMERA.lookAhead, distance: 0 }, ...extra });
 
 describe('CameraRig — pose math', () => {
-  it('places the camera so the gameplay plane shows exactly viewHeight (any FOV)', () => {
-    for (const fov of [12, 26, 40, 60]) {
-      const rig = plain({ fovDeg: fov, viewHeight: 16, pitchDeg: 0 });
+  it('the pose reports exactly the configured visible height, whatever it is (the renderer derives px/m from it)', () => {
+    for (const viewHeight of [10, 13.5, 16, 24]) {
+      const rig = plain({ viewHeight });
       rig.snapTo(still(), ASPECT);
-      const h = 2 * rig.pose.distance * Math.tan((fov * Math.PI) / 360);
-      expect(h).toBeCloseTo(16, 5);
-      expect(rig.pose.distance).toBeCloseTo(distanceForView(16, fov), 8);
+      expect(rig.pose.viewHeight).toBe(viewHeight);
+      expect(rig.pose.viewHalfWidth).toBeCloseTo((viewHeight / 2) * ASPECT, 8);
     }
   });
 
@@ -39,32 +38,6 @@ describe('CameraRig — pose math', () => {
     expect(rig.pose.viewHalfWidth).toBeCloseTo(8 * (20 / 9), 6);
     rig.snapTo(still(), 4 / 3);
     expect(rig.pose.viewHalfWidth).toBeCloseTo(8 * (4 / 3), 6);
-  });
-
-  it('pitch raises the camera above the look-at point; zero pitch keeps them level', () => {
-    const level = plain({ pitchDeg: 0 });
-    level.snapTo(still(), ASPECT);
-    expect(level.pose.position.y).toBeCloseTo(level.pose.lookAt.y, 8);
-    const tilted = plain({ pitchDeg: 6 });
-    tilted.snapTo(still(), ASPECT);
-    expect(tilted.pose.position.y).toBeGreaterThan(tilted.pose.lookAt.y + 1);
-  });
-
-  it('orthographic reports a fixed standoff and the same visible height', () => {
-    const rig = plain({ projection: 'orthographic', viewHeight: 14 });
-    rig.snapTo(still(), ASPECT);
-    expect(rig.pose.projection).toBe('orthographic');
-    expect(rig.pose.viewHeight).toBe(14);
-    expect(rig.pose.position.z).toBeGreaterThan(10);
-  });
-
-  it('sway yaws the camera toward the ends of the room and is neutral in the middle', () => {
-    const rig = plain({ swayDeg: 4, pitchDeg: 0 });
-    rig.setBounds({ x0: 0, y0: -50, x1: 200, y1: 50 }, 0);
-    rig.snapTo(still(100, 0), ASPECT);
-    expect(rig.pose.position.x).toBeCloseTo(rig.pose.lookAt.x, 3);
-    rig.snapTo(still(190, 0), ASPECT);
-    expect(Math.abs(rig.pose.position.x - rig.pose.lookAt.x)).toBeGreaterThan(0.5);
   });
 });
 
@@ -337,11 +310,12 @@ describe('CameraRig — shake', () => {
     let maxShift = 0;
     for (let i = 0; i < 120; i++) {
       rig.update(1 / 60, still(), ASPECT);
-      maxShift = Math.max(maxShift, Math.abs(rig.pose.lookAt.x - rig.pose.center.x), Math.abs(rig.pose.lookAt.y - rig.pose.center.y));
+      maxShift = Math.max(maxShift, Math.abs(rig.pose.shake.x), Math.abs(rig.pose.shake.y));
     }
     expect(maxShift).toBeGreaterThan(0.05);
     expect(maxShift).toBeLessThanOrEqual(DEFAULT_CAMERA.shake.maxOffset + 1e-9);
-    expect(rig.pose.lookAt.x).toBeCloseTo(rig.pose.center.x, 9);
+    expect(rig.pose.shake.x).toBeCloseTo(0, 9);
+    expect(rig.pose.shake.y).toBeCloseTo(0, 9);
     expect(rig.pose.rollRad).toBeCloseTo(0, 9);
   });
 

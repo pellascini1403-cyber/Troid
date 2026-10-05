@@ -2,7 +2,7 @@
   "name": "troid",
   "version": "0.1.0",
   "private": true,
-  "description": "Troid — stylized 3D side-scrolling metroidvania (iOS / Android / PC). Vertical-slice foundation.",
+  "description": "Troid \u2014 stylized 3D side-scrolling metroidvania (iOS / Android / PC). Vertical-slice foundation.",
   "type": "module",
   "engines": {
     "node": ">=22.12"
@@ -16,17 +16,14 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "tsx tools/e2e/run.ts",
-    "gen:models": "tsx tools/gen/generate-models.ts",
     "shot": "tsx tools/e2e/shot.ts",
     "check": "npm run typecheck && npm test"
   },
   "dependencies": {
-    "pixi.js": "^8.22.0",
-    "three": "^0.186.1"
+    "pixi.js": "^8.22.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "@types/three": "^0.186.0",
     "happy-dom": "^20.14.5",
     "playwright-core": "^1.56.1",
     "tsx": "^4.23.15",

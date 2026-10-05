@@ -3,9 +3,9 @@ import type { Scenario } from '../scenario';
 
 /** Render budget (S1 criterion): ≥ 800 animated sprites + 4 parallax layers + 1 filter + ≥ 200 particles ≤ 60 draw calls. */
 export const stress: Scenario = {
-  name: 'stress-2d',
+  name: 'stress',
   async run(ctx) {
-    await ctx.open('view=2d&lab=stress&n=800&particles=240');
+    await ctx.open('lab=stress&n=800&particles=240');
     await ctx.page.waitForTimeout(2500);
     const s = (await ctx.page.evaluate('window.__troid.state()')) as { draws: number; drawsMax: number; sprites: number; particles: number; filter: boolean };
     console.log(`  stress: ${s.sprites} sprites, ${s.particles} particles, filter=${s.filter} → ${s.draws} draw calls (worst ${s.drawsMax})`);

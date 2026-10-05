@@ -7,8 +7,8 @@ import type { Scenario } from '../scenario';
  * simulation asks for, the sword anchors follow the hand, and swapping the art (another art resolution) keeps the
  * on-screen size because sprites are measured in metres.
  */
-export const sprites2d: Scenario = {
-  name: 'sprites-2d',
+export const sprites: Scenario = {
+  name: 'sprites',
   async run(ctx) {
     await ctx.open('lab=sprites&cycle=0', { width: 1920, height: 1080, dpr: 1 });
     await ctx.page.waitForTimeout(400);

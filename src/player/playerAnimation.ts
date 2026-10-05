@@ -1,4 +1,4 @@
-import type { AnimState } from '@/models/vocabulary';
+import type { AnimState } from '@/presentation/vocabulary';
 
 /** Everything the animation choice depends on. Pure data → pure function → trivially testable. */
 export interface PlayerAnimInput {

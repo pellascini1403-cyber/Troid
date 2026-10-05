@@ -4,11 +4,11 @@ import type { Scenario } from '../scenario';
 const near = (a: number, b: number, tol: number): boolean => Math.abs(a - b) <= tol;
 
 /** The 2D camera in the real game: follows, anticipates, respects the room bounds at every aspect ratio. */
-export const camera2d: Scenario = {
-  name: 'camera-2d',
+export const camera: Scenario = {
+  name: 'camera',
   async run(ctx) {
     // movement_test bounds: x ∈ [-1, 141], y ∈ [-14, 30]
-    await ctx.open('view=2d&room=movement_test&unlock=dash', { width: 844, height: 390 });
+    await ctx.open('room=movement_test&unlock=dash', { width: 844, height: 390 });
     await ctx.step(5);
     await ctx.page.waitForTimeout(400);
     let s = await ctx.state();

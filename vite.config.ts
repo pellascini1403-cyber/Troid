@@ -13,13 +13,8 @@ export default defineConfig({
     port: 5173,
   },
   optimizeDeps: {
-    // Pre-bundle everything we import from three so the dev server never re-optimises (and reloads) mid-session.
-    include: [
-      'three',
-      'three/addons/loaders/GLTFLoader.js',
-      'three/addons/utils/SkeletonUtils.js',
-      'three/addons/utils/BufferGeometryUtils.js',
-    ],
+    // Pre-bundle PixiJS so the dev server never re-optimises (and reloads) mid-session.
+    include: ['pixi.js'],
   },
   build: {
     target: 'es2022',

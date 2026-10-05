@@ -8,13 +8,13 @@
 import { mkdirSync } from 'node:fs';
 import { launchBrowser, openPage, startPreview, startServer, type OpenedPage } from './harness';
 import type { Ctx, GameState, Scenario } from './scenario';
-import { movement, movement2d } from './scenarios/movement';
-import { camera2d } from './scenarios/camera2d';
-import { render2d } from './scenarios/render2d';
-import { sprites2d } from './scenarios/sprites2d';
+import { camera } from './scenarios/camera';
+import { movement } from './scenarios/movement';
+import { render } from './scenarios/render';
+import { sprites } from './scenarios/sprites';
 import { stress } from './scenarios/stress';
 
-const ALL: Scenario[] = [movement, movement2d, render2d, camera2d, sprites2d, stress];
+const ALL: Scenario[] = [movement, render, camera, sprites, stress];
 const filter = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const prod = process.argv.includes('--prod');
 const selected = ALL.filter((s) => !filter || s.name.includes(filter));

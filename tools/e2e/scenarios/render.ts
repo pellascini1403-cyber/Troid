@@ -7,10 +7,10 @@ const near = (a: number, b: number, tol: number): boolean => Math.abs(a - b) <= 
  * PixiJS view: Application, canvas, resolution, resize and device pixel ratio (S1 spike checklist), plus the
  * 4:3 – 21:9 viewport clamp (S2). Sizes are CSS px; the backing store is css × min(devicePixelRatio, 1.75).
  */
-export const render2d: Scenario = {
-  name: 'render-2d',
+export const render: Scenario = {
+  name: 'render',
   async run(ctx) {
-    await ctx.open('view=2d&room=movement_test&unlock=dash', { width: 844, height: 390, dpr: 1 });
+    await ctx.open('room=movement_test&unlock=dash', { width: 844, height: 390, dpr: 1 });
     await ctx.step(10);
     await ctx.page.waitForTimeout(150);
     let s = await ctx.state();
@@ -61,7 +61,7 @@ export const render2d: Scenario = {
     await ctx.shot('05-portrait');
 
     // ---- device pixel ratio: the backing store follows min(dpr, 1.75) ----
-    await ctx.open('view=2d&room=movement_test', { width: 844, height: 390, dpr: 3 });
+    await ctx.open('room=movement_test', { width: 844, height: 390, dpr: 3 });
     await ctx.step(5);
     await ctx.page.waitForTimeout(200);
     s = await ctx.state();

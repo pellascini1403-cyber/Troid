@@ -1,19 +1,11 @@
-import { Game } from './Game';
-
 const host = document.getElementById('app');
 if (!host) throw new Error('#app host element is missing from index.html');
 
 const params = new URLSearchParams(location.search);
 const lab = params.get('lab');
 
-if (lab === 'model') {
+if (lab === 'sprites') {
   // Dev tooling is code-split: it never loads (nor weighs) in a normal session.
-  const { startModelLab } = await import('./labs/modelLab');
-  await startModelLab(host, params);
-} else if (lab === 'camera') {
-  const { startCameraLab } = await import('./labs/cameraLab');
-  await startCameraLab(host, params);
-} else if (lab === 'sprites') {
   // Sprite-set contact sheet + live actor (docs/MIGRATION-2D.md S3).
   const { startSpriteLab } = await import('./labs/spriteLab');
   await startSpriteLab(host, params);
@@ -21,16 +13,9 @@ if (lab === 'model') {
   // Render-budget benchmark (docs/MIGRATION-2D.md S1): 800+ animated sprites, parallax layers, a filter, particles.
   const { startStressLab } = await import('./labs/stressLab');
   await startStressLab(host, params);
-} else if (params.get('view') === '2d') {
-  // The 2D (PixiJS) game. Code-split so the 3D path never loads Pixi and vice versa.
+} else {
   const { Game2D } = await import('./Game2D');
   const game = await Game2D.create(host, params);
-  game.start();
-  if (import.meta.hot) {
-    import.meta.hot.dispose(() => game.dispose());
-  }
-} else {
-  const game = new Game(host);
   game.start();
 
   // Hot-reload friendliness: dispose the previous instance so GPU resources and listeners never stack up.

@@ -13,17 +13,11 @@ export interface GameOptions {
   camera: Partial<CameraConfig>;
 }
 
-/** `?cam=ortho` `?fov=20` `?vh=18` `?pitch=5` */
+/** `?vh=18`: visible height in metres (handy to compare zoom levels on a real phone). */
 export function cameraConfigFromQuery(q: URLSearchParams): Partial<CameraConfig> {
   const cfg: Partial<CameraConfig> = {};
-  if (q.get('cam') === 'ortho') cfg.projection = 'orthographic';
-  const num = (key: string) => (q.has(key) && Number.isFinite(Number(q.get(key))) ? Number(q.get(key)) : undefined);
-  const fov = num('fov');
-  const vh = num('vh');
-  const pitch = num('pitch');
-  if (fov !== undefined) cfg.fovDeg = fov;
+  const vh = q.has('vh') && Number.isFinite(Number(q.get('vh'))) ? Number(q.get('vh')) : undefined;
   if (vh !== undefined) cfg.viewHeight = vh;
-  if (pitch !== undefined) cfg.pitchDeg = pitch;
   return cfg;
 }
 
