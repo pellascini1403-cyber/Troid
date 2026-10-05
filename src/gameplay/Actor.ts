@@ -1,7 +1,8 @@
+import type { Team } from '@/combat/Combatant';
 import { createBody, type KinematicBody } from '@/world/collision';
 import { createActorViewState, type ActorViewState } from './actorViewState';
 
-export type Team = 'player' | 'enemy' | 'neutral';
+export type { Team };
 
 /**
  * Anything with a body that lives in a room and is drawn by an ActorVisual: the player, enemies, bosses.
