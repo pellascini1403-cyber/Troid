@@ -1,7 +1,7 @@
 # ADR-0002 — Dirección 2D con sprites y capa de render PixiJS
 
-**Estado:** propuesta (**pendiente de confirmar D1 y D2**) · **Fecha:** 2026-10-05 · **Fase:** auditoría (Prompt 2)
-· Modifica parcialmente [ADR-0001](0001-stack.md) (solo la parte de Three.js / glTF). Evidencia completa: [AUDIT-2026-10](../AUDIT-2026-10.md).
+**Estado:** **aceptada** (D1 y D2 confirmadas por el propietario en el Prompt 3) · **Fecha:** 2026-10-05 · **Fase:** auditoría (Prompt 2) → decisión definitiva (Prompt 3)
+· Modifica parcialmente [ADR-0001](0001-stack.md) (solo la parte de Three.js / glTF). Evidencia completa: [AUDIT-2026-10](../AUDIT-2026-10.md). Registro completo de decisiones: [ADR-0003](0003-arquitectura-2d-definitiva.md).
 
 ## Contexto
 
@@ -60,7 +60,7 @@ El *spike* de la Fase 0 monta una escena de prueba (≥ 800 sprites animados, ca
 **≤ 60 draw calls**, sin fugas tras recargar, y arranque sin errores en Chromium headless. Si no se cumple, o si se detecta un
 bloqueo en WebViews móviles objetivo, se adopta Three ortográfico + batcher propio. El contrato de vista no cambia.
 
-## Qué se hace al aceptarla (Fase 0, **no antes**)
+## Qué se hace ahora que está aceptada (Prompt 4, pasos S0–S4 de [MIGRATION-2D](../MIGRATION-2D.md); **no antes**)
 
 1. Etiquetar `proto-3d-f5` sobre el estado actual.
 2. Retirar la vista 3D (lista en el anexo de la auditoría) y `tools/gen/*`; actualizar el test de arquitectura.

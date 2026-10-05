@@ -3,10 +3,10 @@
 > Palabra clave: **STYLIZED 3D SIDE-SCROLLING ADVENTURE**. Identidad propia: no «Zelda en 2D», no «Hades con
 > otro personaje», no «Castlevania con gráficos 3D». Las referencias aportan **principios**, nunca contenido.
 
-> ⚠️ **Obsoleto (2026-10-05).** Esta dirección (3D estilizado; referencias Zelda / Hades / Castlevania) fue sustituida por el brief 2D:
-> referencias Hollow Knight + Solo Leveling, protagonista chibi con energía **roja**, enemigos de tinta negra con aura **violeta** al
-> cargar. La nueva biblia de arte llegará con el Prompt 3; mientras tanto, lo aprendido de las imágenes está en
-> [AUDIT-2026-10 §6](AUDIT-2026-10.md). Se conserva el principio de «referencias = principios, nunca contenido».
+> ⚠️ **Obsoleto (2026-10-05).** Esta dirección (3D estilizado; referencias Zelda / Hades / Castlevania) fue sustituida por la dirección 2D:
+> referencias Hollow Knight + Solo Leveling, protagonista de criatura insectoide **sin recolorear** (negro, blanco, cian/azul), enemigos de tinta negra con
+> aura **violeta** al cargar. La dirección visual vigente está en [GAME-SPEC-2D §2–§3](GAME-SPEC-2D.md). Se conserva el principio de
+> «referencias = principios, nunca contenido».
 
 ## 1. Qué se toma de cada referencia (y qué no)
 

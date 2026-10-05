@@ -1,6 +1,6 @@
 # ADR-0001 — Stack tecnológico
 
-**Estado:** aceptada (la parte de Three.js / glTF queda **en revisión** por [ADR-0002](0002-direction-2d.md), propuesta) ·
+**Estado:** aceptada; la parte de **Three.js / glTF queda sustituida** por [ADR-0002](0002-direction-2d.md) (aceptada) y [ADR-0003](0003-arquitectura-2d-definitiva.md). Siguen vigentes TypeScript estricto, Vite, Vitest, Playwright y Capacitor ·
 **Fecha:** 2026-10-01 · **Fase:** F1
 
 ## Contexto: qué se encontró al inspeccionar el repositorio

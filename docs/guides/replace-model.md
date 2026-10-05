@@ -1,8 +1,9 @@
 # Cómo reemplazar el personaje (o un enemigo / jefe)
 
-> ⚠️ Esta guía describe el pipeline **glTF 3D** del prototipo F3. Si se confirma la dirección 2D ([ADR-0002](../adr/0002-direction-2d.md)),
-> se sustituirá por una guía de *sprite sets* (manifiesto, atlas, clips, anclas, fallbacks): ver [AUDIT-2026-10 §6](../AUDIT-2026-10.md).
-> El principio no cambia: el gameplay habla en estados y anclas lógicos, nunca en archivos ni frames.
+> ⚠️ Esta guía describe el pipeline **glTF 3D** del prototipo F3, que se retira (dirección 2D aceptada: [ADR-0002](../adr/0002-direction-2d.md)).
+> Su sustituta será una guía de *sprite sets* (manifiesto, atlas, clips, anclas, *fallbacks*): ver [ARCHITECTURE-2D §7.5–7.6](../ARCHITECTURE-2D.md) y los
+> requisitos de producción del protagonista en [GAME-SPEC-2D §2](../GAME-SPEC-2D.md). El principio no cambia: el gameplay habla en estados y anclas
+> lógicos, nunca en archivos ni fotogramas.
 
 Reemplazar un modelo = **apuntar una `ModelDefinition` a un `.glb` nuevo**. No se toca gameplay, IA, combate
 ni cámara: el simulador solo habla en *estados lógicos* (`'run'`, `'attack'`…) y *sockets lógicos*
