@@ -21,6 +21,19 @@ export interface GameState {
   /** The body is the crouched size, and its current collision height in metres. */
   crouched?: boolean;
   bodyHeight?: number;
+  /** 2D view only: combat. */
+  health?: number;
+  maxHealth?: number;
+  hitStop?: number;
+  now?: number;
+  /** Camera shake trauma 0..1. */
+  trauma?: number;
+  invulnerable?: boolean;
+  blink?: boolean;
+  flash?: number;
+  combat?: { attack: string | null; phase: string; ticks: number; combo: number };
+  dummies?: Array<{ id: string; x: number; y: number; vx: number; hp: number; hits: number }>;
+  views?: number;
   /** 2D view only: median / worst GL draw calls per frame over the last 120 frames. */
   draws?: number;
   drawsMax?: number;

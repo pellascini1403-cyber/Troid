@@ -1,12 +1,16 @@
 import { clamp, lerp, sign } from '@/core/math';
 import { StateMachine } from '@/core/stateMachine';
 import { TICK_SECONDS, secondsToTicks } from '@/core/time';
+import type { HitInfo } from '@/combat/Combatant';
 import { NEUTRAL_INPUT, type InputFrame } from '@/input/InputFrame';
 import type { SimServices } from '@/gameplay/SimServices';
 import type { MovementTuning } from './MovementTuning';
 import type { Player } from './Player';
 
-export type PlayerStateId = 'free' | 'crouch' | 'dash';
+export type PlayerStateId = 'free' | 'crouch' | 'dash' | 'attack' | 'hurt' | 'dead';
+
+/** Ticks the white hit flash lasts. */
+const FLASH_TICKS = 6;
 
 /**
  * PLAYER LOGIC (movement): turns one `InputFrame` into velocities and moves the body.
@@ -20,6 +24,10 @@ export type PlayerStateId = 'free' | 'crouch' | 'dash';
  * Posture: `crouch` is a state AND a body shape (docs/GAME-SPEC-2D.md §6). The shape (`crouched`) is what the world
  * sees: the collision body is 1.0 m instead of 1.7 m and the hurtbox loses the head. It survives a dash (a crouched
  * dash slides under low passages) and it can only end when there is room to stand.
+ *
+ * Combat (docs/GAME-SPEC-2D.md §5.1, §7, §9): `attack` (ground / air / crouch variants, chain of two), `hurt` (stun,
+ * knockback, i-frames) and `dead`. Priority: dead > hurt > dash > attack > crouch > free. `free`, `crouch` and `dash`
+ * behave exactly as before (the 40 movement tests are the proof).
  */
 export class PlayerController {
   private readonly fsm: StateMachine<PlayerController, PlayerStateId>;
@@ -35,8 +43,12 @@ export class PlayerController {
   private dropThrough = 0;
   private jumpHeldTicks = 0;
   private airDashesUsed = 0;
-  /** Ticks of damage immunity left (dash i-frames now; hurt i-frames in F6). */
+  /** Ticks of damage immunity left (dash i-frames and hit i-frames). */
   invulnerable = 0;
+  /** Ticks left on the hit blink / on the white flash / on the stun of `hurt`. */
+  private hurtInvuln = 0;
+  private flashTicks = 0;
+  private hurtTicks = 0;
   /** Ticks left on the landing animation after a hard landing. */
   landTicks = 0;
   /** Bumped when an animation must restart (new jump, new dash). */
@@ -64,6 +76,9 @@ export class PlayerController {
           },
         },
         dash: { enter: (c) => c.enterDash(), update: (c) => c.updateDash(), exit: (c) => c.exitDash() },
+        attack: { enter: (c) => c.enterAttack(), update: (c) => c.updateAttack(), exit: (c) => c.player.combat.end() },
+        hurt: { update: (c) => c.updateHurt() },
+        dead: { update: (c) => c.updateDead() },
       },
       'free',
     );
@@ -81,6 +96,14 @@ export class PlayerController {
   }
   get isInvulnerable(): boolean {
     return this.invulnerable > 0;
+  }
+  /** The hit i-frames are running: the sprite blinks (the dash i-frames do not blink). */
+  get blinking(): boolean {
+    return this.hurtInvuln > 0;
+  }
+  /** White hit flash intensity 0..1. */
+  get flash01(): number {
+    return this.flashTicks / FLASH_TICKS;
   }
   /** 0 = ready, 1 = just used (for the HUD cooldown ring). */
   get dashCooldown01(): number {
@@ -104,7 +127,9 @@ export class PlayerController {
   reset(): void {
     this.coyote = this.jumpBuffer = this.dashBuffer = this.dashCooldown = this.dashTicksLeft = 0;
     this.dropThrough = this.jumpHeldTicks = this.airDashesUsed = this.invulnerable = this.landTicks = 0;
+    this.hurtInvuln = this.flashTicks = this.hurtTicks = 0;
     this.jumping = this.jumpCut = false;
+    this.player.combat.end();
     this.fsm.go('free');
     // Hard reset of the shape (respawn / room change): the spawn point is always free, so no room check.
     this.crouching = false;
@@ -123,6 +148,8 @@ export class PlayerController {
     if (this.invulnerable > 0) this.invulnerable--;
     if (this.dropThrough > 0) this.dropThrough--;
     if (this.landTicks > 0) this.landTicks--;
+    if (this.hurtInvuln > 0) this.hurtInvuln--;
+    if (this.flashTicks > 0) this.flashTicks--;
   }
 
   // -------------------------------------------------------------------------------------------- free state
@@ -201,7 +228,10 @@ export class PlayerController {
       this.fsm.go('crouch');
     }
 
-    // ---- dash (overrides the posture change: a dash keeps whatever shape the body has) ----
+    // ---- attack: a buffered press starts it (ground / air / crouch variant); overrides the posture change ----
+    if (this.player.combat.wantsAttack) this.fsm.go('attack');
+
+    // ---- dash (overrides the rest: a dash keeps whatever shape the body has) ----
     if (this.dashBuffer > 0 && this.canDash()) this.fsm.go('dash');
   }
 
@@ -293,6 +323,119 @@ export class PlayerController {
   /** A dash that started crouched ends crouched: `crouch` then stands up as soon as it is allowed (see `updateFree`). */
   private postDashState(): PlayerStateId {
     return this.crouching ? 'crouch' : 'free';
+  }
+
+  // ------------------------------------------------------------------------------------------------ attack
+
+  /** Attacks, hits and the dash all hand control back the same way: crouched bodies return to `crouch` (which stands up when allowed). */
+  private postAttackState(): PlayerStateId {
+    return this.crouching ? 'crouch' : 'free';
+  }
+
+  private enterAttack(): void {
+    const p = this.player;
+    const b = p.body;
+    // the facing can still be steered by the stick on the first tick of the attack
+    if (Math.abs(this.input.move.x) > 0.25) p.facing = this.input.move.x > 0 ? 1 : -1;
+    const kind = !b.grounded ? 'air' : this.crouching ? 'crouch' : 'ground';
+    p.combat.begin(kind, this.sim);
+    this.jumping = false; // an attack closes the variable-jump window
+    this.animSerial++;
+  }
+
+  /**
+   * One tick of an attack: dash may cancel the RECOVERY (never the startup or the active frames), a buffered press
+   * inside the cancel window chains into the next attack, the attack's own data decides how much control and
+   * gravity the body keeps, and the hitbox is submitted on the active ticks.
+   */
+  private updateAttack(): void {
+    const p = this.player;
+    const b = p.body;
+    const t = this.tuning;
+    const c = p.combat;
+    if (!c.attack) {
+      this.fsm.go(this.postAttackState());
+      return;
+    }
+
+    if (this.dashBuffer > 0 && c.peekPhase() === 'recovery' && this.canDash()) {
+      c.end();
+      this.fsm.go('dash');
+      return;
+    }
+    if (c.canChain()) {
+      c.chain(this.sim);
+      this.animSerial++;
+    }
+    const a = c.attack;
+    if (!a) return;
+
+    // landing cuts the recovery of an air attack short
+    if (b.grounded && a.id === p.def.combat.airAttack) c.shortenRecovery(3);
+
+    // ---- movement under the attack's control ----
+    const air = !b.grounded;
+    if (a.lunge && !air && c.attackTicks < a.lunge.ticks) {
+      b.vx = p.facing * a.lunge.speed;
+    } else {
+      const mx = this.input.move.x;
+      const target = sign(mx) * speedForMagnitude(Math.abs(mx), t) * a.moveControl;
+      const accel = air ? (target === 0 ? t.airDecel : t.airAccel) : target === 0 ? t.groundDecel : t.groundAccel;
+      b.vx = approachValue(b.vx, target, accel * TICK_SECONDS);
+    }
+    let g = t.gravity;
+    if (b.vy < 0) g *= t.fallGravityMultiplier;
+    if (air && a.airGravityScale !== undefined) g *= a.airGravityScale;
+    b.vy = Math.max(b.vy - g * TICK_SECONDS, -t.maxFallSpeed);
+
+    if (c.advance(this.sim) === 'done') {
+      c.end();
+      this.fsm.go(this.postAttackState());
+    }
+  }
+
+  // ------------------------------------------------------------------------------------- hurt and death
+
+  /**
+   * Called by `Player.receiveHit` (inside the combat step of the tick, outside this controller's update): knockback,
+   * stun, i-frames and the white flash. Interrupts whatever the player was doing; a fatal hit goes to `dead`.
+   */
+  onHit(hit: HitInfo, killed: boolean): void {
+    const p = this.player;
+    const b = p.body;
+    const def = p.def.combat.hurt;
+    p.combat.end();
+    b.vx = hit.direction * hit.knockbackX * def.knockbackScale;
+    b.vy = hit.knockbackY * def.knockbackScale;
+    this.hurtTicks = hit.stun > 0 ? hit.stun : def.stun;
+    this.invulnerable = Math.max(this.invulnerable, def.invulnerability);
+    this.hurtInvuln = def.invulnerability;
+    this.flashTicks = FLASH_TICKS;
+    this.jumping = false;
+    this.animSerial++;
+    this.fsm.go(killed ? 'dead' : 'hurt', true);
+  }
+
+  /** No control while stunned: knockback bleeds off, gravity still applies. */
+  private updateHurt(): void {
+    const b = this.player.body;
+    const t = this.tuning;
+    b.vx = approachValue(b.vx, 0, (b.grounded ? t.groundDecel * 0.5 : t.airDecel) * TICK_SECONDS);
+    b.vy = Math.max(b.vy - this.gravityNow() * TICK_SECONDS, -t.maxFallSpeed);
+    if (--this.hurtTicks <= 0) this.fsm.go(this.crouching ? 'crouch' : 'free');
+  }
+
+  /** Dead: the input is ignored until the death flow (or a test) calls `reset()`. */
+  private updateDead(): void {
+    const b = this.player.body;
+    const t = this.tuning;
+    b.vx = approachValue(b.vx, 0, (b.grounded ? t.groundDecel : t.airDecel) * TICK_SECONDS);
+    b.vy = Math.max(b.vy - this.gravityNow() * TICK_SECONDS, -t.maxFallSpeed);
+  }
+
+  private gravityNow(): number {
+    const t = this.tuning;
+    return this.player.body.vy < 0 ? t.gravity * t.fallGravityMultiplier : t.gravity;
   }
 
   private exitDash(): void {

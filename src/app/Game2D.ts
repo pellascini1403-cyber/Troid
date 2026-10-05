@@ -5,12 +5,15 @@ import { CAMERA_2D } from '@/camera/camera2d';
 import type { CameraTarget } from '@/camera/CameraRig';
 import { ABILITIES, PLAYER, PROCEDURAL_ATLASES, ROOMS, SPRITE_SETS } from '@/content';
 import { DisposableStore } from '@/core/lifecycle';
+import type { Hurtbox } from '@/combat/Combatant';
+import type { Rect } from '@/core/math';
 import { ColliderOverlay2D } from '@/debug/ColliderOverlay2D';
 import { DebugActions } from '@/debug/DebugActions';
 import { DebugPanel } from '@/debug/DebugPanel';
 import { DebugState } from '@/debug/DebugState';
 import { DrawCallCounter } from '@/debug/DrawCallCounter';
 import { FpsMeter } from '@/debug/FpsMeter';
+import { TrainingDummy } from '@/enemies/TrainingDummy';
 import { GameSession } from '@/gameplay/GameSession';
 import { DEFAULT_BINDINGS } from '@/input/bindings';
 import { InputManager } from '@/input/InputManager';
@@ -18,6 +21,8 @@ import { attachKeyboardMouse } from '@/input/sources/KeyboardMouseSource';
 import type { AnchorId } from '@/presentation/vocabulary';
 import { ActorSprite } from '@/render/ActorSprite';
 import { CameraAdapter2D } from '@/render/CameraAdapter2D';
+import { DummyView, type DummyLike } from '@/render/DummyView';
+import { EntityViews } from '@/render/EntityViews';
 import { Renderer2D } from '@/render/Renderer2D';
 import { RoomView2D } from '@/render/RoomView2D';
 import { listen } from './dom';
@@ -45,6 +50,7 @@ export class Game2D {
   private readonly roomView: RoomView2D;
   private readonly bindings = structuredClone(DEFAULT_BINDINGS);
   private readonly playerSprite: ActorSprite;
+  private readonly entityViews: EntityViews;
   private colliders: ColliderOverlay2D | null = null;
   private panel: DebugPanel | null = null;
 
@@ -94,6 +100,14 @@ export class Game2D {
     this.playerSprite = new ActorSprite(playerSet, { zIndex: 10 });
     renderer.layers.actors.addChild(this.playerSprite.root);
     this.lifecycle.add(() => this.playerSprite.dispose());
+    // one view per live entity, driven by the spawn / despawn events (the simulation never knows views exist)
+    this.entityViews = new EntityViews(renderer.layers.actors, {
+      dummy: (e) => ('view' in e && 'body' in e ? new DummyView(e as unknown as DummyLike) : null),
+    });
+    this.entityViews.attach(this.session.bus);
+    this.lifecycle.add(() => this.entityViews.destroy());
+    // impact → camera shake (real time: the camera keeps moving through the hit-stop)
+    this.lifecycle.add(this.session.bus.on('combat:hit', (e) => this.camera.addTrauma(e.shake)));
     this.buildRoomView();
     this.registerDebugActions();
     this.setupDebug();
@@ -154,15 +168,17 @@ export class Game2D {
     const v = p.view;
     const x = v.prevX + (v.x - v.prevX) * a;
     const y = v.prevY + (v.y - v.prevY) * a;
-    // Animation time follows the simulation clock: frozen while paused, slowed by timeScale (stable E2E and screenshots).
-    const animDt = this.debug.get('paused') ? 0 : realDt * this.debug.get('timeScale');
+    // Animation time follows the simulation clock: frozen while paused or in a hit-stop, slowed by timeScale (stable E2E
+    // and screenshots). Phase-driven attack frames freeze by themselves; this freezes the time-driven ones.
+    const animDt = this.debug.get('paused') || this.session.frozen ? 0 : realDt * this.debug.get('timeScale');
     this.playerSprite.sync(v, a, animDt);
+    this.entityViews.sync(a, animDt);
 
     // The camera follows the INTERPOLATED position — exactly what is drawn — so camera and player never jitter apart.
     const target: CameraTarget = { x, y, vx: p.body.vx, vy: p.body.vy, facing: p.facing, grounded: p.body.grounded };
     this.camera.update(realDt, target);
 
-    if (this.debug.get('colliders') && this.colliders) this.colliders.updateBodies([p.body]);
+    if (this.debug.get('colliders') && this.colliders) this.updateColliderOverlay();
     this.loop.timeScale = this.debug.get('timeScale');
     this.loop.paused = this.debug.get('paused');
     this.session.godMode = this.debug.get('godMode');
@@ -212,7 +228,7 @@ export class Game2D {
           `pos    ${b.x.toFixed(2)}, ${b.y.toFixed(2)}`,
           `vel    ${b.vx.toFixed(2)}, ${b.vy.toFixed(2)}`,
           `state  ${c.state}  anim ${p.view.anim}`,
-          `ground ${b.grounded ? 'yes' : 'no'}  dash cd ${c.dashCooldown01.toFixed(2)}`,
+          `ground ${b.grounded ? 'yes' : 'no'}  dash cd ${c.dashCooldown01.toFixed(2)}  hp ${p.health.current}/${p.health.max}`,
           `abil   ${this.session.abilities.serialize().join(',') || '—'}`,
           `input  ${this.input.device}`,
           `view   ${vp.contentWidth.toFixed(0)}×${vp.contentHeight.toFixed(0)}  ×${vp.resolution.toFixed(2)}  ${vp.ppm.toFixed(1)} px/m  draws ${this.counter.median}`,
@@ -221,6 +237,22 @@ export class Game2D {
       tuning: [{ title: 'movement', target: p.def.movement }],
     });
     this.lifecycle.add(() => this.panel?.dispose());
+  }
+
+  /** Bodies (green), hurtboxes (blue) and the hitboxes active in the last tick (magenta). */
+  private updateColliderOverlay(): void {
+    const s = this.session;
+    const bodies = [s.player.body];
+    for (const e of s.entities) if ('body' in e) bodies.push((e as unknown as { body: typeof s.player.body }).body);
+    this.colliders?.updateBodies(bodies);
+    const hurt: Rect[] = [];
+    const scratch: Hurtbox[] = [];
+    for (const c of s.combat.all) {
+      scratch.length = 0;
+      c.collectHurtboxes(scratch);
+      for (const h of scratch) hurt.push(h.rect);
+    }
+    this.colliders?.updateCombat(hurt, s.combat.activeHitboxes.map((h) => h.rect));
   }
 
   private setColliderOverlay(on: boolean): void {
@@ -241,6 +273,19 @@ export class Game2D {
     );
     this.lifecycle.add(a.register('abilities', 'lock all', () => s.abilities.list().forEach((d) => s.abilities.lock(d.id))));
     this.lifecycle.add(a.register('player', 'rescue', () => s.rescuePlayer()));
+    this.lifecycle.add(
+      a.register('combat', 'spawn dummy', () => {
+        const p = s.player;
+        s.spawn(new TrainingDummy(s.ids.next('dummy'), { x: p.x + p.facing * 3, y: p.y, facing: -p.facing as 1 | -1 }));
+      }),
+    );
+    this.lifecycle.add(a.register('combat', 'heal', () => s.player.health.restore()));
+    this.lifecycle.add(
+      a.register('combat', 'revive', () => {
+        s.player.revive();
+        s.rescuePlayer();
+      }),
+    );
     this.lifecycle.add(
       a.register('room', 'reset room', () => {
         s.loadRoom(s.room.id);
@@ -265,6 +310,24 @@ export class Game2D {
         // tests read the presented state right after stepping: bring the sprite up to date without waiting for a frame
         this.playerSprite.sync(this.session.player.view, 1, 0);
       },
+      /** Test hook: a training dummy at `(x, y)` (the entity joins the world at the end of the next tick). */
+      spawnDummy: (x: number, y = 0, health = 5) => {
+        const dummy = this.session.spawn(new TrainingDummy(this.session.ids.next('dummy'), { x, y, health }));
+        return dummy.id;
+      },
+      /** Test hook: an enemy hitbox over the player's torso, resolved by the next tick (1 damage, standard knockback). */
+      strikePlayer: (facing: 1 | -1 = 1) => {
+        const b = this.session.player.body;
+        this.session.combat.submit({
+          ownerId: 'e2e_enemy', team: 'enemy', rect: { x0: b.x - 0.5, x1: b.x + 0.5, y0: b.y + 0.2, y1: b.y + 1.2 }, attackId: 'e2e_strike',
+          damage: 1, knockback: { x: 5.5, y: 4 }, stun: 14, hitStop: 6, shake: 0.2, facing, alreadyHit: new Set(),
+        });
+      },
+      revive: () => {
+        this.session.player.revive();
+        this.session.rescuePlayer();
+        this.playerSprite.sync(this.session.player.view, 1, 0);
+      },
       teleport: (x: number, y: number) => {
         this.session.player.respawn(x, y, this.session.player.facing);
         this.session.collision.probeGround(this.session.player.body);
@@ -280,6 +343,18 @@ export class Game2D {
           x: b.x, y: b.y, vx: b.vx, vy: b.vy, grounded: b.grounded,
           anim: this.session.player.view.anim, state: this.session.player.controller.state,
           crouched: this.session.player.controller.crouched, bodyHeight: b.height,
+          health: this.session.player.health.current, maxHealth: this.session.player.health.max,
+          hitStop: this.session.hitStopLeft, now: this.session.now, trauma: this.camera.rig.currentTrauma,
+          invulnerable: this.session.player.invulnerable, blink: this.session.player.view.blink, flash: this.session.player.view.flash,
+          combat: {
+            attack: this.session.player.combat.attack?.id ?? null, phase: this.session.player.view.phase,
+            ticks: this.session.player.combat.attackTicks, combo: this.session.player.combat.combo,
+          },
+          dummies: this.session.entities.filter((e) => e.kind === 'dummy').map((e) => {
+            const d = e as TrainingDummy;
+            return { id: d.id, x: d.body.x, y: d.body.y, vx: d.body.vx, hp: d.health.current, hits: d.hits };
+          }),
+          views: this.entityViews.count,
           sprite: {
             set: ps.spriteSetId, frame: ps.frame, facing: ps.root.scale.x, visible: ps.root.visible,
             hand: anchor('hand_r'), grip: anchor('weapon_grip'), tip: anchor('weapon_tip'),

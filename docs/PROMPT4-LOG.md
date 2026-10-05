@@ -14,7 +14,7 @@
 | **S3** sprites y animación | ✅ | (ver historial) |
 | **S4** retirar Three.js | ✅ | (ver historial) |
 | **S5** agacharse | ✅ | (ver historial) |
-| S6 combate | ⬜ | |
+| **S6** combate | ✅ | (ver historial) |
 | S7 VFX | ⬜ | |
 | S8 muerte, reaparición, i18n | ⬜ | |
 | S9 Ink Slime | ⬜ | |
@@ -194,3 +194,45 @@ Agacharse es un **estado con consecuencias de colisión** ([GAME-SPEC §6](GAME-
 **Puerta de regresión: los 40 tests de `movement.test.ts` no se modificaron** (`git status` limpio) y pasan.
 
 **E2E `crouch` (dev y producción, 6/6 en total):** `S` agacha (1.7 → 1.0, sprite `crouch_`), cámara quieta, caminar agachado a 3.0 m/s (`crouchWalk_`), pasaje de 1.2 m, agachado forzado al soltar `S` bajo el techo, sale y se levanta; de pie queda bloqueado por el pasaje de 1.4 m; dash agachado con cuerpo 1.0 m; ≤ 60 *draw calls*. Capturas revisadas.
+
+
+---
+
+## S6 — Combate ✅ (rescate de `wip/f6-combat-core`)
+
+**La rama WIP sigue intacta** (`b695c98`, local y en `origin`; verificado al terminar el paso). No se hizo `cherry-pick` ni `checkout` sobre archivos existentes: los archivos **nuevos** se copiaron con `git show wip/f6-combat-core:<ruta>` y los **compartidos** (que la rama principal ya había cambiado desde F5) se fusionaron a mano.
+
+| Archivo del WIP | Qué se hizo | Por qué |
+|---|---|---|
+| `combat/AttackDefinition.ts` | copiado; import de `AnimState` → `presentation/vocabulary`; **sin `energyOnHit`** | la magia/energía es del Prompt 5 |
+| `combat/Combatant.ts` · `Health.ts` · `hitboxGeometry.ts` | copiados **sin cambios** | |
+| `combat/CombatSystem.ts` | copiado; campo no usado eliminado; el bus pasa por una interfaz mínima `CombatBus` (TypeScript no unifica el `emit` condicional de dos catálogos); + `activeHitboxes` y `all` para el overlay de depuración | |
+| `combat/Resource.ts` | **no rescatado** | barra de energía sin regeneración: la sustituye `Magic` (P5); no se empieza un sistema reservado |
+| `gameplay/SimEntity.ts` | copiado + gancho opcional `onSpawn(sim)` | el alta en sistemas (combate) ocurre al entrar en el mundo |
+| `gameplay/SimServices.ts` · `events.ts` · `Actor.ts` | fusionados a mano (`combat`, `player: PlayerTarget`, `godMode`, `spawn/despawn`, `requestHitStop`; eventos de combate, `player:attacked/hurt/died`, ciclo de vida de entidades; `Team` desde `combat/`). Sin `player:energy` | |
+| `player/PlayerCombat.ts` | adaptado: sin energía; `begin('ground'｜'air'｜'crouch')`; `peekPhase()`; `progress()` (fase + progreso 0..1 para el sprite); `shortenRecovery()`; el hitbox enviado es una copia | variante agachada, animación por fases |
+| `player/PlayerDefinition.ts` | fusionado (bloque `combat` con **ticks**, `crouchAttack`, `hurt.deathHitStop`) + `body.hurtbox` | |
+| `PlayerController` (borrador) | **no recuperable** (no se guardó): se escribió de nuevo contra los tests; `free`/`crouch`/`dash` no cambiaron | |
+
+**Qué hay ahora**
+- `GameSession`: orden del tick de ARCHITECTURE §5.1 (puerta de hit-stop → jugador → entidades → combate → flujos → vaciado de entidades → *scheduler*); **hit-stop real**: el mundo se congela, `now` no avanza y los **pulsos de entrada se guardan** (`latch`) para el primer tick tras el congelamiento (los *held* y el stick son los actuales); altas y bajas de entidades diferidas al final del tick; `loadRoom` elimina entidades y combatientes (sin fugas).
+- `Player` es `Combatant`: `hurtbox()` (1.55 m de pie / 0.9 m agachado), `receiveHit`, `revive()`. **La vista se publica en el momento del golpe** (pose `hurt`, destello, parpadeo), porque el golpe ocurre después de publicarla y el hit-stop congela los ticks siguientes.
+- `PlayerController`: estados `attack`, `hurt`, `dead` (prioridad dead > hurt > dash > attack > crouch > free). Ataques `slash_1` (4/3/8) → `slash_2` (3/3/11) encadenados por la ventana 8–15, `air_slash` (3/4/9, gravedad ×0.6, el aterrizaje acorta la recuperación), `crouch_slash` (4/3/9, se queda agachado). El **dash cancela la recuperación**, nunca *startup* ni *active*. Golpe recibido: −1 vida, empuje (5.5, 4), aturdimiento 14 ticks, **i-frames 60 ticks** con parpadeo, hit-stop 6, destello; vida 0 → `dead` (hit-stop 8, animación `death`, ignora el input hasta `revive()` + `respawn()`; el flujo completo es S8).
+- Los datos de ataque están en `content/attacks.ts` (tabla de GAME-SPEC §7.2); `PLAYER.combat` en `content/player.ts`.
+- `enemies/TrainingDummy.ts` (SimEntity + Combatant que no ataca) para probar el combate de punta a punta; sirve de modelo para el Ink Slime (S9).
+- Vista: `EntityViews` (una vista por entidad, dirigida por `entity:spawned/despawned`) + `DummyView`; el impacto sacude la cámara (tiempo real); la animación se congela durante el hit-stop; el overlay de depuración (`` ` `` → colliders) dibuja cuerpos (verde), **hurtboxes (azul)** y **hitboxes activos (magenta)**; acciones de depuración `spawn dummy`, `heal`, `revive`.
+
+**Notas de comportamiento (medidas)**
+- Un ataque dura 16 *updates* (15 ticks de fases + 1 de gracia en el que aún puede encadenarse: es lo que hace que la ventana «8–15» del spec sea inclusiva). `slash_1` pulsado en el tick *n*: arranque *n+1…n+4*, activo 3 ticks, recuperación 8; el hitbox se envía **solo** en los 3 ticks activos.
+- `slash_1 → slash_2` conecta sobre un blanco quieto a 1.4 m (se midió: el empuje de 5 m/s lo mueve ≈ 0.2 m antes de que `slash_2` esté activo, por el congelamiento).
+
+**Tests: +65 (271 → 336)**
+- `tests/unit/combat/` (21): `Health` (5), `hitboxGeometry` (3, espejo), `CombatSystem` (13: **hit-once**, equipos, **neutrales** golpeables por el jugador y no por enemigos, `hits` explícito, invulnerables y muertos sin consumir el golpe, `ignored`, **primera hurtbox y multiplicador**, bordes que solo se tocan, **hit-stop = el más largo**, `onConfirm`, retirada de combatientes, determinismo).
+- `tests/integration/combat.test.ts` (44, archivo nuevo): línea de tiempo del ataque (hitbox solo en los 3 ticks activos, fase y progreso publicados, espejo a la izquierda, avance), **hit-once**, daño, **knockback** (espejado), alcance direccional, eventos, muerte del blanco, **hit-stop** (el reloj no avanza, la animación por fase se congela sola, **un pulso durante el congelamiento no se pierde**, solo las *aristas* se recuerdan), **cadena** (ventana, demasiado pronto, tras terminar, sin tercer golpe, el segundo golpe es otra instancia), ataque **aéreo** y **agachado** (hitbox bajo: falla a un blanco alto), **dash cancela solo la recuperación**, recibir daño (empuje, aturdimiento, **i-frames**, destello, **dash esquiva**, agachado esquiva golpes a la cabeza, interrumpe un ataque, `godMode`), **muerte** (evento una vez, hit-stop 8, input ignorado, no se vuelve a golpear, revivir), entidades (alta/baja al final del tick, sin fugas al recargar la sala) y **determinismo bit a bit** de una pelea con 700 ticks de entradas pseudoaleatorias.
+- **Los 40 de movimiento y los 29 de agacharse no se modificaron** y pasan.
+
+**E2E `combat` (dev y producción, 7/7 en total):** con `J`: el ataque corre por fases y el fotograma en pantalla sigue la fase (`attack_00…03`); un golpe, empuje, **el reloj de simulación se congela** y la cámara tiembla; cadena a `slash_2` (`attack2_`); ataque aéreo (`attackAir_`) y agachado (`attackCrouch_`, cuerpo 1.0 m); golpe recibido (`hurt_`, destello, parpadeo, i-frames ignoran el segundo golpe); muerte (`death_`, ignora el input) y `revive`. ≤ 60 *draw calls*. Capturas revisadas.
+
+**Desviaciones y notas**
+- En el E2E la animación temporal no avanza (el juego está en pausa para poder avanzar tick a tick): por eso la captura de la muerte muestra el primer fotograma de `death`; en juego real el clip corre.
+- El *placeholder* sigue siendo el de S3; los VFX del tajo, del impacto y del daño son **S7**.
