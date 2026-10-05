@@ -21,6 +21,7 @@
     "check": "npm run typecheck && npm test"
   },
   "dependencies": {
+    "pixi.js": "^8.22.0",
     "three": "^0.186.1"
   },
   "devDependencies": {

@@ -13,6 +13,18 @@ if (lab === 'model') {
 } else if (lab === 'camera') {
   const { startCameraLab } = await import('./labs/cameraLab');
   await startCameraLab(host, params);
+} else if (lab === 'stress') {
+  // Render-budget benchmark (docs/MIGRATION-2D.md S1): 800+ animated sprites, parallax layers, a filter, particles.
+  const { startStressLab } = await import('./labs/stressLab');
+  await startStressLab(host, params);
+} else if (params.get('view') === '2d') {
+  // The 2D (PixiJS) game. Code-split so the 3D path never loads Pixi and vice versa.
+  const { Game2D } = await import('./Game2D');
+  const game = await Game2D.create(host, params);
+  game.start();
+  if (import.meta.hot) {
+    import.meta.hot.dispose(() => game.dispose());
+  }
 } else {
   const game = new Game(host);
   game.start();
