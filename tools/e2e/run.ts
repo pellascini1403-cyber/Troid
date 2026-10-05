@@ -11,9 +11,10 @@ import type { Ctx, GameState, Scenario } from './scenario';
 import { movement, movement2d } from './scenarios/movement';
 import { camera2d } from './scenarios/camera2d';
 import { render2d } from './scenarios/render2d';
+import { sprites2d } from './scenarios/sprites2d';
 import { stress } from './scenarios/stress';
 
-const ALL: Scenario[] = [movement, movement2d, render2d, camera2d, stress];
+const ALL: Scenario[] = [movement, movement2d, render2d, camera2d, sprites2d, stress];
 const filter = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const prod = process.argv.includes('--prod');
 const selected = ALL.filter((s) => !filter || s.name.includes(filter));
@@ -62,6 +63,8 @@ for (const scenario of selected) {
     await scenario.run(ctx);
     if (ctx.errors.length) throw new Error(`console/page errors:\n  - ${ctx.errors.join('\n  - ')}`);
     console.log(`✓ ${scenario.name}  (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
+    const warned = [...new Set(ctx.warnings)];
+    if (warned.length) console.log(`  console warnings (${warned.length} distinct): ${warned.slice(0, 3).map((w) => w.slice(0, 140)).join(' | ')}`);
   } catch (e) {
     failed++;
     console.error(`✗ ${scenario.name}\n  ${(e as Error).message}`);

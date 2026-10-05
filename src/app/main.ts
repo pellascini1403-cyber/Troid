@@ -13,6 +13,10 @@ if (lab === 'model') {
 } else if (lab === 'camera') {
   const { startCameraLab } = await import('./labs/cameraLab');
   await startCameraLab(host, params);
+} else if (lab === 'sprites') {
+  // Sprite-set contact sheet + live actor (docs/MIGRATION-2D.md S3).
+  const { startSpriteLab } = await import('./labs/spriteLab');
+  await startSpriteLab(host, params);
 } else if (lab === 'stress') {
   // Render-budget benchmark (docs/MIGRATION-2D.md S1): 800+ animated sprites, parallax layers, a filter, particles.
   const { startStressLab } = await import('./labs/stressLab');

@@ -11,7 +11,7 @@
 | **S0** baseline y etiqueta | ✅ | (ver historial) |
 | **S1** spike Pixi | ✅ | (ver historial) |
 | **S2** cámara 2D | ✅ | (ver historial) |
-| S3 sprites y animación | ⬜ | |
+| **S3** sprites y animación | ✅ | (ver historial) |
 | S4 retirar Three.js | ⬜ | |
 | S5 agacharse | ⬜ | |
 | S6 combate | ⬜ | |
@@ -95,3 +95,34 @@ El lote de Pixi v8 agrupa hasta 16 texturas distintas por llamada, por eso las c
 **E2E `camera-2d`** (dev y producción): a 844×390 la vista queda recortada contra el muro izquierdo y el jugador por la izquierda del centro; al correr la cámara acompaña (|cámara − jugador| < 3.2 m); contra el muro derecho nunca se ve más allá de la sala; a 21:9 muestra 31.5 m y a 4:3 18 m, ambos dentro de la sala. Capturas revisadas.
 
 **Hallazgo (sin cambios de diseño):** a velocidad de carrera el seguimiento amortiguado + la zona muerta (≈ 1.2 m + 1.7 m de retraso) compensan casi exactamente la anticipación de 3 m, así que el jugador corre cerca del centro de la pantalla; sin anticipación se iría hacia el borde (el test lo mide comparando con anticipación 0). El sesgo hacia donde mira queda dentro de la zona muerta (0.9 m < 1.2 m) y solo actúa con la cámara en movimiento. Son los números de F4/GAME-SPEC §16; se retocan como datos si el *playtest* lo pide.
+
+
+---
+
+## S3 — Sprites y animación ✅
+
+**Qué existe ahora** (la lógica es pura y se prueba en Node; solo el *binder* y el cargador tocan Pixi)
+- `presentation/`: `vocabulary.ts` (estados lógicos, anclas, fases, cadenas de *fallback*; sustituye a `models/vocabulary.ts`, que queda como re-export hasta S4), `actorViewState.ts` (contrato sim → vista, ahora con `phase`/`phaseT`), `SpriteSetDefinition.ts` (clips, anclas, pivote, `artPxPerMeter`), `animation.ts` (`SpriteAnimator`, `resolveClip`, `frameForTime`, `frameForPhase`), `anchors.ts`, `ActorPresenter.ts` (interpola, anima, voltea, parpadea, *flash*; devuelve un `SpritePose` sin tipos de Pixi), `validateSpriteSet.ts` (contrato de assets) y `placeholder.ts` (tabla de poses → definición + anclas + atlas).
+- `render/ActorSprite.ts`: aplica el `SpritePose` a dos sprites (cuerpo + superposición aditiva blanca para el *hit flash*, sin filtro) y permite **cambiar el arte en caliente** (`setSpriteSet`) sin tocar el estado de simulación.
+- `assets/`: `SpriteAssetManager<T>` (genérico, con referencias y validación al cargar), `spriteLoader.ts` (atlas `procedural:<id>` o archivo `<atlas>.json` + imagen en formato TexturePacker con recorte, que es la ruta del arte final), `placeholderAtlas.ts` (dibujo con canvas).
+- `content/`: `placeholders/playerPlaceholder.ts` (62 fotogramas, 15 clips: `idle walk run jump fall land crouch crouchWalk dash attack attack2 attackAir attackCrouch hurt death`), `sprites.ts` (registro). `PlayerDefinition.spriteSetId` convive con `modelId` hasta S4.
+- `Game2D` pinta al jugador con `ActorSprite` (la caja gris de S1 desaparece); `Game2D.create` carga el *sprite set* antes de construir el juego, de modo que `__troid.ready()` sigue siendo inmediato. El tiempo de animación sigue al reloj de simulación (congelado en pausa, escalado por `timeScale`).
+- `app/labs/spriteLab.ts` (`?lab=sprites`): hoja de contacto con todas las anclas dibujadas, guía de 1.7 m y un actor en vivo; `window.__sprites` para E2E.
+
+**Placeholder (solo abstracto, GAME-SPEC §2).** Cápsula gris-lavanda con muesca blanca de orientación, marcador de mano y línea de hoja; **sin cian, sin rojo, sin silueta de insecto**: no es el protagonista ni compite con él (un test comprueba el croma de sus colores). El juego, el laboratorio y los tests lo usan a través del *mismo* pipeline que usará el arte real, de modo que cambiar de arte es apuntar `PlayerDefinition.spriteSetId` a otra definición.
+- Atlas: 1616 × 1072 px (celdas de 202 × 134 px, 56 px/m), ≈ 6.6 MB RGBA en GPU. Cada pose es la única fuente del dibujo **y** de las anclas: la espada nunca se desalinea de lo dibujado.
+- **Contrato de espada:** en cada fotograma de ataque existen `hand_r`, `weapon_grip` y `weapon_tip`, con `|grip − hand| ≤ 0.04 m` (el validador lo exige y falla si no).
+- **Ataques por fase:** los clips `attack*` declaran `phases` (startup [0,1] · active [2,3] · recovery [4,5]) y el fotograma sale de `phase`/`phaseT` que publicará la simulación, **no del reloj**: el golpe visible coincide siempre con la *hitbox*. No existe *cross-fade* en 2D (corte limpio).
+
+**Tests: +43 (222 → 265)** en `tests/unit/sprites/`:
+- **Los 23 tests de `assets.test.ts` están portados** con la misma intención: contrato del asset (4: el set pasa el validador sin avisos, cada estado del jugador tiene su clip, es abstracto y mide 1.7 m, el validador detecta clip/idle/escala), anclas y *sprite* (5: anclas reales por fotograma, *fallbacks* proporcionales, dos instancias independientes, `dispose` idempotente, texturas compartidas intactas), animador (6: arranca en idle, cadena de *fallback*, reinicio de one-shot, ajuste de duración, `finished`/bucles, y el de *cross-fade* sustituido por «el fotograma sale de la fase de simulación»), `ActorSprite` (4: interpolación con Y invertida, volteo instantáneo, reinicio solo con `animSerial`, parpadeo y `visible`) y gestor de assets (4).
+- 20 nuevos: anclas espejadas con la orientación; la empuñadura sigue a la mano en cada fase; intercambio de arte en caliente con estado de simulación intacto; las 62 poses caben en su celda; agachado 1.0 m / de pie 1.7 m; determinismo del generador; validación de fases y de `weapon_tip`; carga de atlas JSON con recorte; el gestor registra los errores del validador.
+- Los tests del pipeline glTF (3D) **siguen en verde** y se retiran en S4 junto con Three.js.
+
+**E2E (dev y producción):** `sprites-2d` (nuevo: el validador no informa nada, 62 fotogramas, estados → clips, fotogramas de ataque por fase, empuñadura = mano, y **mismo tamaño en pantalla con otra resolución de arte** (56 vs 36 px/m)); `movement-2d` ampliado (el fotograma en pantalla sigue idle/run/jump/dash, el sprite se espeja al girar, el ancla de la espada va delante, y **≤ 60 *draw calls*** en la escena real). Capturas revisadas.
+
+**Desviaciones y notas**
+- El *placeholder* pasa por el pipeline real de atlas por fotogramas (no por `ProceduralActor`, que ARCHITECTURE §7.5 sugería para el proxy): así el camino de sustitución de arte queda ejercitado desde ahora. El Ink Slime (S9) sí usará `ProceduralActor`.
+- La ruta de atlas **en archivo** (`<atlas>.json` + imagen) está implementada y probada con datos en memoria (incluido el recorte); no se ha ejercitado con un archivo real porque aún no hay arte.
+- El laboratorio dibuja ~100 formas de depuración (con `pixelLine`, que rompe el lote) y por eso sus *draw calls* (≈ 126) no son presupuesto; el de la escena de juego se mide en `movement-2d`.
+- Los *hooks* `step`/`teleport` actualizan el sprite inmediatamente (los tests leen el estado presentado justo después de avanzar).

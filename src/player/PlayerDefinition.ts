@@ -6,8 +6,10 @@ import type { MovementTuning } from './MovementTuning';
  */
 export interface PlayerDefinition {
   id: string;
-  /** Id of a ModelDefinition (resolved through the content registry). Swap to change the character. */
+  /** Id of a ModelDefinition (3D prototype, removed in S4). */
   modelId: string;
+  /** Id of a SpriteSetDefinition (resolved through the content registry). Swap to change the character's art. */
+  spriteSetId: string;
   /** Collision body. Position of the player is the centre of the feet. */
   body: {
     halfWidth: number;

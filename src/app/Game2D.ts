@@ -1,8 +1,9 @@
-import { Sprite } from 'pixi.js';
-import { canvasTexture } from '@/assets/proceduralTextures';
+import type { Texture } from 'pixi.js';
+import { SpriteAssetManager, type LoadedSpriteSet } from '@/assets/SpriteAssetManager';
+import { createPixiSpriteLoader } from '@/assets/spriteLoader';
 import { CAMERA_2D } from '@/camera/camera2d';
 import type { CameraTarget } from '@/camera/CameraRig';
-import { ABILITIES, PLAYER, ROOMS } from '@/content';
+import { ABILITIES, PLAYER, PROCEDURAL_ATLASES, ROOMS, SPRITE_SETS } from '@/content';
 import { DisposableStore } from '@/core/lifecycle';
 import { ColliderOverlay2D } from '@/debug/ColliderOverlay2D';
 import { DebugActions } from '@/debug/DebugActions';
@@ -14,8 +15,8 @@ import { GameSession } from '@/gameplay/GameSession';
 import { DEFAULT_BINDINGS } from '@/input/bindings';
 import { InputManager } from '@/input/InputManager';
 import { attachKeyboardMouse } from '@/input/sources/KeyboardMouseSource';
-import { PALETTE } from '@/presentation/palette';
-import { viewY } from '@/presentation/worldTransform';
+import type { AnchorId } from '@/presentation/vocabulary';
+import { ActorSprite } from '@/render/ActorSprite';
 import { CameraAdapter2D } from '@/render/CameraAdapter2D';
 import { Renderer2D } from '@/render/Renderer2D';
 import { RoomView2D } from '@/render/RoomView2D';
@@ -43,8 +44,7 @@ export class Game2D {
   private readonly camera: CameraAdapter2D;
   private readonly roomView: RoomView2D;
   private readonly bindings = structuredClone(DEFAULT_BINDINGS);
-  /** S1 placeholder: replaced by the sprite pipeline in S3. */
-  private readonly playerSprite: Sprite;
+  private readonly playerSprite: ActorSprite;
   private colliders: ColliderOverlay2D | null = null;
   private panel: DebugPanel | null = null;
 
@@ -54,13 +54,21 @@ export class Game2D {
     const counter = new DrawCallCounter();
     if (options.hooks || import.meta.env.DEV) DrawCallCounter.install(counter);
     const renderer = await Renderer2D.create({ host, viewHeight: options.camera.viewHeight ?? CAMERA_2D.viewHeight ?? 13.5 });
-    return new Game2D(renderer, counter, options);
+    // Sprites load asynchronously (a placeholder atlas is drawn, final art would be fetched), so the game is built only
+    // once the player's set is ready: `__troid.ready()` is true as soon as `create` resolves.
+    const sprites = new SpriteAssetManager<Texture>(createPixiSpriteLoader({ procedural: PROCEDURAL_ATLASES }));
+    const playerDef = SPRITE_SETS[PLAYER.spriteSetId];
+    if (!playerDef) throw new Error(`player sprite set "${PLAYER.spriteSetId}" is not in the content registry`);
+    const playerSet = await sprites.acquire(playerDef);
+    return new Game2D(renderer, counter, options, sprites, playerSet);
   }
 
   private constructor(
     private readonly renderer: Renderer2D,
     private readonly counter: DrawCallCounter,
     private readonly options: GameOptions,
+    sprites: SpriteAssetManager<Texture>,
+    playerSet: LoadedSpriteSet<Texture>,
   ) {
     this.session = new GameSession({
       rooms: ROOMS,
@@ -70,6 +78,7 @@ export class Game2D {
       unlocked: options.unlock,
     });
     this.lifecycle.add(() => this.session.dispose());
+    this.lifecycle.add(() => sprites.dispose());
     this.lifecycle.add(() => renderer.destroy());
 
     // ---- camera ----
@@ -82,7 +91,9 @@ export class Game2D {
     // ---- views ----
     this.roomView = new RoomView2D(renderer.layers);
     this.lifecycle.add(() => this.roomView.destroy());
-    this.playerSprite = this.createPlayerPlaceholder();
+    this.playerSprite = new ActorSprite(playerSet, { zIndex: 10 });
+    renderer.layers.actors.addChild(this.playerSprite.root);
+    this.lifecycle.add(() => this.playerSprite.dispose());
     this.buildRoomView();
     this.registerDebugActions();
     this.setupDebug();
@@ -128,24 +139,6 @@ export class Game2D {
 
   // ---------------------------------------------------------------------------------------------------- views
 
-  private createPlayerPlaceholder(): Sprite {
-    const h = PLAYER.body.height;
-    const texture = canvasTexture(56, 136, (ctx, tw, th) => {
-      ctx.fillStyle = `#${PALETTE.worldMist.toString(16).padStart(6, '0')}`;
-      ctx.beginPath();
-      ctx.roundRect(1, 1, tw - 2, th - 2, 12);
-      ctx.fill();
-      // facing notch (the art faces right; the sprite is flipped for facing = −1)
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(tw - 18, 22, 14, 8);
-    });
-    const sprite = new Sprite(texture);
-    sprite.anchor.set(0.5, 1);
-    sprite.scale.set(h / texture.height);
-    this.renderer.layers.actors.addChild(sprite);
-    return sprite;
-  }
-
   private buildRoomView(): void {
     const room = this.session.room;
     this.roomView.build(room);
@@ -161,9 +154,9 @@ export class Game2D {
     const v = p.view;
     const x = v.prevX + (v.x - v.prevX) * a;
     const y = v.prevY + (v.y - v.prevY) * a;
-    const ps = this.playerSprite;
-    ps.position.set(x, viewY(y));
-    ps.scale.x = Math.abs(ps.scale.x) * v.facing;
+    // Animation time follows the simulation clock: frozen while paused, slowed by timeScale (stable E2E and screenshots).
+    const animDt = this.debug.get('paused') ? 0 : realDt * this.debug.get('timeScale');
+    this.playerSprite.sync(v, a, animDt);
 
     // The camera follows the INTERPOLATED position — exactly what is drawn — so camera and player never jitter apart.
     const target: CameraTarget = { x, y, vx: p.body.vx, vy: p.body.vy, facing: p.facing, grounded: p.body.grounded };
@@ -262,25 +255,34 @@ export class Game2D {
       game: this,
       session: this.session,
       input: this.input,
-      /** The 2D view is ready as soon as `Game2D.create` resolved (nothing is loaded asynchronously yet). */
+      /** The 2D view is ready as soon as `Game2D.create` resolved (the sprite sets are loaded before it is built). */
       ready: () => true,
       /** Freezes real-time simulation so tests can advance it tick by tick. */
       pause: () => this.debug.set('paused', true),
       resume: () => this.debug.set('paused', false),
       step: (n = 1) => {
         for (let i = 0; i < n; i++) this.stepOnce();
+        // tests read the presented state right after stepping: bring the sprite up to date without waiting for a frame
+        this.playerSprite.sync(this.session.player.view, 1, 0);
       },
       teleport: (x: number, y: number) => {
         this.session.player.respawn(x, y, this.session.player.facing);
         this.session.collision.probeGround(this.session.player.body);
         this.camera.snap();
+        this.playerSprite.sync(this.session.player.view, 1, 0);
       },
       state: () => {
         const b = this.session.player.body;
         const vp = this.renderer.viewport;
+        const ps = this.playerSprite;
+        const anchor = (id: AnchorId): { x: number; y: number } => ps.anchorWorld(id);
         return {
           x: b.x, y: b.y, vx: b.vx, vy: b.vy, grounded: b.grounded,
           anim: this.session.player.view.anim, state: this.session.player.controller.state,
+          sprite: {
+            set: ps.spriteSetId, frame: ps.frame, facing: ps.root.scale.x, visible: ps.root.visible,
+            hand: anchor('hand_r'), grip: anchor('weapon_grip'), tip: anchor('weapon_tip'),
+          },
           tick: this.session.now, fps: this.fps.fps,
           // `calls` keeps the field the 3D scenes used; `draws` is the same number under its real name
           calls: this.counter.median, triangles: 0,

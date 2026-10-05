@@ -24,6 +24,16 @@ export interface GameState {
   /** 2D view only: viewport layout and canvas sizes. */
   view?: { contentWidth: number; contentHeight: number; ppm: number; resolution: number; visibleWidth: number; barX: number; barY: number; rotateDevice: boolean };
   canvas?: { cssWidth: number; cssHeight: number; width: number; height: number };
+  /** 2D view only: the player's sprite (set, frame on screen, facing, anchors in world metres). */
+  sprite?: {
+    set: string;
+    frame: string | null;
+    facing: number;
+    visible: boolean;
+    hand: { x: number; y: number };
+    grip: { x: number; y: number };
+    tip: { x: number; y: number };
+  };
   /** 2D view only: camera centre (world metres) and the visible height. */
   camera?: { x: number; y: number; viewHeight: number };
 }

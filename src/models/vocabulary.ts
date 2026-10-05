@@ -1,21 +1,14 @@
 /**
- * Logical vocabulary shared by the simulation (which *requests* things) and the asset pipeline
- * (which maps them to whatever the current model happens to contain).
- *
- * Gameplay only ever speaks in these ids. Clip names, node names and file paths live in a
- * `ModelDefinition` and can change freely when the final art arrives.
+ * LEGACY 3D vocabulary (removed together with Three.js in S4). The animation vocabulary now lives in
+ * `presentation/vocabulary.ts` and is re-exported here so the 3D prototype keeps compiling meanwhile;
+ * only the glTF socket ids and cross-fade times remain specific to this file.
  */
+import type { AnimState } from '@/presentation/vocabulary';
 
-/** Logical animation states. A model does not need all of them: missing ones fall back (see `ANIM_FALLBACKS`). */
-export const ANIM_STATES = [
-  'idle', 'walk', 'run', 'move',
-  'jump', 'fall', 'land',
-  'attack', 'attack1', 'attack2', 'attackAir', 'special',
-  'dash', 'hurt', 'death', 'phaseTransition',
-] as const;
-export type AnimState = (typeof ANIM_STATES)[number];
+export { ANIM_STATES, ANIM_FALLBACKS, ONE_SHOT_STATES } from '@/presentation/vocabulary';
+export type { AnimState } from '@/presentation/vocabulary';
 
-/** Anchor points on a model. Gameplay VFX / weapons / projectiles attach here, never to a bone by name. */
+/** Anchor points on a 3D model. Gameplay VFX / weapons / projectiles attach here, never to a bone by name. */
 export const SOCKET_IDS = [
   'weapon_r', 'weapon_l', 'shield', 'projectile_origin',
   'vfx_feet', 'vfx_hand_r', 'vfx_hand_l', 'vfx_center',
@@ -25,34 +18,6 @@ export type SocketId = (typeof SOCKET_IDS)[number];
 
 /** Convention for sockets inside a glTF: an empty node named `SOCKET_<id>` parented to the right bone. */
 export const SOCKET_NODE_PREFIX = 'SOCKET_';
-
-/**
- * If a model lacks the clip for a state, try these (in order) before giving up.
- * The chain always ends in `idle`, so a model with a single clip still animates without errors.
- */
-export const ANIM_FALLBACKS: Readonly<Record<AnimState, readonly AnimState[]>> = {
-  idle: [],
-  walk: ['run', 'move', 'idle'],
-  run: ['walk', 'move', 'idle'],
-  move: ['run', 'walk', 'idle'],
-  jump: ['fall', 'idle'],
-  fall: ['jump', 'idle'],
-  land: ['idle'],
-  attack: ['attack1', 'idle'],
-  attack1: ['attack', 'idle'],
-  attack2: ['attack', 'attack1', 'idle'],
-  attackAir: ['attack', 'attack1', 'idle'],
-  special: ['attack2', 'attack', 'attack1', 'idle'],
-  dash: ['run', 'move', 'idle'],
-  hurt: ['idle'],
-  death: ['hurt', 'idle'],
-  phaseTransition: ['special', 'hurt', 'idle'],
-};
-
-/** States that play once and hold their last pose; everything else loops. Overridable per clip. */
-export const ONE_SHOT_STATES: ReadonlySet<AnimState> = new Set<AnimState>([
-  'jump', 'land', 'attack', 'attack1', 'attack2', 'attackAir', 'special', 'dash', 'hurt', 'death', 'phaseTransition',
-]);
 
 /** Default cross-fade (seconds) when entering a state. Quick for combat, softer for locomotion. */
 export const DEFAULT_FADE: Readonly<Partial<Record<AnimState, number>>> = {
