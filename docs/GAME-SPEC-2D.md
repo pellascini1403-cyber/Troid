@@ -585,6 +585,8 @@ Pequeña. Debe permitir probar **entrar → explorar → combatir → conseguir 
 | **R4** «Antesala» | descansar y prepararse | nodo de guardado (Prompt 6) | recarga de botellas |
 | **R5** «Arena» | **enfrentarse a un enemigo** | jefe con fases (Prompt 6) | todo lo anterior |
 
+> **R1 implementada en el Prompt 4** (`content/rooms/r1Gate.ts`, [PROMPT4-LOG](PROMPT4-LOG.md) S10): entrada → movimiento → plataformas (foso de 5 m, escaleras *one-way*) → pasaje bajo de 1.2 m × 12 m → arena del Ink Slime → **puerta que solo abre `defeated:r1_slime`** → salida (`exit:reached`). Un guardián con `defeatFlag` **no vuelve a colocarse** mientras su bandera esté puesta (lo ganado se conserva: §9.2 «sin pérdidas»); los enemigos sin bandera reaparecen siempre. Probada **completable por física** con un jugador *scripted* (de la entrada a la salida en 995 ticks, sin daño).
+
 Secreto: tras el muro de R2, una **cuarta ranura de botella**. Recompensa del jefe: **Air Dash** (anuncia la siguiente región).
 
 ---
@@ -606,6 +608,14 @@ FSM: `idle/patrulla → detección → aproximación (se desliza) → telegraph 
 | Aturdimiento · muerte | 14 ticks · 40 ticks (se deshace en tinta) |
 
 Determinista (todo azar pasa por `Rng`). La arquitectura admite voladores, rápidos, a distancia, blindados y minijefes **sin implementarlos ahora**: son datos + un `EnemyBrain` por arquetipo.
+
+> **Implementado en el Prompt 4** (`content/enemies.ts`, `enemies/archetypes/inkSlime.ts`; detalle y pruebas en [PROMPT4-LOG](PROMPT4-LOG.md) S9). Decisiones que el spec dejaba abiertas:
+> - Un estado de **D ticks ocupa exactamente D ticks**, contando el de entrada: el *telegraph* son los 24 ticks **anteriores** al primer tick activo; el hitbox existe en 10; la recuperación dura 36.
+> - El *telegraph* **es** el `startup` del ataque (un solo número). La embestida avanza 9 m/s × 10 ticks = **1.5 m** y se detiene donde acaba (no patina).
+> - El hitbox de 1.3 × 0.9 m va **centrado en el cuerpo** (el daño ocurre donde la baba *está*): el golpe conecta hacia el tick 9 de 10, cuando el cuerpo llega al jugador, y el alcance efectivo desde la distancia de ataque es de 2.45 m. **No hay daño por contacto.**
+> - Un golpe **interrumpe cualquier estado, también la embestida** (sin armadura); el aturdimiento es el del ataque que lo golpea y, si no trae, los 14 ticks de la tabla.
+> - Percibe al jugador a 8 m (y lo pierde a 11: histéresis), con **tolerancia vertical** (2.4 m para verlo, 1.2 m para atacarlo) y **sin ver a través de muros**; no cae por los bordes; tras una persecución vuelve caminando a su parcela (±3 m); **deja de atacar en cuanto el jugador cae**.
+> - Placeholder visual: cúpula de tinta negra con borde violeta oscuro y ojos blancos; el aviso aplasta y ensancha el cuerpo, enciende los ojos y hace crecer un aura violeta, y el VFX añade un anillo que se cierra (un reloj sin texto) y motas violetas.
 
 ### 15.2 Jefe (previsto, **no se implementa en el Prompt 3 ni en el 4**)
 

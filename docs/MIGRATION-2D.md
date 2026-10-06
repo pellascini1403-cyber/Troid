@@ -322,29 +322,31 @@ R1–R13 vienen de la auditoría (se actualiza su estado); R14+ son nuevos.
 
 ## 9. Criterios de aceptación del Prompt 4
 
+> **Estado: cumplidos (2026-10-06)**, con la evidencia entre paréntesis (detalle en la [bitácora](PROMPT4-LOG.md)). Lo que **no** se pudo verificar aquí se declara en el informe final y en la bitácora (§ «Limitaciones»).
+
 **Producto (lo que se ve y se juega, con teclado):**
-- [ ] Entrar en la sala R1 **sin errores de consola**.
-- [ ] Moverse, saltar (variable, coyote, buffer), **agacharse** (con pasaje bajo) y hacer **dash** (i-frames) exactamente como en F5.
-- [ ] **Atacar** (cadena de 2, aéreo, agachado) con hitbox visible en el modo de depuración; golpear: hit-stop, knockback y chispas.
-- [ ] **Recibir daño:** knockback, i-frames con parpadeo, vida visible en el panel de depuración (el HUD llega en el Prompt 5).
-- [ ] **Derrotar** al *Ink Slime*: *telegraph* violeta legible y muerte.
-- [ ] **Morir y reaparecer**: flujo de derrota con texto localizado (es/en).
-- [ ] **Llegar al final de la sala** (`exit:reached`).
+- [x] Entrar en la sala R1 **sin errores de consola** (el arnés E2E falla cualquier escenario con un error de consola; `r1` y `room` abren R1 por defecto).
+- [x] Moverse, saltar (variable, coyote, buffer), **agacharse** (con pasaje bajo) y hacer **dash** (i-frames) exactamente como en F5 (los 40 tests de movimiento, intactos; 29 de agacharse; E2E `movement`, `crouch` y `room`).
+- [x] **Atacar** (cadena de 2, aéreo, agachado) con hitbox visible en el modo de depuración; golpear: hit-stop, knockback y chispas (E2E `combat`, `slime`, `room`).
+- [x] **Recibir daño:** knockback, i-frames con parpadeo, vida visible en el panel de depuración y en `state()` (E2E `combat`, `slime`, `room`).
+- [x] **Derrotar** al *Ink Slime*: *telegraph* violeta legible (se mide en píxeles) y muerte (E2E `slime`, `room`).
+- [x] **Morir y reaparecer**: flujo de derrota con texto localizado (es/en) (E2E `death` y `room`, con el slime venciendo al héroe de verdad).
+- [x] **Llegar al final de la sala** (`exit:reached`) (E2E `r1` y `room`; prueba por física en `tests/integration/r1.test.ts`).
 
 **Técnico:**
-- [ ] `npm run check` y `npm run build` verdes. Tests: los 192 de partida **menos 3** de pose 3D, con **23 portados** y **1 adaptado** (§4), **más** los nuevos. **Ningún** test de movimiento, núcleo ni input modificado (diff vacío).
-- [ ] `grep -rn "from 'three" src tests tools` vacío; `three` y `@types/three` fuera de `package.json`; sin `tools/gen/` ni `public/assets/models/`.
-- [ ] Reglas nuevas del test de arquitectura (§6) activas y verdes.
-- [ ] E2E (dev **y** producción): escenario «sala completa» verde; capturas 844×390 y 1920×1080 no vacías; ≤ 60 *draw calls* en la sala.
-- [ ] *Spike* (S1): escena de estrés ≤ 60 *draw calls* **o** decisión de reversión registrada.
-- [ ] Determinismo bit a bit con combate y enemigo; **sin fugas** tras N recargas de sala (listeners, timers, entidades, vistas); *pools* estables.
-- [ ] i18n: paridad es/en y ningún literal de interfaz en `ui/`.
-- [ ] Bundle JS total ≤ 200 KB gz (medido; hoy 15.2 + 163.8 KB gz).
+- [x] `npm run check` y `npm run build` verdes. Tests: 617 (los 192 de partida, menos 3 de pose 3D, con 23 portados y 1 adaptado, más los nuevos). **Ningún** test de movimiento, núcleo ni input modificado (`git diff ac74b46 -- tests/integration/movement.test.ts tests/unit/core tests/unit/input` vacío).
+- [x] `grep -rn "from 'three" src tests tools` vacío; `three` y `@types/three` fuera de `package.json`; sin `tools/gen/` ni `public/assets/models/`.
+- [x] Reglas nuevas del test de arquitectura (§6) activas y verdes (22 tests: capas, `pixi` solo en vista, sin literales de interfaz en `ui/`, `i18n/` puro…).
+- [x] E2E (dev **y** producción, 12 escenarios): «sala completa» (`room`) verde; capturas 844×390 y 1920×1080 no vacías; **≤ 60 *draw calls*** en la sala (R1 entera: 12–14).
+- [x] *Spike* (S1): escena de estrés ≤ 60 *draw calls* (5; el criterio de reversión del ADR-0002 **no** se activó).
+- [x] Determinismo bit a bit con combate y enemigo (tests de integración y **dos reproducciones en el navegador comparadas con la simulación cada 50 ticks**); **sin fugas** tras N recargas de sala (listeners, entidades, vistas, objetos de cada capa de la escena); *pools* estables.
+- [x] i18n: paridad es/en y ningún literal de interfaz en `ui/` (tests de catálogos y regla de arquitectura).
+- [x] Bundle JS **que descarga un arranque en frío de R1: 195.6 KB gz** (≤ 200 KB gz; `npm run bench:bundle`). Ojo: `dist/` entero suma 237 KB gz porque incluye los laboratorios y los *renderers* WebGPU/Canvas que no se descargan; el margen real es de ≈ 4 KB.
 
 **Proceso:**
-- [ ] Un commit por paso con los *trailers*; `wip/f6-combat-core` **intacta** (`b695c98`).
-- [ ] Documentos sincronizados (estado de ARCHITECTURE-2D, ROADMAP, README).
-- [ ] Informe final con **verificado / corregido / pendiente / no verificable** (iOS/Android reales, rendimiento móvil, audio y tiendas siguen sin poder comprobarse aquí).
+- [x] Un commit por paso (o varios pequeños: S9, S10 y S11 tienen 2–3) con los *trailers*; `wip/f6-combat-core` **intacta** (`b695c98`, local y en `origin`).
+- [x] Documentos sincronizados (estado de ARCHITECTURE-2D con lo medido, ROADMAP, README, bitácora).
+- [x] Informe final con **verificado / corregido / pendiente / no verificable** (iOS/Android reales, rendimiento móvil, audio y tiendas siguen sin poder comprobarse aquí).
 
 ---
 

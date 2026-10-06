@@ -1,6 +1,7 @@
 # Arquitectura 2D — Troid
 
-> **Estado:** definitiva para iniciar el Prompt 4 · **Fecha:** 2026-10-05 · **Fase:** Prompt 3 (documentación; PixiJS **no** está instalado todavía).
+> **Estado:** implementada en el Prompt 4 (pasos S0–S11; [bitácora](PROMPT4-LOG.md)) · **Fecha:** 2026-10-06 · **Fase:** vertical slice jugable en 2D con PixiJS v8; Three.js retirado.
+> Este documento conserva el diseño; donde la implementación se apartó de él, la desviación está anotada en el apartado (*«Implementado: …»*) y en la bitácora.
 > Qué se construye: [GAME-SPEC-2D](GAME-SPEC-2D.md) · En qué orden y qué se conserva: [MIGRATION-2D](MIGRATION-2D.md) · Registro de decisiones: [ADR-0003](adr/0003-arquitectura-2d-definitiva.md).
 >
 > **Relación con [ARCHITECTURE.md](ARCHITECTURE.md):** sus principios, el bucle de 60 Hz, el modelo de datos, el sistema de eventos y la regla de pruebas **siguen vigentes**.
@@ -246,10 +247,14 @@ Glosario para no confundir: **Ability** = posesión/progresión (`AbilitySystem`
 
 `DeathFlow` es una máquina de fases en **ticks** con `Scheduler` y dueño: `dying (≈72) → fadeOut (30) → hold (60) → respawn → fadeIn (30)` (parámetros en datos). `RespawnPoint = { room, entry }` (la entrada de la sala hoy; el último nodo de guardado en el Prompt 6). El reinicio recarga la sala (`loadRoom`, ✅ reconstruye colisión sin fugas), restaura vida y magia y **no** rellena botellas.
 
+> **Implementado: `DeathFlow`** (`gameplay/DeathFlow.ts`): `dying 72 → fadeOut 30 → hold 60 → reaparición → fadeIn 30` en **ticks de simulación**, `skipAfter 30` (cualquier botón tras 30 ticks de pantalla negra salta la espera y **esa pulsación se gasta**: no actúa en el jugador que vuelve). El tick de la muerte cuenta como el primero de `dying` y el hit-stop de la muerte (8) no cuenta: la reaparición llega 161 ticks después de `death:started`. El overlay es DOM (`ui/overlays`), sin texto literal (`t(clave)`), y se reconstruye con `room:loaded`.
+
 ### 5.9 Enemigos
 
 `EnemyDefinition { id, nameKey, health, body, hurtboxes[], ai: { archetype, params }, attacks, telegraph: { ticks, vfx }, view: { spriteSetId | proceduralId } }`.
 `Enemy` es `SimEntity` + `Combatant` + `Actor`. `EnemyBrain` es una FSM (`StateMachine` ✅): `idle/patrol → detect → approach → telegraph → attack → recover → hurt → dead`. Percibe al jugador solo por `PlayerTarget` (lectura) y decide con `Rng` determinista. Los arquetipos (volador, rápido, a distancia, blindado, minijefe) son nuevas definiciones + un `EnemyBrain` por arquetipo.
+
+> **Implementado: `enemies/`** — `EnemyDefinition` (datos; `telegraph.ticks` es el `startup` del ataque, un solo número), `Enemy` (`SimEntity` + `Combatant` + `Actor`), `EnemyBrain` (interfaz) y `archetypes/inkSlime.ts` (FSM sobre `StateMachine`; `archetypes/index.ts` elige el cerebro por `ai.archetype`: un arquetipo nuevo es un `case` más). `senses.ts` (puro): suelo delante y línea de visión. La vista elige por `def.view`: `proceduralId` → `render/ProceduralActor` (hoy); `spriteSetId` → el contrato está en el tipo, la fábrica se completa con el arte (P7). Eventos: `enemy:alerted`, `enemy:telegraph`.
 
 ### 5.10 Jefes (contratos; implementación en el Prompt 6)
 
@@ -258,6 +263,8 @@ Glosario para no confundir: **Ability** = posesión/progresión (`AbilitySystem`
 ### 5.11 Mundo
 
 `RoomDefinition` se amplía con campos **opcionales** (`exits`, `spawns`, `interactables`, `hazards`, `cameraZones`, `art`, `music`, `ambient`, `palette`), por lo que una sala escrita hoy sigue funcionando. `RoomRuntime` instancia entidades leyendo **flags** (`WorldFlags`: `pickup:…`, `seal:…`, `boss:…`) para que *reset de sala*, reaparición y carga de partida sean deterministas. `RoomTransition` ejecuta el protocolo `locked → room:exiting → loadRoom → room:entered` en **ticks** (GAME-SPEC-2D §14.2). `validateContent()` comprueba la integridad referencial (salidas a salas inexistentes, spawns de definiciones desconocidas, ids de sprite/habilidad/sonido/clave de texto que no existen) al arrancar y en tests.
+
+> **Implementado en el Prompt 4:** `RoomDefinition` gana `spawns` (`{enemy, x, y, facing, defeatFlag}`), `gates` (`{solid, openWhen}`: un sólido de la sala que se apaga con una bandera), `exits` (`{rect, to?}` → `exit:reached`), `nameKey` y `art` (fondo provisional). `progression/WorldFlags` (puro; `has/set/clear/list/restore`) es la **única memoria** que sobrevive a una muerte o a una recarga; `GameSession` construye la sala completa al cargarla (los enemigos ya están en el mundo), no vuelve a colocar a un guardián cuya `defeatFlag` esté puesta y emite `flag:set`, `gate:changed` y `exit:reached` (una vez por salida y construcción). `world/validateRoom` (puro) + `tests/unit/content/rooms.test.ts` cubren la integridad referencial y física de **todas** las salas (entradas y spawns no enterrados y con suelo, enemigos y claves de texto que existen, puertas que apuntan a un sólido real y a una bandera alcanzable). Lo que sigue pendiente (P6): `RoomTransition` (fundido y carga con `ExitDef.to`), `interactables`, `hazards`, `cameraZones` y guardado de las banderas.
 
 ---
 
@@ -428,6 +435,8 @@ interface SpriteSetDefinition {                  // presentation/SpriteSetDefini
 
 **Actores sin fotogramas:** `ProceduralActor` dibuja formas (`Graphics`) con deformación (aplastamiento/estiramiento, deslizamiento) y ojos; es la vía de los enemigos de tinta y de la piel provisional del protagonista (GAME-SPEC-2D §2.7). Detrás de la **misma** interfaz de vista que `ActorSprite`.
 
+> **Implementado:** `presentation/proceduralPose.ts` (**puro**: el *look* es datos —pose por animación lógica `[desde, hasta]` sobre `phaseT`, con *easing*, oscilación y temblor, y la cadena de *fallbacks* del vocabulario— y `evalPose` lo convierte en deformación) + `render/ProceduralActor.ts` (formas dibujadas **una vez**, en centímetros para que las curvas salgan suaves; por fotograma solo cambian transformadas y alfas; 2 lotes por actor) + `content/proceduralActors.ts`. Lo usa el Ink Slime; **el protagonista sigue pasando por el *pipeline* real de sprites** (el *placeholder* abstracto es un atlas procedural), no por `ProceduralActor`: así la vía de sustitución de arte queda ejercitada desde ahora.
+
 ### 7.6 Atlas de texturas
 
 | Aspecto | Decisión |
@@ -505,21 +514,40 @@ Ejemplos calculados ✅ (`viewHeight` 13.5 m, héroe de 1.7 m, topes de resoluci
 - **Interfaz DOM:** solo `transform`/`opacity` en animaciones, sin *layout* por frame, escrituras agrupadas en el *hook* de frame (§8).
 - **Pantalla:** apaisado fijo (Capacitor); *safe areas*; `touch-action: none` ✅.
 
+**Medido en el Prompt 4 ✅** (Chromium con GL por software: sirve para **comparar**, no como cifra absoluta; contador de llamadas GL envuelto, mediana y peor caso de 120 fotogramas):
+
+| Escena | *Draw calls* (peor) | Contenido |
+|---|---:|---|
+| Escena de estrés `?lab=stress` (el *benchmark* de S1) | 5 (5) | 800 sprites animados de **un** atlas, 4 capas de *parallax*, 1 filtro, 240 partículas |
+| Laboratorio de VFX con el momento más cargado (muerte + impacto + daño + remate a la vez) | 5 (6) | héroe, dummy y 4 efectos a la vez |
+| **R1 entera**, de la entrada a la salida (héroe, slime, aviso, VFX, fondo de 4 capas, puerta, columna de salida) | 12 (**14**) | la escena real del juego |
+| Presupuesto | **≤ 60** | |
+
+**Por qué la escena real cuesta ≈ 3× más que el *benchmark* con muchísimos menos objetos:** una *draw call* no es un sprite, es un **lote** (*batch*) y un lote se rompe cada vez que cambia la textura o el modo de mezcla. El *benchmark* tiene una textura y una mezcla: 800 sprites caben en un lote. La sala real alterna: terreno (`Graphics`, normal) → héroe (atlas) → cada baba (aura *aditiva* · tinta *normal* · luz de ojos y destello *aditivos*, **2 lotes por baba**) → VFX normal → VFX aditivo → cada una de las 4 capas de fondo (cada una es su `Graphics`) → columna de luz. Consecuencias que se mantienen: el coste crece con el **número de cambios de textura/mezcla**, no con el de sprites (diez slimes son ≈ +20 lotes, no +10 000 píxeles de trabajo); añadir una pieza aditiva en medio de las normales es lo caro; y el margen (≈ 46 de 60) se gasta en enemigos, HUD (DOM: 0) y capas de arte, no en los 800 sprites del *benchmark*. Si algún día falta, la palanca es agrupar lo aditivo de todos los actores en **una** capa (auras detrás, luces delante) en vez de intercalarlo con cada cuerpo.
+
+**Bundle JS ✅** (`npm run bench:bundle`, arranque en frío de R1 en el *build* de producción): **195.6 KB gz** (624 KB sin comprimir, 27 *scripts*) frente al presupuesto de ≤ 200 KB gz; `dist/` contiene 237 KB gz porque incluye los laboratorios (herramientas de desarrollo, partidas en *chunks* aparte) y los *renderers* WebGPU/Canvas que Pixi solo pide si la plataforma los necesita. **El margen es de ≈ 4 KB**: el HUD, las cartas y el audio de los Prompts 5–7 obligarán a recortar Pixi (importar solo lo usado) o a revisar el presupuesto.
+
 ### 7.11 Depuración visual
 
 Modo de depuración **oculto** ✅ (`?debug=1` o tecla `` ` ``): *overlay* de colliders, **hitboxes y hurtboxes**, límites de cámara, *draw calls* (contador de llamadas GL como en el *benchmark* ✅), FPS ✅, pausa/paso/escala de tiempo ✅, inspector de *tuning* ✅ (se reutiliza para combate, magia, botellas y gestos). `window.__troid` ✅ conserva su forma (el E2E depende de ella) y añade `view: { drawCalls, sprites, textures }`.
 
 ### 7.12 Verificado frente a pendiente (API de Pixi v8)
 
+Actualizado al terminar el Prompt 4: lo que era intención de diseño ahora está **verificado con el código que corre** (`pixi.js@8.22.0`, Chromium con GL por software) salvo lo marcado ⚠️.
+
 | Aspecto | Estado |
 |---|---|
-| `Application` + `await app.init({ preference: 'webgl', antialias: false, autoStart: false, background, width, height })`, `app.canvas`, `app.render()`, `app.renderer.gl` | ✅ usado en el *benchmark* |
-| `Sprite`, `Texture`, `Rectangle`, `Texture.from(canvas)`, `new Texture({ source, frame })`, `sprite.anchor`, `sprite.position.set`, cambiar `sprite.texture` | ✅ |
-| 1 *draw call* para 800 sprites de un atlas | ✅ |
-| Multitáctil (`pointerId` independientes) en Chromium con toques CDP | ✅ |
-| `resolution`, `autoDensity`, `powerPreference`, `roundPixels` | ⚠️ opciones estándar de v8, sin usar aún |
-| `Container` (`pivot`, `scale`, `cullable`, render groups), `Graphics` (API encadenada de v8), `Assets`/`Spritesheet`, `ParticleContainer`/`Particle`, `ColorMatrixFilter` | ⚠️ por verificar en el *spike* |
-| Reconstrucción de texturas tras pérdida de contexto | ⚠️ por verificar |
+| `Application` + `await app.init({ preference: 'webgl', antialias: false, autoStart: false, background, resolution, autoDensity: true, powerPreference: 'high-performance' })`, `app.canvas`, `app.render()` a mano (sin *ticker* de Pixi), `app.renderer.resize(w, h, resolution)` | ✅ `render/Renderer2D.ts` |
+| `Sprite`, `Texture`, `Rectangle`, `Texture.from(canvas)`, `new Texture({ source, frame })`, `sprite.anchor`, `position.set`, cambiar `sprite.texture` | ✅ atlas procedurales (`assets/`), `ActorSprite`, VFX |
+| `Container` (`pivot`, `scale`, `skew`, `position`, `blendMode`, `label`, `sortableChildren`) | ✅ grafo de escena de `render/layers.ts` y `ProceduralActor`. *Render groups* y `cullable`: **no usados** (R1 son ≈ 12 *draw calls*; no hacen falta) |
+| `Graphics` (API encadenada de v8: `rect`, `roundRect`, `ellipse`, `moveTo/bezierCurveTo/closePath`, `.fill()`, `.stroke()`) | ✅ **con una trampa**: las curvas se subdividen con una tolerancia en las unidades *propias* de la forma; dibujadas en **metros** (un ojo de 0.15 m) salían como polígonos. Las formas curvas se dibujan en **centímetros** y se reducen con `scale` (`ProceduralActor`) |
+| `ParticleContainer` (`new ParticleContainer({ texture, dynamicProperties })`) + `Particle` (`addParticle`/`removeParticle`, `tint`, `alpha`, `scaleX/Y`, `rotation`) | ✅ `vfx/VfxSystem` (un contenedor aditivo y otro normal) y escena de estrés; el modo de mezcla **no se hereda** de forma fiable: se pone explícito (`blendMode = 'add'`) en cada pieza aditiva |
+| `ColorMatrixFilter` sobre una capa | ✅ escena de estrés (`filter=true`): sigue en ≈ 5 *draw calls* |
+| `resolution`, `autoDensity` | ✅ (`min(dpr, 1.75)`; E2E con DPR 1 y 3). `powerPreference` ✅ pasado a `init`. `roundPixels`: se redondea la **posición de cámara a píxel de dispositivo** (`worldTransform`), no `roundPixels` |
+| 1 *draw call* para 800 sprites de un atlas | ✅ 5 con 4 capas, 1 filtro y 240 partículas (ver §7.10) |
+| `Assets` / `Spritesheet` | **No usados (decisión)**: `SpriteAssetManager` propio (carga por definición, cuenta de referencias, validación del contrato) sobre atlas generados o PNG; encaja con `SpriteSetDefinition` |
+| Multitáctil (`pointerId` independientes) en Chromium con toques CDP | ✅ (auditoría); el reconocedor de gestos es del Prompt 5 |
+| Reconstrucción de texturas tras pérdida de contexto | ⚠️ por verificar (Prompt 7) |
 | Rendimiento en WebView de iOS y de Android reales | ⚠️ no verificable aquí |
 
 ---

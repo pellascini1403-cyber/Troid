@@ -19,7 +19,7 @@
 | **S8** muerte, reaparición, i18n | ✅ | (ver historial) |
 | **S9** Ink Slime | ✅ | (ver historial) |
 | **S10** sala R1 | ✅ | (ver historial) |
-| S11 E2E, rendimiento, documentación | ⬜ | |
+| **S11** E2E, rendimiento, documentación | ✅ | (ver historial) |
 
 ---
 
@@ -377,3 +377,45 @@ Agacharse es un **estado con consecuencias de colisión** ([GAME-SPEC §6](GAME-
 - Un foso es una caída: se rescata en el último suelo seguro **sin daño** (el comportamiento de F5); no hay peligros (`hazards`) todavía.
 - Los enemigos nacen **al construir la sala** (antes las entidades entraban al final del tick): así `loadRoom` devuelve una sala completa y los tests no necesitan un tick de gracia; el primer cuarto se adopta con `EntityViews.attach(bus, existing)` porque se construye dentro del constructor de la sesión.
 - El fondo es **provisional** (formas planas): el arte final llega con `RoomArtDefinition` (P7).
+
+
+---
+
+## S11 — Cierre: E2E «sala completa», rendimiento, determinismo y documentación ✅ (`S11a` pruebas y medidas, `S11b` documentos)
+
+**E2E `room` — la sala entera, con teclado real, y comparada con la simulación bit a bit**
+- Dos partidas se **graban en Node** sobre la simulación pura con un jugador *scripted* (el mismo `tests/helpers/bot.ts` que prueba R1 por física) y se **reproducen en Chromium con eventos de teclado reales**, tick a tick (`tools/e2e/replay.ts`). Cada 50 ticks se compara un *digest* de **toda la simulación** (héroe, enemigos, banderas, salidas, estado del generador aleatorio y flujo de derrota). Si el camino del navegador (teclado → `InputManager` → `InputFrame` → `GameSession`) difiere en un solo bit, el escenario dice **en qué tick** y enseña los dos *digests*.
+- **Partida A (victoria, 1343 ticks, 21 cambios de tecla):** entrar → correr → **saltar** (obstáculo, escalones, foso) → **dash** → **agacharse** (pasaje) → **recibir el golpe** del slime (vida 5 → 4) → **atacar** hasta **derrotarlo** → la puerta se disuelve → **llegar a la salida**. Se ve en pantalla cada verbo (el escenario lo comprueba), el aviso muestra **violeta** (> 150 px medidos) y quedan `flags: ['defeated:r1_slime']`, `exits: ['east']`, sin slime ni vista.
+- **Partida B (derrota, 1485 ticks):** hasta la arena y **el slime vence al héroe de verdad** (5 embestidas): se ve el flujo de derrota y el **título localizado**, y el héroe **reaparece en la entrada con vida 5, el slime vivo (vida 3, en su arena), sin banderas y con la puerta cerrada**; morir no cuesta el dash.
+- **Sin fugas:** 20 recargas de la sala en el navegador dejan **idéntico** el número de objetos de cada capa de la escena (`state().scene`), las vistas y los *pools* de efectos.
+- **Consola limpia** (el arnés falla cualquier escenario con errores de consola) y **≤ 60 *draw calls***: la sala entera llega a **14** como peor caso; capturas a 844×390 y a 1920×1080 (no vacías).
+- Para que fuera posible: `?paused=1` (la sesión arranca sin correr un tick, así el navegador y Node empiezan en el tick 0) y `Driver.keyboardLike` (ver el hallazgo de abajo). `tests/unit/tools/replay.test.ts` (12) prueba la herramienta **sin navegador**, con un «navegador» de mentira (una repetición honesta pasa; una partida alterada se detecta en el tick donde ocurre; el mensaje muestra los dos *digests*).
+
+> **Hallazgo (verificado, no corregido):** la primera reproducción **divergió en el tick 400** (0.09 m): el `Driver` de los tests produce el eje crudo `(1, −1)` al correr agachado, pero un **teclado no puede pulsar eso**: `InputManager` recorta el stick al círculo unidad, `(0.707, −0.707)`. Con ese recorte, la entrada al agachado decelera distinto (se nota a los 50 ticks). No es un fallo del juego (el teclado real y el simulado son coherentes), sino de un supuesto de los tests de F5/S5, escritos con ejes crudos y que **no se tocan**: la grabación usa `Driver.keyboardLike = true` (apagado por defecto). Queda anotado para el Prompt 5, que unifica la entrada: conviene decidir allí si el recorte circular debe aplicarse solo al stick analógico y no a las flechas del teclado (en un plataformas 2D, izquierda/derecha y agacharse son ejes independientes).
+
+**Rendimiento ✅** (Chromium con GL por software: **para comparar**, no como cifra absoluta; detalle y explicación en [ARCHITECTURE-2D §7.10](ARCHITECTURE-2D.md))
+
+| Escena | *Draw calls* (peor) |
+|---|---:|
+| Escena de estrés `?lab=stress` (800 sprites, 4 capas, 1 filtro, 240 partículas) | 5 (5) |
+| VFX con el momento más cargado | 5 (6) |
+| Hoja de 14 slimes (`?lab=slime`) | ≤ 40 (2 lotes por baba) |
+| **R1 entera, de la entrada a la salida** | 12 (**14**) |
+
+- **Por qué la escena real cuesta más que el *benchmark* con muchos menos objetos:** una *draw call* es un **lote**, y un lote se rompe cuando cambia la textura o el modo de mezcla. El *benchmark* tiene una textura y una mezcla (800 sprites = 1 lote); la sala real alterna terreno, héroe, tinta (normal) y auras/luces (aditivas), VFX normal y aditivo, y 4 capas de fondo (cada una un `Graphics`). El coste crece con los **cambios de textura/mezcla**, no con el número de sprites. La palanca si algún día falta: agrupar lo aditivo de todos los actores en una capa.
+- **Bundle JS** que descarga un arranque en frío de R1: **195.6 KB gz** (624 KB sin comprimir, 27 *scripts*; `npm run bench:bundle`) frente al presupuesto de ≤ 200 KB gz; `dist/` entero suma 237 KB gz porque incluye los laboratorios y los *renderers* WebGPU/Canvas, que no se descargan. **Margen ≈ 4 KB**: el HUD y el audio de los siguientes prompts obligarán a recortar Pixi o a revisar el presupuesto.
+- La suite E2E completa (12 escenarios, dev **y** producción) pasó de ≈ 3 min a ≈ 1 min al cerrar las páginas huérfanas del arnés.
+
+**Determinismo ✅:** simulación bit a bit en tests (movimiento, combate, slime, muerte, partida completa de R1 con otra semilla incluida) **y en el navegador** (las dos reproducciones). Todo el azar de la simulación sale de un único `Rng` con semilla; el azar de la vista (VFX) es independiente y no lo consume.
+
+**Tests: 192 de partida → 617** (+425 en el Prompt 4): 23 de *sprites* portados de 3D, ninguno de movimiento/núcleo/entrada modificado (`git diff ac74b46 -- tests/integration/movement.test.ts tests/unit/core tests/unit/input` vacío). Cifras por paso en cada sección.
+
+### Limitaciones (lo que este prompt NO hace, a propósito o por no poder verificarlo)
+- **Sin arte final.** El héroe es una cápsula abstracta que pasa por el *pipeline* real de sprites (intercambiable), el Ink Slime es procedural y los fondos son formas planas provisionales. Pendientes DP-1 (piel provisional por defecto: abstracta), DP-2 (guardar imágenes de referencia: no) y DP-3 (quién produce los sprites finales: bloquea solo el P7).
+- **No implementado (reservado):** controles táctiles, HUD final, magia / *Spirit Bolt*, cartas, botellas, interacción, gamepad, audio, guardado, jefe, mundo conectado, puntos de guardado. Los contratos están previstos (`ExitDef.to`, `RespawnPoint`, `WorldFlags.restore`, `SimServices`, `Skill` sin dibujar si no hay carta equipada).
+- **Entrada solo de teclado/ratón** (con el recorte circular de las diagonales descrito arriba).
+- **La salida solo levanta `exit:reached`:** el fundido y la carga de la sala siguiente son del `RoomTransition` del Prompt 6. La reaparición es siempre en la entrada de la sala (sin puntos de guardado).
+- **Enemigos:** solo el Ink Slime (un arquetipo con cerebro, `spriteSetId` solo como contrato en el tipo); sin armadura ni peligros (`hazards`); caerse a un foso se rescata en el último suelo seguro sin daño.
+- **Equilibrio sin *playtest*:** todas las cifras (vida, daños, tiempos, alcance de la sala) son valores de partida, en datos, medidos contra el control pero no contra personas.
+- **No verificable aquí:** iOS y Android reales, rendimiento y batería en móvil, WebGL con pérdida de contexto, audio y tiendas. Las cifras de GL son de un Chromium con renderizado por software.
+- **Operativo:** el *gateway* de este entorno rechaza `git push` de *tags*: `proto-3d-f5` existe solo en local y se publicó la rama `archive/proto-3d-f5` (`ac74b46`). La rama `wip/f6-combat-core` (`b695c98`) está **intacta**, en local y en `origin`.

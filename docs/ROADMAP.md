@@ -1,6 +1,6 @@
 # Roadmap — Troid (2D + PixiJS)
 
-> **Estado a 2026-10-05.** Plan detallado, puertas y criterios de cada paso: [MIGRATION-2D](MIGRATION-2D.md) · Qué se construye: [GAME-SPEC-2D](GAME-SPEC-2D.md) ·
+> **Estado a 2026-10-06.** Plan detallado, puertas y criterios de cada paso: [MIGRATION-2D](MIGRATION-2D.md) · Qué se construye: [GAME-SPEC-2D](GAME-SPEC-2D.md) ·
 > Cómo: [ARCHITECTURE-2D](ARCHITECTURE-2D.md) · Decisiones: [ADR-0003](adr/0003-arquitectura-2d-definitiva.md).
 
 **Objetivo de la vertical slice «Ancient Forest Ruins» (15–30 min):** entrar → explorar → combatir → conseguir algo → continuar → enfrentarse a un enemigo.
@@ -11,12 +11,12 @@ Cada paso termina con `npm run check` en verde, build de producción y —cuando
 | **F1–F5** | stack, núcleo, movimiento (coyote, buffer, salto variable, dash, i-frames), input abstracto, colisión, cámara (matemática), depuración | ✅ (192 tests; la vista 3D de F3/F4 es el prototipo que se retira) |
 | **Prompt 2** | auditoría técnica y plan ([AUDIT-2026-10](AUDIT-2026-10.md)) | ✅ |
 | **Prompt 3** | especificación definitiva 2D, arquitectura, migración, ADR (solo documentación) | ✅ |
-| **Prompt 4** | migración a 2D + PixiJS y núcleo jugable: movimiento, agacharse, combate, enemigo, sala, muerte, VFX mínimos, i18n | ⬜ **siguiente** |
-| **Prompt 5** | magia, cartas, botellas, interacción, **controles táctiles por gestos**, gamepad, HUD, ajustes e idioma persistentes | ⬜ |
+| **Prompt 4** | migración a 2D + PixiJS y núcleo jugable: movimiento, agacharse, combate, enemigo, sala, muerte, VFX mínimos, i18n | ✅ (617 tests · 12 escenarios E2E · R1 jugable con teclado; [bitácora](PROMPT4-LOG.md)) |
+| **Prompt 5** | magia, cartas, botellas, interacción, **controles táctiles por gestos**, gamepad, HUD, ajustes e idioma persistentes | ⬜ **siguiente** |
 | **Prompt 6** | mundo conectado, flags, puntos de guardado, guardado, jefe con fases | ⬜ |
 | **Prompt 7** | arte definitivo, VFX, pulido, rendimiento, empaquetado nativo (Capacitor), QA | ⬜ |
 
-### Pasos del Prompt 4 (cortes seguros: **A** = S0–S4 · **B** = S5–S8 · **C** = S9–S11)
+### Pasos del Prompt 4 ✅ (cortes seguros: **A** = S0–S4 · **B** = S5–S8 · **C** = S9–S11)
 
 S0 base y etiqueta `proto-3d-f5` · S1 *spike* Pixi + `Game2D` · S2 cámara 2D · S3 sprites, animador, validador y tests portados · S4 retirar Three.js ·
 S5 agacharse · S6 combate (rescate de `wip/f6-combat-core`) · S7 VFX mínimos · S8 muerte, i18n y overlay · S9 primer enemigo · S10 primera sala y salida · S11 E2E, rendimiento y documentación.
