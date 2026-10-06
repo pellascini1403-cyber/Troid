@@ -1,13 +1,17 @@
 import { CombatSystem } from '@/combat/CombatSystem';
 import { EventBus } from '@/core/events';
 import { IdGenerator } from '@/core/ids';
+import { overlaps, type Rect } from '@/core/math';
 import { Rng } from '@/core/rng';
 import { Scheduler } from '@/core/scheduler';
+import { Enemy } from '@/enemies/Enemy';
+import type { EnemyDefinition } from '@/enemies/EnemyDefinition';
 import { createInputFrame, NEUTRAL_INPUT, type InputFrame } from '@/input/InputFrame';
 import { Player } from '@/player/Player';
 import type { PlayerDefinition } from '@/player/PlayerDefinition';
 import { AbilitySystem, type AbilityDefinition } from '@/progression/AbilitySystem';
-import { CollisionWorld } from '@/world/collision';
+import { WorldFlags } from '@/progression/WorldFlags';
+import { bodyRect, CollisionWorld } from '@/world/collision';
 import type { RoomDefinition } from '@/world/RoomDefinition';
 import { DeathFlow, DEFAULT_DEATH_FLOW, type DeathFlowDefinition, type DeathSnapshot } from './DeathFlow';
 import type { GameEvents } from './events';
@@ -25,6 +29,10 @@ export interface SessionOptions {
   unlocked?: readonly string[];
   /** Durations of the defeat flow (docs/GAME-SPEC-2D.md §9.2). */
   death?: DeathFlowDefinition;
+  /** The enemy definitions that `RoomDefinition.spawns` refer to, by id. */
+  enemies?: Readonly<Record<string, EnemyDefinition>>;
+  /** World flags set from the start (tests, loading a save). */
+  flags?: readonly string[];
 }
 
 /** Where the player comes back after dying: the entrance of the room (Prompt 4); the last save node later (Prompt 6). */
@@ -53,6 +61,8 @@ export class GameSession implements SimServices {
   readonly combat: CombatSystem;
   /** The defeat flow: dying → fade out → title → respawn → fade in (docs/GAME-SPEC-2D.md §9.2). */
   readonly death: DeathFlow;
+  /** World memory that outlives room visits and deaths: defeated guardians, opened doors (docs/GAME-SPEC-2D.md §14.3). */
+  readonly flags: WorldFlags;
 
   /** Debug switch: while true the player cannot take damage or die (set by the debug panel). */
   godMode = false;
@@ -64,6 +74,12 @@ export class GameSession implements SimServices {
   private lastSafe = { x: 0, y: 0 };
   private _respawnPoint: RespawnPoint = { room: '', entry: '' };
   private disposed = false;
+
+  // ---- what the current room asked for: enemies that leave a flag when they fall, doors, ways out ----
+  private readonly defeatFlags = new Map<string, string>();
+  private readonly gateStates = new Map<string, boolean>();
+  private readonly exitsTouched = new Set<string>();
+  private readonly scratch: Rect = { x0: 0, y0: 0, x1: 0, y1: 0 };
 
   // ---- hit-stop: the world holds still; the player's presses are kept for the first tick after it ----
   private hitStopTicks = 0;
@@ -79,6 +95,8 @@ export class GameSession implements SimServices {
   constructor(private readonly opts: SessionOptions) {
     this.rng = new Rng(opts.seed ?? 1);
     this.abilities = new AbilitySystem(opts.abilities, this.bus, opts.unlocked);
+    this.flags = new WorldFlags(this.bus);
+    if (opts.flags) this.flags.restore(opts.flags);
     this.combat = new CombatSystem({
       // `GameEvents` extends `CombatEvents`; TypeScript cannot unify the bus' conditional rest parameters across the two
       // catalogues, so the combat events go through this one adapter.
@@ -99,6 +117,13 @@ export class GameSession implements SimServices {
     );
     // dying costs nothing but a short walk back: the flow starts the moment the player's health reaches 0
     this.bus.on('player:died', () => this.death.start());
+    // an enemy that guards something leaves its flag behind when it falls; doors follow the flags
+    this.bus.on('actor:died', ({ id }) => {
+      const flag = this.defeatFlags.get(id);
+      if (flag !== undefined) this.flags.set(flag);
+    });
+    this.bus.on('flag:set', () => this.applyGates(true));
+    this.bus.on('flag:cleared', () => this.applyGates(true));
     this.current = this.requireRoom(opts.startRoom);
     this.buildRoom(this.current, opts.startEntry);
   }
@@ -128,6 +153,14 @@ export class GameSession implements SimServices {
   get entities(): readonly SimEntity[] {
     return this.live;
   }
+  /** Is the gate of the current room open? (An unknown gate reads as closed.) */
+  gateOpen(gateId: string): boolean {
+    return this.gateStates.get(gateId) ?? false;
+  }
+  /** The exits of the current room the player has touched since it was built. */
+  get exitsReached(): ReadonlySet<string> {
+    return this.exitsTouched;
+  }
 
   /** Advances the simulation by exactly one fixed step. */
   tick(input: InputFrame): void {
@@ -147,6 +180,7 @@ export class GameSession implements SimServices {
     this.combat.resolve(); // 3
     this.trackSafeGround(); // 7 (flows)
     this.rescueIfFallen();
+    this.checkExits();
     this.flushEntities(); // 8
     this.scheduler.tick(); // 9
   }
@@ -208,6 +242,9 @@ export class GameSession implements SimServices {
     this.pendingSpawn.length = 0;
     for (const e of this.live.splice(0)) this.release(e);
     this.pendingDespawn.clear();
+    this.defeatFlags.clear();
+    this.gateStates.clear();
+    this.exitsTouched.clear();
     this.combat.clear();
     this.collision.clear();
     this.hitStopTicks = 0;
@@ -225,6 +262,47 @@ export class GameSession implements SimServices {
     this.collision.probeGround(this.player.body);
     this.lastSafe = { x: entry.x, y: entry.y };
     this._respawnPoint = { room: room.id, entry: entry.id };
+    this.placeSpawns(room);
+    this.applyGates(false);
+  }
+
+  /**
+   * Places the room's enemies. They are in the world the moment the room is built (a room is whole when it is loaded),
+   * except those whose defeat flag is already set: what was beaten for good stays beaten.
+   */
+  private placeSpawns(room: RoomDefinition): void {
+    for (const sp of room.spawns ?? []) {
+      if (sp.defeatFlag !== undefined && this.flags.has(sp.defeatFlag)) continue;
+      const def = this.opts.enemies?.[sp.enemy];
+      if (!def) throw new Error(`room "${room.id}": spawn "${sp.id}" places the unknown enemy "${sp.enemy}"`);
+      const enemy = new Enemy(this.ids.next(def.id), def, { x: sp.x, y: sp.y, facing: sp.facing });
+      if (sp.defeatFlag !== undefined) this.defeatFlags.set(enemy.id, sp.defeatFlag);
+      this.addEntity(enemy);
+    }
+  }
+
+  /** Opens or closes every gate of the room to match the flags (a gate is one of the room's solids, switched off while open). */
+  private applyGates(announce: boolean): void {
+    for (const g of this.current.gates ?? []) {
+      const open = this.flags.has(g.openWhen);
+      const collider = this.collision.get(g.solid);
+      if (collider) collider.enabled = !open;
+      const was = this.gateStates.get(g.id);
+      this.gateStates.set(g.id, open);
+      if (announce && was !== open) this.bus.emit('gate:changed', { roomId: this.current.id, gateId: g.id, open });
+    }
+  }
+
+  /** `exit:reached`, once per exit per room build, while the player is alive and touching its zone. */
+  private checkExits(): void {
+    const exits = this.current.exits;
+    if (!exits || exits.length === 0 || this.player.health.dead) return;
+    const body = bodyRect(this.player.body, this.scratch);
+    for (const x of exits) {
+      if (this.exitsTouched.has(x.id) || !overlaps(body, x.rect)) continue;
+      this.exitsTouched.add(x.id);
+      this.bus.emit('exit:reached', { roomId: this.current.id, exitId: x.id, ...(x.to ? { to: x.to } : {}) });
+    }
   }
 
   /**
@@ -264,12 +342,14 @@ export class GameSession implements SimServices {
     }
     if (this.pendingSpawn.length > 0) {
       const joining = this.pendingSpawn.splice(0);
-      for (const e of joining) {
-        this.live.push(e);
-        e.onSpawn?.(this);
-        this.bus.emit('entity:spawned', { entity: e });
-      }
+      for (const e of joining) this.addEntity(e);
     }
+  }
+
+  private addEntity(e: SimEntity): void {
+    this.live.push(e);
+    e.onSpawn?.(this);
+    this.bus.emit('entity:spawned', { entity: e });
   }
 
   private release(e: SimEntity): void {

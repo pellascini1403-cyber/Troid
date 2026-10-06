@@ -28,11 +28,50 @@ export interface EntryDef {
   facing?: 1 | -1;
 }
 
+/** An enemy the room places in the world when it is built (data: `RoomRuntime` reads it, docs/ARCHITECTURE-2D.md §5.11). */
+export interface SpawnDef {
+  /** Unique within the room. */
+  id: string;
+  /** Id of the `EnemyDefinition` to place. */
+  enemy: string;
+  /** Feet position. */
+  x: number;
+  y: number;
+  facing?: 1 | -1;
+  /**
+   * World flag set when this enemy is defeated. While the flag is set the enemy is NOT placed again: the way it guarded
+   * stays open through deaths and reloads. Without it, the enemy comes back every time the room is built (§9.2.5).
+   */
+  defeatFlag?: string;
+}
+
+/** A door that is closed until a world flag is set. It is one of the room's `solids`, switched off while open. */
+export interface GateDef {
+  /** Unique within the room. */
+  id: string;
+  /** Id of the solid (in `solids`) that blocks while the gate is closed. */
+  solid: string;
+  /** The gate is open while this world flag is set. */
+  openWhen: string;
+}
+
+/** A way out: touching its zone raises `exit:reached`. The room transition itself (fade, load) is Prompt 6. */
+export interface ExitDef {
+  /** Unique within the room. */
+  id: string;
+  /** The trigger zone. */
+  rect: Rect;
+  /** Where it leads, once rooms are connected. */
+  to?: { room: string; entry: string };
+}
+
 export interface RoomDefinition {
   id: string;
   regionId: string;
-  /** Display name (localised through the UI string table in the UI layer). */
+  /** Working name (debug panel, logs). The name the PLAYER reads is `nameKey`, a text key. */
   name: string;
+  /** Text key of the localised display name (`room.r1.name`): texts live in the catalogs, never in the content. */
+  nameKey?: string;
   /** Room extents; also the default camera bounds. */
   bounds: Rect;
   solids: SolidDef[];
@@ -40,4 +79,12 @@ export interface RoomDefinition {
   /** Below this Y the player has fallen out of the world (damage + respawn at the last safe ground). */
   killY?: number;
   camera?: Partial<CameraConfig> & { bounds?: Rect };
+  /** Enemies placed when the room is built. */
+  spawns?: SpawnDef[];
+  /** Doors that open with world flags. */
+  gates?: GateDef[];
+  /** Ways out of the room. */
+  exits?: ExitDef[];
+  /** Provisional scenery behind and in front of the action (never collision): `render/backdrops` draws it. */
+  art?: { backdrop: string; seed?: number };
 }

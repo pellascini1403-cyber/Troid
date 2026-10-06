@@ -32,6 +32,13 @@ export interface GameEvents extends CombatEvents {
   'enemy:alerted': { id: string; defId: string; x: number; y: number };
   /** An enemy begins the wind-up of an attack: `ticks` ticks until the blow (the VFX layer draws the warning). */
   'enemy:telegraph': { id: string; defId: string; x: number; y: number; facing: 1 | -1; ticks: number };
+  /** A world flag was set / cleared (progression memory: defeated guardians, opened doors). */
+  'flag:set': { flag: string };
+  'flag:cleared': { flag: string };
+  /** A gate of the room opened or closed (views fade the door; `open` is its new state). */
+  'gate:changed': { roomId: string; gateId: string; open: boolean };
+  /** The player touched a way out of the room. Once per exit per room build. */
+  'exit:reached': { roomId: string; exitId: string; to?: { room: string; entry: string } };
   'ability:unlocked': { id: string };
   'ability:locked': { id: string };
   'entity:spawned': { entity: SimEntity };

@@ -1,6 +1,7 @@
 import { createInputFrame, type InputFrame } from '@/input/InputFrame';
 import { GameSession, type SessionOptions } from '@/gameplay/GameSession';
 import { ABILITIES } from '@/content/abilities';
+import { ENEMIES } from '@/content/enemies';
 import { PLAYER } from '@/content/player';
 import { MOVEMENT_TEST_ROOM } from '@/content/rooms/movementTest';
 import type { RoomDefinition } from '@/world/RoomDefinition';
@@ -28,6 +29,7 @@ export function makeSession(opts: MakeOptions = {}): GameSession {
     startEntry: opts.entry,
     seed: opts.seed ?? 1,
     unlocked: opts.unlocked ?? [],
+    enemies: ENEMIES,
     ...opts.extra,
   });
   session.bus.onError = (e) => {

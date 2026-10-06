@@ -27,10 +27,14 @@ export class EntityViews {
     private readonly factories: Readonly<Record<string, EntityViewFactory>>,
   ) {}
 
-  /** Starts listening. Entities that already exist are NOT picked up (attach before the room is built). */
-  attach(bus: EventBus<GameEvents>): void {
+  /**
+   * Starts listening. A room places its enemies the moment it is built, which for the first room happens inside the
+   * session's constructor, before anyone can listen: pass the entities that already exist and they get their views too.
+   */
+  attach(bus: EventBus<GameEvents>, existing: readonly SimEntity[] = []): void {
     this.off.push(bus.on('entity:spawned', ({ entity }) => this.add(entity)));
     this.off.push(bus.on('entity:despawned', ({ entity }) => this.remove(entity)));
+    for (const e of existing) this.add(e);
   }
 
   get count(): number {
