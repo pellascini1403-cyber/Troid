@@ -10,6 +10,8 @@ export interface GameOptions {
   debug: boolean;
   /** `?hooks=1` exposes `window.__troid` (always on in dev builds) for E2E tests. */
   hooks: boolean;
+  /** `?paused=1` starts with the simulation stopped: not one tick runs until it is stepped (E2E replays that start from tick 0). */
+  paused: boolean;
   /** `?lang=es|en` forces the interface language (default: the device's, English if unsupported). */
   lang?: string;
   camera: Partial<CameraConfig>;
@@ -29,6 +31,7 @@ export function optionsFromQuery(q: URLSearchParams): GameOptions {
     unlock: (q.get('unlock') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
     debug: q.get('debug') === '1',
     hooks: q.get('hooks') === '1',
+    paused: q.get('paused') === '1',
     lang: q.get('lang') ?? undefined,
     camera: cameraConfigFromQuery(q),
   };

@@ -169,6 +169,10 @@ export class Game2D {
       frame: (alpha, dt) => this.render(alpha, dt),
     });
     this.lifecycle.add(() => this.loop.stop());
+    if (options.paused) {
+      this.debug.set('paused', true);
+      this.loop.paused = true;
+    }
 
     listen(this.lifecycle, window, 'resize', () => this.renderer.resize());
     // Mobile: never simulate (or burn battery) while hidden, never replay the time away, never leave a key stuck.
@@ -449,6 +453,10 @@ export class Game2D {
               hp: n.health.current, hits: n.hits, anim: n.view.anim, phase: n.view.phase, phaseT: n.view.phaseT, opacity: n.view.opacity,
             };
           }),
+          // objects in each scene layer: the E2E proves that rebuilding a room leaves nothing behind
+          scene: Object.fromEntries(
+            (['terrain', 'actors', 'fxNormal', 'fxWorld', 'backdropFar', 'backdropMid', 'backdropNear', 'foreground', 'lightOverlay'] as const).map((k) => [k, this.renderer.layers[k].children.length]),
+          ),
           room: this.session.room.id,
           flags: this.session.flags.list(),
           gates: Object.fromEntries((this.session.room.gates ?? []).map((g) => [g.id, { open: this.session.gateOpen(g.id), alpha: this.roomView.gateAlpha(g.id) ?? null }])),

@@ -49,6 +49,14 @@ export class Driver {
   private pressed: Record<Button, boolean> = { jump: false, attack: false, dash: false, ability: false };
   private released: Record<Button, boolean> = { jump: false, attack: false, dash: false, ability: false };
   private readonly frame: InputFrame = createInputFrame();
+  /** Sees every frame just before the session does: how a playthrough is RECORDED (tools/e2e replays it in a browser). */
+  onFrame: ((frame: Readonly<InputFrame>) => void) | null = null;
+  /**
+   * Make the frames exactly what a KEYBOARD produces: `InputManager` clamps the stick to the unit circle, so holding right and
+   * down together is (0.707, −0.707), not (1, −1). Off by default (the movement and crouch tests were written against raw
+   * axes); on for the recordings that a browser replays with real key presses.
+   */
+  keyboardLike = false;
 
   constructor(readonly session: GameSession) {}
 
@@ -95,6 +103,13 @@ export class Driver {
       const f = this.frame;
       f.move.x = this.moveX;
       f.move.y = this.moveY;
+      if (this.keyboardLike) {
+        const len = Math.hypot(f.move.x, f.move.y);
+        if (len > 1) {
+          f.move.x /= len;
+          f.move.y /= len;
+        }
+      }
       f.jumpPressed = this.pressed.jump;
       f.jumpHeld = this.held.jump;
       f.jumpReleased = this.released.jump;
@@ -105,6 +120,7 @@ export class Driver {
       f.abilityPressed = this.pressed.ability;
       f.abilityHeld = this.held.ability;
       f.pausePressed = false;
+      this.onFrame?.(f);
       this.session.tick(f);
       for (const k of Object.keys(this.pressed) as Button[]) {
         this.pressed[k] = false;

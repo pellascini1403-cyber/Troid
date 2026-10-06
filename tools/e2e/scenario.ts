@@ -40,6 +40,8 @@ export interface GameState {
     hp: number; hits: number; anim: string; phase: string; phaseT: number; opacity: number;
   }>;
   /** 2D view only: the room, the world flags, each gate (open in the simulation, and how drawn: 1 closed → 0 gone) and the exits touched. */
+  /** 2D view only: how many objects each scene layer holds (rebuilding a room must not grow any of them). */
+  scene?: Record<string, number>;
   room?: string;
   flags?: string[];
   gates?: Record<string, { open: boolean; alpha: number | null }>;

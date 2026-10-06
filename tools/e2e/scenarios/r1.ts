@@ -101,5 +101,19 @@ export const r1: Scenario = {
     await ctx.shot('09-exit');
     assert.ok(worst <= 60, `draw calls peaked at ${worst}`);
     console.log(`  r1: ${s.draws} draw calls in the exit section, worst over the room ${worst}`);
+
+    // ---- the same room on a desktop screen: the picture is there (not an empty canvas) and still cheap ----
+    await ctx.page.setViewportSize({ width: 1920, height: 1080 });
+    await ctx.page.waitForFunction('window.__troid.state().canvas.width === 1920 && window.__troid.state().canvas.height === 1080', undefined, { timeout: 15000 });
+    await ctx.teleport(96, 0);
+    await ctx.step(5);
+    await ctx.page.waitForTimeout(150);
+    const big = decodePng(await ctx.page.screenshot());
+    const lit = countPixels(big, (r, g, b) => r > 40 || g > 40 || b > 60);
+    assert.equal(big.width, 1920);
+    assert.ok(lit > big.width * big.height * 0.25, `the 1920×1080 picture has content (${((100 * lit) / (big.width * big.height)).toFixed(0)} % lit pixels)`);
+    await ctx.shot('10-desktop');
+    s = await state();
+    assert.ok((s.drawsMax ?? 99) <= 60, `draw calls at 1920×1080: ${s.drawsMax}`);
   },
 };

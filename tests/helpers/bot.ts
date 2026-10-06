@@ -21,6 +21,12 @@ export interface BotOptions {
   /** Where to stop: it returns when this is true after a tick. */
   until?: () => boolean;
   maxTicks?: number;
+  /** Do not fight until the first time it is hurt (a run that wants to TAKE a blow before it answers). */
+  waitForHit?: boolean;
+  /** Dash once, on the ground, the first time it passes this x (a run that shows the dash). */
+  dashAt?: number;
+  /** Stand still from this x on (a run that lets the slime win). */
+  haltAt?: number;
 }
 
 export interface BotResult {
@@ -46,6 +52,9 @@ export function runBot(d: Driver, opts: BotOptions = {}): BotResult {
   let jumps = 0;
   let slashes = 0;
   let releaseAttack = false;
+  let releaseDash = false;
+  let dashed = false;
+  const startHealth = d.p.health.current;
 
   const enemies = (): Enemy[] => s.entities.filter((e) => e.kind === 'enemy' && !(e as Enemy).health.dead) as Enemy[];
   const solidAhead = (dir: 1 | -1): boolean => {
@@ -61,12 +70,18 @@ export function runBot(d: Driver, opts: BotOptions = {}): BotResult {
     const b = d.body;
     d.stop();
 
+    if (opts.haltAt !== undefined && b.x >= opts.haltAt) {
+      d.step(1); // no input at all: it stands there and takes whatever comes
+      continue;
+    }
+
     const crouchHere = crouchZones.some(([a, z]) => b.x >= a && b.x < z);
     if (crouchHere) d.moveY = -1;
 
     // ---- what is in front of me? ----
+    const fighting = !opts.waitForHit || d.p.health.current < startHealth;
     const foe = enemies()
-      .filter((e) => Math.abs(e.body.x - b.x) <= engage && Math.abs(e.body.y - b.y) < 2)
+      .filter((e) => fighting && Math.abs(e.body.x - b.x) <= engage && Math.abs(e.body.y - b.y) < 2)
       .sort((p, q) => Math.abs(p.body.x - b.x) - Math.abs(q.body.x - b.x))[0];
 
     if (foe && !crouchHere) {
@@ -104,8 +119,18 @@ export function runBot(d: Driver, opts: BotOptions = {}): BotResult {
       }
     }
 
+    if (opts.dashAt !== undefined && !dashed && b.grounded && b.x >= opts.dashAt) {
+      d.press('dash');
+      releaseDash = true;
+      dashed = true;
+    }
+
     d.step(1);
 
+    if (releaseDash) {
+      d.release('dash');
+      releaseDash = false;
+    }
     if (releaseAttack) {
       d.release('attack');
       releaseAttack = false;
