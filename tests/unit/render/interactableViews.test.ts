@@ -2,6 +2,7 @@
 import { Container } from 'pixi.js';
 import { describe, expect, it } from 'vitest';
 import { INTERACTION_TEST_ROOM } from '@/content/rooms/interactionTest';
+import { R2_HALL_ROOM } from '@/content/rooms/r2Hall';
 import { createLayers, type Layers } from '@/render/layers';
 import { InteractableViews } from '@/render/InteractableViews';
 
@@ -87,5 +88,48 @@ describe('InteractableViews', () => {
     views.build([], () => true);
     views.update(1, () => true);
     expect(views.count).toBe(0);
+  });
+});
+
+describe('a pickup that gives a bottle is a vial, not a card (S27)', () => {
+  const build = (): { layers: Layers; views: InteractableViews; available: Set<string> } => {
+    const layers = createLayers(new Container());
+    const defs = [...R2_HALL_ROOM.interactables!, ...INTERACTION_TEST_ROOM.interactables!.filter((i) => i.id === 'card_spirit_bolt')];
+    const available = new Set(defs.map((d) => d.id));
+    const views = new InteractableViews(layers);
+    views.build(defs, (id) => available.has(id));
+    return { layers, views, available };
+  };
+  const body = (c: Container): { width: number; height: number } => {
+    const b = (c.children[1] as Container).getLocalBounds();
+    return { width: b.maxX - b.minX, height: b.maxY - b.minY };
+  };
+
+  it('R2 floats the fourth bottle over its ledge: in the additive layer, 0.85 m over the feet of the object', () => {
+    const { layers } = build();
+    const m = markers(layers);
+    expect(layers.lightOverlay.children).toContain(m['bottle_fourth']);
+    expect(layers.propsBack.children).toContain(m['shrine']);
+    expect(m['bottle_fourth']!.x).toBe(49.5);
+    expect(Math.abs(m['bottle_fourth']!.y - -(4.8 + 0.85))).toBeLessThan(0.1); // it bobs ±0.06 m around that height
+  });
+
+  it('its drawing is the vial\'s — taller than the card\'s and wider — and the card of the other pickup keeps its own', () => {
+    const { layers } = build();
+    const m = markers(layers);
+    const vial = body(m['bottle_fourth']!);
+    const card = body(m['card_spirit_bolt']!);
+    expect(vial.height).toBeGreaterThan(card.height + 0.05);
+    expect(vial.width).toBeGreaterThan(card.width + 0.03);
+    expect(vial.height).toBeLessThan(0.9); // a thing you can pick up, not a landmark
+  });
+
+  it('it disappears once taken, and the shrine stays', () => {
+    const { layers, views, available } = build();
+    const m = markers(layers);
+    available.delete('bottle_fourth');
+    views.update(1 / 60, (id) => available.has(id));
+    expect(m['bottle_fourth']!.visible).toBe(false);
+    expect(m['shrine']!.visible).toBe(true);
   });
 });

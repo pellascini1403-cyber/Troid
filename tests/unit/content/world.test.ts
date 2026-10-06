@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ENEMIES, PLAYER, ROOMS, START, WORLD } from '@/content';
-import { BOTTLE_DEFINITIONS, CARDS } from '@/content/resources';
+import { BOTTLE_DEFINITIONS, BOTTLES, CARDS } from '@/content/resources';
 import { CATALOGS } from '@/i18n';
 import { validateRoom } from '@/world/validateRoom';
 import { analyzeProgression, buildWorldGraph, destinationOf, edgesFrom, routeBetween, validateWorld, worldGrantedFlags } from '@/world/worldGraph';
@@ -171,5 +171,45 @@ describe('the hazards', () => {
   it('the hero never starts, arrives or comes back from a defeat inside it (every entry of every room is clear of every hazard)', () => {
     expect(validateWorld(WORLD, ROOMS, { player })).toEqual([]);
     for (const id of WORLD.rooms) expect(validateRoom(ROOMS[id]!, { enemies: ENEMIES, player }).map((i) => i.code).filter((c) => c.includes('hazard')), id).toEqual([]);
+  });
+});
+
+describe('the fourth bottle', () => {
+  const givers = WORLD.rooms.flatMap((id) => (ROOMS[id]!.interactables ?? []).filter((i) => i.actions.some((a) => a.type === 'addBottleSlot')).map((i) => ({ room: id, pickup: i })));
+
+  it('there is exactly one in the world, and it is in R2: three at the start and one reward make the four a hero can have', () => {
+    expect(givers.map((g) => `${g.room}/${g.pickup.id}`)).toEqual(['r2_hall/bottle_fourth']);
+    expect(BOTTLES.initial.length + givers.length).toBe(BOTTLES.rules.maxSlots);
+  });
+
+  it('it lies ON the ledge above the third platform of the high road (a choice: nothing on the way on needs it)', () => {
+    const r2 = ROOMS.r2_hall!;
+    const ledge = r2.solids.find((s) => s.id === 'p5')!;
+    const { pickup } = givers[0]!;
+    expect(pickup.x).toBeGreaterThan(ledge.rect.x0 + 0.5);
+    expect(pickup.x).toBeLessThan(ledge.rect.x1 - 0.5);
+    expect(pickup.y).toBeCloseTo(ledge.rect.y1, 6);
+    expect(pickup.kind).toBe('pickup');
+  });
+
+  it('it is taken once: it hides itself with the very flag it sets, and the bottle it gives is a defined one', () => {
+    const { pickup } = givers[0]!;
+    const set = pickup.actions.filter((a) => a.type === 'setFlag').map((a) => (a as { flag: string }).flag);
+    expect(set).toHaveLength(1);
+    expect(pickup.whenClear).toBe(set[0]);
+    expect(set[0]).toBe('taken:bottle_fourth');
+    const give = pickup.actions.find((a) => a.type === 'addBottleSlot') as { bottleId: string };
+    expect(BOTTLE_DEFINITIONS[give.bottleId]).toBeDefined();
+  });
+
+  it('the flag is its own: no other pickup of the world sets or reads it, so taking something else never hides it', () => {
+    const flag = 'taken:bottle_fourth';
+    for (const id of WORLD.rooms) {
+      for (const i of ROOMS[id]!.interactables ?? []) {
+        if (i.id === 'bottle_fourth') continue;
+        expect(i.whenClear, `${id}/${i.id}`).not.toBe(flag);
+        expect(i.actions.some((a) => a.type === 'setFlag' && a.flag === flag), `${id}/${i.id}`).toBe(false);
+      }
+    }
   });
 });

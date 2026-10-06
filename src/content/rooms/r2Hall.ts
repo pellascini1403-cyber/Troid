@@ -17,7 +17,7 @@ import type { RoomDefinition } from '@/world/RoomDefinition';
  * Both routes end at the same ground, so neither is a dead end, and falling from the high one lands on the low one: nothing in
  * the fork can trap the player. Every size comes from the MEASURED reach of the controller: rises are at most 2.4 m (a full jump is
  * 3.1 m), gaps between platforms 3 m (a running jump clears 6.75 m). docs/PROMPT6-LOG.md S25 puts the danger on the low route,
- * S27 the reward on the high one.
+ * S27 the reward on the high one: the fourth energy bottle, on the ledge above the third platform.
  */
 export const R2_HALL_ROOM: RoomDefinition = {
   id: 'r2_hall',
@@ -71,7 +71,24 @@ export const R2_HALL_ROOM: RoomDefinition = {
   // room to spare (it is above 0.6 m for ≈ 5.4 m of a 6 m flight, the strip and the body need 3.2: the take-off window is ≈ 0.25 s);
   // walking into it costs a point of life, and the knockback throws the hero up and out of it
   hazards: [{ id: 'spikes_ditch', kind: 'spikes', rect: rect(39.5, -3.2, 42, -2.6) }],
-  // the first place to rest after R1: a defeat in this room (or the next) brings the hero back here, not to the Ruins Gate
-  interactables: [{ id: 'shrine', kind: 'rest', verbKey: 'interact.rest', x: 12, y: 0, actions: [{ type: 'checkpoint', entry: 'rest' }] }],
+  interactables: [
+    // the first place to rest after R1: a defeat in this room (or the next) brings the hero back here, not to the Ruins Gate
+    { id: 'shrine', kind: 'rest', verbKey: 'interact.rest', x: 12, y: 0, actions: [{ type: 'checkpoint', entry: 'rest' }] },
+    // the FOURTH BOTTLE (S27), on the ledge above the third platform of the high road: reached by a choice and a jump, never by accident, and
+    // the way on does not need it. Taking it is an interaction like any other: it adds the slot and writes the flag that hides it, both in
+    // the same tick, so it can be taken once — through a death, a transition and a saved game alike (the flag and the slot are saved together)
+    {
+      id: 'bottle_fourth',
+      kind: 'pickup',
+      verbKey: 'interact.pickUp',
+      x: 49.5,
+      y: 4.8,
+      whenClear: 'taken:bottle_fourth',
+      actions: [
+        { type: 'addBottleSlot', bottleId: 'energy_bottle' },
+        { type: 'setFlag', flag: 'taken:bottle_fourth' },
+      ],
+    },
+  ],
   art: { backdrop: 'ruins', seed: 2 },
 };

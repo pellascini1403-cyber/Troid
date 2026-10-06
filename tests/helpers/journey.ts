@@ -1,5 +1,6 @@
 import { ROOMS } from '@/content';
 import { runBot } from './bot';
+import { jump, runTo, standOn } from './hops';
 import { driver, type Driver } from './sim';
 import { letGo, R1_CROUCH } from './vertical';
 
@@ -39,5 +40,30 @@ export function playWorld(d: Driver): void {
   toTheEastExit(d); // R3: the lane
   arriveIn(d, 'r4_sanctum');
   toTheEastExit(d); // R4: the way out of the world
+  d.step(20);
+}
+
+/**
+ * R2's high road to the ledge and the fourth bottle (docs/PROMPT6-LOG.md S27): the hops of the road — the first three platforms — then a
+ * standing jump from under the ledge, and Interact. With nothing but the buttons a person has: `tools/e2e/scenarios/bottle4.ts` records
+ * it here and replays it through the real keyboard of a browser, and `bottleFourth.test.ts` proves the same route in the simulation.
+ */
+export function fetchTheFourthBottle(d: Driver): void {
+  runTo(d, 25.6);
+  jump(d);
+  standOn(d, 2.4); // p1
+  runTo(d, 32.3);
+  jump(d);
+  standOn(d, 2.4); // p2
+  runTo(d, 40.3);
+  jump(d);
+  standOn(d, 2.4); // p3 (a full jump from the edge of p2 lands on it, not on the ledge above its far end)
+  runTo(d, 49.6);
+  d.stop();
+  d.step(4);
+  jump(d); // straight up under the ledge: 3.1 m from a platform 2.4 m high is above its 4.8 m
+  standOn(d, 4.8);
+  d.step(4);
+  d.tap('interact');
   d.step(20);
 }

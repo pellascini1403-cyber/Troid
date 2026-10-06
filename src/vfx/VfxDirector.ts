@@ -58,6 +58,11 @@ export class VfxDirector {
       bus.on('checkpoint:set', (e) => {
         this.fire('drinkHeal', { x: e.x, y: e.y + 0.9, facing: 1 });
       }),
+      // something taken up (the fourth bottle, a card): its light opens where it floated — the notice names the point its ICON hangs at,
+      // 1.2 m over the object's feet, and the object floats 0.85 m over them
+      bus.on('interaction:performed', (e) => {
+        if (e.kind === 'pickup') this.fire('pickup', { x: e.x, y: e.y - 0.35, facing: 1 });
+      }),
       bus.on('player:hurt', (e) => {
         this.fire('playerHurt', { x: e.x, y: e.y, facing: e.direction, dirX: e.direction, dirY: 0.2 });
       }),

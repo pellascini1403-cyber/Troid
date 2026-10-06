@@ -17,8 +17,8 @@ interface Marker {
 
 /**
  * What the player sees of the interactables of a room (docs/GAME-SPEC-2D.md §12): a PLACEHOLDER look — abstract energy marks in the
- * hero's cyan / white, like the rest of the blockout — that follows the world's state. A pickup is a small floating card that
- * vanishes when it is taken; a shrine (where the hero rests) is a stone pillar with a crystal that glows while it is their checkpoint;
+ * hero's cyan / white, like the rest of the blockout — that follows the world's state. A pickup is a small floating card (or, when
+ * what it gives is a bottle, a vial) that vanishes when it is taken; a shrine (where the hero rests) is a stone pillar with a crystal that glows while it is their checkpoint;
  * a lever (anything else) is a post with a knob that is lit while it can be used and dim once spent.
  * It decides nothing: `isAvailable` and `isLit` are the simulation's answers, read once per frame.
  */
@@ -33,7 +33,9 @@ export class InteractableViews {
     defs.forEach((def, i) => {
       const floats = def.kind === 'pickup';
       const shrine = def.kind === 'rest' ? drawShrine() : null;
-      const root = shrine ? shrine.root : floats ? drawCard() : drawPost();
+      // what the pickup IS decides what floats there: a bottle slot is a vial (the one the HUD shows), anything else a card
+      const gives = def.actions.some((a) => a.type === 'addBottleSlot') ? drawVial : drawCard;
+      const root = shrine ? shrine.root : floats ? gives() : drawPost();
       root.position.set(def.x, viewY(def.y + (floats ? 0.85 : 0)));
       root.label = `interactable:${def.id}`;
       (floats ? this.layers.lightOverlay : this.layers.propsBack).addChild(root);
@@ -74,11 +76,27 @@ export class InteractableViews {
 /** A floating card: a cyan outline over a faint body with a white spark in the middle, on a soft glow. */
 function drawCard(): Container {
   const root = new Container();
-  const g = new Graphics();
-  g.circle(0, 0, 0.55).fill({ color: PALETTE.energyGlow, alpha: 0.14 });
-  g.roundRect(-0.17, -0.25, 0.34, 0.5, 0.05).fill({ color: PALETTE.energyMid, alpha: 0.55 }).stroke({ width: 0.035, color: PALETTE.energyCore, alpha: 0.95 });
-  g.poly([0, -0.13, 0.05, -0.02, 0, 0.13, -0.05, -0.02]).fill({ color: PALETTE.whiteHot, alpha: 0.95 });
-  root.addChild(g);
+  const glow = new Graphics().circle(0, 0, 0.55).fill({ color: PALETTE.energyGlow, alpha: 0.14 });
+  const body = new Graphics();
+  body.roundRect(-0.17, -0.25, 0.34, 0.5, 0.05).fill({ color: PALETTE.energyMid, alpha: 0.55 }).stroke({ width: 0.035, color: PALETTE.energyCore, alpha: 0.95 });
+  body.poly([0, -0.13, 0.05, -0.02, 0, 0.13, -0.05, -0.02]).fill({ color: PALETTE.whiteHot, alpha: 0.95 });
+  root.addChild(glow, body);
+  return root;
+}
+
+/** A floating vial, the bottle of the HUD: a cyan outline over a faint glass, its liquid lit and a white cork, on a soft glow. */
+function drawVial(): Container {
+  const root = new Container();
+  const glow = new Graphics().circle(0, 0, 0.55).fill({ color: PALETTE.energyGlow, alpha: 0.14 });
+  const body = new Graphics();
+  // the glass: a neck, shoulders and a round body, 0.4 m wide and 0.62 m tall
+  body
+    .poly([-0.06, -0.27, 0.06, -0.27, 0.06, -0.15, 0.2, 0, 0.2, 0.17, 0.14, 0.29, -0.14, 0.29, -0.2, 0.17, -0.2, 0, -0.06, -0.15])
+    .fill({ color: PALETTE.energyMid, alpha: 0.35 })
+    .stroke({ width: 0.035, color: PALETTE.energyCore, alpha: 0.95 });
+  body.poly([-0.17, 0.03, 0.17, 0.03, 0.17, 0.17, 0.12, 0.26, -0.12, 0.26, -0.17, 0.17]).fill({ color: PALETTE.energyCore, alpha: 0.85 });
+  body.rect(-0.075, -0.33, 0.15, 0.06).fill({ color: PALETTE.whiteHot, alpha: 0.95 });
+  root.addChild(glow, body);
   return root;
 }
 

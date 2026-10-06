@@ -410,6 +410,43 @@ const drinkHealFlash: FlashVfx = {
   life: 0.22, size: [0.8, 2.4], alpha: [0.9, 0],
 };
 
+// ------------------------------------------------------------------------------------------ taking a pickup
+
+/**
+ * Taking something up (S27: the fourth bottle; S28: the Spirit Bolt card): the light of the object opens as a ring and a flash and a
+ * handful of motes rise from where it floated. The hero's cyan / white, additive: nothing here is a hit.
+ */
+const pickupMotes: ParticleVfx = {
+  kind: 'particles',
+  id: 'pickup_motes',
+  priority: 5,
+  palette: 'energy',
+  blend: 'add',
+  shape: 'glow',
+  count: [14, 18],
+  speed: [1.4, 3.6],
+  life: [0.45, 0.9],
+  aim: 'up',
+  spread: 1.6,
+  size: [0.14, 0.3],
+  sizeEnd: 0.2,
+  gravity: 0.4,
+  drag: 1.5,
+  alpha: [0.95, 0],
+  colors: ['hot', 'core', 'hot'],
+  radius: 0.3,
+};
+
+const pickupRing: FlashVfx = {
+  kind: 'flash', id: 'pickup_ring', priority: 5, palette: 'energy', shape: 'ring', role: 'core',
+  life: 0.3, size: [0.3, 2.2], alpha: [0.9, 0],
+};
+
+const pickupFlash: FlashVfx = {
+  kind: 'flash', id: 'pickup_flash', priority: 5, palette: 'energy', shape: 'glow', role: 'hot',
+  life: 0.22, size: [0.8, 2.2], alpha: [0.9, 0],
+};
+
 export const VFX: Readonly<Record<string, VfxDefinition>> = Object.fromEntries(
   [
     slashArc, slashArcFinisher,
@@ -420,6 +457,7 @@ export const VFX: Readonly<Record<string, VfxDefinition>> = Object.fromEntries(
     telegraphRing, telegraphMotes,
     boltMuzzleFlash, boltMuzzleSparks, boltImpactBurst, boltImpactFlash, boltImpactRing, boltFizzle,
     drinkGather, drinkHealMotes, drinkHealFlash,
+    pickupMotes, pickupRing, pickupFlash,
   ].map((d) => [d.id, d]),
 );
 
@@ -440,4 +478,5 @@ export const VFX_BINDINGS: VfxBindings = {
   boltEnd: ['bolt_fizzle'],
   drinkStart: ['drink_gather'],
   drinkHeal: ['drink_heal_motes', 'drink_heal_flash'],
+  pickup: ['pickup_motes', 'pickup_ring', 'pickup_flash'],
 };

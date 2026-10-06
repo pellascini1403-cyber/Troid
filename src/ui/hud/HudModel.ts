@@ -16,6 +16,8 @@ export interface BottleViewState {
   iconId: string;
   /** 1 → 0 over `POP_SECONDS` when the bottle is drunk (the vial "pops"). */
   pop: number;
+  /** 1 → 0 over `GAIN_SECONDS` when the vial is NEW (the fourth bottle was just picked up): it arrives glowing. */
+  gain: number;
   /** This vial is being drunk right now: its liquid drains over the channel and the glass glows. */
   drinking: boolean;
 }
@@ -35,6 +37,7 @@ export interface HudState {
 export const GHOST_SECONDS = 0.4;
 export const FLASH_SECONDS = 0.15;
 export const POP_SECONDS = 0.25;
+export const GAIN_SECONDS = 0.9;
 export const SHAKE_SECONDS = 0.28;
 const SHAKE_AMPLITUDE = 4; // dp
 const SHAKE_CYCLES = 3;
@@ -56,6 +59,8 @@ export class HudModel {
     bottlesShakeX: 0,
   };
   private lastLife = -1;
+  /** How many vials the last update showed (−1: none yet, so a game that LOADS with four does not announce the fourth). */
+  private lastBottles = -1;
   private magicShake = 0;
   private cardShake = 0;
   private bottleShake = 0;
@@ -127,8 +132,11 @@ export class HudModel {
 
     // ---- bottles ----
     const bs = s.bottles;
-    while (bs.length < status.bottles.length) bs.push({ state: 'ready', fill01: 1, iconId: '', pop: 0, drinking: false });
+    while (bs.length < status.bottles.length) bs.push({ state: 'ready', fill01: 1, iconId: '', pop: 0, gain: 0, drinking: false });
     bs.length = status.bottles.length;
+    // a vial that was not there a moment ago (the fourth bottle is a reward) arrives with a glow
+    if (this.lastBottles >= 0) for (let i = this.lastBottles; i < bs.length; i++) (bs[i] as BottleViewState).gain = 1;
+    this.lastBottles = bs.length;
     for (let i = 0; i < bs.length; i++) {
       const b = bs[i] as BottleViewState;
       const src = status.bottles[i] as (typeof status.bottles)[number];
@@ -138,6 +146,7 @@ export class HudModel {
       b.fill01 = b.drinking ? Math.max(0, 1 - status.drink.progress01) : src.fill01;
       b.iconId = src.iconId;
       b.pop = Math.max(0, b.pop - dtc / POP_SECONDS);
+      b.gain = Math.max(0, b.gain - dtc / GAIN_SECONDS);
     }
     s.bottlesShakeX = shake(this.bottleShake);
     return s;

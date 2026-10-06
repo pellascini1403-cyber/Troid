@@ -13,8 +13,8 @@
 | **S23** transiciones entre salas | ✅ | `ce5ab17` |
 | **S24** guardado de progreso y checkpoints | ✅ | `fc6acb8` |
 | **S25** peligros | ✅ | `056c038` |
-| **S26** zonas de cámara | ✅ | (ver historial) |
-| **S27** cuarta botella | ⏳ | |
+| **S26** zonas de cámara | ✅ | `dad0241` |
+| **S27** cuarta botella | ✅ | (ver historial) |
 | **S28** Spirit Bolt en R3 | ⏳ | |
 | **S29** jefe | ⏳ | |
 | **S30** ajustes (volumen, remapeo, calidad, posición táctil) | ⏳ | |
@@ -379,3 +379,48 @@ interface CameraZoneDef { id; rect; bounds; viewHeight?; whenSet?; whenClear?; s
 | Tests | 1421 / 96 archivos | **1476 / 98 archivos** |
 | Arranque en frío de R1 | 192.2 KB gz | **192.6 KB gz** (+0.4 KB: `cameraZones` y las reglas del validador que no entran) — margen 7.4 KB |
 | Toda la primera sesión | 202.7 KB gz | 203.2 KB gz |
+
+---
+
+## S27 — Cuarta botella ✅
+
+**Qué es.** Una botella de energía más, **en el mundo**: de las 3 con las que empieza el héroe a las 4 que permite `BOTTLES.rules.maxSlots`. Es un interactuable de R2 como cualquier otro — **no hay tienda, ni contador, ni economía**: un objeto, una bandera, una ranura.
+
+```ts
+{ id: 'bottle_fourth', kind: 'pickup', verbKey: 'interact.pickUp', x: 49.5, y: 4.8, whenClear: 'taken:bottle_fourth',
+  actions: [{ type: 'addBottleSlot', bottleId: 'energy_bottle' }, { type: 'setFlag', flag: 'taken:bottle_fourth' }] }
+```
+
+**Dónde.** En la **repisa `p5`** del camino alto de R2 (x 48 … 51, a 4.8 m, sobre el extremo derecho de la tercera plataforma): la recompensa de quien **elige** el camino de arriba y se detiene a subir un escalón más. El camino hacia delante **no la necesita** (la salida de R2 no `requires` nada de esto, y el validador de mundo lo comprueba), y el diseño de S22 ya garantiza que no se llega por accidente (el salto corrido desde el borde de la segunda plataforma aterriza en la tercera, no en la repisa; desde el suelo no se llega). Con los botones de una persona: del `west` de R2, las tres primeras plataformas, un salto vertical desde debajo de la repisa y *Interact* son **385 ticks** (`fetchTheFourthBottle` en `tests/helpers/journey.ts`: la misma ruta la prueba el test de simulación y la graba y repite el E2E).
+
+**«No se puede conseguir dos veces» — por construcción, no por un parche:**
+
+| Situación | Por qué se cumple |
+|---|---|
+| Pulsar *Interact* otra vez (o cien veces, o desde otro punto de la repisa) | la ranura y la bandera se escriben **en el mismo tick**; `whenClear` oculta el objeto desde ese momento y el héroe se queda en la pose de interacción 12 ticks. Un solo `bottle:changed {added}` y un solo `interaction:performed` (test) |
+| Una derrota | las banderas del mundo sobreviven a la muerte y la derrota **ni da ni quita** botellas (tampoco rellena: la que se bebió sigue vacía hasta recargar); la repisa sigue vacía |
+| Una derrota **antes** de cogerla | no se pierde nada: sigue allí, una vez |
+| Una transición (R2 → R3 → R2) o recargar la sala | la bandera es del mundo, no de la sala: el objeto no se vuelve a construir |
+| Una partida guardada | `bottleSlots: 4` y la bandera se guardan **en la misma escritura** (una sola clave): no puede quedar guardada una sin la otra |
+| Un guardado dañado a mano (4 ranuras, sin bandera) | coger el objeto no da nada más (`BottleSet` no pasa de 4: `addSlot` devuelve `false`), y la bandera lo oculta; ni siquiera con `bottleSlots: 99` salen más de 4 |
+| Descansar en el santuario | rellena **las cuatro** (como las tres: S24) |
+
+**Sensación (placeholder, sin arte final):**
+
+- **En el mundo:** el marcador de un pickup que da una ranura de botella es **un frasco** (el del HUD: cuello, hombros, líquido encendido y tapón blanco, ~0.4 × 0.6 m) en lugar de la carta; flota 0.85 m sobre la repisa y desaparece al cogerlo. Qué dibuja cada pickup lo decide **lo que da** (`addBottleSlot` → frasco), no un campo nuevo del contenido.
+- **VFX:** nuevo disparador `pickup` (anillo que se abre, destello y motas de luz que suben; paleta de energía, nada violeta), lanzado por el director con `interaction:performed` de un `pickup` **donde flotaba el objeto**. Es dato (`VFX_BINDINGS.pickup`): S28 lo reutiliza para la carta.
+- **HUD:** el frasco **nuevo** llega con un resplandor blanco y un pequeño hinchado que se asienta en 0.9 s (`BottleViewState.gain`); una partida que **carga** con cuatro frascos **no** lo anuncia (el modelo solo anuncia un frasco que no estaba en el fotograma anterior).
+
+### Pruebas y E2E
+
+- **Tests (+35, de 1476 a 1511):** `bottleFourth` (18, sobre el mundo real: dónde está y cómo se llega con la ruta de los botones; el icono solo para quien está **sobre** la repisa; una vez, a pesar de cien pulsaciones; es una botella como las demás —se bebe, recarga una a una y el santuario rellena las cuatro—; sobrevive a una derrota, a una derrota previa, a una transición y a recargar la sala; la captura guarda las cuatro y la bandera juntas, una partida cargada las tiene sin el objeto, una guardada antes lo conserva, y un guardado dañado no da una quinta), `world` de contenido (4: una sola en el mundo y 3 + 1 = 4, sobre la repisa, su bandera es solo suya y la que lo oculta), `hudModel` (3) y `hudView` (2) del resplandor, `pickupVfx` (5), `interactableViews` (3: el frasco, más alto y más ancho que la carta, y desaparece al cogerlo).
+- **E2E (nuevo, 29.º escenario) `bottle4`:** parte de una partida guardada en la entrada de R2 (la sembrada en el almacenamiento y recargada, en pausa desde el tick 0), **graba en Node** la ruta a la repisa y **la repite con el teclado real** comparando el digest de toda la simulación (botellas y banderas incluidas) cada 50 ticks. Después: cuatro botellas llenas y la bandera; el frasco nuevo **llegó brillando**; se **abrió una luz** donde flotaba; el icono se fue con el objeto y una segunda pulsación no da nada; el guardado tiene `bottleSlots: 4` y la bandera; **recargar** da cuatro (sin anunciar el cuarto) y la repisa vacía; **una transición** R2 → R3 → R2 y **una derrota** (vuelve al santuario con cuatro, y la botella bebida sigue recargando) lo dejan igual; **en táctil** el icono es el botón (verbo en el idioma del jugador, objetivo ≥ 44 px), un toque lo coge y los cuatro frascos caben en pantalla sin quedar bajo ningún botón; y una partida nueva (`?new=1`) vuelve a tener tres.
+- **Adaptado:** el escenario `vfx` (y la lista de disparadores del laboratorio) incluye `pickup`.
+
+### Medido ✅
+
+| | S26 | S27 |
+|---|---|---|
+| Tests | 1476 / 98 archivos | **1511 / 100 archivos** |
+| Arranque en frío de R1 | 192.6 KB gz | **192.9 KB gz** (+0.3 KB: el marcador del frasco y el resplandor del HUD; los efectos van en el *chunk* diferido) — margen 7.1 KB |
+| Toda la primera sesión | 203.2 KB gz | 203.6 KB gz |

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createPlayerStatus, type PlayerStatus } from '@/gameplay/PlayerStatus';
-import { FLASH_SECONDS, GHOST_SECONDS, HudModel, POP_SECONDS, SHAKE_SECONDS } from '@/ui/hud/HudModel';
+import { FLASH_SECONDS, GAIN_SECONDS, GHOST_SECONDS, HudModel, POP_SECONDS, SHAKE_SECONDS } from '@/ui/hud/HudModel';
 
 /**
  * The HUD as a pure model: a PlayerStatus in, a HudState out, with the short real-time transients of the interface (the ghost
@@ -182,6 +182,40 @@ describe('bottles: ready, empty, recharging; a pop when one is drunk', () => {
     expect(s.bottles[0]!.pop).toBe(0);
     s = m.update(status(), POP_SECONDS);
     expect(s.bottles[1]!.pop).toBe(0);
+  });
+
+  it('a vial that was not there a moment ago (the fourth bottle) arrives glowing, and the glow fades in 0.9 s; the others never glow', () => {
+    const m = new HudModel();
+    const four = status((x) => x.bottles.push({ state: 'ready', fill01: 1, iconId: 'bottle' }));
+    let s = m.update(status(), FRAME);
+    expect(s.bottles.map((b) => b.gain)).toEqual([0, 0, 0]);
+    s = m.update(four, 0);
+    expect(s.bottles.map((b) => b.gain)).toEqual([0, 0, 0, 1]);
+    s = m.update(four, GAIN_SECONDS / 2);
+    expect(s.bottles[3]!.gain).toBeCloseTo(0.5, 6);
+    s = m.update(four, GAIN_SECONDS);
+    expect(s.bottles.map((b) => b.gain)).toEqual([0, 0, 0, 0]);
+  });
+
+  it('a game that LOADS with four bottles does not announce the fourth: its first frame shows no glow, and neither does any later one', () => {
+    const m = new HudModel();
+    const four = status((x) => x.bottles.push({ state: 'ready', fill01: 1, iconId: 'bottle' }));
+    let s = m.update(four, FRAME);
+    expect(s.bottles).toHaveLength(4);
+    expect(s.bottles.every((b) => b.gain === 0)).toBe(true);
+    s = m.update(four, FRAME);
+    expect(s.bottles.every((b) => b.gain === 0)).toBe(true);
+  });
+
+  it('drinking is not gaining: a drunk vial pops and does not glow, a new one glows and does not pop', () => {
+    const m = new HudModel();
+    m.update(status(), FRAME);
+    m.bottleUsed(0);
+    let s = m.update(status((x) => x.bottles.push({ state: 'ready', fill01: 1, iconId: 'bottle' })), 0);
+    expect(s.bottles.map((b) => [b.pop, b.gain])).toEqual([[1, 0], [0, 0], [0, 0], [0, 1]]);
+    s = m.update(status((x) => x.bottles.push({ state: 'ready', fill01: 1, iconId: 'bottle' })), POP_SECONDS);
+    expect(s.bottles[0]!.pop).toBe(0);
+    expect(s.bottles[3]!.gain).toBeGreaterThan(0);
   });
 
   it('popping a slot that does not exist is harmless', () => {

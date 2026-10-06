@@ -195,6 +195,31 @@ describe('hud view', () => {
     expect(q(host, 'hud-bottles').style.transform).toBe('');
   });
 
+  it('the fourth bottle arrives glowing and swollen, and then settles like any other vial', () => {
+    const four = (): PlayerStatus => status((s) => s.bottles.push({ state: 'ready', fill01: 1, iconId: 'bottle' }));
+    show(four(), 0);
+    expect(all(host, 'hud-bottle-').map((e) => e.dataset['gain'])).toEqual(['0', '0', '0', '1']);
+    expect(q(host, 'hud-bottle-3').style.transform).toContain('scale(1.3');
+    expect(q(host, 'hud-bottle-0').style.transform).toBe('');
+    for (let i = 0; i < 90; i++) show(four());
+    expect(all(host, 'hud-bottle-').map((e) => e.dataset['gain'])).toEqual(['0', '0', '0', '0']);
+    expect(q(host, 'hud-bottle-3').style.transform).toBe('');
+  });
+
+  it('a game that loads with four bottles shows them without a glow', () => {
+    const fresh = new HudModel();
+    const four = status((s) => s.bottles.push({ state: 'ready', fill01: 1, iconId: 'bottle' }));
+    // a view of its own: the shared one has already shown three
+    const other = document.createElement('div');
+    document.body.appendChild(other);
+    const loaded = new HudView(other, tr, sink);
+    loaded.place(844, 390, { top: 0, right: 0, bottom: 0, left: 0 });
+    loaded.update(fresh.update(four, 1 / 60));
+    expect(all(other, 'hud-bottle-')).toHaveLength(4);
+    expect(all(other, 'hud-bottle-').map((e) => e.dataset['gain'])).toEqual(['0', '0', '0', '0']);
+    loaded.dispose();
+  });
+
   it('a fourth bottle and an extra life segment appear when the numbers grow', () => {
     show(status((s) => s.bottles.push({ state: 'ready', fill01: 1, iconId: 'bottle' })));
     expect(all(host, 'hud-bottle-')).toHaveLength(4);
