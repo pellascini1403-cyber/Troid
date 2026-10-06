@@ -107,11 +107,18 @@ export const vertical: Scenario = {
     assert.equal(s.card, 'card_spirit_bolt');
     assert.deepEqual(s.flags, ['defeated:r1_slime', 'taken:card_spirit_bolt'], 'the card is remembered, and so is the guardian');
     assert.deepEqual(s.exits, ['east'], 'all the way to the exit');
+    assert.equal(s.transition?.phase, 'fadeOut', 'which starts the transition to R2');
     assert.equal(s.health, 5, 'a bottle brought the life back');
     assert.deepEqual(s.bottles, ['recharging', 'ready', 'ready'], 'one bottle is spent and recharging, one at a time');
     assert.ok(s.magic! >= 40 && s.magic! <= 100, `two bolts cost 60 (${s.magic})`);
     assert.equal(s.gates?.exit_door?.open, true);
     await ctx.shot('c-05-exit');
+    await ctx.step(40);
+    s = await ctx.state();
+    assert.equal(s.room, 'r2_hall', 'and the exit leads to R2: the hero arrives with everything they won');
+    assert.equal(s.card, 'card_spirit_bolt');
+    assert.equal(s.health, 5);
+    assert.deepEqual(s.bottles, ['recharging', 'ready', 'ready']);
 
     // =================================================================================================== 1b · the defeat, by keyboard
     await ctx.open('paused=1', { width: 844, height: 390, dpr: 1 });
@@ -230,7 +237,12 @@ export const vertical: Scenario = {
     s = await ctx.state();
     note(s);
     assert.deepEqual(s.exits, ['east'], 'exit:reached, by touch');
+    assert.equal(s.transition?.phase, 'fadeOut');
     await ctx.shot('t-03-exit');
+    await ctx.step(40);
+    assert.equal((await ctx.state()).room, 'r2_hall', 'the exit leads to R2');
+    await page.evaluate('window.__troid.session.loadRoom("r1_gate", "start")'); // back to R1 for the defeat below (its slime stays beaten)
+    await ctx.step(5);
 
     // ---- and a defeat by touch: five hits, the screen goes black, a tap on a button skips the wait, and what was gained is still there
     await ctx.teleport(90, 0);

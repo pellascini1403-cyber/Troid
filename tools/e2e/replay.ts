@@ -50,7 +50,7 @@ const KEYS: Readonly<Record<keyof Held, string>> = {
 
 /**
  * One line that says everything the simulation knows that matters: where the hero is, how it is, what it is doing, the world
- * flags, the exits touched, every enemy, the defeat flow and the random generator. A string, so it can be compared and
+ * flags, the exits touched, every enemy, the defeat flow, the room and its transition, and the random generator. A string, so it can be compared and
  * printed. Plain JS in a string: the very same text runs in Node and in the page (no bundler helpers can leak into it).
  */
 export const DIGEST_SRC = `
@@ -65,6 +65,9 @@ export const DIGEST_SRC = `
     'e' + [...s.exitsReached].join('+'),
     'r' + s.rng.state,
     'd' + s.death.phase,
+    // which room, and where the room transition is (docs/PROMPT6-LOG.md S23)
+    'R' + s.room.id,
+    'x' + s.transition.phase,
     // the player's resources and what they hold: the magic, each bottle (state and progress), the card, the object with the icon
     'm' + s.magic.current.toFixed(6),
     'b' + s.bottles.slots.map((x) => x.state[0] + x.progress).join(','),

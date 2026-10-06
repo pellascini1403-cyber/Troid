@@ -6,6 +6,7 @@ import { SkillRuntime } from '@/abilities/SkillRuntime';
 import { CombatSystem } from '@/combat/CombatSystem';
 import { EventBus } from '@/core/events';
 import { IdGenerator } from '@/core/ids';
+import { log } from '@/core/log';
 import { overlaps, type Rect } from '@/core/math';
 import { Rng } from '@/core/rng';
 import { Scheduler } from '@/core/scheduler';
@@ -18,10 +19,11 @@ import type { PlayerDefinition } from '@/player/PlayerDefinition';
 import { AbilitySystem, type AbilityDefinition } from '@/progression/AbilitySystem';
 import { WorldFlags } from '@/progression/WorldFlags';
 import { bodyRect, CollisionWorld } from '@/world/collision';
-import type { RoomDefinition } from '@/world/RoomDefinition';
+import type { Destination, RoomDefinition } from '@/world/RoomDefinition';
 import { DeathFlow, DEFAULT_DEATH_FLOW, type DeathFlowDefinition, type DeathSnapshot } from './DeathFlow';
 import type { GameEvents } from './events';
 import { createPlayerStatus, type PlayerStatus } from './PlayerStatus';
+import { DEFAULT_TRANSITION, RoomTransition, type TransitionDefinition, type TransitionSnapshot } from './RoomTransition';
 import type { SimEntity } from './SimEntity';
 import type { SimServices } from './SimServices';
 
@@ -46,6 +48,8 @@ export interface SessionOptions {
   unlocked?: readonly string[];
   /** Durations of the defeat flow (docs/GAME-SPEC-2D.md §9.2). */
   death?: DeathFlowDefinition;
+  /** Durations of the room transition (docs/PROMPT6-LOG.md S23). */
+  transition?: TransitionDefinition;
   /** The enemy definitions that `RoomDefinition.spawns` refer to, by id. */
   enemies?: Readonly<Record<string, EnemyDefinition>>;
   /** World flags set from the start (tests, loading a save). */
@@ -85,6 +89,8 @@ export class GameSession implements SimServices {
   readonly interaction: InteractionSystem;
   /** The defeat flow: dying → fade out → title → respawn → fade in (docs/GAME-SPEC-2D.md §9.2). */
   readonly death: DeathFlow;
+  /** Walking out of a room into the next: fade out → swap → fade in, one at a time and with the player's control held (docs/PROMPT6-LOG.md S23). */
+  readonly transition: RoomTransition;
   /** World memory that outlives room visits and deaths: defeated guardians, opened doors (docs/GAME-SPEC-2D.md §14.3). */
   readonly flags: WorldFlags;
 
@@ -104,6 +110,7 @@ export class GameSession implements SimServices {
   private readonly gateStates = new Map<string, boolean>();
   private readonly exitsTouched = new Set<string>();
   private readonly scratch: Rect = { x0: 0, y0: 0, x1: 0, y1: 0 };
+  private readonly transitionScratch: TransitionSnapshot = { phase: 'none', ticks: 0, length: 0 };
 
   // ---- hit-stop: the world holds still; the player's presses are kept for the first tick after it ----
   private hitStopTicks = 0;
@@ -164,8 +171,24 @@ export class GameSession implements SimServices {
       },
       opts.death ?? DEFAULT_DEATH_FLOW,
     );
-    // dying costs nothing but a short walk back: the flow starts the moment the player's health reaches 0
-    this.bus.on('player:died', () => this.death.start());
+    this.transition = new RoomTransition(
+      {
+        scheduler: this.scheduler,
+        swap: (to, exitId) => this.enterRoom(to, exitId),
+        emitStarted: (from, exitId, to, ticks) => this.bus.emit('transition:started', { from, exitId, to: { ...to }, ticks }),
+        emitFadeOut: (ticks) => this.bus.emit('transition:fadeOut', { ticks }),
+        emitFadeIn: (ticks) => this.bus.emit('transition:fadeIn', { ticks }),
+        emitFinished: (to) => this.bus.emit('transition:finished', { room: to.room, entry: to.entry }),
+        emitCancelled: (reason) => this.bus.emit('transition:cancelled', { reason }),
+      },
+      opts.transition ?? DEFAULT_TRANSITION,
+    );
+    // dying costs nothing but a short walk back: the flow starts the moment the player's health reaches 0. A transition that was
+    // under way is called off: the defeat flow brings the player back, and no room may be swapped under a hero who is down.
+    this.bus.on('player:died', () => {
+      this.transition.cancel('death');
+      this.death.start();
+    });
     // an enemy that guards something leaves its flag behind when it falls; doors follow the flags
     this.bus.on('actor:died', ({ id }) => {
       const flag = this.defeatFlags.get(id);
@@ -197,6 +220,10 @@ export class GameSession implements SimServices {
   /** One frame of the defeat flow for the overlay. */
   get deathSnapshot(): DeathSnapshot {
     return this.death.snapshot();
+  }
+  /** One frame of the room transition for the overlay (one object, rewritten on every call: no allocation per frame). */
+  get transitionSnapshot(): TransitionSnapshot {
+    return this.transition.snapshot(this.transitionScratch);
   }
   /** Live entities (enemies, projectiles…), in spawn order. The player is not in this list. */
   get entities(): readonly SimEntity[] {
@@ -266,6 +293,8 @@ export class GameSession implements SimServices {
     this.ticks++;
     // a press can skip the wait of the defeat screen; that press is spent there (it does not also act in the game)
     if (this.death.update(frame)) frame = NEUTRAL_INPUT;
+    // walking out of a room: the hero stands still until the next one is on screen — no attack, no jump, no second exit
+    if (this.transition.active) frame = NEUTRAL_INPUT;
     this.player.tick(this, frame); // 1
     for (const e of this.live) e.tick(this); // 2
     this.combat.resolve(); // 3
@@ -286,6 +315,7 @@ export class GameSession implements SimServices {
    */
   loadRoom(roomId: string, entryId?: string): void {
     this.death.cancel();
+    this.transition.cancel('reload');
     this.unloadRoom();
     this.current = this.requireRoom(roomId);
     this.buildRoom(this.current, entryId);
@@ -399,16 +429,50 @@ export class GameSession implements SimServices {
     }
   }
 
-  /** `exit:reached`, once per exit per room build, while the player is alive and touching its zone. */
+  /**
+   * `exit:reached`, once per exit per room build, while the player is alive and touching its zone. An exit that leads somewhere
+   * also starts the room transition. A way that is shut (`requires`) does nothing; and nothing starts while another transition
+   * runs or while the defeat flow brings the player back — the zone is not spent then, so a hero still standing in it afterwards
+   * goes through.
+   */
   private checkExits(): void {
     const exits = this.current.exits;
     if (!exits || exits.length === 0 || this.player.health.dead) return;
     const body = bodyRect(this.player.body, this.scratch);
     for (const x of exits) {
       if (this.exitsTouched.has(x.id) || !overlaps(body, x.rect)) continue;
+      if (x.requires !== undefined && !this.flags.has(x.requires)) continue;
+      if (x.to && (this.transition.active || this.death.active)) continue;
       this.exitsTouched.add(x.id);
       this.bus.emit('exit:reached', { roomId: this.current.id, exitId: x.id, ...(x.to ? { to: x.to } : {}) });
+      if (!x.to) continue;
+      if (this.canEnter(x.to)) {
+        this.transition.begin(this.current.id, x.id, x.to);
+        return;
+      }
+      // a session that was not given the destination (a test that walks one room): the zone is only an event, as in a room without `to`
+      log.scope('world').warn(`exit "${this.current.id}/${x.id}" leads to "${x.to.room}:${x.to.entry}", which this session does not have`);
     }
+  }
+
+  /** Is there a room to go to, with that entry? */
+  private canEnter(to: Destination): boolean {
+    return this.opts.rooms[to.room]?.entries.some((e) => e.id === to.entry) ?? false;
+  }
+
+  /**
+   * The swap of a room transition, in one step: the old room goes (everything that lived in it with it) and the new one is built with
+   * the player at the entry the exit named. The player keeps their health, resources and flags; `buildRoom` makes the entry the
+   * respawn point.
+   */
+  private enterRoom(to: Destination, exitId: string): void {
+    const from = this.current.id;
+    this.bus.emit('room:exiting', { roomId: from, exitId, to: { ...to } });
+    this.unloadRoom();
+    this.current = this.requireRoom(to.room);
+    this.buildRoom(this.current, to.entry);
+    this.bus.emit('room:loaded', { roomId: this.current.id, entryId: to.entry });
+    this.bus.emit('room:entered', { roomId: this.current.id, entryId: to.entry, from });
   }
 
   /**

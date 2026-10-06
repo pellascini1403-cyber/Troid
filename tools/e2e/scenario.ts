@@ -49,6 +49,8 @@ export interface GameState {
   views?: number;
   /** 2D view only: the defeat flow, the interface language and the respawn point. */
   death?: { phase: string; ticks: number; length: number; canSkip: boolean };
+  /** 2D view only: the room transition (fade out → swap → black → fade in); phase `none` when there is none. */
+  transition?: { phase: string; ticks: number; length: number };
   lang?: string;
   /** 2D view only: the device the player used last (keyboard / touch / gamepad). */
   device?: string;

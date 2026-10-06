@@ -9,8 +9,8 @@
 | Paso | Estado | Commit |
 |---|---|---|
 | **S21** baseline | ✅ | `1b4756a` |
-| **S22** grafo de mundo (`WorldDefinition`, R1–R4, validación) | ✅ | (ver historial) |
-| **S23** transiciones entre salas | ⏳ | |
+| **S22** grafo de mundo (`WorldDefinition`, R1–R4, validación) | ✅ | `99f0649` |
+| **S23** transiciones entre salas | ✅ | (ver historial) |
 | **S24** guardado de progreso y checkpoints | ⏳ | |
 | **S25** peligros | ⏳ | |
 | **S26** zonas de cámara | ⏳ | |
@@ -142,3 +142,62 @@ Cada sala declara lo que pide la especificación: `id`, dimensiones (`bounds`), 
 | Bundle de arranque en frío de R1 | 197.9 KB gz | **198.5 KB gz** (+0.6 KB: tres salas, sus nombres y el mundo; el grafo y el validador solo se usan en tests y no entran) — **margen 1.5 KB** |
 
 > ⚠ El margen del bundle ya es de 1.5 KB y faltan transiciones, guardado, peligros, jefe y ajustes. El plan es el de las decisiones 10: medir tras cada bloque y, si hace falta, cargar bajo demanda lo que no se necesita para empezar R1 (las salas R2–R4 y el jefe son candidatas naturales). Se documentará con las dos cifras: «arranque en frío de R1» y «toda la rebanada».
+
+---
+
+## S23 — Transiciones entre salas ✅
+
+**Qué es.** Tocar una salida que lleva a alguna parte ya no solo emite un evento: arranca una **transición determinista**, un flujo de simulación como la derrota (`RoomTransition` en `gameplay/`), que corre por el `Scheduler` con dueño propio:
+
+```
+tick que ve la salida ─▶ fadeOut (12) ─▶ SWAP ─▶ hold (6, negro) ─▶ fadeIn (14) ─▶ control de vuelta
+                         `transition:started` + `transition:fadeOut`     │            `transition:fadeIn`      `transition:finished`
+                                                          `room:exiting` · `room:loaded` · `room:entered`
+```
+
+Dura **32 ticks simulados** (≈ 0.53 s) contando el tick que vio la salida. El *swap* es **un solo paso**: se descarga la sala vieja (todo lo que vivía en ella: entidades, *hitboxes*, colliders, interactuables, temporizadores de la sala) y se construye la nueva con el jugador en el `entry` que nombra la salida; no existe un instante con dos salas, ni con ninguna. Vida, magia, carta, botellas y *flags* pasan tal cual (es el mismo `Player` y el mismo `WorldFlags`).
+
+### Reglas (cada una con su test)
+
+| Regla | Cómo se garantiza |
+|---|---|
+| **No se puede atacar, saltar, esquivar, lanzar, interactuar ni beber durante la transición** | `tick()` sustituye el `InputFrame` por `NEUTRAL_INPUT` mientras `transition.active` (igual que la pantalla de derrota). Una pulsación hecha durante ella **no se recuerda**: no hay salto al recuperar el control. Un ataque que estaba en curso al tocar la salida termina con la sala vieja (`player.respawn` reinicia el controlador al entrar) |
+| **Una transición cada vez** | `begin()` se rechaza mientras corre otra: tocar la misma salida, otra distinta, o llamar a `begin` a mano a mitad del fundido no arranca nada |
+| **Una salida cerrada no hace nada** | `exit.requires` sin la bandera: ni evento, ni transición, y la zona **no se gasta** (si se pone la bandera con el jugador dentro, pasa) |
+| **Una salida sin destino solo emite el evento** | salas de pruebas y `end` (el fin de la rebanada) |
+| **Un destino que la sesión no tiene no rompe nada** | `exit:reached` + aviso en el log, sin transición (los tests que recorren una sola sala) |
+| **Morir durante la transición no es permanente** | `player:died` **cancela** la transición (`transition:cancelled {reason:'death'}`): ninguna sala se cambia bajo un héroe caído, y el flujo de derrota lo trae de vuelta. Vale en el fundido de salida, en el negro y en el fundido de entrada |
+| **Morir en el mismo tick en que se toca la salida** | un héroe muerto no activa salidas: no hay transición |
+| **Tocar una salida mientras la derrota trae al jugador de vuelta** (su fundido de entrada) | no arranca, y la zona no se gasta: cuando el flujo acaba, si sigue dentro, pasa |
+| **Cargar una sala a mano a mitad de transición** (`loadRoom`) | la cancela (`reason:'reload'`); nunca hay un *swap* después |
+| **Un *hit-stop* a mitad solo la retrasa** | los temporizadores esperan igual que en la derrota |
+| **Determinista** | mismos eventos en los mismos ticks, bit a bit (test del viaje completo y réplica en el navegador) |
+
+### Eventos nuevos
+
+`transition:started {from, exitId, to, ticks}` · `transition:fadeOut {ticks}` · `transition:fadeIn {ticks}` · `transition:finished {room, entry}` · `transition:cancelled {reason}` · `room:exiting {roomId, exitId, to}` (el último momento para guardar lo que pertenece a la sala) · `room:entered {roomId, entryId, from}` (solo por conexión: `room:loaded` también salta en una reaparición o una carga de depuración). El interfaz solo escucha: `TransitionOverlay` (DOM, sin texto, `pointer-events: none`, z-index 38 entre el HUD y la derrota) pinta un negro que es función pura de la instantánea (`transitionOpacity`).
+
+### Decisiones y desvíos
+
+- **El mundo no se congela durante el fundido: la entrada se neutraliza.** El héroe **desacelera solo** (un paso corriendo se desliza un poco bajo el fundido) en vez de quedarse clavado; un enemigo cercano sigue siendo peligroso, y por eso la muerte **cancela** en vez de ignorarse. Se descartó congelar el mundo porque haría imposible el caso «muerte durante la transición» (que el enunciado pide cubrir) y porque un fundido con la animación del héroe a medias queda peor. Lo que sí se corta en el *swap* es cualquier acción en curso.
+- **Un dash empezado en el mismo tick de la salida termina solo** (el control del dash no mira la entrada): lo descubrió el E2E (`vx = 21` a mitad del fundido). No es un fallo: la acción empezó antes; la transición solo impide empezar otras.
+- **El respawn sigue siendo, por ahora, la entrada por la que se entró** (como en el Prompt 4/5): una conexión convierte la llegada en el nuevo punto de reaparición. **S24 lo cambia al último *checkpoint*** (con los dos tests que lo fijan adaptados a propósito).
+- **`room:entered` y `room:loaded` son dos cosas.** El autoguardado de S24 escucha `room:entered`; las vistas, `room:loaded`.
+- **El viaje se graba una vez y se reproduce dos.** `tests/helpers/journey.ts` (`playWorld`) lo recorre con el bot (R1 con su slime, R2 por el camino bajo, R3, R4); `worldJourney.test.ts` lo afirma y el escenario `world` lo **graba en Node y lo reproduce por el teclado real del navegador**, comparando el *digest* de toda la simulación —ahora con la sala y la fase de la transición— cada 50 ticks: **2964 ticks, tres transiciones, idéntico bit a bit**.
+
+### Pruebas y E2E
+
+- **Tests (+53):** `transitions.test.ts` (32: R1→R2→R3→R4 y vuelta, **todas** las aristas del grafo con su posición y orientación de llegada, doble transición bloqueada, entrada bloqueada y sin pulsaciones recordadas, ataque en curso, ni una entidad/colisionador/temporizador/oyente de más tras 40 viajes de ida y vuelta, derrota en cada fase, `requires`, salidas sin destino, determinismo), `roomTransition.test.ts` (17: la máquina de estados con un anfitrión falso, el modelo de opacidad y el overlay DOM) y `worldJourney.test.ts` (4: el mundo de punta a punta con 4 semillas).
+- **E2E (nuevos):** `transition` (26 transiciones: negro real en el *swap* con teclas pulsadas, sala sin fugas en la escena y en el DOM tras 16 viajes, una derrota a mitad del fundido) y `world` (el viaje completo en el navegador, bit a bit).
+- **E2E adaptados (misma intención):** `r1`, `room` y `vertical` ahora terminan con la salida **llevando a R2** (el escenario comprueba la llegada); las grabaciones en Node usan el mundo entero (`freshR1`/`fresh`) para que Node y navegador transiten en el mismo tick.
+
+### Medido ✅
+
+| | S22 | S23 |
+|---|---|---|
+| Tests | 1249 / 85 archivos | **1302 / 88 archivos** |
+| `tsc` | 0 | 0 |
+| E2E producción | — | **25/25** (los 23 + `transition` + `world`) |
+| Bundle de arranque en frío de R1 | 198.5 KB gz | **199.1 KB gz** (+0.6 KB: `RoomTransition`, overlay y cambios en la sesión) — **margen 0.9 KB** |
+
+> ⚠ **El margen del bundle es ya de 0.9 KB** y faltan guardado, peligros, jefe y ajustes. Hasta aquí todo está en el arranque en frío. La decisión sobre **qué cargar bajo demanda** se toma con datos tras S24 (que sí es del arranque) y se diseña **desde el principio** en S29 (el jefe, su arena y su sala son lo único que no hace falta para empezar R1).

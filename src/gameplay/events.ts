@@ -32,6 +32,20 @@ export interface GameEvents extends CombatEvents {
   'death:fadeIn': { ticks: number };
   /** A room was (re)built: views rebuild their scenery and cut the camera. */
   'room:loaded': { roomId: string; entryId: string };
+  /** The room transition starts (the player touched an exit that leads somewhere): `ticks` is its whole length, fade out + black + fade in. */
+  'transition:started': { from: string; exitId: string; to: { room: string; entry: string }; ticks: number };
+  /** The fade to black on the room being left begins and lasts `ticks` simulation ticks. */
+  'transition:fadeOut': { ticks: number };
+  /** The fade back in on the new room begins and lasts `ticks` simulation ticks. */
+  'transition:fadeIn': { ticks: number };
+  /** The player has control again, in the room the transition led to. */
+  'transition:finished': { room: string; entry: string };
+  /** A transition that had started did not finish: the player went down (`death`) or a room was loaded by hand (`reload`). */
+  'transition:cancelled': { reason: 'death' | 'reload' };
+  /** The room is about to be unloaded because the player walked out of it (the last moment to save what belongs to it). */
+  'room:exiting': { roomId: string; exitId: string; to: { room: string; entry: string } };
+  /** The player walked into a room through a connection (`room:loaded` also fires for a respawn or a debug load; this one does not). */
+  'room:entered': { roomId: string; entryId: string; from: string };
   /** An enemy noticed the player (audio cue, camera nudge…). */
   'enemy:alerted': { id: string; defId: string; x: number; y: number };
   /** An enemy begins the wind-up of an attack: `ticks` ticks until the blow (the VFX layer draws the warning). */

@@ -91,16 +91,24 @@ export const r1: Scenario = {
     await page.waitForFunction('window.__troid.state().gates.exit_door.alpha === 0', undefined, { timeout: 10000 });
     await ctx.shot('08-door-open');
 
-    // ---- through it, to the exit ----
+    // ---- through it, to the exit: it leads to R2 now (docs/PROMPT6-LOG.md S23) ----
     await page.keyboard.down('KeyD');
-    await ctx.step(120);
+    for (let i = 0; i < 60 && !(await state()).exits?.includes('east'); i++) await ctx.step(2);
     await page.keyboard.up('KeyD');
     s = await state();
     assert.ok(s.x > 106, `through the door (x = ${s.x})`);
     assert.deepEqual(s.exits, ['east'], 'exit:reached');
+    assert.equal(s.transition?.phase, 'fadeOut', 'and the way out starts the transition');
     await ctx.shot('09-exit');
     assert.ok(worst <= 60, `draw calls peaked at ${worst}`);
     console.log(`  r1: ${s.draws} draw calls in the exit section, worst over the room ${worst}`);
+    await ctx.step(40);
+    s = await state();
+    assert.equal(s.room, 'r2_hall', 'the exit leads to R2');
+    assert.ok(Math.abs(s.x - 4) < 0.1, `at R2's west entry (x = ${s.x})`);
+    await ctx.shot('09b-r2-arrival');
+    await hooks('session.loadRoom("r1_gate", "start")'); // back in R1 for the desktop screen below
+    await ctx.step(5);
 
     // ---- the same room on a desktop screen: the picture is there (not an empty canvas) and still cheap ----
     await ctx.page.setViewportSize({ width: 1920, height: 1080 });

@@ -12,9 +12,12 @@ import { driver, type Driver } from './sim';
 /** The low roof of the crawl tunnel in R1 (x from … to …): the bot crouches inside it. */
 export const R1_CROUCH = [[60.5, 77.4]] as const;
 
-/** A new game in R1 with the Dash taught (the unlock the room's first jump section asks for). */
+/**
+ * A new game in R1 with the Dash taught (the unlock the room's first jump section asks for). It has the WHOLE world, like the game in
+ * the browser: the exit of R1 leads to R2, so the run that is recorded here and the one that is replayed there agree to the tick.
+ */
 export function freshR1(): Driver {
-  return driver({ room: ROOMS.r1_gate!, unlocked: ['dash'] });
+  return driver({ room: ROOMS.r1_gate!, unlocked: ['dash'], extra: { rooms: ROOMS } });
 }
 
 /** Lets go of everything the bot may be holding. */
@@ -51,7 +54,7 @@ export function playWin(d: Driver): void {
   d.step(26);
   runBot(d, { crouchZones: R1_CROUCH, until: () => d.session.exitsReached.has('east'), maxTicks: 1500 });
   letGo(d);
-  d.step(10);
+  d.step(5); // the exit has started the transition to R2 (it swaps rooms 11 ticks in): the run ends while R1 is still fading out
 }
 
 /** The card, a bottle, and the slime wins; the run ends once the screen has faded back in at the entrance. */

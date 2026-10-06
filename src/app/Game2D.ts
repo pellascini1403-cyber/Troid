@@ -45,6 +45,7 @@ import { RoomView2D } from '@/render/RoomView2D';
 import { HudModel } from '@/ui/hud/HudModel';
 import { HudView } from '@/ui/hud/HudView';
 import { DeathOverlay } from '@/ui/overlays/DeathOverlay';
+import { TransitionOverlay } from '@/ui/overlays/TransitionOverlay';
 import { InteractionPrompt } from '@/ui/prompt/InteractionPrompt';
 import type { SettingsMenu } from '@/ui/settings/SettingsMenu';
 import { PauseButton } from '@/ui/settings/PauseButton';
@@ -84,6 +85,7 @@ export class Game2D {
   private readonly vfx: VfxSystem;
   private readonly vfxDirector: VfxDirector;
   private readonly deathOverlay: DeathOverlay;
+  private readonly transitionOverlay: TransitionOverlay;
   private readonly safeArea: SafeArea;
   private readonly touchSource: TouchSource;
   private readonly touchControls: TouchControls;
@@ -242,6 +244,8 @@ export class Game2D {
     );
     this.deathOverlay = new DeathOverlay(ui, this.translator);
     this.lifecycle.add(() => this.deathOverlay.dispose());
+    this.transitionOverlay = new TransitionOverlay(ui);
+    this.lifecycle.add(() => this.transitionOverlay.dispose());
     this.lifecycle.add(this.session.bus.on('room:loaded', () => (this.roomDirty = true)));
     // a door dissolves when the flag that opens it is set (the simulation already switched its collider off)
     this.lifecycle.add(this.session.bus.on('gate:changed', ({ gateId, open }) => this.roomView.setGateOpen(gateId, open)));
@@ -387,6 +391,7 @@ export class Game2D {
     this.roomView.update(realDt);
     this.interactableViews.update(realDt, (id) => this.session.interaction.isAvailable(id));
     this.deathOverlay.update(this.session.deathSnapshot);
+    this.transitionOverlay.update(this.session.transitionSnapshot);
     this.updateHud(realDt);
 
     // The camera follows the INTERPOLATED position — exactly what is drawn — so camera and player never jitter apart.
@@ -519,6 +524,7 @@ export class Game2D {
     }
     this.playerSprite.sync(this.session.player.view, 1, 0);
     this.deathOverlay.update(this.session.deathSnapshot);
+    this.transitionOverlay.update(this.session.transitionSnapshot);
     this.updateHud(0);
     this.updatePrompt();
   }
@@ -626,7 +632,7 @@ export class Game2D {
           exits: [...this.session.exitsReached],
           views: this.entityViews.count,
           vfx: this.vfx.stats,
-          death: this.session.deathSnapshot, lang: this.translator.locale,
+          death: this.session.deathSnapshot, transition: this.session.transitionSnapshot, lang: this.translator.locale,
           device: this.input.device,
           // the player's resources (the HUD shows them; the tests read the numbers)
           magic: this.session.magic.current,

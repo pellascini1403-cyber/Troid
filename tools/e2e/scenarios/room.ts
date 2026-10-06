@@ -24,8 +24,9 @@ const R1 = ROOMS.r1_gate!;
 const CROUCH = [[60.5, 77.4]] as const;
 
 function fresh(): Driver {
-  // right + down is (1, −1) in the recording AND in the browser: digital sources do not normalise (the axis contract of InputFrame)
-  return driver({ room: R1, unlocked: ['dash'] });
+  // right + down is (1, −1) in the recording AND in the browser: digital sources do not normalise (the axis contract of InputFrame).
+  // The recording has the WHOLE world, like the game in the browser: R1's exit leads to R2, so both run the same transition.
+  return driver({ room: R1, unlocked: ['dash'], extra: { rooms: ROOMS } });
 }
 function letGo(d: Driver): void {
   d.release('jump');
@@ -51,7 +52,7 @@ function recordWin(): Recording {
     // 4 · through the door, to the exit
     runBot(d, { crouchZones: CROUCH, until: () => d.session.exitsReached.has('east'), maxTicks: 1500 });
     letGo(d);
-    d.step(10);
+    d.step(5); // the exit started the transition to R2 (it swaps rooms 11 ticks in): the replay ends while R1 is still fading out
   });
 }
 
@@ -146,8 +147,18 @@ export const room: Scenario = {
     assert.equal(s.enemies?.length, 0, 'the slime is gone');
     assert.equal(s.gates?.exit_door?.open, true);
     await ctx.page.waitForFunction('window.__troid.state().gates.exit_door.alpha === 0', undefined, { timeout: 10000 });
+    assert.equal(s.transition?.phase, 'fadeOut', 'the exit has started the transition to R2');
     await ctx.shot('a-09-exit');
     assert.equal(s.views, 0, 'and so is its view');
+    // the rest of the transition, with no input: the screen goes black, R2 is built, and the hero stands at its west entry
+    await ctx.step(40);
+    s = await ctx.state();
+    assert.equal(s.room, 'r2_hall', 'R1\'s exit leads to R2');
+    assert.ok(Math.abs(s.x - 4) < 0.1, `at R2's west entry (x = ${s.x})`);
+    assert.equal(s.transition?.phase, 'none');
+    assert.deepEqual(s.exits, [], 'arriving touches no exit');
+    assert.equal(s.health, 4, 'what the hero is, goes with them');
+    assert.deepEqual(s.flags, ['defeated:r1_slime'], 'and so does what was won');
 
     // ================================================================================================== run B · the defeat
     await ctx.open('paused=1', { width: 844, height: 390, dpr: 1 });
