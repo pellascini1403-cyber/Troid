@@ -69,6 +69,11 @@ export class Renderer2D {
       width: size.cssWidth,
       height: size.cssHeight,
       preference: 'webgl',
+      // Pixi's default start-up also loads accessibility, DOM containers, its event system, spritesheets and filters. The game
+      // draws none of them: its HUD, touch controls and text are DOM (docs/ARCHITECTURE-2D.md §8) and input is handled by `input/`.
+      // Skipping them takes ≈ 16 KB gz off the cold start (docs/PROMPT5-LOG.md S12). A tool that needs one imports its module
+      // itself (`import 'pixi.js/filters'` in the stress lab).
+      skipExtensionImports: true,
       antialias: false,
       autoStart: false,
       background: PALETTE.worldVoid,

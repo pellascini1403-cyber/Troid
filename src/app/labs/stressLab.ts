@@ -1,4 +1,6 @@
 import { ColorMatrixFilter, Particle, ParticleContainer, Rectangle, Sprite, Texture } from 'pixi.js';
+// The renderer starts WITHOUT Pixi's filter system (the game draws no filters, docs/PROMPT5-LOG.md S12): this lab does.
+import 'pixi.js/filters';
 import { canvasTexture, createCanvas, softGlowTexture, sparkTexture } from '@/assets/proceduralTextures';
 import { DrawCallCounter } from '@/debug/DrawCallCounter';
 import { PALETTE } from '@/presentation/palette';
