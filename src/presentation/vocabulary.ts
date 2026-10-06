@@ -11,7 +11,7 @@ export const ANIM_STATES = [
   'crouch', 'crouchWalk',
   'attack', 'attack1', 'attack2', 'attackAir', 'attackCrouch', 'special', 'cast',
   'dash', 'hurt', 'death',
-  'drink', 'interact', 'telegraph', 'phaseTransition',
+  'drink', 'interact', 'alert', 'telegraph', 'phaseTransition',
 ] as const;
 export type AnimState = (typeof ANIM_STATES)[number];
 
@@ -51,6 +51,7 @@ export const ANIM_FALLBACKS: Readonly<Record<AnimState, readonly AnimState[]>> =
   death: ['hurt', 'idle'],
   drink: ['interact', 'idle'],
   interact: ['idle'],
+  alert: ['idle'],
   telegraph: ['special', 'attack', 'idle'],
   phaseTransition: ['special', 'hurt', 'idle'],
 };
@@ -58,5 +59,5 @@ export const ANIM_FALLBACKS: Readonly<Record<AnimState, readonly AnimState[]>> =
 /** States that play once and hold their last frame; everything else loops. Overridable per clip. */
 export const ONE_SHOT_STATES: ReadonlySet<AnimState> = new Set<AnimState>([
   'jump', 'land', 'attack', 'attack1', 'attack2', 'attackAir', 'attackCrouch', 'special', 'cast',
-  'dash', 'hurt', 'death', 'drink', 'interact', 'telegraph', 'phaseTransition',
+  'dash', 'hurt', 'death', 'drink', 'interact', 'alert', 'telegraph', 'phaseTransition',
 ]);

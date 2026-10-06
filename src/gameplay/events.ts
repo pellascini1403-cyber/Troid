@@ -28,6 +28,10 @@ export interface GameEvents extends CombatEvents {
   'death:fadeIn': { ticks: number };
   /** A room was (re)built: views rebuild their scenery and cut the camera. */
   'room:loaded': { roomId: string; entryId: string };
+  /** An enemy noticed the player (audio cue, camera nudge…). */
+  'enemy:alerted': { id: string; defId: string; x: number; y: number };
+  /** An enemy begins the wind-up of an attack: `ticks` ticks until the blow (the VFX layer draws the warning). */
+  'enemy:telegraph': { id: string; defId: string; x: number; y: number; facing: 1 | -1; ticks: number };
   'ability:unlocked': { id: string };
   'ability:locked': { id: string };
   'entity:spawned': { entity: SimEntity };

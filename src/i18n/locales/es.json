@@ -1,4 +1,5 @@
 {
   "death.title": "Has caído",
-  "death.hint": "Pulsa cualquier botón para continuar"
+  "death.hint": "Pulsa cualquier botón para continuar",
+  "enemy.inkSlime.name": "Baba de tinta"
 }
