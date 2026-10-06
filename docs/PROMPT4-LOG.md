@@ -18,7 +18,7 @@
 | **S7** VFX | ✅ | (ver historial) |
 | **S8** muerte, reaparición, i18n | ✅ | (ver historial) |
 | **S9** Ink Slime | ✅ | (ver historial) |
-| S10 sala R1 | ⬜ | |
+| **S10** sala R1 | ✅ | (ver historial) |
 | S11 E2E, rendimiento, documentación | ⬜ | |
 
 ---
@@ -337,3 +337,43 @@ Agacharse es un **estado con consecuencias de colisión** ([GAME-SPEC §6](GAME-
 - `Resource`/magia, *knockback* por peso y armadura no se implementan (no son de este prompt). Los *poises* por estado (armadura en la embestida) serían datos del arquetipo.
 - **Arnés E2E corregido**: un escenario que abría varias páginas (`death`, `render`, `vfx`, `slime`) dejaba vivas las anteriores, con su bucle de render en GL por software comiéndose la CPU que necesitaban los escenarios siguientes (el escenario `death` pasó de 6 s a 29 s y `render` falló una vez por una carrera de redimensionado). Ahora `ctx.open()` cierra la página previa y `render` espera a que el *backing store* siga al viewport en vez de dormir 250 ms: la suite completa pasó de ≈ 3 min a ≈ 1 min y dejó de depender de la carga de la máquina.
 - El violeta del VFX es de la ranura `enemy` de la paleta (violeta *propuesto*, sin muestra en las referencias): se valida con capturas en P7.
+
+
+---
+
+## S10 — Sala R1 «Puerta de las Ruinas» ✅ (3 commits: `S10a` mundo, `S10b` sala y física, `S10c` vista)
+
+**Qué le puede pedir una sala a la sesión** (`S10a`; todo **opcional**: una sala escrita antes sigue funcionando)
+- `RoomDefinition.spawns` (enemigo por id + `defeatFlag`), `gates` (un sólido de la sala que se **apaga** mientras una bandera está puesta), `exits` (zona que levanta `exit:reached`), `nameKey` (clave de texto del nombre) y `art` (qué fondo provisional dibujar).
+- `progression/WorldFlags` (**puro**): la memoria del mundo, que **sobrevive a muertes y recargas** (`has`, `set`, `clear`, `list` ordenada, `restore` para una partida cargada; avisa una sola vez). Es lo único que recuerda; las salas se construyen *leyéndola* (GAME-SPEC §14.3).
+- `GameSession`: **la sala está completa al cargarse** (los enemigos ya están en el mundo, con su vista si se adopta con `EntityViews.attach(bus, existing)`), un guardián que cae deja su bandera y **no vuelve a colocarse mientras esté puesta** (los enemigos *sin* `defeatFlag` reaparecen siempre, como pide §9.2), las puertas siguen las banderas (`gate:changed`) y `exit:reached` sale **una vez por salida y por construcción**, solo con el jugador vivo. Eventos nuevos: `flag:set/cleared`, `gate:changed`, `exit:reached`.
+- `world/validateRoom` (puro): ids únicos, entradas y spawns dentro de límites, **no enterrados y con suelo**, enemigos que existen (con su cuerpo real), puertas que apuntan a un sólido real y a una bandera que algo pone, salidas válidas. `tests/unit/content/rooms.test.ts` lo pasa por **todas** las salas del juego, más las claves de texto y las cifras de R1.
+
+**La sala** (`S10b`, `content/rooms/r1Gate.ts`; 115 × 30 m, solo cifras medidas del control: salto en carrera ≈ 6.75 m, altura 3.1 m, cuerpo agachado 1.0 m)
+
+| Zona | x (m) | Qué hay | Enseña |
+|---|---|---|---|
+| A · movimiento | 0–32 | suelo, un obstáculo de 1.1 m, dos escalones (1.2 y 2.3 m) | correr y saltar |
+| B · plataformas | 32–62 | **foso de 5 m** (se salta a pocos centímetros del borde), escaleras *one-way* a 3.0 y 5.2 m | saltar y plataformas |
+| C · pasaje bajo | 64–76 | techo a **1.2 m** durante 12 m que llega hasta el cielo (no se rodea) | agacharse |
+| D · arena | 76–104 | el **Ink Slime** en x = 96 (duerme; se despierta a 8 m), una plataforma *one-way* a 3.0 m | combate, esquiva |
+| E · puerta y salida | 104–113 | la **puerta** (1.5 × 9 m, no se salta) cierra el paso hasta `defeated:r1_slime`; tras ella, la salida (107–111) | progresión |
+
+- **Progresión** = la salida está cerrada hasta vencer al guardián: no hay forma de rodear al slime. Vencerlo pone `defeated:r1_slime`, la puerta se abre, y sigue abierta aunque luego se muera (el slime no vuelve: lo ganado se conserva, GAME-SPEC §9.2 «sin pérdidas»); morir **antes** de vencerlo lo devuelve con la puerta cerrada.
+- Un juego nuevo arranca en R1 **con el dash** (`START`); `?room=` abre un patio y entonces las habilidades son exactamente `?unlock=`, como hasta ahora (ningún escenario de pruebas cambió de comportamiento).
+- **Demostrada completable por física** (`tests/helpers/bot.ts`, `tests/integration/r1.test.ts`): un jugador con las *mismas* entradas que una persona (salta ante un muro o un foso, se agacha en la zona baja, cierra distancia y encadena tajos) recorre la sala **de la entrada a la salida en 995 ticks (16.6 s), sin recibir daño, con 3 saltos y 3 tajos**; cada etapa se pasa en orden; el pasaje exige agacharse (de pie se queda en la boca); el foso exige saltar (caminar lo deja caer y lo rescata en el último suelo seguro) y es un salto justo; la puerta es un muro (ni se salta); **morir no deshace lo ganado**; **determinismo bit a bit** del recorrido completo y otra semilla también lo completa; **40 recargas sin fugas**. El bot nació con dos fallos reales que enseñaron algo: saltaba al bajar de un escalón confundiendo un desnivel con un foso, y saltaba 1.5 m antes del borde y caía al foso (el salto máximo se mide desde el borde).
+
+**Vista** (`S10c`)
+- `RoomView2D`: el terreno en un `Graphics`; cada puerta aparte, con un **sello violeta** (la tinta del enemigo que la ata: violeta es de los enemigos) que se **disuelve en 0.6 s de tiempo real** al abrirse (la simulación ya apagó el colisionador; la vista solo sigue `gate:changed`); una columna de luz aditiva sobre la salida.
+- `render/backdrops.ts`: **fondo provisional** de 4 capas con *parallax* (bruma lunar y cresta · troncos · pilares de ruinas rotos y arcos · lianas colgantes delante), de un generador con semilla (la misma sala se ve igual), **más oscuro cuanto más cerca de la cámara** («luz detrás, oscuridad delante», riesgo R14), y una capa de factor *f* abarca *f* × la sala más la vista (no el ancho de la sala). Nunca toca la colisión. 1 `Graphics` por capa.
+- `Game2D`: la sala se construye con el estado de las puertas, `gate:changed` → disolver, y `state()` expone `room`, `flags`, `gates` (abierta en la simulación y cuánto está dibujada) y `exits`.
+
+**Medidas ✅:** R1 entera con el jugador, el slime, su aviso, el fondo de 4 capas, la puerta y la columna de salida: **12 *draw calls*** (peor 12; presupuesto 60). Bundle JS total tras S10: ver S11.
+
+**Tests: +71 en el paso (534 → 605)** — `S10a` +35 (`roomFeatures` 18, `WorldFlags` 6, `validateRoom` 11), `S10b` +25 (`r1` 14, `content/rooms` 11), `S10c` +11 (`roomView` 11: terreno/puertas/salidas, disolución monótona, *rebuilds* sin fugas en ninguna capa, fondo determinista con semilla, cobertura del *parallax*) y el E2E `r1` (dev y producción): nuevo juego en R1 con dash, slime en el mundo antes del primer tick, puerta cerrada y dibujada, cada sección (capturas revisadas), agachado en el pasaje, el slime se despierta a 8 m y el violeta se ve, la puerta detiene al jugador, al poner la bandera **la puerta se disuelve** y se llega a la salida (`exits: ['east']`).
+
+**Desviaciones y notas**
+- **La salida solo levanta `exit:reached`**: el fundido y la carga de la sala siguiente son el `RoomTransition` del Prompt 6 (`ExitDef.to` ya existe). Sin destino, el jugador ve la columna de luz y nada más.
+- Un foso es una caída: se rescata en el último suelo seguro **sin daño** (el comportamiento de F5); no hay peligros (`hazards`) todavía.
+- Los enemigos nacen **al construir la sala** (antes las entidades entraban al final del tick): así `loadRoom` devuelve una sala completa y los tests no necesitan un tick de gracia; el primer cuarto se adopta con `EntityViews.attach(bus, existing)` porque se construye dentro del constructor de la sesión.
+- El fondo es **provisional** (formas planas): el arte final llega con `RoomArtDefinition` (P7).

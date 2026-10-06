@@ -147,6 +147,8 @@ export class Game2D {
     this.deathOverlay = new DeathOverlay(document.getElementById('ui') ?? document.body, this.translator);
     this.lifecycle.add(() => this.deathOverlay.dispose());
     this.lifecycle.add(this.session.bus.on('room:loaded', () => (this.roomDirty = true)));
+    // a door dissolves when the flag that opens it is set (the simulation already switched its collider off)
+    this.lifecycle.add(this.session.bus.on('gate:changed', ({ gateId, open }) => this.roomView.setGateOpen(gateId, open)));
     // VFX: pooled, budgeted, driven by simulation events and running in REAL time (a hit-stop does not freeze the sparks)
     const tier = renderer.qualityTier;
     this.vfx = new VfxSystem({ add: renderer.layers.fxWorld, normal: renderer.layers.fxNormal }, vfxAtlas, VFX, {
@@ -205,7 +207,7 @@ export class Game2D {
 
   private buildRoomView(): void {
     const room = this.session.room;
-    this.roomView.build(room);
+    this.roomView.build(room, (gateId) => this.session.gateOpen(gateId));
     this.colliders?.setRoom(this.session.collision);
     this.camera.setRoom(room);
   }
@@ -233,6 +235,7 @@ export class Game2D {
     const vfxDt = this.debug.get('paused') ? 0 : realDt * this.debug.get('timeScale');
     this.vfxDirector.update();
     this.vfx.update(vfxDt);
+    this.roomView.update(realDt);
     this.deathOverlay.update(this.session.deathSnapshot);
 
     // The camera follows the INTERPOLATED position — exactly what is drawn — so camera and player never jitter apart.
@@ -446,6 +449,10 @@ export class Game2D {
               hp: n.health.current, hits: n.hits, anim: n.view.anim, phase: n.view.phase, phaseT: n.view.phaseT, opacity: n.view.opacity,
             };
           }),
+          room: this.session.room.id,
+          flags: this.session.flags.list(),
+          gates: Object.fromEntries((this.session.room.gates ?? []).map((g) => [g.id, { open: this.session.gateOpen(g.id), alpha: this.roomView.gateAlpha(g.id) ?? null }])),
+          exits: [...this.session.exitsReached],
           views: this.entityViews.count,
           vfx: this.vfx.stats,
           death: this.session.deathSnapshot, lang: this.translator.locale,

@@ -13,13 +13,14 @@ import { combat } from './scenarios/combat';
 import { crouch } from './scenarios/crouch';
 import { death } from './scenarios/death';
 import { movement } from './scenarios/movement';
+import { r1 } from './scenarios/r1';
 import { render } from './scenarios/render';
 import { slime } from './scenarios/slime';
 import { sprites } from './scenarios/sprites';
 import { stress } from './scenarios/stress';
 import { vfx } from './scenarios/vfx';
 
-const ALL: Scenario[] = [movement, crouch, combat, slime, death, render, camera, sprites, vfx, stress];
+const ALL: Scenario[] = [movement, crouch, combat, slime, r1, death, render, camera, sprites, vfx, stress];
 const filter = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const prod = process.argv.includes('--prod');
 const selected = ALL.filter((s) => !filter || s.name.includes(filter));

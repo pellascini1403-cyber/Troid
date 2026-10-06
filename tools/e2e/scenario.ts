@@ -39,6 +39,11 @@ export interface GameState {
     id: string; def: string; state: string; ticks: number; x: number; y: number; vx: number; facing: number;
     hp: number; hits: number; anim: string; phase: string; phaseT: number; opacity: number;
   }>;
+  /** 2D view only: the room, the world flags, each gate (open in the simulation, and how drawn: 1 closed → 0 gone) and the exits touched. */
+  room?: string;
+  flags?: string[];
+  gates?: Record<string, { open: boolean; alpha: number | null }>;
+  exits?: string[];
   views?: number;
   /** 2D view only: the defeat flow, the interface language and the respawn point. */
   death?: { phase: string; ticks: number; length: number; canSkip: boolean };

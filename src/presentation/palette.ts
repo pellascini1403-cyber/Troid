@@ -72,4 +72,5 @@ export const MATERIAL_FILL: Readonly<Record<string, number>> = {
   earth: PALETTE.worldDeep,
   moss: PALETTE.worldSlate,
   wood: PALETTE.worldMist,
+  gate: PALETTE.worldMist,
 };
