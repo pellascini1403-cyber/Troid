@@ -3,12 +3,13 @@ import { EventBus } from '@/core/events';
 import { IdGenerator } from '@/core/ids';
 import { Rng } from '@/core/rng';
 import { Scheduler } from '@/core/scheduler';
-import { createInputFrame, type InputFrame } from '@/input/InputFrame';
+import { createInputFrame, NEUTRAL_INPUT, type InputFrame } from '@/input/InputFrame';
 import { Player } from '@/player/Player';
 import type { PlayerDefinition } from '@/player/PlayerDefinition';
 import { AbilitySystem, type AbilityDefinition } from '@/progression/AbilitySystem';
 import { CollisionWorld } from '@/world/collision';
 import type { RoomDefinition } from '@/world/RoomDefinition';
+import { DeathFlow, DEFAULT_DEATH_FLOW, type DeathFlowDefinition, type DeathSnapshot } from './DeathFlow';
 import type { GameEvents } from './events';
 import type { SimEntity } from './SimEntity';
 import type { SimServices } from './SimServices';
@@ -22,6 +23,14 @@ export interface SessionOptions {
   seed?: number;
   /** Abilities owned from the start (tests, debug, loading a save). */
   unlocked?: readonly string[];
+  /** Durations of the defeat flow (docs/GAME-SPEC-2D.md §9.2). */
+  death?: DeathFlowDefinition;
+}
+
+/** Where the player comes back after dying: the entrance of the room (Prompt 4); the last save node later (Prompt 6). */
+export interface RespawnPoint {
+  room: string;
+  entry: string;
 }
 
 /**
@@ -42,6 +51,8 @@ export class GameSession implements SimServices {
   readonly player: Player;
   readonly collision = new CollisionWorld();
   readonly combat: CombatSystem;
+  /** The defeat flow: dying → fade out → title → respawn → fade in (docs/GAME-SPEC-2D.md §9.2). */
+  readonly death: DeathFlow;
 
   /** Debug switch: while true the player cannot take damage or die (set by the debug panel). */
   godMode = false;
@@ -51,6 +62,7 @@ export class GameSession implements SimServices {
   /** Owner token for everything scheduled on behalf of the current room (cancelled when it unloads). */
   private roomOwner: object = {};
   private lastSafe = { x: 0, y: 0 };
+  private _respawnPoint: RespawnPoint = { room: '', entry: '' };
   private disposed = false;
 
   // ---- hit-stop: the world holds still; the player's presses are kept for the first tick after it ----
@@ -74,6 +86,19 @@ export class GameSession implements SimServices {
       requestHitStop: (n) => this.requestHitStop(n),
     });
     this.player = new Player(opts.player, this.ids.next('player'));
+    this.death = new DeathFlow(
+      {
+        scheduler: this.scheduler,
+        respawn: () => this.respawnAfterDeath(),
+        emitStarted: () => this.bus.emit('death:started', { x: this.player.x, y: this.player.y }),
+        emitFadeOut: (ticks) => this.bus.emit('death:fadeOut', { ticks }),
+        emitRespawned: () => this.bus.emit('death:respawned', { roomId: this._respawnPoint.room, entryId: this._respawnPoint.entry }),
+        emitFadeIn: (ticks) => this.bus.emit('death:fadeIn', { ticks }),
+      },
+      opts.death ?? DEFAULT_DEATH_FLOW,
+    );
+    // dying costs nothing but a short walk back: the flow starts the moment the player's health reaches 0
+    this.bus.on('player:died', () => this.death.start());
     this.current = this.requireRoom(opts.startRoom);
     this.buildRoom(this.current, opts.startEntry);
   }
@@ -92,6 +117,13 @@ export class GameSession implements SimServices {
   get hitStopLeft(): number {
     return this.hitStopTicks;
   }
+  get respawnPoint(): Readonly<RespawnPoint> {
+    return this._respawnPoint;
+  }
+  /** One frame of the defeat flow for the overlay. */
+  get deathSnapshot(): DeathSnapshot {
+    return this.death.snapshot();
+  }
   /** Live entities (enemies, projectiles…), in spawn order. The player is not in this list. */
   get entities(): readonly SimEntity[] {
     return this.live;
@@ -106,8 +138,10 @@ export class GameSession implements SimServices {
       this.latchEdges(input);
       return;
     }
-    const frame = this.latched ? this.releaseLatch(input) : input;
+    let frame = this.latched ? this.releaseLatch(input) : input;
     this.ticks++;
+    // a press can skip the wait of the defeat screen; that press is spent there (it does not also act in the game)
+    if (this.death.update(frame)) frame = NEUTRAL_INPUT;
     this.player.tick(this, frame); // 1
     for (const e of this.live) e.tick(this); // 2
     this.combat.resolve(); // 3
@@ -117,10 +151,17 @@ export class GameSession implements SimServices {
     this.scheduler.tick(); // 9
   }
 
+  /**
+   * Loads a room and puts the player at an entry. A room is ALWAYS entered alive: a defeat flow that was running is
+   * cancelled (a reload from somewhere else, e.g. the debug panel, must not leave a player with 0 HP).
+   */
   loadRoom(roomId: string, entryId?: string): void {
+    this.death.cancel();
     this.unloadRoom();
     this.current = this.requireRoom(roomId);
     this.buildRoom(this.current, entryId);
+    if (this.player.health.dead) this.player.revive();
+    this.bus.emit('room:loaded', { roomId: this.current.id, entryId: this._respawnPoint.entry });
   }
 
   /** Puts the player back on the last solid ground they stood on (falling out of the world, debug). */
@@ -183,6 +224,20 @@ export class GameSession implements SimServices {
     this.player.respawn(entry.x, entry.y, entry.facing ?? 1);
     this.collision.probeGround(this.player.body);
     this.lastSafe = { x: entry.x, y: entry.y };
+    this._respawnPoint = { room: room.id, entry: entry.id };
+  }
+
+  /**
+   * The defeat flow's respawn: reload the room at the respawn point (enemies and entities come back, collision is
+   * rebuilt without leaks) and give the player full health. Abilities and items are untouched: dying costs nothing.
+   */
+  private respawnAfterDeath(): void {
+    const { room, entry } = this._respawnPoint;
+    this.unloadRoom();
+    this.current = this.requireRoom(room);
+    this.buildRoom(this.current, entry);
+    this.player.revive();
+    this.bus.emit('room:loaded', { roomId: this.current.id, entryId: entry });
   }
 
   /** End-of-tick entity bookkeeping: despawns first (explicit and `expired`), then spawns. */

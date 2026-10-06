@@ -15,6 +15,7 @@ import { DebugPanel } from '@/debug/DebugPanel';
 import { DebugState } from '@/debug/DebugState';
 import { DrawCallCounter } from '@/debug/DrawCallCounter';
 import { FpsMeter } from '@/debug/FpsMeter';
+import { CATALOGS, createTranslator, detectLocale, FALLBACK_LOCALE, SUPPORTED_LOCALES, type Translator } from '@/i18n';
 import { TrainingDummy } from '@/enemies/TrainingDummy';
 import { GameSession } from '@/gameplay/GameSession';
 import { DEFAULT_BINDINGS } from '@/input/bindings';
@@ -28,6 +29,7 @@ import { DummyView, type DummyLike } from '@/render/DummyView';
 import { EntityViews } from '@/render/EntityViews';
 import { Renderer2D } from '@/render/Renderer2D';
 import { RoomView2D } from '@/render/RoomView2D';
+import { DeathOverlay } from '@/ui/overlays/DeathOverlay';
 import { VfxDirector } from '@/vfx/VfxDirector';
 import { VfxSystem } from '@/vfx/VfxSystem';
 import { listen } from './dom';
@@ -58,6 +60,10 @@ export class Game2D {
   private readonly entityViews: EntityViews;
   private readonly vfx: VfxSystem;
   private readonly vfxDirector: VfxDirector;
+  private readonly deathOverlay: DeathOverlay;
+  readonly translator: Translator;
+  /** A room was (re)built by the simulation (death respawn, debug reset): rebuild the scenery at the next frame. */
+  private roomDirty = false;
   /** Camera shakes triggered by impacts and the strength of the last one (the trauma itself decays in real time). */
   private shakes = { count: 0, last: 0 };
   private colliders: ColliderOverlay2D | null = null;
@@ -123,6 +129,12 @@ export class Game2D {
         this.shakes.last = e.shake;
       }),
     );
+    // interface language: ?lang=, else the device's, else English; the overlay only ever asks for keys
+    const preferred = options.lang ? [options.lang] : [...navigator.languages];
+    this.translator = createTranslator(CATALOGS, detectLocale(preferred, SUPPORTED_LOCALES, FALLBACK_LOCALE), FALLBACK_LOCALE);
+    this.deathOverlay = new DeathOverlay(document.getElementById('ui') ?? document.body, this.translator);
+    this.lifecycle.add(() => this.deathOverlay.dispose());
+    this.lifecycle.add(this.session.bus.on('room:loaded', () => (this.roomDirty = true)));
     // VFX: pooled, budgeted, driven by simulation events and running in REAL time (a hit-stop does not freeze the sparks)
     const vfxAtlas = createVfxAtlas();
     this.lifecycle.add(() => vfxAtlas.destroy());
@@ -190,6 +202,12 @@ export class Game2D {
 
   private render(alpha: number, realDt: number): void {
     this.fps.push(realDt);
+    if (this.roomDirty) {
+      this.roomDirty = false;
+      this.buildRoomView();
+      this.camera.snap();
+      this.vfx.clear();
+    }
     const p = this.session.player;
     // While paused (debug / E2E) show the exact simulated state, not an interpolation of stale ticks.
     const a = this.debug.get('paused') ? 1 : alpha;
@@ -205,6 +223,7 @@ export class Game2D {
     const vfxDt = this.debug.get('paused') ? 0 : realDt * this.debug.get('timeScale');
     this.vfxDirector.update();
     this.vfx.update(vfxDt);
+    this.deathOverlay.update(this.session.deathSnapshot);
 
     // The camera follows the INTERPOLATED position — exactly what is drawn — so camera and player never jitter apart.
     const target: CameraTarget = { x, y, vx: p.body.vx, vy: p.body.vy, facing: p.facing, grounded: p.body.grounded };
@@ -271,6 +290,21 @@ export class Game2D {
     this.lifecycle.add(() => this.panel?.dispose());
   }
 
+  /**
+   * Tests read what is PRESENTED (sprite frame, overlay) right after stepping the simulation: bring those up to date
+   * without waiting for the next animation frame. A room rebuilt by the simulation is applied here too.
+   */
+  private refreshPresented(): void {
+    if (this.roomDirty) {
+      this.roomDirty = false;
+      this.buildRoomView();
+      this.camera.snap();
+      this.vfx.clear();
+    }
+    this.playerSprite.sync(this.session.player.view, 1, 0);
+    this.deathOverlay.update(this.session.deathSnapshot);
+  }
+
   /** Bodies (green), hurtboxes (blue) and the hitboxes active in the last tick (magenta). */
   private updateColliderOverlay(): void {
     const s = this.session;
@@ -320,8 +354,7 @@ export class Game2D {
     );
     this.lifecycle.add(
       a.register('room', 'reset room', () => {
-        s.loadRoom(s.room.id);
-        this.buildRoomView();
+        s.loadRoom(s.room.id); // the `room:loaded` event rebuilds the scenery
       }),
     );
   }
@@ -339,8 +372,7 @@ export class Game2D {
       resume: () => this.debug.set('paused', false),
       step: (n = 1) => {
         for (let i = 0; i < n; i++) this.stepOnce();
-        // tests read the presented state right after stepping: bring the sprite up to date without waiting for a frame
-        this.playerSprite.sync(this.session.player.view, 1, 0);
+        this.refreshPresented();
       },
       /** Test hook: a training dummy at `(x, y)` (the entity joins the world at the end of the next tick). */
       spawnDummy: (x: number, y = 0, health = 5) => {
@@ -358,13 +390,13 @@ export class Game2D {
       revive: () => {
         this.session.player.revive();
         this.session.rescuePlayer();
-        this.playerSprite.sync(this.session.player.view, 1, 0);
+        this.refreshPresented();
       },
       teleport: (x: number, y: number) => {
         this.session.player.respawn(x, y, this.session.player.facing);
         this.session.collision.probeGround(this.session.player.body);
         this.camera.snap();
-        this.playerSprite.sync(this.session.player.view, 1, 0);
+        this.refreshPresented();
       },
       state: () => {
         const b = this.session.player.body;
@@ -388,6 +420,8 @@ export class Game2D {
           }),
           views: this.entityViews.count,
           vfx: this.vfx.stats,
+          death: this.session.deathSnapshot, lang: this.translator.locale,
+          respawnPoint: { ...this.session.respawnPoint },
           sprite: {
             set: ps.spriteSetId, frame: ps.frame, facing: ps.root.scale.x, visible: ps.root.visible,
             hand: anchor('hand_r'), grip: anchor('weapon_grip'), tip: anchor('weapon_tip'),

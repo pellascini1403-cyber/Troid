@@ -18,6 +18,16 @@ export interface GameEvents extends CombatEvents {
   'player:attackActive': { attackId: string; x: number; y: number; facing: 1 | -1; air: boolean; combo: number; rect: { x0: number; y0: number; x1: number; y1: number } };
   'player:hurt': { x: number; y: number; damage: number; direction: 1 | -1 };
   'player:died': { x: number; y: number };
+  /** The player's health reached 0: the defeat flow starts (docs/GAME-SPEC-2D.md §9.2). */
+  'death:started': { x: number; y: number };
+  /** The fade to black begins and lasts `ticks` simulation ticks. */
+  'death:fadeOut': { ticks: number };
+  /** The player is back (room reloaded at the respawn point, health full); `entryId` is where. */
+  'death:respawned': { roomId: string; entryId: string };
+  /** The fade back in begins and lasts `ticks` simulation ticks. */
+  'death:fadeIn': { ticks: number };
+  /** A room was (re)built: views rebuild their scenery and cut the camera. */
+  'room:loaded': { roomId: string; entryId: string };
   'ability:unlocked': { id: string };
   'ability:locked': { id: string };
   'entity:spawned': { entity: SimEntity };

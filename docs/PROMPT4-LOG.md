@@ -16,7 +16,7 @@
 | **S5** agacharse | ✅ | (ver historial) |
 | **S6** combate | ✅ | (ver historial) |
 | **S7** VFX | ✅ | (ver historial) |
-| S8 muerte, reaparición, i18n | ⬜ | |
+| **S8** muerte, reaparición, i18n | ✅ | (ver historial) |
 | S9 Ink Slime | ⬜ | |
 | S10 sala R1 | ⬜ | |
 | S11 E2E, rendimiento, documentación | ⬜ | |
@@ -273,3 +273,32 @@ Agacharse es un **estado con consecuencias de colisión** ([GAME-SPEC §6](GAME-
 - **Telegraph** violeta del enemigo: es del paso **S9** (el enemigo aún no existe); la ranura `enemy` y las capas ya están listas.
 - La estela del dash son *puffs* de brillo alargado + esquirlas, no imágenes residuales del sprite (ARCHITECTURE §7.7 las mencionaba): con el *placeholder* no aportan nada y el arte final decidirá (P7). `lightPool` (charco de luz bajo el actor) tampoco se implementa aún; tampoco hay polvo de aterrizaje.
 - En el E2E el juego está en pausa, y los VFX **se pausan con él** (para que las capturas sean estables); sin pausa corren en tiempo real, también durante un hit-stop.
+
+
+---
+
+## S8 — Muerte, reaparición, overlay de derrota e i18n (es / en) ✅
+
+**Qué hay**
+- `gameplay/DeathFlow.ts` (**simulación**): el flujo de derrota `dying → fadeOut → hold → reaparición → fadeIn` como temporizadores del `Scheduler` de la simulación (propios del objeto, cancelables sin residuo). Duraciones **como datos** (`DEFAULT_DEATH_FLOW`, ticks): **72** (animación de muerte y dispersión de energía, con el mundo en marcha) + **30** (fundido a negro) + **60** (pantalla negra con el título) + **30** (fundido de vuelta). Morir **no cuesta nada**: la reaparición restaura la vida, recarga la sala (los enemigos vuelven) y conserva habilidades y objetos. Tras **30 ticks** de pantalla negra, **cualquier pulsación** (salto, ataque, dash, habilidad, pausa) se salta lo que queda de espera; **un movimiento del stick no cuenta**.
+- La pulsación que salta la espera **se gasta ahí**: `DeathFlow.update()` devuelve `true` y `GameSession` entrega `NEUTRAL_INPUT` a ese tick, de modo que el salto o el golpe con que se «despierta» no se ejecutan en el jugador que acaba de volver (se vio en el E2E: reaparecía ya atacando).
+- `GameSession`: `death: DeathFlow`, `respawnPoint: {room, entry}` (la entrada por la que se entró a la sala; las transiciones de sala del Prompt 6 lo moverán; **sin checkpoints complejos**), `loadRoom()` (cancela el flujo, revive y emite `room:loaded`) y `respawnAfterDeath()`. Eventos nuevos: `death:started`, `death:fadeOut`, `death:respawned`, `death:fadeIn`, `room:loaded`. **Cargar una sala desde fuera mientras se muere cancela el flujo** y deja siempre a un jugador **vivo**; el modo dios del panel de depuración vuelve la muerte imposible.
+- El tick de la muerte cuenta como el primero de `dying` y el hit-stop de la muerte (8) **no** cuenta (el flujo se mide en tiempo simulado): la reaparición llega **161 ticks después de `death:started`** (162 contando el de la muerte), y el flujo entero dura 192 ticks = **3.2 s**.
+- **i18n** (`src/i18n/`, módulo **puro**: solo importa `core/`): `Translator` (`t(key, params)`, `{param}`, plurales con `Intl.PluralRules` → `clave.one/other/…`, cadena de caída `idioma → en`, **clave ausente = la propia clave visible + aviso único**, parámetro ausente = marcador visible + aviso), **cambio de idioma en caliente** (`setLocale` + `Observable changed`), `detectLocale()` (primer idioma preferido que tengamos, sin región; `en` si ninguno) y catálogos **planos** `locales/es.json` / `en.json` (`death.title`, `death.hint`). Añadir un idioma es **solo datos**. `?lang=es|en` fuerza el idioma.
+- `ui/overlays/` (**vista DOM**): `deathOverlayModel.ts` (puro: del `DeathSnapshot` a `{active, opacity, titleOpacity, hint}`; *smoothstep*, el título entra en el último 45 % del fundido de salida y sale en el primer 40 % del de entrada, la pista solo cuando una pulsación saltaría la espera) y `DeathOverlay.ts` (DOM sobre `#ui`, `pointer-events: none`, `data-testid` `death-overlay|death-title|death-hint`; solo escribe estilos cuando un valor cambia; **relee los textos al cambiar de idioma**).
+- **Regla de arquitectura nueva** (`architecture.test.ts`): en `ui/` **no hay texto literal** asignado a `textContent/innerText/innerHTML/title/placeholder/alt/aria-label/createTextNode` — todo texto de interfaz sale de `t(clave)`. Además, `i18n/` es **datos puros**: ningún archivo suyo importa módulos de vista (DOM, Pixi), y un test comprueba que el detector de literales detecta los casos buenos y malos (no es vacuo).
+- `app/Game2D.ts`: el traductor y el overlay viven en `#ui`; un `room:loaded` marca la vista para reconstruirse (`roomDirty` → `refreshPresented()`: reconstruye la sala, **corta la cámara** a la entrada, limpia los VFX, sincroniza el sprite y el overlay). Los hooks `step/teleport/revive` refrescan lo presentado (el DOM y el sprite solo se actualizan en cuadros de render).
+
+**Tests: +58 (384 → 442)**
+- `tests/integration/death.test.ts` (21): fases y duraciones en ticks, **162 ticks hasta la reaparición**, el hit-stop de la muerte no cuenta, eventos en orden con las duraciones que necesita el overlay, *snapshot* para la vista, el mundo sigue en marcha y el input se ignora al morir, **una pulsación antes de 30 ticks se ignora / después salta**, **la pulsación que salta se gasta** (no salta, ni golpea, ni hace dash), el stick no salta, saltar no deja un segundo temporizador, **reaparición en la entrada con vida y control completos**, **no se pierde ninguna habilidad**, la sala se recarga sin fugas, **3 muertes seguidas sin residuo** (temporizadores, *listeners*, hitboxes), el punto de reaparición es la entrada, modo dios, sala cargada desde fuera, duraciones personalizadas (datos), **determinismo bit a bit incluyendo el salto** y `player:died` una sola vez por muerte.
+- `tests/unit/i18n/` (23): `translator` (11: claves, parámetros, caída es → en, clave ausente visible y registrada una vez, parámetro ausente, plurales, cambio en caliente con notificación, tercer idioma solo con datos, `detectLocale`) y `catalogs` (12: **las mismas claves y los mismos `{parámetros}` en es y en**, sin textos vacíos ni de relleno, convención `area.entidad.campo`, **ninguna clave usada por el código falta en un idioma y ninguna clave del catálogo queda huérfana**).
+- `tests/unit/ui/deathOverlay.test.ts` (11): modelo (nada al morir, fundido, título, pista, fase de longitud cero) y DOM (oculto y sin bloquear el puntero, texto del catálogo es/en, **relectura al cambiar de idioma**, solo toca el DOM cuando algo cambia, `dispose`).
+- `architecture.test.ts` (+3).
+- **Los 40 de movimiento, los 29 de agacharse y los 48 de combate no se modificaron.**
+
+**E2E `death` (dev y producción):** con teclado real y el DOM real — la muerte corre (`death_`, el input se ignora; sin overlay, se ve la animación y la dispersión de energía), el fundido a negro (opacidad intermedia), el título **«Has caído»** y, al cambiar el idioma en caliente, **«You fell»**; una pulsación antes de 30 ticks no hace nada, la pista aparece a los 30 y la siguiente pulsación reaparece al jugador **en la entrada (x ≈ 4) con vida 5, estado libre, sin enemigos ni vistas residuales y la cámara cortada**; el fundido de vuelta; **el dash (habilidad) sobrevive a la derrota**; una segunda muerte **sin pausar** recorre el flujo completo en **tiempo real (≈ 3.2 s)** y termina con vida 5; ≤ 60 *draw calls*; `?lang=en` reabre en inglés. Capturas revisadas (`death-01…06`).
+
+**Desviaciones y notas**
+- No hay *checkpoints*: la reaparición es siempre en la entrada de la sala (el Prompt 6 traerá los puntos de guardado; `RespawnPoint` ya tiene la forma que necesitan).
+- La pista es genérica («Pulsa cualquier botón para continuar» / «Press any button to continue»); la versión con el icono de mando o el gesto táctil será del Prompt 5 (controles táctiles).
+- En el E2E la muerte se provoca con el gancho `strikePlayer` (daño directo); la muerte por un enemigo real se prueba en el E2E de la sala (S11).

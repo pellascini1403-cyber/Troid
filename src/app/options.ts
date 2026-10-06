@@ -10,6 +10,8 @@ export interface GameOptions {
   debug: boolean;
   /** `?hooks=1` exposes `window.__troid` (always on in dev builds) for E2E tests. */
   hooks: boolean;
+  /** `?lang=es|en` forces the interface language (default: the device's, English if unsupported). */
+  lang?: string;
   camera: Partial<CameraConfig>;
 }
 
@@ -27,6 +29,7 @@ export function optionsFromQuery(q: URLSearchParams): GameOptions {
     unlock: (q.get('unlock') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
     debug: q.get('debug') === '1',
     hooks: q.get('hooks') === '1',
+    lang: q.get('lang') ?? undefined,
     camera: cameraConfigFromQuery(q),
   };
 }

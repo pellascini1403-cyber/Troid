@@ -36,6 +36,10 @@ export interface GameState {
   combat?: { attack: string | null; phase: string; ticks: number; combo: number };
   dummies?: Array<{ id: string; x: number; y: number; vx: number; hp: number; hits: number }>;
   views?: number;
+  /** 2D view only: the defeat flow, the interface language and the respawn point. */
+  death?: { phase: string; ticks: number; length: number; canSkip: boolean };
+  lang?: string;
+  respawnPoint?: { room: string; entry: string };
   /** 2D view only: VFX counters. */
   vfx?: { particles: number; sprites: number; spawned: number; dropped: number; peakParticles: number; poolCreated: number };
   /** 2D view only: median / worst GL draw calls per frame over the last 120 frames. */

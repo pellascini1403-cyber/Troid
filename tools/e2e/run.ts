@@ -11,13 +11,14 @@ import type { Ctx, GameState, Scenario } from './scenario';
 import { camera } from './scenarios/camera';
 import { combat } from './scenarios/combat';
 import { crouch } from './scenarios/crouch';
+import { death } from './scenarios/death';
 import { movement } from './scenarios/movement';
 import { render } from './scenarios/render';
 import { sprites } from './scenarios/sprites';
 import { stress } from './scenarios/stress';
 import { vfx } from './scenarios/vfx';
 
-const ALL: Scenario[] = [movement, crouch, combat, render, camera, sprites, vfx, stress];
+const ALL: Scenario[] = [movement, crouch, combat, death, render, camera, sprites, vfx, stress];
 const filter = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const prod = process.argv.includes('--prod');
 const selected = ALL.filter((s) => !filter || s.name.includes(filter));

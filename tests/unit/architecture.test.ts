@@ -148,6 +148,36 @@ describe('architecture: layering', () => {
   });
 });
 
+describe('architecture: localization (GAME-SPEC-2D §18: no interface text in the code)', () => {
+  /** A non-empty string literal assigned to something the player reads. Clearing (`= ''`) is fine. */
+  const LITERAL_TEXT = [
+    /\.(?:textContent|innerText|innerHTML|title|placeholder|alt|ariaLabel)\s*=\s*(['"`])(?!\1)/,
+    /createTextNode\(\s*(['"`])(?!\1)/,
+    /setAttribute\(\s*['"](?:title|placeholder|alt|aria-label)['"]\s*,\s*(['"`])(?!\1)/,
+  ];
+  const hasLiteralText = (code: string): boolean => LITERAL_TEXT.some((re) => re.test(code));
+
+  it('no ui/ file assigns a literal text to textContent / innerText / innerHTML / title / aria-label…: texts come through t(key)', () => {
+    const offenders = files.filter((f) => f.module === 'ui' && hasLiteralText(f.code)).map((f) => f.rel);
+    expect(offenders).toEqual([]);
+  });
+
+  it('the detector works: it catches literals and lets keys, clearing and non-text attributes through', () => {
+    expect(hasLiteralText("el.textContent = 'Has caído';")).toBe(true);
+    expect(hasLiteralText('el.innerHTML = `<b>Game over</b>`;')).toBe(true);
+    expect(hasLiteralText("el.setAttribute('aria-label', 'Close');")).toBe(true);
+    expect(hasLiteralText("el.appendChild(document.createTextNode('Hi'));")).toBe(true);
+    expect(hasLiteralText("el.textContent = this.translator.t('death.title');")).toBe(false);
+    expect(hasLiteralText("el.textContent = '';")).toBe(false);
+    expect(hasLiteralText("el.setAttribute('role', 'status');")).toBe(false);
+  });
+
+  it('the i18n catalogs are pure data: no code in i18n/ reaches the DOM or the renderer', () => {
+    const offenders = files.filter((f) => f.module === 'i18n').flatMap((f) => f.imports.filter((i) => VIEW_MODULES.has(i.split('/')[0] ?? '')).map((i) => `${f.rel} → ${i}`));
+    expect(offenders).toEqual([]);
+  });
+});
+
 describe('architecture: simulation determinism & hygiene', () => {
   const FORBIDDEN: Array<[RegExp, string]> = [
     [/\bsetTimeout\s*\(/, 'setTimeout (use Scheduler)'],
