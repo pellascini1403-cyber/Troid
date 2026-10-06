@@ -2,9 +2,9 @@ import type { CameraConfig } from '@/camera/CameraRig';
 
 /** Everything that can be chosen from the URL (handy for testing on a real phone without rebuilding). */
 export interface GameOptions {
-  /** `?room=<id>` start room. */
+  /** `?room=<id>` opens a room as a playground: the abilities are then exactly `unlock`. Without it a new game starts at R1. */
   room?: string;
-  /** `?unlock=dash,magic_attack` abilities owned from the start. */
+  /** `?unlock=dash,magic_attack` abilities owned from the start (in addition to the starting ones of a new game). */
   unlock: string[];
   /** `?debug=1` makes the debug tools available and opens the panel. */
   debug: boolean;

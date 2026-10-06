@@ -4,7 +4,7 @@ import { createPixiSpriteLoader } from '@/assets/spriteLoader';
 import { createVfxAtlas } from '@/assets/vfxAtlas';
 import { CAMERA_2D } from '@/camera/camera2d';
 import type { CameraTarget } from '@/camera/CameraRig';
-import { ABILITIES, ENEMIES, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, ROOMS, SPRITE_SETS } from '@/content';
+import { ABILITIES, ENEMIES, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, ROOMS, SPRITE_SETS, START } from '@/content';
 import { VFX, VFX_BINDINGS } from '@/content/vfx';
 import { DisposableStore } from '@/core/lifecycle';
 import type { Hurtbox } from '@/combat/Combatant';
@@ -38,9 +38,6 @@ import { VfxSystem } from '@/vfx/VfxSystem';
 import { listen } from './dom';
 import { GameLoop } from './GameLoop';
 import { optionsFromQuery, type GameOptions } from './options';
-
-/** Room started when `?room=` is absent. */
-const DEFAULT_ROOM = 'movement_test';
 
 /**
  * Composition root of the 2D game (`?view=2d`): wires the deterministic simulation to PixiJS. Nothing here decides
@@ -94,12 +91,16 @@ export class Game2D {
     sprites: SpriteAssetManager<Texture>,
     playerSet: LoadedSpriteSet<Texture>,
   ) {
+    // A new game starts the vertical slice (room R1, with the starting abilities). `?room=` opens a playground instead and
+    // then the abilities are exactly `?unlock=` says: the test rooms never depended on what the hero starts with.
+    const startRoom = options.room && ROOMS[options.room] ? options.room : START.room;
     this.session = new GameSession({
       rooms: ROOMS,
       player: PLAYER,
       abilities: ABILITIES,
-      startRoom: options.room && ROOMS[options.room] ? options.room : DEFAULT_ROOM,
-      unlocked: options.unlock,
+      enemies: ENEMIES,
+      startRoom,
+      unlocked: options.room ? options.unlock : [...START.unlocked, ...options.unlock],
     });
     this.lifecycle.add(() => this.session.dispose());
     this.lifecycle.add(() => sprites.dispose());
@@ -130,7 +131,7 @@ export class Game2D {
         return look ? new ProceduralActor(look, e as Enemy, { glow: vfxAtlas.frames.glow }) : null;
       },
     });
-    this.entityViews.attach(this.session.bus);
+    this.entityViews.attach(this.session.bus, this.session.entities); // the first room's enemies already exist
     this.lifecycle.add(() => this.entityViews.destroy());
     // impact → camera shake (real time: the camera keeps moving through the hit-stop)
     this.lifecycle.add(

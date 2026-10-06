@@ -1,5 +1,6 @@
 {
   "death.title": "You fell",
   "death.hint": "Press any button to continue",
-  "enemy.inkSlime.name": "Ink Slime"
+  "enemy.inkSlime.name": "Ink Slime",
+  "room.r1.name": "Ruins Gate"
 }
