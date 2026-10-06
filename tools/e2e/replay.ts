@@ -76,6 +76,8 @@ export const DIGEST_SRC = `
   ];
   for (const e of s.entities) if (e.kind === 'enemy') parts.push('n' + e.state + ':' + f(e.body.x) + ',' + f(e.body.y) + ':' + e.health.current);
   for (const e of s.entities) if (e.kind === 'projectile') parts.push('j' + f(e.x) + ',' + f(e.y));
+  // the boss (docs/PROMPT6-LOG.md S29): what it is doing, where it stands, its life and how far into the state it is
+  for (const e of s.entities) if (e.kind === 'guardian') parts.push('g' + e.state + ':' + f(e.body.x) + ',' + f(e.body.y) + ':' + e.health.current + ':' + e.stateTicks + (e.enraged ? 'E' : ''));
   return parts.join('|');
 `;
 export const digestOf = new Function('s', DIGEST_SRC) as (session: unknown) => string;

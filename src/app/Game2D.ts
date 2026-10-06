@@ -5,7 +5,7 @@ import { createVfxAtlas } from '@/assets/vfxAtlas';
 import { CAMERA_2D } from '@/camera/camera2d';
 import { resolveCameraView, type CameraView } from '@/camera/cameraZones';
 import type { CameraTarget } from '@/camera/CameraRig';
-import { ABILITIES, ENEMIES, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, ROOMS, SPRITE_SETS, START, WORLD } from '@/content';
+import { ABILITIES, BOSSES, ENEMIES, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, ROOMS, SPRITE_SETS, START, WORLD } from '@/content';
 import { BOTTLE_DEFINITIONS, BOTTLES, CARDS, MAGIC } from '@/content/resources';
 import { SKILLS } from '@/content/skills';
 import { DisposableStore } from '@/core/lifecycle';
@@ -15,6 +15,7 @@ import { DrawCallCounter } from '@/debug/DrawCallCounter';
 import { FpsMeter } from '@/debug/FpsMeter';
 import { CATALOGS, chooseLocale, createTranslator, FALLBACK_LOCALE, SUPPORTED_LOCALES, type Translator } from '@/i18n';
 import { Enemy } from '@/enemies/Enemy';
+import type { Guardian } from '@/enemies/Guardian';
 import type { EnemyDefinition } from '@/enemies/EnemyDefinition';
 import { TrainingDummy } from '@/enemies/TrainingDummy';
 import { restoreFromProgress } from '@/gameplay/progress';
@@ -37,13 +38,17 @@ import type { TouchSettings } from '@/save/SettingsData';
 import { ActorSprite } from '@/render/ActorSprite';
 import { CameraAdapter2D } from '@/render/CameraAdapter2D';
 import { DummyView, type DummyLike } from '@/render/DummyView';
-import { EntityViews } from '@/render/EntityViews';
+import { EntityViews, type EntityView } from '@/render/EntityViews';
+import type { GuardianLike } from '@/render/GuardianView';
+import { LateView } from '@/render/LateView';
 import { SealView, type SealLike } from '@/render/SealView';
 import { InteractableViews } from '@/render/InteractableViews';
 import { ProceduralActor } from '@/render/ProceduralActor';
 import { ProjectileView, type ProjectileLike } from '@/render/ProjectileView';
 import { Renderer2D } from '@/render/Renderer2D';
 import { RoomView2D } from '@/render/RoomView2D';
+import { BossBarModel } from '@/ui/hud/BossBarModel';
+import type { BossBarView } from '@/ui/hud/BossBarView';
 import { HudModel } from '@/ui/hud/HudModel';
 import { HudView } from '@/ui/hud/HudView';
 import { DeathOverlay } from '@/ui/overlays/DeathOverlay';
@@ -59,6 +64,8 @@ import type { DevTools } from './devTools';
 import { GameLoop } from './GameLoop';
 import { afterIdle } from './dom';
 import type { Effects } from './effects';
+
+type BossViews = typeof import('./bossViews');
 import { attachProgressRecorder } from './progressRecorder';
 import { optionsFromQuery, type GameOptions } from './options';
 
@@ -100,6 +107,14 @@ export class Game2D {
   private readonly touchControls: TouchControls;
   /** The HUD (DOM): a pure model fed by the session's status snapshot, and the view that applies it. */
   private readonly hudModel = new HudModel();
+  /** The boss's bar (S29): a model the simulation's events move and a DOM view that draws it. */
+  private readonly bossBarModel = new BossBarModel();
+  /** What is SEEN of a boss (its column and its bar): a separate chunk, fetched with the effects. `null` until it arrives: the fight needs none of it. */
+  private bossViews: BossViews | null = null;
+  private bossViewsRequest: Promise<BossViews> | null = null;
+  private bossBar: BossBarView | null = null;
+  /** The id of the boss that is fighting now (the bar follows its health), `null` when none is. */
+  private bossId: string | null = null;
   private readonly hud: HudView;
   private readonly hudStatus = createPlayerStatus();
   /** The abstract pad of the E2E (`__troid.pad`): while it exists it replaces the browser's pads. */
@@ -166,6 +181,7 @@ export class Game2D {
       abilities: ABILITIES,
       resources: { magic: MAGIC, bottles: { definitions: BOTTLE_DEFINITIONS, initial: BOTTLES.initial, rules: BOTTLES.rules }, cards: CARDS, skills: SKILLS },
       enemies: ENEMIES,
+      bosses: BOSSES,
       startRoom: saved?.startRoom ?? startRoom,
       ...(saved ? { startEntry: saved.startEntry, checkpoint: saved.checkpoint, flags: saved.flags, restore: saved.restore } : options.room ? {} : { startEntry: START.entry }),
       unlocked: saved ? [...saved.unlocked, ...options.unlock] : options.room ? options.unlock : [...START.unlocked, ...options.unlock],
@@ -219,6 +235,36 @@ export class Game2D {
         if (e.type === 'used') this.hudModel.bottleUsed(e.slot);
       }),
     );
+    // the boss's bar (S29): it appears when the guardian wakes, follows its health, burns in the second phase, empties when it falls, and is gone
+    // with the room (a defeat, a reload, a transition)
+    this.lifecycle.add(() => this.bossBar?.dispose());
+    const bus = this.session.bus;
+    const on: typeof bus.on = (type, handler) => {
+      const off = bus.on(type, handler);
+      this.lifecycle.add(off);
+      return off;
+    };
+    on('boss:started', (e) => {
+      this.bossId = e.id;
+      this.bossBarModel.start(e.nameKey, e.maxHealth > 0 ? e.health / e.maxHealth : 1);
+      this.camera.addTrauma(0.3);
+    });
+    on('health:changed', (e) => {
+      if (e.id === this.bossId) this.bossBarModel.hit(e.max > 0 ? e.current / e.max : 0);
+    });
+    on('boss:phase', () => {
+      this.bossBarModel.phase();
+      this.camera.addTrauma(0.4);
+    });
+    on('boss:strike', () => this.camera.addTrauma(0.1));
+    on('boss:defeated', () => {
+      this.bossBarModel.end();
+      this.camera.addTrauma(0.6);
+    });
+    on('room:loaded', () => {
+      this.bossId = null;
+      this.bossBarModel.hide();
+    });
     // a refused cast (not enough magic): the bar and the card shake; a refused drink (no bottle, or full life): the bottles do
     this.lifecycle.add(this.session.bus.on('skill:denied', () => this.hudModel.magicDenied()));
     this.lifecycle.add(this.session.bus.on('bottle:denied', () => this.hudModel.bottlesDenied()));
@@ -240,6 +286,23 @@ export class Game2D {
     this.lifecycle.add(() => this.playerSprite.dispose());
     const vfxAtlas = createVfxAtlas();
     this.lifecycle.add(() => vfxAtlas.destroy());
+    // What is SEEN of a boss is a chunk of its own (the first room has none): the page fetches it with the effects, or at once when a boss is
+    // placed before that (a game saved at the shrine of R4 starts in front of one). A failed fetch is asked for again by the next boss.
+    const loadBossViews = (): Promise<BossViews> =>
+      (this.bossViewsRequest ??= import('./bossViews').then(
+        (m) => {
+          if (!this.closed) {
+            this.bossViews = m;
+            this.bossBar = new m.BossBarView(ui, this.translator);
+          }
+          return m;
+        },
+        (err: unknown) => {
+          this.bossViewsRequest = null;
+          log.scope('boss').warn(`the boss views could not be loaded: ${String(err)}`);
+          throw err;
+        },
+      ));
     // one view per live entity, driven by the spawn / despawn events (the simulation never knows views exist)
     this.entityViews = new EntityViews(renderer.layers.actors, {
       dummy: (e) => ('view' in e && 'body' in e ? new DummyView(e as unknown as DummyLike) : null),
@@ -253,6 +316,12 @@ export class Game2D {
       projectile: (e) => new ProjectileView(e as unknown as ProjectileLike, vfxAtlas),
       // the sigil of a seal (S28): violet light in front of the door it holds
       seal: (e) => new SealView(e as unknown as SealLike),
+      // the boss (S29): an abstract column of ink with a violet crest, and the warnings of its attacks on the floor
+      // (its code is a chunk of its own: a boss that wakes before it has arrived is drawn the moment it does)
+      guardian: (e) => {
+        const make = (m: BossViews) => (): EntityView => new m.GuardianView(e as unknown as GuardianLike, { glow: vfxAtlas.frames.glow });
+        return this.bossViews ? make(this.bossViews)() : new LateView(loadBossViews().then(make));
+      },
     }, renderer.layers.fxWorld);
     this.entityViews.attach(this.session.bus, this.session.entities); // the first room's enemies already exist
     this.lifecycle.add(() => this.entityViews.destroy());
@@ -290,8 +359,12 @@ export class Game2D {
         });
       }));
     this.lifecycle.add(() => this.effects?.dispose());
-    if (options.hooks) void loadEffects();
-    else this.lifecycle.add(afterIdle(() => void loadEffects(), EFFECTS_DELAY_MS));
+    const loadCosmetics = (): void => {
+      void loadEffects();
+      loadBossViews().catch(() => undefined);
+    };
+    if (options.hooks) loadCosmetics();
+    else this.lifecycle.add(afterIdle(loadCosmetics, EFFECTS_DELAY_MS));
     this.buildRoomView();
     this.setupDebug();
 
@@ -368,6 +441,8 @@ export class Game2D {
   private updateHud(dt: number): void {
     const st = this.session.status(this.hudStatus);
     this.hud.update(this.hudModel.update(st, dt));
+    const bar = this.bossBarModel.update(dt);
+    this.bossBar?.update(bar);
     this.touchControls.setChip(st.bottleUseful);
     this.touchControls.setAbility(st.card.equipped, st.card.iconId, st.card.state !== 'noMagic');
   }
@@ -580,7 +655,8 @@ export class Game2D {
       /** The 2D view is ready as soon as `Game2D.create` resolved (the sprite sets are loaded before it is built). */
       ready: () => true,
       /** The effects have arrived (they load after the first frame): a test that looks at them waits for this. */
-      effectsReady: () => this.effects !== null,
+      // every cosmetic chunk is in place: the effects and the looks of the boss (a scenario starts, and reloads, with all of them there)
+      effectsReady: () => this.effects !== null && this.bossViews !== null,
       /** Freezes real-time simulation so tests can advance it tick by tick. */
       pause: () => this.debug.set('paused', true),
       resume: () => this.debug.set('paused', false),
@@ -676,6 +752,15 @@ export class Game2D {
               hp: n.health.current, hits: n.hits, anim: n.view.anim, phase: n.view.phase, phaseT: n.view.phaseT, opacity: n.view.opacity,
             };
           }),
+          // the boss, when the room has one that stands (S29): what the fight tests read
+          boss: (() => {
+            const g = this.session.entities.find((e) => e.kind === 'guardian') as Guardian | undefined;
+            if (!g) return null;
+            return {
+              id: g.id, def: g.def.id, state: g.state, ticks: g.stateTicks, x: g.body.x, y: g.body.y, facing: g.facing, hp: g.health.current, maxHp: g.health.max,
+              attack: g.attackKind, enraged: g.enraged, marks: g.telegraphMarks.map((m) => ({ x: m.x, w: m.w, t01: m.t01 })), opacity: g.view.opacity,
+            };
+          })(),
           // objects in each scene layer: the E2E proves that rebuilding a room leaves nothing behind
           scene: Object.fromEntries(
             (['terrain', 'actors', 'fxNormal', 'fxWorld', 'backdropFar', 'backdropMid', 'backdropNear', 'foreground', 'lightOverlay'] as const).map((k) => [k, this.renderer.layers[k].children.length]),

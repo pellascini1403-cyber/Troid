@@ -26,7 +26,7 @@ import { VfxSystem } from '@/vfx/VfxSystem';
  *
  *   ?vh=8 visible height in metres (smaller = zoom in) · ?manual=1  · ?cycle=0 (no auto-play) · ?accent=1 (the optional warm accent ON, to compare) · ?tier=low|medium|high
  */
-const TRIGGERS: readonly VfxTrigger[] = ['slash', 'slashFinisher', 'hitLanded', 'playerHurt', 'dashStart', 'enemyDied', 'enemyTelegraph', 'playerDied', 'boltCast', 'boltImpact', 'boltEnd', 'drinkStart', 'drinkHeal', 'pickup', 'sealRejected'];
+const TRIGGERS: readonly VfxTrigger[] = ['slash', 'slashFinisher', 'hitLanded', 'playerHurt', 'dashStart', 'enemyDied', 'enemyTelegraph', 'playerDied', 'boltCast', 'boltImpact', 'boltEnd', 'drinkStart', 'drinkHeal', 'pickup', 'sealRejected', 'bossWake', 'bossStrike', 'bossPhase', 'bossDefeated'];
 
 export async function startVfxLab(host: HTMLElement, params: URLSearchParams): Promise<void> {
   const manual = params.get('manual') === '1';
@@ -114,6 +114,18 @@ export async function startVfxLab(host: HTMLElement, params: URLSearchParams): P
         break;
       case 'drinkHeal':
         bus.emit('bottle:drunk', { slot: 0, healed: 2, x: -1.6, y: 0 });
+        break;
+      case 'bossWake':
+        bus.emit('boss:started', { id: 'lab_boss', defId: 'ink_warden', nameKey: 'enemy.warden.name', health: 36, maxHealth: 36, x: -0.2, y: 0 });
+        break;
+      case 'bossStrike':
+        bus.emit('boss:strike', { id: 'lab_boss', defId: 'ink_warden', attack: 'warden_rain', x: -0.2, y: 0, w: 1.7 });
+        break;
+      case 'bossPhase':
+        bus.emit('boss:phase', { id: 'lab_boss', defId: 'ink_warden', phase: 2, x: -0.2, y: 0 });
+        break;
+      case 'bossDefeated':
+        bus.emit('boss:defeated', { id: 'lab_boss', defId: 'ink_warden', x: -0.2, y: 0 });
         break;
       case 'sealRejected':
         bus.emit('seal:rejected', { id: 'lab_seal', attackId: 'player_slash', x: -0.2, y: 1.2, direction: 1, shake: 0.1 });

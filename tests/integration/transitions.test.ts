@@ -485,8 +485,13 @@ describe('what an exit does and does not do', () => {
     expect(d.session.room.id).toBe('r1_gate');
   });
 
-  it('the end of the world is an exit with no destination: it raises the event and nothing else', () => {
-    const d = world('r4_sanctum', 'west');
+  it('the end of the world is an exit with no destination: it raises the event and nothing else — and only once the Ink Warden has fallen', () => {
+    const shut = world('r4_sanctum', 'west');
+    touch(shut, 'east');
+    shut.step(3);
+    expect(count(watch(shut), 'exit:reached'), 'with the Warden alive the zone does nothing').toBe(0);
+    expect(shut.session.exitsReached.size).toBe(0);
+    const d = world('r4_sanctum', 'west', { flags: [...FLAGS, 'defeated:r4_boss'] });
     const log = watch(d);
     touch(d, 'east');
     d.step(3);

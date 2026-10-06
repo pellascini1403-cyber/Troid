@@ -67,6 +67,7 @@ export function grantedFlags(room: RoomDefinition): string[] {
   for (const s of room.spawns ?? []) if (s.defeatFlag) out.add(s.defeatFlag);
   for (const i of room.interactables ?? []) for (const a of i.actions) if (a.type === 'setFlag') out.add(a.flag);
   for (const sl of room.seals ?? []) out.add(sl.flag);
+  for (const b of room.bosses ?? []) out.add(b.defeatFlag);
   return [...out];
 }
 
@@ -157,6 +158,13 @@ export function analyzeProgression(graph: WorldGraph, rooms: RoomRegistry, start
             flags.add(a.flag);
             changed = true;
           }
+        }
+      }
+      // a boss can always be fought: reaching its room is enough to be able to beat it (its defeat is what the rest of the world waits on)
+      for (const b of room.bosses ?? []) {
+        if (!flags.has(b.defeatFlag)) {
+          flags.add(b.defeatFlag);
+          changed = true;
         }
       }
       // a seal breaks only for a hero who has what breaks it: with its `needs` flag, and not before

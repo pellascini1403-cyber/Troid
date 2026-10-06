@@ -2,6 +2,7 @@
   "death.title": "You fell",
   "death.hint": "Press any button to continue",
   "enemy.inkSlime.name": "Ink Slime",
+  "enemy.warden.name": "Ink Warden",
   "room.r1.name": "Ruins Gate",
   "room.r2.name": "Root Gallery",
   "room.r3.name": "Seal Chamber",

@@ -46,6 +46,14 @@ export interface GameEvents extends CombatEvents {
   'room:exiting': { roomId: string; exitId: string; to: { room: string; entry: string } };
   /** A hazard of the room (spikes) hurt the hero: a confirmed hit, not a touch during the i-frames that follow one. `x, y` is where. */
   'hazard:hit': { roomId: string; hazardId: string; kind: string; damage: number; x: number; y: number };
+  /** A boss woke (the hero stepped into its arena): the session raises the fight flag and closes the doors. */
+  'boss:started': { id: string; defId: string; nameKey: string; health: number; maxHealth: number; x: number; y: number };
+  /** A boss's attack lands (its hitbox exists from now on): `x, y` is where — the ink erupting at each mark of the rain, the boss itself for the charge. */
+  'boss:strike': { id: string; defId: string; attack: string; x: number; y: number; w: number };
+  /** A boss entered its second phase (enraged). */
+  'boss:phase': { id: string; defId: string; phase: number; x: number; y: number };
+  /** A boss fell (its `actor:died` is what sets the defeat flag; this is the event the interface listens to). */
+  'boss:defeated': { id: string; defId: string; x: number; y: number };
   /** A seal turned a blow away (the sword, or any attack it does not accept): `x, y` is where it landed, `direction` the way the blow was going, `shake` the strength of the jolt. */
   'seal:rejected': { id: string; attackId: string; x: number; y: number; direction: 1 | -1; shake: number };
   /** The hero rested at a checkpoint: it is where they come back after a defeat now. `x, y` is where they stand (the effect plays there). */

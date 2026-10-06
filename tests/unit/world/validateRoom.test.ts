@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { validateRoom, type RoomRefs } from '@/world/validateRoom';
 import { block, ground, oneWay, rect } from '@/world/builders';
 import type { Rect } from '@/core/math';
-import type { RoomDefinition, SealDef } from '@/world/RoomDefinition';
+import type { BossDef, RoomDefinition, SealDef } from '@/world/RoomDefinition';
 
 const refs: RoomRefs = { enemies: { ink_slime: { body: { halfWidth: 0.55, height: 0.9 } } } };
 
@@ -23,6 +23,8 @@ function room(patch: Partial<RoomDefinition> = {}): RoomDefinition {
   };
 }
 const codes = (r: RoomDefinition, over: Partial<RoomRefs> = {}): string[] => validateRoom(r, { ...refs, ...over }).map((i) => i.code);
+/** A boss of the base room: in the middle of an arena of 30 m, on the floor, with its two flags. */
+const bossDef = (over: Partial<BossDef> = {}): BossDef => ({ id: 'b', guardian: 'ink_warden', x: 40, y: 0, facing: -1, arena: rect(22, -1, 48, 12), defeatFlag: 'defeated:b', fightFlag: '~fight:b', ...over });
 
 describe('validateRoom', () => {
   it('a sound room has no issues', () => {
@@ -279,6 +281,78 @@ describe('validateRoom: interactables', () => {
     it('a door that opens with a seal\'s flag is not asking for something nothing sets', () => {
       expect(codes(withSeal())).not.toContain('gate-flag');
       expect(codes(withSeal({}, { seals: [] }))).toContain('gate-flag');
+    });
+  });
+
+  describe('gates that close for a fight (closeWhen)', () => {
+    const gate = (g: NonNullable<RoomDefinition['gates']>[number]): RoomDefinition => room({ spawns: [], gates: [g], bosses: [bossDef()] });
+
+    it('a door that is open until a fight shuts it needs only `closeWhen`, and it must be a flag a boss of the room raises', () => {
+      expect(codes(gate({ id: 'g1', solid: 'door', closeWhen: '~fight:b' }))).toEqual([]);
+      expect(codes(gate({ id: 'g1', solid: 'door', openWhen: 'defeated:b', closeWhen: '~fight:b' }))).toEqual([]);
+    });
+
+    it('a gate with no flag at all would never change; an empty flag is empty; a closing flag must be volatile (a save would keep a shut door)', () => {
+      expect(codes(gate({ id: 'g1', solid: 'door' }))).toContain('gate-no-flag');
+      expect(codes(gate({ id: 'g1', solid: 'door', closeWhen: '' }))).toContain('empty-flag');
+      expect(codes(gate({ id: 'g1', solid: 'door', closeWhen: 'fight:b' }))).toContain('gate-close-volatile');
+    });
+
+    it('it must close for a reason: a closing flag that no boss of the room raises (and no other room sets) is reported', () => {
+      expect(codes(gate({ id: 'g1', solid: 'door', closeWhen: '~fight:other' }))).toContain('gate-close-flag');
+      expect(codes(gate({ id: 'g1', solid: 'door', closeWhen: '~fight:other' }), { externalFlags: new Set(['~fight:other']) })).not.toContain('gate-close-flag');
+    });
+  });
+
+  describe('bosses', () => {
+    const bosses = { ink_warden: { body: { halfWidth: 0.8, height: 2.9 } } };
+    const withBoss = (over: Partial<BossDef> = {}, patch: Partial<RoomDefinition> = {}): RoomDefinition => room({ spawns: [], gates: [], bosses: [bossDef(over)], ...patch });
+
+    it('a sound boss raises no issue', () => {
+      expect(codes(withBoss(), { bosses })).toEqual([]);
+    });
+
+    it('it names a guardian that exists, stands on the ground inside the room and not in a wall', () => {
+      expect(codes(withBoss({ guardian: 'dragon' }), { bosses })).toContain('unknown-boss');
+      expect(codes(withBoss({ x: 500 }), { bosses })).toContain('boss-outside');
+      expect(codes(withBoss({ x: 50.7 }), { bosses })).toContain('boss-buried'); // inside the door of the base room
+      expect(codes(withBoss({ y: 6 }), { bosses })).toContain('boss-floating');
+    });
+
+    it('its flags are real: the defeat flag is not empty and the fight flag is volatile and names something', () => {
+      expect(codes(withBoss({ defeatFlag: '' }), { bosses })).toContain('empty-flag');
+      expect(codes(withBoss({ fightFlag: 'fight:b' }), { bosses })).toContain('boss-fight-flag');
+      expect(codes(withBoss({ fightFlag: '~' }), { bosses })).toContain('boss-fight-flag');
+    });
+
+    it('the arena is a real rectangle inside the room that holds the boss itself, and ids are unique', () => {
+      expect(codes(withBoss({ arena: { x0: 40, y0: 0, x1: 20, y1: 5 } }), { bosses })).toContain('bad-arena');
+      expect(codes(withBoss({ arena: rect(30, -1, 90, 12) }), { bosses })).toContain('arena-outside');
+      expect(codes(withBoss({ arena: rect(41, -1, 48, 12) }), { bosses })).toContain('boss-outside-arena');
+      const b = bossDef();
+      expect(codes(withBoss({}, { bosses: [b, b] }), { bosses })).toContain('duplicate-id');
+    });
+
+    it('the hero is never put into the arena, never leaves by it and never rests in it: an entrance, an exit or a shrine inside it is an issue', () => {
+      expect(codes(withBoss({ arena: rect(2, -1, 45, 12) }), { bosses })).toContain('entry-in-arena');
+      expect(codes(withBoss({ arena: rect(30, -1, 56, 12) }), { bosses })).toContain('exit-in-arena');
+      const shrine: RoomDefinition['interactables'] = [{ id: 'shrine', kind: 'rest', verbKey: 'k', x: 40, y: 0, actions: [{ type: 'checkpoint', entry: 'start' }] }];
+      expect(codes(withBoss({}, { interactables: shrine }), { bosses })).toContain('checkpoint-in-arena');
+    });
+
+    it('a door that waits for the boss\'s defeat is not asking for something nothing sets', () => {
+      const door = room({ spawns: [], gates: [{ id: 'g1', solid: 'door', openWhen: 'defeated:b' }], bosses: [bossDef()] });
+      expect(codes(door, { bosses })).toEqual([]);
+      expect(codes({ ...door, bosses: [] }, { bosses })).toContain('gate-flag');
+    });
+  });
+
+  describe('interactables that teach an ability', () => {
+    const teach = (abilityId: string): RoomDefinition => room({ interactables: [{ id: 'rune', kind: 'pickup', verbKey: 'k', x: 10, y: 0, actions: [{ type: 'unlockAbility', abilityId }] }] });
+    it('the ability must exist (when the registry is given)', () => {
+      expect(codes(teach('air_dash'), { abilities: new Set(['air_dash']) })).toEqual([]);
+      expect(codes(teach('fly'), { abilities: new Set(['air_dash']) })).toContain('unknown-ability');
+      expect(codes(teach('fly'))).toEqual([]);
     });
   });
 });

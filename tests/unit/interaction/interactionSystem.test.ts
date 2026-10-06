@@ -17,6 +17,7 @@ function make(defs: InteractableDef[] = []) {
     clearFlag: (f) => (calls.push(`clear:${f}`), void flags.delete(f)),
     acquireCard: (id) => (calls.push(`card:${id}`), true),
     addBottleSlot: (id) => (calls.push(`bottle:${id}`), true),
+    unlockAbility: (id) => (calls.push(`ability:${id}`), true),
     checkpoint: (entry) => void calls.push(`rest:${entry}`),
   };
   const sys = new InteractionSystem(host, {
@@ -189,6 +190,7 @@ describe('performing it', () => {
         actions: [
           { type: 'acquireCard', cardId: 'card_x' },
           { type: 'addBottleSlot', bottleId: 'bottle_y' },
+          { type: 'unlockAbility', abilityId: 'air_dash' },
           { type: 'setFlag', flag: 'taken:a' },
           { type: 'clearFlag', flag: 'old' },
         ],
@@ -198,7 +200,7 @@ describe('performing it', () => {
     log.length = 0;
     const done = sys.perform();
     expect(done?.id).toBe('a');
-    expect(calls).toEqual(['card:card_x', 'bottle:bottle_y', 'set:taken:a', 'clear:old']);
+    expect(calls).toEqual(['card:card_x', 'bottle:bottle_y', 'ability:air_dash', 'set:taken:a', 'clear:old']);
     expect(log).toEqual([['performed', { id: 'a', kind: 'pickup', verbKey: 'interact.pickUp', x: 10, y: DEFAULT_ICON_HEIGHT }]]);
   });
 

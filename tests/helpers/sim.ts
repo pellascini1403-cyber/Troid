@@ -1,7 +1,7 @@
 import { createInputFrame, type InputFrame } from '@/input/InputFrame';
 import { GameSession, type SessionOptions } from '@/gameplay/GameSession';
 import { ABILITIES } from '@/content/abilities';
-import { ENEMIES } from '@/content/enemies';
+import { BOSSES, ENEMIES } from '@/content/enemies';
 import { BOTTLE_DEFINITIONS, BOTTLES, CARDS, MAGIC } from '@/content/resources';
 import { SKILLS } from '@/content/skills';
 import { PLAYER } from '@/content/player';
@@ -35,6 +35,7 @@ export function makeSession(opts: MakeOptions = {}): GameSession {
     seed: opts.seed ?? 1,
     unlocked: opts.unlocked ?? [],
     enemies: ENEMIES,
+    bosses: BOSSES,
     ...opts.extra,
   });
   session.bus.onError = (e) => {

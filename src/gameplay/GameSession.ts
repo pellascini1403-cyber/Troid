@@ -12,6 +12,8 @@ import { Rng } from '@/core/rng';
 import { Scheduler } from '@/core/scheduler';
 import { Enemy } from '@/enemies/Enemy';
 import type { EnemyDefinition } from '@/enemies/EnemyDefinition';
+import { Guardian } from '@/enemies/Guardian';
+import type { GuardianDefinition } from '@/enemies/GuardianDefinition';
 import { InteractionSystem } from '@/interaction/InteractionSystem';
 import { createInputFrame, NEUTRAL_INPUT, type InputFrame } from '@/input/InputFrame';
 import { Player } from '@/player/Player';
@@ -24,6 +26,7 @@ import { DeathFlow, DEFAULT_DEATH_FLOW, type DeathFlowDefinition, type DeathSnap
 import type { GameEvents } from './events';
 import { HazardSystem, type HazardHost } from './HazardSystem';
 import { createPlayerStatus, type PlayerStatus } from './PlayerStatus';
+import { VOLATILE_FLAG_PREFIX } from './progress';
 import { DEFAULT_TRANSITION, RoomTransition, type TransitionDefinition, type TransitionSnapshot } from './RoomTransition';
 import { Seal } from './Seal';
 import type { SimEntity } from './SimEntity';
@@ -54,6 +57,8 @@ export interface SessionOptions {
   transition?: TransitionDefinition;
   /** The enemy definitions that `RoomDefinition.spawns` refer to, by id. */
   enemies?: Readonly<Record<string, EnemyDefinition>>;
+  /** The guardians that `RoomDefinition.bosses` refer to, by id (docs/PROMPT6-LOG.md S29). */
+  bosses?: Readonly<Record<string, GuardianDefinition>>;
   /** World flags set from the start (tests, loading a save). */
   flags?: readonly string[];
   /** Where the hero comes back after a defeat (a loaded game's last checkpoint). Without it: the entry the session starts at. A place the session does not have is ignored. */
@@ -117,6 +122,8 @@ export class GameSession implements SimServices {
 
   // ---- what the current room asked for: enemies that leave a flag when they fall, doors, ways out ----
   private readonly defeatFlags = new Map<string, string>();
+  /** The volatile flag each boss of the room raises while it fights (S29): raised when it wakes, dropped when it falls. */
+  private readonly fightFlags = new Map<string, string>();
   private readonly gateStates = new Map<string, boolean>();
   private readonly exitsTouched = new Set<string>();
   private readonly scratch: Rect = { x0: 0, y0: 0, x1: 0, y1: 0 };
@@ -165,6 +172,7 @@ export class GameSession implements SimServices {
         clearFlag: (flag) => void this.flags.clear(flag),
         acquireCard: (cardId) => this.loadout.acquire(cardId),
         addBottleSlot: (bottleId) => this.bottles.addSlot(bottleId),
+        unlockAbility: (abilityId) => this.abilities.unlock(abilityId),
         checkpoint: (entry) => this.rest(entry),
       },
       {
@@ -206,6 +214,14 @@ export class GameSession implements SimServices {
     this.bus.on('actor:died', ({ id }) => {
       const flag = this.defeatFlags.get(id);
       if (flag !== undefined) this.flags.set(flag);
+      // a boss that falls ends its fight: what it shut (the arena's doors) opens
+      const fight = this.fightFlags.get(id);
+      if (fight !== undefined) this.flags.clear(fight);
+    });
+    // a boss that wakes begins its fight: the doors of the arena close behind the hero
+    this.bus.on('boss:started', ({ id }) => {
+      const fight = this.fightFlags.get(id);
+      if (fight !== undefined) this.flags.set(fight);
     });
     this.bus.on('flag:set', () => this.applyGates(true));
     this.bus.on('flag:cleared', () => this.applyGates(true));
@@ -427,6 +443,9 @@ export class GameSession implements SimServices {
     for (const e of this.live.splice(0)) this.release(e);
     this.pendingDespawn.clear();
     this.defeatFlags.clear();
+    // a fight does not outlive its room: the volatile flags (the arena's doors shut) are forgotten with it, so the next build finds them open
+    this.fightFlags.clear();
+    this.flags.dropPrefixed(VOLATILE_FLAG_PREFIX);
     this.hazards.setRoom(undefined);
     this.gateStates.clear();
     this.exitsTouched.clear();
@@ -449,6 +468,7 @@ export class GameSession implements SimServices {
     this.lastSafe = { x: entry.x, y: entry.y };
     this._arrival = { room: room.id, entry: entry.id };
     this.placeSpawns(room);
+    this.placeBosses(room);
     this.placeSeals(room);
     this.hazards.setRoom(room.hazards);
     this.applyGates(false);
@@ -471,6 +491,22 @@ export class GameSession implements SimServices {
   }
 
   /**
+   * Places the room's bosses (docs/PROMPT6-LOG.md S29), except those already beaten: a boss's defeat flag is the world's memory of it, so a
+   * guardian that fell is never built again. A boss that is placed waits dormant in its arena until the hero steps into it.
+   */
+  private placeBosses(room: RoomDefinition): void {
+    for (const b of room.bosses ?? []) {
+      if (this.flags.has(b.defeatFlag)) continue;
+      const def = this.opts.bosses?.[b.guardian];
+      if (!def) throw new Error(`room "${room.id}": boss "${b.id}" places the unknown guardian "${b.guardian}"`);
+      const boss = new Guardian(this.ids.next(def.id), def, { x: b.x, y: b.y, facing: b.facing }, b.arena);
+      this.defeatFlags.set(boss.id, b.defeatFlag);
+      this.fightFlags.set(boss.id, b.fightFlag);
+      this.addEntity(boss);
+    }
+  }
+
+  /**
    * Places the room's seals (docs/PROMPT6-LOG.md S28), except those already broken: a seal's flag is the world's memory of it, so a ward
    * that was broken is never built again and the door it held stays open. Breaking one is announced like the fall of a guardian, which is
    * how its flag gets set.
@@ -487,7 +523,8 @@ export class GameSession implements SimServices {
   /** Opens or closes every gate of the room to match the flags (a gate is one of the room's solids, switched off while open). */
   private applyGates(announce: boolean): void {
     for (const g of this.current.gates ?? []) {
-      const open = this.flags.has(g.openWhen);
+      // open when its flag says so (or when it has none), unless a fight has shut it
+      const open = (g.openWhen === undefined || this.flags.has(g.openWhen)) && !(g.closeWhen !== undefined && this.flags.has(g.closeWhen));
       const collider = this.collision.get(g.solid);
       if (collider) collider.enabled = !open;
       const was = this.gateStates.get(g.id);

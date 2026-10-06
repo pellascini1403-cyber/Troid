@@ -345,7 +345,8 @@ export class PlayerController {
     const t = this.tuning.dash;
     if (!this.sim.abilities.has('dash')) return false;
     if (this.dashCooldown > 0) return false;
-    return this.player.body.grounded || this.airDashesUsed < t.airDashes;
+    // the Air Dash (the boss's reward, docs/PROMPT6-LOG.md S29) is one more dash in the air, on top of the one the dash itself allows
+    return this.player.body.grounded || this.airDashesUsed < t.airDashes + (this.sim.abilities.has('air_dash') ? 1 : 0);
   }
 
   private enterDash(): void {

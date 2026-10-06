@@ -479,6 +479,75 @@ const sealRejectSparks: ParticleVfx = {
   radius: 0.15,
 };
 
+// ------------------------------------------------------------------------------------------------------ the boss
+
+/**
+ * The Ink Warden's moments (S29), in the enemy's violet: it WAKES (a ring that sweeps out and a swell of motes rising from the crest), its strikes
+ * ERUPT (a narrow column of ink and a flash where each lands), it ENRAGES (another ring) and it FALLS (a great ring, and the ink burst of any death
+ * that the `enemyDied` effects already play). Data, raised by the director from the boss's events; the budget and the governor apply as to any effect.
+ */
+const bossWakeRing: FlashVfx = {
+  kind: 'flash', id: 'boss_wake_ring', priority: 7, palette: 'enemy', shape: 'ring', role: 'hot',
+  life: 0.7, size: [1.2, 9], alpha: [0.9, 0],
+};
+
+const bossWakeMotes: ParticleVfx = {
+  kind: 'particles',
+  id: 'boss_wake_motes',
+  priority: 6,
+  palette: 'enemy',
+  blend: 'add',
+  shape: 'glow',
+  count: [22, 28],
+  speed: [2, 6],
+  life: [0.6, 1.1],
+  aim: 'up',
+  spread: 3,
+  size: [0.16, 0.34],
+  sizeEnd: 0.1,
+  gravity: 0.8,
+  drag: 1.2,
+  alpha: [0.95, 0],
+  colors: ['hot', 'core', 'hot', 'deep'],
+  radius: 0.6,
+};
+
+const bossStrikeBurst: ParticleVfx = {
+  kind: 'particles',
+  id: 'boss_strike_burst',
+  priority: 7,
+  palette: 'enemy',
+  blend: 'add',
+  shape: 'glow',
+  count: [14, 18],
+  speed: [4, 9],
+  life: [0.25, 0.5],
+  aim: 'up',
+  spread: 0.5,
+  size: [0.2, 0.4],
+  sizeEnd: 0.12,
+  gravity: 6,
+  drag: 1.4,
+  alpha: [1, 0],
+  colors: ['hot', 'core', 'core', 'deep'],
+  radius: 0.5,
+};
+
+const bossStrikeFlash: FlashVfx = {
+  kind: 'flash', id: 'boss_strike_flash', priority: 7, palette: 'enemy', shape: 'glow', role: 'hot',
+  life: 0.16, size: [1, 2.8], alpha: [0.95, 0],
+};
+
+const bossPhaseRing: FlashVfx = {
+  kind: 'flash', id: 'boss_phase_ring', priority: 7, palette: 'enemy', shape: 'ring', role: 'core',
+  life: 0.55, size: [1, 7], alpha: [0.9, 0],
+};
+
+const bossDefeatRing: FlashVfx = {
+  kind: 'flash', id: 'boss_defeat_ring', priority: 8, palette: 'enemy', shape: 'ring', role: 'hot',
+  life: 1, size: [1, 12], alpha: [0.9, 0],
+};
+
 export const VFX: Readonly<Record<string, VfxDefinition>> = Object.fromEntries(
   [
     slashArc, slashArcFinisher,
@@ -491,6 +560,7 @@ export const VFX: Readonly<Record<string, VfxDefinition>> = Object.fromEntries(
     drinkGather, drinkHealMotes, drinkHealFlash,
     pickupMotes, pickupRing, pickupFlash,
     sealRejectRing, sealRejectSparks,
+    bossWakeRing, bossWakeMotes, bossStrikeBurst, bossStrikeFlash, bossPhaseRing, bossDefeatRing,
   ].map((d) => [d.id, d]),
 );
 
@@ -513,4 +583,8 @@ export const VFX_BINDINGS: VfxBindings = {
   drinkHeal: ['drink_heal_motes', 'drink_heal_flash'],
   pickup: ['pickup_motes', 'pickup_ring', 'pickup_flash'],
   sealRejected: ['seal_reject_ring', 'seal_reject_sparks'],
+  bossWake: ['boss_wake_ring', 'boss_wake_motes'],
+  bossStrike: ['boss_strike_burst', 'boss_strike_flash'],
+  bossPhase: ['boss_phase_ring', 'boss_wake_motes'],
+  bossDefeated: ['boss_defeat_ring', 'death_motes'],
 };

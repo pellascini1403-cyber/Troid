@@ -194,8 +194,8 @@ describe('R3 «Cámara del Sello»: the climb', () => {
 });
 
 describe('R4 «Santuario»: a flat way in a line', () => {
-  it('a scripted player walks from the west entry to the way out of the world', () => {
-    const d = walk(R4, 'west');
+  it('with the Ink Warden fallen, a scripted player walks from the west entry to the way out of the world (the doors are open and nothing is in the way)', () => {
+    const d = walk(R4, 'west', { extra: { flags: ['defeated:r4_boss'] } });
     const r = runBot(d, { until: () => d.session.exitsReached.has('east'), maxTicks: 3000 });
     expect(r.done).toBe(true);
     expect(d.session.exitsReached.has('east')).toBe(true);

@@ -1,5 +1,6 @@
 import { ROOMS } from '@/content';
 import { runBot } from './bot';
+import { fightTheWarden, type FighterResult } from './fighter';
 import { jump, runTo, standOn } from './hops';
 import { driver, type Driver } from './sim';
 import { letGo, R1_CROUCH } from './vertical';
@@ -56,7 +57,24 @@ export function breakTheSeal(d: Driver): void {
   d.step(70);
 }
 
-/** R1 → R2 → R3 (the card and the seal) → R4 → the end of the world. */
+/**
+ * R4 (docs/PROMPT6-LOG.md S29): through the open door into the arena — the hero's feet crossing x = 27.5 wake the Ink Warden and the doors shut —
+ * the fight (`fightTheWarden`), and, once it has fallen and the doors are open, the reward it leaves: the Air Dash, taken with Interact.
+ */
+export function beatTheWarden(d: Driver): FighterResult {
+  runTo(d, 30);
+  d.stop();
+  const result = fightTheWarden(d);
+  d.step(60); // the Warden dissolves, the doors are open
+  runTo(d, 84);
+  d.stop();
+  d.step(6);
+  d.tap('interact'); // the Air Dash
+  d.step(16);
+  return result;
+}
+
+/** R1 → R2 → R3 (the card and the seal) → R4 (the Warden) → the end of the world. */
 export function playWorld(d: Driver): void {
   toTheEastExit(d, { crouchZones: R1_CROUCH }); // R1: hurdle, pit, crawl, the slime, the door
   arriveIn(d, 'r2_hall');
@@ -65,7 +83,8 @@ export function playWorld(d: Driver): void {
   breakTheSeal(d); // R3: the climb, the card, the bolt that breaks the ward
   toTheEastExit(d); // …and the lane to the way on
   arriveIn(d, 'r4_sanctum');
-  toTheEastExit(d); // R4: the way out of the world
+  beatTheWarden(d); // R4: the arena, the Ink Warden, the Air Dash it leaves…
+  toTheEastExit(d); // …and the way out of the world
   d.step(20);
 }
 

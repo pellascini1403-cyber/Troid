@@ -63,6 +63,12 @@ export class VfxDirector {
       bus.on('interaction:performed', (e) => {
         if (e.kind === 'pickup') this.fire('pickup', { x: e.x, y: e.y - 0.35, facing: 1 });
       }),
+      // the boss (S29): it wakes with a ring and a swell of light from its crest, each strike erupts where it lands, it burns hotter at half its
+      // health and it falls with a great ring (its `actor:died` plays the ink burst of any death on top)
+      bus.on('boss:started', (e) => this.fire('bossWake', { x: e.x, y: e.y + 3.2, facing: 1 })),
+      bus.on('boss:strike', (e) => this.fire('bossStrike', { x: e.x, y: e.y + 0.2, facing: 1, dirX: 0, dirY: 1 })),
+      bus.on('boss:phase', (e) => this.fire('bossPhase', { x: e.x, y: e.y + 3.2, facing: 1 })),
+      bus.on('boss:defeated', (e) => this.fire('bossDefeated', { x: e.x, y: e.y + 1.5, facing: 1 })),
       // a blow a seal turned away: a violet ring where it landed and sparks that spring back the way it came from
       bus.on('seal:rejected', (e) => {
         this.fire('sealRejected', { x: e.x, y: e.y, facing: e.direction, dirX: e.direction, dirY: 0 });

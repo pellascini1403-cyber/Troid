@@ -15,6 +15,7 @@ export interface InteractionHost {
   clearFlag(flag: string): void;
   acquireCard(cardId: string): boolean;
   addBottleSlot(bottleId: string): boolean;
+  unlockAbility(abilityId: string): boolean;
   /** The hero rests at the entry `entry` of the current room (it becomes their checkpoint). */
   checkpoint(entry: string): void;
 }
@@ -156,6 +157,9 @@ export class InteractionSystem {
         break;
       case 'addBottleSlot':
         this.host.addBottleSlot(a.bottleId);
+        break;
+      case 'unlockAbility':
+        this.host.unlockAbility(a.abilityId);
         break;
       case 'setFlag':
         this.host.setFlag(a.flag);

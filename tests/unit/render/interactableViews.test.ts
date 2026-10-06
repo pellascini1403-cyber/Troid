@@ -3,6 +3,7 @@ import { Container } from 'pixi.js';
 import { describe, expect, it } from 'vitest';
 import { INTERACTION_TEST_ROOM } from '@/content/rooms/interactionTest';
 import { R2_HALL_ROOM } from '@/content/rooms/r2Hall';
+import { R4_SANCTUM_ROOM } from '@/content/rooms/r4Sanctum';
 import { createLayers, type Layers } from '@/render/layers';
 import { InteractableViews } from '@/render/InteractableViews';
 
@@ -130,6 +131,51 @@ describe('a pickup that gives a bottle is a vial, not a card (S27)', () => {
     available.delete('bottle_fourth');
     views.update(1 / 60, (id) => available.has(id));
     expect(m['bottle_fourth']!.visible).toBe(false);
+    expect(m['shrine']!.visible).toBe(true);
+  });
+});
+
+describe('a pickup that unlocks an ability is a rune, not a card nor a vial (S29)', () => {
+  const build = (): { layers: Layers; views: InteractableViews; available: Set<string> } => {
+    const layers = createLayers(new Container());
+    const defs = [...R4_SANCTUM_ROOM.interactables!, ...R2_HALL_ROOM.interactables!.filter((i) => i.id === 'bottle_fourth'), ...INTERACTION_TEST_ROOM.interactables!.filter((i) => i.id === 'card_spirit_bolt')];
+    const available = new Set(defs.map((d) => d.id));
+    const views = new InteractableViews(layers);
+    views.build(defs, (id) => available.has(id));
+    return { layers, views, available };
+  };
+  const body = (c: Container): { width: number; height: number } => {
+    const b = (c.children[1] as Container).getLocalBounds();
+    return { width: b.maxX - b.minX, height: b.maxY - b.minY };
+  };
+
+  it('R4 floats the Air Dash where the Warden fell: in the additive layer, 0.85 m over the feet of the object', () => {
+    const { layers } = build();
+    const m = markers(layers);
+    expect(layers.lightOverlay.children).toContain(m['reward_air_dash']);
+    expect(layers.propsBack.children).toContain(m['shrine']);
+    expect(m['reward_air_dash']!.x).toBe(84);
+    expect(Math.abs(m['reward_air_dash']!.y - -0.85)).toBeLessThan(0.1);
+  });
+
+  it('its drawing is a diamond of its own: bigger than the card and the vial, and still a thing you pick up', () => {
+    const { layers } = build();
+    const m = markers(layers);
+    const rune = body(m['reward_air_dash']!);
+    const card = body(m['card_spirit_bolt']!);
+    const vial = body(m['bottle_fourth']!);
+    expect(rune.height).toBeGreaterThan(card.height + 0.2);
+    expect(rune.width).toBeGreaterThan(card.width + 0.2);
+    expect(rune.width).toBeGreaterThan(vial.width + 0.1);
+    expect(rune.height).toBeLessThan(1.1);
+  });
+
+  it('it disappears once taken, and the shrine stays', () => {
+    const { layers, views, available } = build();
+    const m = markers(layers);
+    available.delete('reward_air_dash');
+    views.update(1 / 60, (id) => available.has(id));
+    expect(m['reward_air_dash']!.visible).toBe(false);
     expect(m['shrine']!.visible).toBe(true);
   });
 });

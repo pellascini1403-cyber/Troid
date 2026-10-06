@@ -134,7 +134,11 @@ export type VfxTrigger =
   | 'drinkStart'
   | 'drinkHeal'
   | 'pickup'
-  | 'sealRejected';
+  | 'sealRejected'
+  | 'bossWake'
+  | 'bossStrike'
+  | 'bossPhase'
+  | 'bossDefeated';
 
 export type VfxBindings = Readonly<Record<VfxTrigger, readonly string[]>>;
 

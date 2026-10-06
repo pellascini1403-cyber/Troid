@@ -7,8 +7,8 @@ import { record, replay } from '../replay';
 import type { GameState, Scenario } from '../scenario';
 
 /**
- * THE WHOLE WORLD (docs/PROMPT6-LOG.md S23): R1 → R2 → R3 → R4 → the end of the world, walked with REAL keyboard events in headless
- * Chromium. The journey is RECORDED in Node on the pure simulation by a scripted player (`tests/helpers/journey.ts`, the same script
+ * THE WHOLE WORLD (docs/PROMPT6-LOG.md S23, S29): R1 → R2 → R3 → R4 → the end of the world, walked with REAL keyboard events in headless
+ * Chromium — the fight with the Ink Warden of R4 and the reward it leaves included. The journey is RECORDED in Node on the pure simulation by a scripted player (`tests/helpers/journey.ts`, the same script
  * `worldJourney.test.ts` asserts on) and REPLAYED through the browser's keyboard tick by tick, comparing a digest of the whole
  * simulation — which now includes the room and the transition — every 50 ticks: the browser plays the same game as the simulation,
  * bit for bit, through three room transitions.
@@ -30,7 +30,7 @@ export const world: Scenario = {
     assert.equal(s.now, 0, 'not one tick has run: the replay starts from tick 0');
     // what the world tells the interface, as it happens
     await ctx.page.evaluate(
-      `(() => { const s = window.__troid.session; window.__w = []; s.bus.on('room:entered', (e) => window.__w.push('enter ' + e.roomId + ':' + e.entryId + ' from ' + e.from)); s.bus.on('exit:reached', (e) => window.__w.push('exit ' + e.roomId + '/' + e.exitId)); s.bus.on('transition:cancelled', () => window.__w.push('cancelled')); s.bus.on('player:died', () => window.__w.push('died')); s.bus.on('card:changed', (e) => e.type === 'equipped' && window.__w.push('card')); s.bus.on('actor:died', (e) => e.team === 'neutral' && window.__w.push('seal broken')); s.bus.on('seal:rejected', () => window.__w.push('seal rejected')); })()`,
+      `(() => { const s = window.__troid.session; window.__w = []; s.bus.on('room:entered', (e) => window.__w.push('enter ' + e.roomId + ':' + e.entryId + ' from ' + e.from)); s.bus.on('exit:reached', (e) => window.__w.push('exit ' + e.roomId + '/' + e.exitId)); s.bus.on('transition:cancelled', () => window.__w.push('cancelled')); s.bus.on('player:died', () => window.__w.push('died')); s.bus.on('card:changed', (e) => e.type === 'equipped' && window.__w.push('card')); s.bus.on('actor:died', (e) => e.team === 'neutral' && window.__w.push('seal broken')); s.bus.on('seal:rejected', () => window.__w.push('seal rejected')); s.bus.on('boss:started', () => window.__w.push('boss started')); s.bus.on('boss:defeated', () => window.__w.push('boss defeated')); s.bus.on('ability:unlocked', (e) => window.__w.push('ability ' + e.id)); })()`,
     );
 
     let worst = 0;
@@ -79,12 +79,21 @@ export const world: Scenario = {
     assert.ok(!events.includes('died') && !events.includes('cancelled'), `the hero never fell (${events.join(' | ')})`);
     assert.ok(events.includes('card') && events.indexOf('card') < events.indexOf('seal broken'), 'the card was taken before the seal broke');
     assert.ok(!events.includes('seal rejected'), 'and the sword never swung at the seal');
+    // the end of R4 is earned: the Warden wakes, falls, and only then does the Air Dash come and the way out open (S29)
+    const at = (e: string): number => events.indexOf(e);
+    assert.deepEqual(events.filter((e) => e.startsWith('boss')), ['boss started', 'boss defeated'], 'the Warden woke once and fell once');
+    assert.ok(at('enter r4_sanctum:west from r3_chamber') < at('boss started') && at('boss started') < at('boss defeated'), 'in R4, in that order');
+    assert.ok(at('boss defeated') < at('ability air_dash') && at('ability air_dash') < at('exit r4_sanctum/east'), 'the reward after the fall, and the way out after the reward');
     assert.equal(transitions, 3, 'three fades were seen');
     assert.equal(s.room, 'r4_sanctum', 'the walk ends in the last room');
     assert.deepEqual(s.exits, ['east'], 'at the end of the world');
     assert.equal(s.transition?.phase, 'none');
     assert.ok(s.health! > 0);
-    assert.deepEqual(s.flags!.slice().sort(), ['broken:r3_seal', 'defeated:r1_slime', 'defeated:r2_slime', 'taken:card_spirit_bolt'], 'both guardians fell on the way, the card was taken on R3\'s ledge and its seal broken');
+    assert.deepEqual(
+      s.flags!.slice().sort(),
+      ['broken:r3_seal', 'defeated:r1_slime', 'defeated:r2_slime', 'defeated:r4_boss', 'taken:air_dash', 'taken:card_spirit_bolt'],
+      'both slimes fell on the way, the card was taken on R3\'s ledge and its seal broken, the Warden fell and its Air Dash was taken',
+    );
     assert.equal(s.card, 'card_spirit_bolt', 'the hero ends the world with the Spirit Bolt in hand');
     assert.deepEqual([...shot].sort(), [...WORLD.rooms].sort(), 'every room was seen with the hero in it');
     assert.deepEqual([...camera.rooms].sort(), [...WORLD.rooms].sort());

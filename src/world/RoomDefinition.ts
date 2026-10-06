@@ -46,14 +46,20 @@ export interface SpawnDef {
   defeatFlag?: string;
 }
 
-/** A door that is closed until a world flag is set. It is one of the room's `solids`, switched off while open. */
+/**
+ * A door that is closed until a world flag is set. It is one of the room's `solids`, switched off while open. A gate that is OPEN by default and
+ * only shuts for a while — the doors of a boss arena — says so with `closeWhen`: a VOLATILE flag (`~…`) the fight raises and the end of it
+ * (or the unloading of the room) drops, which no saved game ever keeps (docs/PROMPT6-LOG.md S29).
+ */
 export interface GateDef {
   /** Unique within the room. */
   id: string;
   /** Id of the solid (in `solids`) that blocks while the gate is closed. */
   solid: string;
-  /** The gate is open while this world flag is set. */
-  openWhen: string;
+  /** The gate is open while this world flag is set. Omitted: it is open unless `closeWhen` shuts it. */
+  openWhen?: string;
+  /** The gate is SHUT while this flag is set, whatever `openWhen` says. */
+  closeWhen?: string;
 }
 
 /** Where a way out leads: a room and one of ITS entries (a spawn point). */
@@ -129,6 +135,29 @@ export interface SealDef {
   needs?: string;
 }
 
+/**
+ * A boss (docs/PROMPT6-LOG.md S29): a guardian that waits, dormant, in its arena, wakes when the hero steps into it and fights until it falls
+ * or the hero does. The room places it like a spawn — but it is its own list: it carries the arena, the flag it sets for good when it falls
+ * (`defeatFlag`: it is never built again, and what waited for it — a door, an exit, a reward — opens) and the VOLATILE flag it raises while
+ * the fight lasts (`fightFlag`, `~…`: the doors `closeWhen` it; a defeat of the hero, a reload or a saved game forgets it, so the next
+ * visit finds the doors open and the guardian whole).
+ */
+export interface BossDef {
+  /** Unique within the room. */
+  id: string;
+  /** The guardian (an id of the registry of bosses), where it stands (feet) and which way it faces. */
+  guardian: string;
+  x: number;
+  y: number;
+  facing?: 1 | -1;
+  /** The fight begins when the hero's FEET are inside this rectangle while the guardian stands. */
+  arena: Rect;
+  /** World flag set when the guardian falls. */
+  defeatFlag: string;
+  /** Volatile flag (it starts with `~`) raised while the fight lasts. */
+  fightFlag: string;
+}
+
 /** What a hazard is. The interface draws it by kind; `spikes` is the one that exists today. */
 export type HazardKind = 'spikes';
 
@@ -179,6 +208,8 @@ export interface RoomDefinition {
   hazards?: HazardDef[];
   /** Wards that only a skill breaks (docs/PROMPT6-LOG.md S28). */
   seals?: SealDef[];
+  /** Guardians that fight in an arena (docs/PROMPT6-LOG.md S29). */
+  bosses?: BossDef[];
   /** Provisional scenery behind and in front of the action (never collision): `render/backdrops` draws it. */
   art?: { backdrop: string; seed?: number };
 }

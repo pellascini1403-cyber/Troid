@@ -15,8 +15,8 @@
 | **S25** peligros | ✅ | `056c038` |
 | **S26** zonas de cámara | ✅ | `dad0241` |
 | **S27** cuarta botella | ✅ | `2dbe0c6` |
-| **S28** Spirit Bolt en R3 | ✅ | (ver historial) |
-| **S29** jefe | ⏳ | |
+| **S28** Spirit Bolt en R3 | ✅ | `1ccd14e` |
+| **S29** jefe (Custodio de Tinta, arena de R4, Air Dash) | ✅ | |
 | **S30** ajustes (volumen, remapeo, calidad, posición táctil) | ⏳ | |
 | **S31** calibración móvil (solo geometría y documentación) | ⏳ | |
 | **S32** integración final | ⏳ | |
@@ -482,3 +482,124 @@ exits:   [..., { id: 'east', ..., requires: 'broken:r3_seal' }],
 | Tests | 1511 / 100 archivos | **1581 / 104 archivos** |
 | Arranque en frío de R1 | 192.9 KB gz | **193.9 KB gz** (+1.0 KB: `Seal`, `SealView`, la cortina de la puerta, las reglas del validador/grafo que no entran, el resplandor de la carta) — margen 6.1 KB |
 | Toda la primera sesión | 203.6 KB gz | 204.7 KB gz |
+
+---
+
+## S29 — El jefe: el Custodio de Tinta ✅
+
+**Qué cambia.** R4 deja de ser un pasillo hacia el final del mundo y pasa a ser **la sala del jefe**: el **Custodio de Tinta** (*Ink Warden*), un guardián **original y abstracto** (una columna de tinta con una cresta de luz violeta; sin rostro, sin extremidades, nada de nadie) que espera dormido en una arena de 39 m. Lo que el jugador vive, de principio a fin:
+
+1. El **santuario** del vestíbulo (el último sitio donde descansar y a donde se vuelve tras una derrota).
+2. Cruzar la **puerta oeste abierta** hacia la arena: en cuanto los **pies** del héroe pasan de x = 27.5, el Custodio despierta, **las dos puertas se cierran** (bandera volátil `~fight:r4_boss`), la **cámara se fija a la arena** (y se aleja un poco: 15 m en vez de 13.5) y aparece **su barra** con su nombre.
+3. La pelea: **dos ataques** que **avisan en violeta sobre el suelo**, una **segunda fase** a media vida, y una pelea que **se puede ganar con lo que ya tiene el jugador** (probado por un bot que usa los mismos botones).
+4. Su **caída**: `defeated:r4_boss` (bandera del mundo, **guardada**), las puertas se abren, la cámara se libera, **aparece la recompensa** —el **Air Dash**, un segundo dash en el aire— en un pedestal de la cámara del fondo, y **la salida al final del mundo se abre** (antes `requires` la bandera: sin ganar no se sale).
+5. Una **derrota** (o cerrar el juego) en mitad de la pelea devuelve al héroe al santuario con **el Custodio entero y dormido**, las puertas abiertas, nada duplicado.
+
+```ts
+// R4 «Santuario» (lo nuevo de S29; la arena, sus puertas y la zona de cámara ya venían de S26)
+bosses:  [{ id: 'warden', guardian: 'ink_warden', x: 58, y: 0, facing: -1, arena: rect(27.5, -1, 64.5, 12),
+            defeatFlag: 'defeated:r4_boss', fightFlag: '~fight:r4_boss' }],
+gates:   [{ id: 'arena_door_w', solid: 'door_w', closeWhen: '~fight:r4_boss' },
+          { id: 'arena_door_e', solid: 'door_e', closeWhen: '~fight:r4_boss' }],
+camera:  { zones: [{ id: 'arena', ..., whenClear: 'defeated:r4_boss' }] },          // fija la cámara hasta que cae
+exits:   [..., { id: 'east', rect: rect(95, 0, 98, 4), end: true, requires: 'defeated:r4_boss' }],
+interactables: [
+  { id: 'shrine', kind: 'rest', ..., actions: [{ type: 'checkpoint', entry: 'rest' }] },
+  { id: 'reward_air_dash', kind: 'pickup', x: 84, y: 0, whenSet: 'defeated:r4_boss', whenClear: 'taken:air_dash',
+    actions: [{ type: 'unlockAbility', abilityId: 'air_dash' }, { type: 'setFlag', flag: 'taken:air_dash' }] },
+],
+```
+
+### El jefe (`enemies/Guardian.ts`, datos en `content/enemies.ts`)
+
+Es **su propia entidad** (`SimEntity` + `Combatant` + `Actor`), no un arquetipo de `Enemy`: la pelea tiene **una sola máquina de estados**, `choose` decide con el `Rng` **de la sesión** (nunca `Math.random`) y la entidad solo ve al héroe a través del mismo `PlayerTarget` que usa el Ink Slime.
+
+```
+dormant ──(los pies del héroe entran en la arena)──▶ intro ──▶ choose ──▶ telegraph ──▶ attack ──▶ recover ──▶ choose …
+                                                                                                     │ un golpe mientras se recupera
+                                                                                                     └──▶ hurt ──▶ recover
+cualquier estado ──(vida 0)──▶ dead
+```
+
+| Estado | Qué hace | Ticks |
+|---|---|---|
+| `dormant` | de pie, esperando; **no se le puede herir** | — |
+| `intro` | despierta (`boss:started`: la sesión sube la bandera y cierra las puertas); **sigue sin poder herirse** | 84 (1.4 s) |
+| `choose` | elige el ataque por el `Rng`: **de lejos** (> 7.5 m) carga 3 : 1; **de cerca** lluvia 3 : 1; **nunca el mismo más de 2 veces seguidas** | 1 |
+| `telegraph` | **el aviso**: marcas violeta en el suelo que se llenan hasta el golpe; **acorazado** (no se inmuta) | carga 42 · lluvia 40 |
+| `attack` | **carga**: se desliza a 13 m/s ≈ 8.2 m (hitbox 2.6 × 1.2 m, daño **2**); **lluvia**: columnas de tinta de 1.7 × 5 m en cada marca (daño **1**), una sola herida aunque dos columnas alcancen | carga 38 · lluvia 12 |
+| `recover` | **la abertura**: inofensivo e indefenso | carga 54 · lluvia 46 |
+| `hurt` | un golpe en `recover` lo tambalea **una vez** (el tambaleo se **suma** a la abertura) | 16 |
+| `dead` | se encoge, se desvanece y apaga su luz; la sesión lo retira | 100 |
+
+- **Sin daño por contacto:** todo lo que hiere es un *hitbox* **avisado**. Tocar al Custodio no cuesta vida: se puede cruzar (la carga se esquiva pasándolo y quedándose **detrás**: el deslizamiento se va hacia delante).
+- **Vida 36**, la espada hace 1 por golpe; **la cresta** (flota sobre la columna, se alcanza **saltando**) hace **×2**.
+- **Segunda fase** a ≤ 50 % de vida (`boss:phase`): **cada aviso y cada abertura duran el 72 %** y la **lluvia** pasa de 3 a **4 columnas** (a −5.2, −1.7, +1.7 y +5.2 m del héroe; antes a −3.4, 0 y +3.4).
+- La lluvia cae **donde el héroe estaba al empezar el aviso** (las zonas no lo siguen: se pueden dejar atrás) y se mantiene dentro de la arena.
+- Si el héroe cae, deja de atacar (`choose` espera) y borra sus avisos: la sala se va a reconstruir.
+
+### Cómo encaja en el mundo (piezas que ya existían + dos nuevas)
+
+| Pieza | Papel |
+|---|---|
+| `BossDef` (`RoomDefinition.bosses`) — **nueva** | datos: qué guardián, dónde, su arena, la bandera de derrota (para siempre) y la de pelea (**volátil**) |
+| `GateDef.closeWhen` — **nueva** | una puerta se cierra mientras una bandera esté puesta (las de `openWhen` ya existían); las de R4 se cierran con `~fight:r4_boss` |
+| Banderas volátiles `~…` | **jamás se guardan** (`captureProgress` las filtra, `repairProgress` las rechaza) y se **sueltan al descargar la sala**: es lo que hace que una derrota, una recarga o un guardado a medias **nunca dejen las puertas cerradas** |
+| Zona de cámara con `whenClear` (S26) | la arena fija la cámara hasta `defeated:r4_boss`; después es como el resto de la sala |
+| Santuario (S24) | la regla de muerte **no cambia**: vuelve al último descanso (el santuario de R4, a 10+ m de la puerta; la arena queda fuera) |
+| `unlockAbility` (acción de interactuable) — **nueva** | enseña una habilidad al cogerla; mismo recorrido que `acquireCard` (bandera de «tomado», guardado, una sola vez) |
+| `analyzeProgression` / `validateWorld` | un jefe **concede su bandera de derrota** cuando se llega a su sala; la salida final que `requires` esa bandera **se puede alcanzar sobre el papel** |
+
+El validador de sala añade `unknown-boss`, `boss-outside`, `boss-buried`, `boss-floating`, `boss-fight-flag` (la de pelea debe ser volátil), `bad-arena`, `arena-outside`, `boss-outside-arena`, **`entry-in-arena`** (si un acceso cayera dentro, la pelea empezaría al llegar o al volver de una derrota), **`exit-in-arena`**, **`checkpoint-in-arena`** (nadie descansa a mitad de pelea) y `gate-close-flag` (una puerta que se cierra con una bandera que ningún jefe sube). El del mundo, que el final **solo** se abre ganando: sin jefe en R4, la salida final espera una bandera que nada pone (`flag-ungranted`).
+
+### La recompensa: el Air Dash
+
+`abilities/air_dash` (ya declarada en el catálogo, ahora **implementada**): **un dash más en el aire**. `PlayerController.canDash`: `airDashes + (air_dash ? 1 : 0)` por salto; nada más cambia (misma velocidad 21 m/s, misma duración 0.17 s, mismas i-frames 0.13 s, mismo enfriamiento 0.42 s **contado desde el final del dash**, y aterrizar los recarga). Sin la habilidad, la segunda pulsación en el aire **no hace nada**. Se prueba con las dos situaciones (tests y E2E): `boss-death` (sin ella: **un** dash aéreo) y `boss` (con ella: **dos**).
+
+### Sensación (placeholder, sin arte final)
+
+- **El Custodio:** una columna de tinta oscura con **borde violeta**, tres filas de glifos, una **rendija de ojo** pálida, una **cresta** (un rombo de luz violeta que flota sobre ella) y dos esquirlas laterales; dormido es opaco y apagado, despierto la cresta enciende su aura y **en la segunda fase arde más**. Al cargar se hunde y se echa atrás y luego se **estira** inclinado hacia delante; al preparar la lluvia **sube la cresta** (más cuanto más cerca el golpe) y baja cuando la tinta brota; al recibir un golpe **destella en blanco**; al caer **se encoge, se desvanece y se apaga**. Dibujado con formas (`render/GuardianView.ts`); solo mueve transformadas y alfas por fotograma.
+- **El aviso (violeta, en el suelo):** la **carga** es **un carril largo** con *chevrons* que apuntan hacia donde va a deslizarse; la **lluvia**, un **disco con su anillo y una columna de tinta que sube** por cada marca. Todo **llena a medida que se acerca el golpe** (medido en píxeles en el E2E). Va en el espacio del mundo (es **estado del jefe**, no un efecto): se queda donde el golpe va a caer.
+- **Efectos (datos, enemigo = violeta, el cian es solo del héroe):** al despertar, un **anillo que barre** y una **nube de motas** que sube desde la cresta; cada golpe de la lluvia **brota** en su marca (una columna corta de tinta y un destello); al enfurecerse, otro anillo; al caer, **un gran anillo** (y la ráfaga de tinta de cualquier muerte, de `actor:died`).
+- **La barra (DOM, abajo en el centro, donde el táctil deja sitio):** su **nombre** (`enemy.warden.name`, en el idioma de la página), una barra violeta con **rastro blanco** del último golpe, un destello al herirlo y **más brillo en la segunda fase**; aparece con un fundido, **se vacía al caer y se va**, y desaparece con la sala. `pointer-events: none`: no se come ningún dedo.
+- **Cámara:** un temblor al despertar (0.3), al pasar de fase (0.4), por cada golpe (0.1) y al caer (0.6).
+
+### Lo que se adaptó (misma intención, nada borrado)
+
+| Qué fijaba | Cómo queda |
+|---|---|
+| `worldJourney` / `world` (E2E) / `transitions` / `worldRooms` | R4 **ya no se cruza andando**: el recorrido del mundo (`playWorld`, que el E2E graba y repite con el teclado real) ahora **incluye la pelea** (`beatTheWarden`: la arena, el combate con el bot, la recompensa) y termina por la salida al final del mundo; la lista de banderas final incluye `defeated:r4_boss` y `taken:air_dash`; los recorridos por teletransporte llevan la bandera del jefe cuando cruzan la salida final |
+| `roomCameras` | la arena tiene `whenClear` y las zonas se prueban con y sin la bandera |
+| `validateRoom` / `world.test` / `worldGraph` | las reglas nuevas y que el final sin jefe es inalcanzable |
+| E2E `world` | el digest de la repetición **incluye al jefe** (estado, posición, vida, ticks, furia): el navegador y la simulación no pueden discrepar en la pelea sin que se note |
+
+### Pruebas y E2E
+
+- **Tests (+123, de 1581 a 1704):** `guardian` (32: la máquina entera por estados, tiempos exactos, elección con el `Rng` —con semillas que **fuerzan** cada ataque—, nunca más de 2 iguales seguidos, aviso → golpe → abertura, tambaleo una sola vez, furia a media vida con su escala, cresta ×2, muerte), `bossWorld` (20, sobre **R4 real**: duerme; despierta al cruzar 27.5 —**no** a los 27.4—; **las dos puertas se cierran** y el héroe queda dentro, no bajo una puerta; **nadie sale** mientras dura —ni por la puerta oeste ni por la este, y la salida del final no hace nada—; la cámara se fija a la arena; **el bot lo gana en muchas semillas**; su caída abre puertas y cámara y pone la bandera; la recompensa aparece **una vez**; la salida funciona; **derrota**: vuelve al santuario con el Custodio entero y dormido, puertas abiertas, **nada duplicado**; guardado y carga en mitad de la pelea sin banderas volátiles; **repetible bit a bit**), `airDash` (6: sin la habilidad un dash en el aire, con ella dos y no tres, aterrizar recarga, el suelo no cambia), `bossBar` (15: el modelo —aparece, sigue la vida, rastro, furia, se vacía, se va— y la vista DOM), `guardianView` (12), `lateView` (5), `bossVfx` (9), validador de sala (+10), contenido del mundo (+10: un solo jefe, la arena cabe la carga, las puertas, los accesos fuera de la arena, lo que espera al jefe, la recompensa, **sin jefe el final no se abre**…), cámaras (+1: la arena con y sin la bandera) y marcadores (+3: la runa del Air Dash).
+- **E2E (dos escenarios nuevos, el 31.º y el 32.º):**
+  - **`boss`** — partida guardada en el santuario de R4; **graba en Node** la ruta entera (la arena, la pelea, la recompensa) con **el bot que lee el aviso** y **la repite con el teclado real**, **comparando el digest cada 50 ticks** (3198 ticks, 197 cambios de tecla). Mira **lo que se ve**: las puertas se cierran, la cámara se fija (`zone: 'arena'`, límites entre las puertas, vista más alejada), la barra con **el nombre en el idioma de la página**, los **avisos violeta en el suelo medidos en píxeles** (carga y lluvia, y sus versiones furiosas: llenan hacia el golpe), la segunda fase (la barra arde y sigue la vida), la caída (puertas abiertas, cámara libre, barra vacía y fuera), la **recompensa cogida con Interact**, **dos dashes en el aire** con el teclado, la salida del mundo, **el guardado** (sin banderas volátiles) y que **al recargar no vuelve**.
+  - **`boss-death`** — una **derrota natural** (el bot daña al Custodio hasta 2/3 de su vida y luego el héroe **se queda quieto** hasta que lo matan) **grabada en Node y repetida con el teclado** (1599 ticks, incluidos el flujo de derrota y la reaparición): el héroe vuelve al santuario con **el Custodio entero y dormido, un solo jefe, las puertas abiertas, la barra y la cámara libres, y **el mismo número de vistas y objetos en cada capa** que al principio**; el guardado no cambia. Sin la recompensa, **un solo dash en el aire**. Luego **dos derrotas más** (tres peleas seguidas, igual de limpias) y la inversa: **una derrota después de ganar** deja al Custodio fuera para siempre y **la recompensa es una**, ni duplicada ni perdida.
+- **Gancho/estado:** `state().boss` (el Custodio, su estado, aviso y vida), `camera.zone/limits`, `gates`; `effectsReady()` espera también el *chunk* del jefe.
+
+### Bundle: diagnóstico, optimización y cifras (el margen se estrechó otra vez)
+
+El jefe entero sumó **+5.1 KB gz** al arranque en frío (193.9 → **199.0 KB**: quedaba 1 KB bajo el presupuesto de 200). **Diagnóstico** (mapa de fuentes del *chunk* principal, bytes por archivo): `Guardian.ts` 7.7 KB sin comprimir, `GuardianView.ts` 4.8 KB, `BossBarView.ts` 2.6 KB y `BossBarModel.ts` 1.0 KB. **Lo que no hace falta para jugar el primer minuto** es **cómo se ve** el jefe (R1 no lo tiene y R4 está tres salas más allá): `GuardianView` y `BossBarView` viajan ahora en un **chunk propio** (`app/bossViews.ts`, 2.9 KB gz) que la página pide **con los efectos**, cuando ya hay primer fotograma y un respiro. **La simulación del jefe no espera a su imagen:** la entidad vive en el *chunk* principal (la pelea, la derrota y el guardado dependen de ella) y su vista es un **`LateView`** (un contenedor vacío que monta la vista real en cuanto llega el código, y que, si se destruye antes, nunca la construye; si la descarga falla no se rompe nada y el siguiente jefe lo vuelve a pedir). Un guardado en el santuario de R4 arranca **delante** del jefe: ahí el *chunk* se pide **al instante**, y bajo `?hooks=1` siempre se carga con los efectos (los E2E nunca esperan «a ver si llega»). **No se quitó ni se recortó nada**: solo cambia *cuándo* llega el código cosmético.
+
+| | S28 | S29 sin optimizar | **S29** |
+|---|---|---|---|
+| Arranque en frío de R1 | 193.9 KB gz | 199.0 KB gz | **197.3 KB gz** (margen 2.7 KB) |
+| Diferido en reposo (efectos + vistas del jefe) | 10.8 KB | 11.0 KB | 13.9 KB |
+| Toda la primera sesión | 204.7 KB gz | 210.1 KB gz | **211.2 KB gz** |
+
+> ⚠ **Margen.** Quedan **2.7 KB** de presupuesto de arranque en frío. S30 (ajustes) **debe vivir en el *chunk* del menú** (que ya es diferido) y S32 no puede añadir código al camino de R1 sin medir antes. La siguiente palanca, si hiciera falta, es la misma: `InteractableViews`/`SealView` (≈ 1.5 KB gz) no se usan en R1 y pueden ir al *chunk* de las vistas.
+
+### Medido ✅
+
+| | S28 | S29 |
+|---|---|---|
+| Tests | 1581 / 104 archivos | **1704 / 111 archivos** |
+| E2E (desarrollo y producción) | 30 / 30 | **32 / 32** |
+| Arranque en frío de R1 | 193.9 KB gz | **197.3 KB gz** |
+| Toda la primera sesión | 204.7 KB gz | 211.2 KB gz |
+| *Draw calls* en la pelea | — | **≤ 15** (presupuesto 60), con jefe, avisos, héroe y efectos en pantalla |
+

@@ -37,7 +37,9 @@ describe('the world from front to back', () => {
     expect(d.session.room.id).toBe('r4_sanctum');
     expect(d.session.transition.active).toBe(false);
     expect(d.p.health.dead).toBe(false);
-    expect(d.session.flags.list().sort()).toEqual(['broken:r3_seal', 'defeated:r1_slime', 'defeated:r2_slime', 'taken:card_spirit_bolt']);
+    expect(d.session.flags.list().sort()).toEqual(['broken:r3_seal', 'defeated:r1_slime', 'defeated:r2_slime', 'defeated:r4_boss', 'taken:air_dash', 'taken:card_spirit_bolt']);
+    expect(d.session.abilities.has('air_dash'), 'the Warden left the Air Dash').toBe(true);
+    expect(d.session.flags.list().some((f) => f.startsWith('~')), 'no volatile flag is left behind').toBe(false);
   });
 
   it('R3 is where the hero gets the Spirit Bolt and uses it: the card is taken on the ledge, one bolt breaks the seal, and the sword never could', () => {

@@ -40,6 +40,11 @@ export class WorldFlags {
     return [...this.flags].sort();
   }
 
+  /** Forgets, without announcing it, every flag that begins with `prefix` (a room unloading drops its volatile ones: the next build recomputes everything it shows). */
+  dropPrefixed(prefix: string): void {
+    for (const f of [...this.flags]) if (f.startsWith(prefix)) this.flags.delete(f);
+  }
+
   /** Replaces the whole state without announcing it (loading a save). */
   restore(flags: Iterable<string>): void {
     this.flags.clear();

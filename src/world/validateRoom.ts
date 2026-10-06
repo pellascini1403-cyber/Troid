@@ -25,9 +25,15 @@ export interface RoomRefs {
   /** The ids of the cards and of the bottles an interactable may hand out (when given, an unknown one is an issue). */
   cards?: ReadonlySet<string>;
   bottles?: ReadonlySet<string>;
+  /** The ids of the abilities an interactable may teach (when given, an unknown one is an issue). */
+  abilities?: ReadonlySet<string>;
+  /** The guardians a room may place as a boss, with the body they stand with (when given, an unknown one is an issue). */
+  bosses?: Readonly<Record<string, { body: { halfWidth: number; height: number } }>>;
 }
 
 const SUPPORT_TOLERANCE = 0.05;
+/** Flags that begin with this are volatile — a door that closed for a fight — and no save keeps them (the same prefix `gameplay/progress.ts` filters on). */
+const VOLATILE = '~';
 /** How far, in metres, the entry a shrine rests at may be from the shrine itself. */
 const MAX_CHECKPOINT_DISTANCE = 3;
 
@@ -39,6 +45,7 @@ export function validateRoom(room: RoomDefinition, refs: RoomRefs): RoomIssue[] 
   const player = refs.player ?? { halfWidth: 0.35, height: 1.7 };
 
   const validRect = (r: Rect): boolean => [r.x0, r.y0, r.x1, r.y1].every(Number.isFinite) && r.x0 < r.x1 && r.y0 < r.y1;
+  const holds = (outer: Rect, inner: Rect): boolean => outer.x0 <= inner.x0 && outer.y0 <= inner.y0 && outer.x1 >= inner.x1 && outer.y1 >= inner.y1;
   const unique = (what: string, ids: string[]): void => {
     const seen = new Set<string>();
     for (const id of ids) {
@@ -57,6 +64,7 @@ export function validateRoom(room: RoomDefinition, refs: RoomRefs): RoomIssue[] 
   unique('interactable', (room.interactables ?? []).map((i) => i.id));
   unique('hazard', (room.hazards ?? []).map((h) => h.id));
   unique('seal', (room.seals ?? []).map((sl) => sl.id));
+  unique('boss', (room.bosses ?? []).map((b) => b.id));
   for (const s of room.solids) if (!validRect(s.rect)) add('bad-solid', `solid "${s.id}" is not a valid rectangle`);
 
   const solids = room.solids.filter((s) => (s.kind ?? 'solid') === 'solid');
@@ -98,6 +106,9 @@ export function validateRoom(room: RoomDefinition, refs: RoomRefs): RoomIssue[] 
   for (const g of room.gates ?? []) {
     if (!solidIds.has(g.solid)) add('gate-solid', `gate "${g.id}" points at the solid "${g.solid}", which does not exist`);
     if (g.openWhen === '') add('empty-flag', `gate "${g.id}" opens with an empty flag`);
+    if (g.closeWhen === '') add('empty-flag', `gate "${g.id}" is shut by an empty flag`);
+    else if (g.closeWhen !== undefined && !g.closeWhen.startsWith(VOLATILE)) add('gate-close-volatile', `gate "${g.id}" is shut by "${g.closeWhen}": a flag that closes a door for a while must be volatile (start with "${VOLATILE}"), or a saved game would come back to a shut door`);
+    if (g.openWhen === undefined && g.closeWhen === undefined) add('gate-no-flag', `gate "${g.id}" has neither a flag that opens it nor one that shuts it: it would never change`);
   }
 
   for (const i of room.interactables ?? []) {
@@ -113,6 +124,7 @@ export function validateRoom(room: RoomDefinition, refs: RoomRefs): RoomIssue[] 
     for (const a of i.actions) {
       if (a.type === 'acquireCard' && refs.cards && !refs.cards.has(a.cardId)) add('unknown-card', `interactable "${i.id}" gives the unknown card "${a.cardId}"`);
       else if (a.type === 'addBottleSlot' && refs.bottles && !refs.bottles.has(a.bottleId)) add('unknown-bottle', `interactable "${i.id}" gives the unknown bottle "${a.bottleId}"`);
+      else if (a.type === 'unlockAbility' && refs.abilities && !refs.abilities.has(a.abilityId)) add('unknown-ability', `interactable "${i.id}" teaches the unknown ability "${a.abilityId}"`);
       else if (a.type === 'setFlag' || a.type === 'clearFlag') {
         if (a.flag === '') add('empty-flag', `interactable "${i.id}" has an action with an empty flag`);
         else if (a.type === 'setFlag') gateFlags.add(a.flag); // a lever may open a door of the room
@@ -139,10 +151,40 @@ export function validateRoom(room: RoomDefinition, refs: RoomRefs): RoomIssue[] 
     if (sl.flag !== '' && !holds) add('seal-orphan', `seal "${sl.id}" holds nothing: no gate of the room opens with "${sl.flag}", no exit asks for it`);
   }
 
+  // bosses: a guardian that exists, standing on the ground inside its arena, with a defeat flag for good and a volatile flag for the fight — and
+  // an arena that is never a place the hero is put into, left by, or rested in (a fight that began on arrival, or could be walked out of, is not one)
+  for (const b of room.bosses ?? []) {
+    const def = refs.bosses?.[b.guardian];
+    if (refs.bosses && !def) add('unknown-boss', `boss "${b.id}" places the unknown guardian "${b.guardian}"`);
+    const body = def?.body ?? { halfWidth: 0.8, height: 3 };
+    if (!Number.isFinite(b.x) || !Number.isFinite(b.y) || !inBounds(b.x, b.y)) add('boss-outside', `boss "${b.id}" is outside the room bounds`);
+    else if (buried(b.x, b.y, body.halfWidth, body.height)) add('boss-buried', `boss "${b.id}" puts "${b.guardian}" inside a wall`);
+    else if (!supported(b.x, b.y, body.halfWidth)) add('boss-floating', `boss "${b.id}" has no floor under "${b.guardian}"`);
+    if (b.defeatFlag === '') add('empty-flag', `boss "${b.id}" sets an empty defeat flag`);
+    else gateFlags.add(b.defeatFlag);
+    if (!b.fightFlag.startsWith(VOLATILE) || b.fightFlag === VOLATILE) add('boss-fight-flag', `boss "${b.id}" raises "${b.fightFlag}" during the fight: it must be volatile (start with "${VOLATILE}" and name something)`);
+    else gateFlags.add(b.fightFlag);
+    if (!validRect(b.arena)) {
+      add('bad-arena', `boss "${b.id}" has an arena that is not a valid rectangle`);
+      continue;
+    }
+    if (!holds(room.bounds, b.arena)) add('arena-outside', `the arena of boss "${b.id}" goes beyond the room`);
+    if (b.x < b.arena.x0 || b.x > b.arena.x1 || b.y < b.arena.y0 || b.y > b.arena.y1) add('boss-outside-arena', `boss "${b.id}" stands outside its own arena`);
+    const inArena = (x: number, y: number): boolean => x >= b.arena.x0 && x <= b.arena.x1 && y >= b.arena.y0 && y <= b.arena.y1;
+    for (const e of room.entries) if (inArena(e.x, e.y)) add('entry-in-arena', `entrance "${e.id}" is inside the arena of boss "${b.id}": the fight would begin the moment the hero arrives (or comes back from a defeat)`);
+    for (const x of room.exits ?? []) if (validRect(x.rect) && overlaps(x.rect, b.arena)) add('exit-in-arena', `exit "${x.id}" is inside the arena of boss "${b.id}": the hero could walk out of the fight`);
+    for (const i of room.interactables ?? []) {
+      if (i.actions.some((a) => a.type === 'checkpoint') && inArena(i.x, i.y)) add('checkpoint-in-arena', `the shrine "${i.id}" is inside the arena of boss "${b.id}": the hero could rest in the middle of the fight`);
+    }
+  }
+
   // a door may open with a flag that something in the room sets: a guardian's defeat, a lever
   for (const g of room.gates ?? []) {
-    if (g.openWhen !== '' && !gateFlags.has(g.openWhen) && !refs.externalFlags?.has(g.openWhen)) {
+    if (g.openWhen !== undefined && g.openWhen !== '' && !gateFlags.has(g.openWhen) && !refs.externalFlags?.has(g.openWhen)) {
       add('gate-flag', `gate "${g.id}" opens with "${g.openWhen}", which nothing sets (no spawn of the room defeats into it, no lever sets it)`);
+    }
+    if (g.closeWhen !== undefined && g.closeWhen !== '' && !gateFlags.has(g.closeWhen) && !refs.externalFlags?.has(g.closeWhen)) {
+      add('gate-close-flag', `gate "${g.id}" is shut by "${g.closeWhen}", which nothing sets (no boss of the room raises it): it would never close`);
     }
   }
 
@@ -170,7 +212,6 @@ export function validateRoom(room: RoomDefinition, refs: RoomRefs): RoomIssue[] 
   }
 
   // the camera: limits that exist, are inside the room and hold everything the hero can be at; zones that hold the hero in view
-  const holds = (outer: Rect, inner: Rect): boolean => outer.x0 <= inner.x0 && outer.y0 <= inner.y0 && outer.x1 >= inner.x1 && outer.y1 >= inner.y1;
   const limits = room.camera?.bounds;
   if (limits) {
     if (!validRect(limits)) add('bad-camera', 'the camera limits are not a valid rectangle');

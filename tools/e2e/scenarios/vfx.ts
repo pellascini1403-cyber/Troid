@@ -25,7 +25,7 @@ export const vfx: Scenario = {
 
     assert.equal((await stats()).particles, 0);
     const triggers = await call<string[]>('window.__vfx.triggers');
-    assert.deepEqual(triggers, ['slash', 'slashFinisher', 'hitLanded', 'playerHurt', 'dashStart', 'enemyDied', 'enemyTelegraph', 'playerDied', 'boltCast', 'boltImpact', 'boltEnd', 'drinkStart', 'drinkHeal', 'pickup', 'sealRejected']);
+    assert.deepEqual(triggers, ['slash', 'slashFinisher', 'hitLanded', 'playerHurt', 'dashStart', 'enemyDied', 'enemyTelegraph', 'playerDied', 'boltCast', 'boltImpact', 'boltEnd', 'drinkStart', 'drinkHeal', 'pickup', 'sealRejected', 'bossWake', 'bossStrike', 'bossPhase', 'bossDefeated']);
 
     // ---- every trigger produces something, shows up on screen, and dies completely ----
     for (const t of triggers) {

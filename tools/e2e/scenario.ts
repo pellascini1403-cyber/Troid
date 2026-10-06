@@ -40,6 +40,8 @@ export interface GameState {
     hp: number; hits: number; anim: string; phase: string; phaseT: number; opacity: number;
   }>;
   /** 2D view only: the room, the world flags, each gate (open in the simulation, and how drawn: 1 closed → 0 gone) and the exits touched. */
+  /** 2D view only: the boss of the room, when one stands (S29). */
+  boss?: { id: string; def: string; state: string; ticks: number; x: number; y: number; facing: number; hp: number; maxHp: number; attack: string | null; enraged: boolean; marks: Array<{ x: number; w: number; t01: number }>; opacity: number } | null;
   /** 2D view only: how many objects each scene layer holds (rebuilding a room must not grow any of them). */
   scene?: Record<string, number>;
   room?: string;

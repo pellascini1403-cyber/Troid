@@ -33,8 +33,9 @@ export class InteractableViews {
     defs.forEach((def, i) => {
       const floats = def.kind === 'pickup';
       const shrine = def.kind === 'rest' ? drawShrine() : null;
-      // what the pickup IS decides what floats there: a bottle slot is a vial (the one the HUD shows), anything else a card
-      const gives = def.actions.some((a) => a.type === 'addBottleSlot') ? drawVial : drawCard;
+      // what the pickup IS decides what floats there: a bottle slot is a vial (the one the HUD shows), an ability a rune (the double chevron of the
+      // dash), anything else a card
+      const gives = def.actions.some((a) => a.type === 'addBottleSlot') ? drawVial : def.actions.some((a) => a.type === 'unlockAbility') ? drawRune : drawCard;
       const root = shrine ? shrine.root : floats ? gives() : drawPost();
       root.position.set(def.x, viewY(def.y + (floats ? 0.85 : 0)));
       root.label = `interactable:${def.id}`;
@@ -96,6 +97,17 @@ function drawVial(): Container {
     .stroke({ width: 0.035, color: PALETTE.energyCore, alpha: 0.95 });
   body.poly([-0.17, 0.03, 0.17, 0.03, 0.17, 0.17, 0.12, 0.26, -0.12, 0.26, -0.17, 0.17]).fill({ color: PALETTE.energyCore, alpha: 0.85 });
   body.rect(-0.075, -0.33, 0.15, 0.06).fill({ color: PALETTE.whiteHot, alpha: 0.95 });
+  root.addChild(glow, body);
+  return root;
+}
+
+/** A floating rune, the sign of an ability: a diamond of light with two chevrons in it, like the dash it teaches, on a soft glow. */
+function drawRune(): Container {
+  const root = new Container();
+  const glow = new Graphics().circle(0, 0, 0.6).fill({ color: PALETTE.energyGlow, alpha: 0.16 });
+  const body = new Graphics();
+  body.poly([0, -0.42, 0.34, 0, 0, 0.42, -0.34, 0]).fill({ color: PALETTE.energyMid, alpha: 0.4 }).stroke({ width: 0.04, color: PALETTE.energyCore, alpha: 0.95 });
+  for (const dx of [-0.1, 0.08]) body.poly([dx - 0.1, -0.16, dx + 0.07, 0, dx - 0.1, 0.16]).stroke({ width: 0.05, color: PALETTE.whiteHot, alpha: 0.95 });
   root.addChild(glow, body);
   return root;
 }

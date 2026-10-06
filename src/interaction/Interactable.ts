@@ -19,6 +19,8 @@ export type InteractAction =
   | { type: 'acquireCard'; cardId: string }
   /** The player gets one more bottle slot (the fourth is a reward). */
   | { type: 'addBottleSlot'; bottleId: string }
+  /** The player learns an ability (the reward of the boss: the Air Dash). Abilities are saved with the game. */
+  | { type: 'unlockAbility'; abilityId: string }
   | { type: 'setFlag'; flag: string }
   | { type: 'clearFlag'; flag: string }
   /** Rest here: this room's entry `entry` becomes where the hero comes back after a defeat; life, magic and bottles are restored and the game is saved. */

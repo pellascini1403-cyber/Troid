@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ENEMIES, PLAYER, ROOMS, START, WORLD } from '@/content';
+import { ABILITIES, BOSSES, ENEMIES, PLAYER, ROOMS, START, WORLD } from '@/content';
+import { INK_WARDEN } from '@/content/enemies';
 import { BOTTLE_DEFINITIONS, BOTTLES, CARDS } from '@/content/resources';
 import { SKILLS, SPIRIT_BOLT } from '@/content/skills';
 import { CATALOGS } from '@/i18n';
@@ -36,7 +37,7 @@ describe('the world as shipped', () => {
   });
 
   it('every room validates on its own with the flags the rest of the world hands out', () => {
-    const refs = { enemies: ENEMIES, player, cards: new Set(Object.keys(CARDS)), bottles: new Set(Object.keys(BOTTLE_DEFINITIONS)), externalFlags: worldGrantedFlags(WORLD, ROOMS) };
+    const refs = { enemies: ENEMIES, bosses: BOSSES, abilities: new Set(ABILITIES.map((a) => a.id)), player, cards: new Set(Object.keys(CARDS)), bottles: new Set(Object.keys(BOTTLE_DEFINITIONS)), externalFlags: worldGrantedFlags(WORLD, ROOMS) };
     for (const id of WORLD.rooms) expect(validateRoom(ROOMS[id]!, refs), id).toEqual([]);
   });
 
@@ -291,5 +292,98 @@ describe('the Spirit Bolt and its seal (S28)', () => {
     const stuck = analyzeProgression(buildWorldGraph(WORLD, noCard as typeof ROOMS), noCard as typeof ROOMS);
     expect(stuck.unreachable).toEqual(['r4_sanctum']);
     expect(validateWorld(WORLD, noCard as typeof ROOMS, { player }).map((i) => i.code)).toEqual(expect.arrayContaining(['room-unreachable']));
+  });
+});
+
+describe('the Ink Warden and its arena (S29)', () => {
+  const R4 = ROOMS.r4_sanctum!;
+  const boss = R4.bosses![0]!;
+  const W = INK_WARDEN;
+  const solid = (id: string) => R4.solids.find((x) => x.id === id)!.rect;
+
+  it('there is one boss in the world and it is in R4: the guardian of the sanctum, standing on the floor inside its arena', () => {
+    const found = WORLD.rooms.flatMap((id) => (ROOMS[id]!.bosses ?? []).map((b) => `${id}/${b.id}`));
+    expect(found).toEqual(['r4_sanctum/warden']);
+    expect(BOSSES[boss.guardian]).toBe(W);
+    expect(boss.x).toBeGreaterThan(boss.arena.x0);
+    expect(boss.x).toBeLessThan(boss.arena.x1);
+    expect(boss.y).toBe(solid('g').y1);
+  });
+
+  it('the arena is wide enough to fight in (the charge runs 8 m: at least three of those), and the Warden has the room to charge either way from where it waits', () => {
+    const width = boss.arena.x1 - boss.arena.x0;
+    expect(width).toBeGreaterThanOrEqual(36);
+    const slide = (W.params.charge.speed * W.params.charge.ticks) / 60;
+    expect(width).toBeGreaterThanOrEqual(slide * 3);
+    expect(boss.x - boss.arena.x0, 'room to its west').toBeGreaterThan(slide);
+  });
+
+  it('both doors of the arena shut with the fight flag the boss raises, flank the arena, are taller than any jump and are open the rest of the time', () => {
+    const gates = R4.gates!;
+    expect(gates.map((g) => [g.id, g.closeWhen, g.openWhen])).toEqual([['arena_door_w', boss.fightFlag, undefined], ['arena_door_e', boss.fightFlag, undefined]]);
+    const west = solid('door_w');
+    const east = solid('door_e');
+    expect(west.x1).toBeLessThanOrEqual(boss.arena.x0);
+    expect(east.x0).toBeGreaterThanOrEqual(boss.arena.x1);
+    for (const door of [west, east]) expect(door.y1 - door.y0, 'no jump clears it').toBeGreaterThan(3.1 + 1.7);
+    expect(boss.fightFlag.startsWith('~'), 'volatile: no save keeps it').toBe(true);
+  });
+
+  it('the hero is never in the arena by arriving or resting: both entries and the shrine are in the vestibule, west of the west door', () => {
+    for (const e of R4.entries) expect(e.x, e.id).toBeLessThan(solid('door_w').x0);
+    const shrine = R4.interactables!.find((i) => i.kind === 'rest')!;
+    expect(shrine.x).toBeLessThan(solid('door_w').x0);
+    expect(R4.exits!.find((x) => x.id === 'west')!.rect.x1).toBeLessThan(solid('door_w').x0);
+  });
+
+  it('what waits for the Warden: the way out of the world, the reward (it is not there before), and the camera, which lets go of the arena', () => {
+    expect(R4.exits!.find((x) => x.id === 'east')).toMatchObject({ end: true, requires: boss.defeatFlag });
+    const reward = R4.interactables!.find((i) => i.id === 'reward_air_dash')!;
+    expect(reward.whenSet).toBe(boss.defeatFlag);
+    expect(reward.x, 'in the chamber beyond the east door').toBeGreaterThan(solid('door_e').x1);
+    expect(R4.camera!.zones![0]!.whenClear).toBe(boss.defeatFlag);
+  });
+
+  it('the reward is the Air Dash: an ability that exists and does something, taken once with a flag of its own', () => {
+    const reward = R4.interactables!.find((i) => i.id === 'reward_air_dash')!;
+    const learn = reward.actions.find((a) => a.type === 'unlockAbility') as { abilityId: string };
+    expect(ABILITIES.find((a) => a.id === learn.abilityId)).toMatchObject({ id: 'air_dash', implemented: true });
+    const flags = reward.actions.filter((a) => a.type === 'setFlag').map((a) => (a as { flag: string }).flag);
+    expect(flags).toEqual(['taken:air_dash']);
+    expect(reward.whenClear).toBe(flags[0]);
+  });
+
+  it('the boss is original and abstract: a violet-crested column with two attacks announced by a telegraph of at least half a second — nothing here is another game\'s', () => {
+    expect(W.nameKey).toBe('enemy.warden.name');
+    expect(W.attacks.charge.startup, 'readable').toBeGreaterThanOrEqual(30);
+    expect(W.attacks.rain.startup, 'readable').toBeGreaterThanOrEqual(30);
+    expect(W.attacks.charge.startup * W.enrageScale, 'and still readable when enraged').toBeGreaterThanOrEqual(20);
+    for (const a of Object.values(W.attacks)) {
+      expect(a.recovery, `${a.id} leaves an opening`).toBeGreaterThanOrEqual(40);
+      expect(a.knockback.x + a.knockback.y).toBeGreaterThan(0);
+    }
+    expect(W.health).toBeGreaterThanOrEqual(20);
+    expect(W.hurtboxes[0]!.part).toBe('crest');
+  });
+
+  it('the Warden has a name in every language', () => {
+    for (const [lang, catalog] of Object.entries(CATALOGS)) expect(catalog[W.nameKey], lang).toBeTruthy();
+  });
+
+  it('on paper: reaching R4 is enough to beat it, and then the end of the world opens; the world is whole with the boss in it', () => {
+    const p = analyzeProgression(graph, ROOMS);
+    expect(p.flags.has('defeated:r4_boss')).toBe(true);
+    expect(p.flags.has('taken:air_dash')).toBe(true);
+    expect(validateWorld(WORLD, ROOMS, { player })).toEqual([]);
+  });
+
+  it('take the Warden out of R4 and the way out of the world cannot open: the validator says it waits for a flag nothing sets', () => {
+    const noBoss = { ...ROOMS, r4_sanctum: { ...R4, bosses: [] } } as typeof ROOMS;
+    const p = analyzeProgression(buildWorldGraph(WORLD, noBoss), noBoss);
+    expect(p.flags.has('defeated:r4_boss')).toBe(false);
+    expect(p.flags.has('taken:air_dash'), 'and the reward behind it').toBe(false);
+    const issues = validateWorld(WORLD, noBoss, { player });
+    expect(issues.map((i) => i.code)).toContain('flag-ungranted');
+    expect(issues.find((i) => i.code === 'flag-ungranted')!.message).toContain('defeated:r4_boss');
   });
 });

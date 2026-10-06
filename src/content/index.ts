@@ -1,6 +1,6 @@
 import type { RoomDefinition } from '@/world/RoomDefinition';
 import { ABILITIES } from './abilities';
-import { ENEMIES } from './enemies';
+import { BOSSES, ENEMIES } from './enemies';
 import { PLAYER } from './player';
 import { PROCEDURAL_LOOKS } from './proceduralActors';
 import { CROUCH_TEST_ROOM } from './rooms/crouchTest';
@@ -31,4 +31,4 @@ export const ROOMS: Readonly<Record<string, RoomDefinition>> = {
  */
 export const START = { room: WORLD.start.room, entry: WORLD.start.entry, unlocked: ['dash'] as readonly string[] } as const;
 
-export { ABILITIES, ENEMIES, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, SPRITE_SETS, WORLD };
+export { ABILITIES, BOSSES, ENEMIES, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, SPRITE_SETS, WORLD };

@@ -124,6 +124,14 @@ describe('the arena of R4', () => {
     expect(at(95)).toBeNull();
   });
 
+  it('it holds until the Warden falls: once `defeated:r4_boss` is set the camera is free in the arena too', () => {
+    const flags = { has: (f: string) => f === 'defeated:r4_boss' };
+    expect(arena.whenClear).toBe('defeated:r4_boss');
+    expect(resolveCameraView(r4, noFlags, 40, 0).zone).toBe('arena');
+    expect(resolveCameraView(r4, flags, 40, 0).zone).toBeNull();
+    expect(resolveCameraView(r4, flags, 40, 0).bounds).toBe(roomLimits(r4));
+  });
+
   it('every other room has no zone yet', () => {
     for (const id of ['r1_gate', 'r2_hall', 'r3_chamber']) expect(ROOMS[id]!.camera?.zones ?? [], id).toEqual([]);
   });
