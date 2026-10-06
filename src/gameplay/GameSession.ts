@@ -364,6 +364,12 @@ export class GameSession implements SimServices {
     l.attackPressed ||= i.attackPressed;
     l.dashPressed ||= i.dashPressed;
     l.abilityPressed ||= i.abilityPressed;
+    if (i.bottlePressed) {
+      l.bottlePressed = true;
+      l.bottleSlot = i.bottleSlot;
+    }
+    l.interactPressed ||= i.interactPressed;
+    l.dropPressed ||= i.dropPressed;
     l.pausePressed ||= i.pausePressed;
     this.latched = true;
   }
@@ -384,8 +390,14 @@ export class GameSession implements SimServices {
     m.attackPressed = i.attackPressed || l.attackPressed;
     m.dashPressed = i.dashPressed || l.dashPressed;
     m.abilityPressed = i.abilityPressed || l.abilityPressed;
+    m.bottlePressed = i.bottlePressed || l.bottlePressed;
+    m.bottleSlot = i.bottlePressed ? i.bottleSlot : l.bottlePressed ? l.bottleSlot : -1;
+    m.interactPressed = i.interactPressed || l.interactPressed;
+    m.dropPressed = i.dropPressed || l.dropPressed;
     m.pausePressed = i.pausePressed || l.pausePressed;
     l.jumpPressed = l.jumpReleased = l.attackPressed = l.dashPressed = l.abilityPressed = l.pausePressed = false;
+    l.bottlePressed = l.interactPressed = l.dropPressed = false;
+    l.bottleSlot = -1;
     this.latched = false;
     return m;
   }

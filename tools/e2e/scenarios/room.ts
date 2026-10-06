@@ -24,9 +24,8 @@ const R1 = ROOMS.r1_gate!;
 const CROUCH = [[60.5, 77.4]] as const;
 
 function fresh(): Driver {
-  const d = driver({ room: R1, unlocked: ['dash'] });
-  d.keyboardLike = true; // a keyboard cannot press (1, −1): the browser will clamp right + down to the unit circle, so the recording must too
-  return d;
+  // right + down is (1, −1) in the recording AND in the browser: digital sources do not normalise (the axis contract of InputFrame)
+  return driver({ room: R1, unlocked: ['dash'] });
 }
 function letGo(d: Driver): void {
   d.release('jump');

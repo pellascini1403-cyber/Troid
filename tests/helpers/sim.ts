@@ -9,7 +9,9 @@ import { log } from '@/core/log';
 
 log.setSink(() => {}); // the simulation logs warnings by design (fallbacks, unknown ids); keep test output readable
 
-export type Button = 'jump' | 'attack' | 'dash' | 'ability';
+export type Button = 'jump' | 'attack' | 'dash' | 'ability' | 'bottle' | 'interact' | 'drop';
+const BUTTONS: readonly Button[] = ['jump', 'attack', 'dash', 'ability', 'bottle', 'interact', 'drop'];
+const idle = (): Record<Button, boolean> => ({ jump: false, attack: false, dash: false, ability: false, bottle: false, interact: false, drop: false });
 
 export interface MakeOptions {
   room?: RoomDefinition;
@@ -45,19 +47,14 @@ export function makeSession(opts: MakeOptions = {}): GameSession {
 export class Driver {
   moveX = 0;
   moveY = 0;
-  private held: Record<Button, boolean> = { jump: false, attack: false, dash: false, ability: false };
-  private pressed: Record<Button, boolean> = { jump: false, attack: false, dash: false, ability: false };
-  private released: Record<Button, boolean> = { jump: false, attack: false, dash: false, ability: false };
+  /** Which bottle `bottle` drinks: −1 = the next one that is ready (what the key and the contextual chip do), 0.. = a HUD icon. */
+  bottleSlot = -1;
+  private held = idle();
+  private pressed = idle();
+  private released = idle();
   private readonly frame: InputFrame = createInputFrame();
   /** Sees every frame just before the session does: how a playthrough is RECORDED (tools/e2e replays it in a browser). */
   onFrame: ((frame: Readonly<InputFrame>) => void) | null = null;
-  /**
-   * Make the frames exactly what a KEYBOARD produces: `InputManager` clamps the stick to the unit circle, so holding right and
-   * down together is (0.707, −0.707), not (1, −1). Off by default (the movement and crouch tests were written against raw
-   * axes); on for the recordings that a browser replays with real key presses.
-   */
-  keyboardLike = false;
-
   constructor(readonly session: GameSession) {}
 
   get p() {
@@ -101,15 +98,10 @@ export class Driver {
   step(n = 1): this {
     for (let i = 0; i < n; i++) {
       const f = this.frame;
+      // The axes go straight through: a keyboard holding right and down gives (1, −1) exactly like this does
+      // (the axis contract of `InputFrame`: digital sources are independent per axis, there is no normalisation to imitate).
       f.move.x = this.moveX;
       f.move.y = this.moveY;
-      if (this.keyboardLike) {
-        const len = Math.hypot(f.move.x, f.move.y);
-        if (len > 1) {
-          f.move.x /= len;
-          f.move.y /= len;
-        }
-      }
       f.jumpPressed = this.pressed.jump;
       f.jumpHeld = this.held.jump;
       f.jumpReleased = this.released.jump;
@@ -119,10 +111,14 @@ export class Driver {
       f.dashHeld = this.held.dash;
       f.abilityPressed = this.pressed.ability;
       f.abilityHeld = this.held.ability;
+      f.bottlePressed = this.pressed.bottle;
+      f.bottleSlot = this.pressed.bottle ? this.bottleSlot : -1;
+      f.interactPressed = this.pressed.interact;
+      f.dropPressed = this.pressed.drop;
       f.pausePressed = false;
       this.onFrame?.(f);
       this.session.tick(f);
-      for (const k of Object.keys(this.pressed) as Button[]) {
+      for (const k of BUTTONS) {
         this.pressed[k] = false;
         this.released[k] = false;
       }

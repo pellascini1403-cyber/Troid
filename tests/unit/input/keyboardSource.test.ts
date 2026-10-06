@@ -51,7 +51,7 @@ describe('keyboard + mouse source', () => {
   it('suppresses the browser default for bound keys (Space must not scroll the page) and ignores others', () => {
     expect(key('keydown', 'Space').defaultPrevented).toBe(true);
     expect(key('keydown', 'F5').defaultPrevented).toBe(false);
-    expect(key('keydown', 'KeyQ').defaultPrevented).toBe(false);
+    expect(key('keydown', 'KeyV').defaultPrevented).toBe(false); // (was KeyQ: Q drinks a bottle since S13, GAME-SPEC-2D §4.2)
   });
 
   it('mouse 1 attacks and mouse 2 uses the ability; the context menu is blocked over the game', () => {

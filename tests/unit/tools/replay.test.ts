@@ -15,9 +15,7 @@ const CROUCH = [[60.5, 77.4]] as const;
 const KEY_TO_BUTTON: Record<string, Button> = { Space: 'jump', KeyJ: 'attack', ShiftLeft: 'dash' };
 
 function fresh(): Driver {
-  const d = driver({ room: R1, unlocked: ['dash'] });
-  d.keyboardLike = true;
-  return d;
+  return driver({ room: R1, unlocked: ['dash'] });
 }
 
 /** A browser stand-in: keys held → a second Driver's inputs; `evaluate` runs the digest source against its session. */

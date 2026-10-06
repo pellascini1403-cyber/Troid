@@ -37,6 +37,7 @@ export class PlayerController {
   // timers, all in simulation ticks
   private coyote = 0;
   private jumpBuffer = 0;
+  private dropBuffer = 0;
   private dashBuffer = 0;
   private dashCooldown = 0;
   private dashTicksLeft = 0;
@@ -125,7 +126,7 @@ export class PlayerController {
 
   /** Clears transient state (respawn, room change, debug teleport). Permanent progression is untouched. */
   reset(): void {
-    this.coyote = this.jumpBuffer = this.dashBuffer = this.dashCooldown = this.dashTicksLeft = 0;
+    this.coyote = this.jumpBuffer = this.dropBuffer = this.dashBuffer = this.dashCooldown = this.dashTicksLeft = 0;
     this.dropThrough = this.jumpHeldTicks = this.airDashesUsed = this.invulnerable = this.landTicks = 0;
     this.hurtInvuln = this.flashTicks = this.hurtTicks = 0;
     this.jumping = this.jumpCut = false;
@@ -142,6 +143,8 @@ export class PlayerController {
     const t = this.tuning;
     if (this.input.jumpPressed) this.jumpBuffer = secondsToTicks(t.jumpBuffer);
     else if (this.jumpBuffer > 0) this.jumpBuffer--;
+    if (this.input.dropPressed) this.dropBuffer = secondsToTicks(t.dropBuffer);
+    else if (this.dropBuffer > 0) this.dropBuffer--;
     if (this.input.dashPressed) this.dashBuffer = secondsToTicks(t.dash.buffer);
     else if (this.dashBuffer > 0) this.dashBuffer--;
     if (this.dashCooldown > 0) this.dashCooldown--;
@@ -174,19 +177,20 @@ export class PlayerController {
       this.coyote--;
     }
 
-    // ---- jump (buffered, with coyote time; down+jump drops through one-way platforms) ----
-    if (this.jumpBuffer > 0) {
-      if (grounded && inp.move.y < -0.6 && b.ground?.kind === 'oneway') {
-        this.dropThrough = 10;
-        this.jumpBuffer = 0;
-        this.coyote = 0;
-        b.grounded = false;
-        b.ground = null;
-      } else if ((grounded || this.coyote > 0) && this.canLeaveCrouch()) {
-        // from a crouch the body stands up first; without room there is no jump (the press expires with its buffer)
-        this.setCrouched(false);
-        this.startJump(grounded);
-      }
+    // ---- jump (buffered, with coyote time) and drop (down + jump, or the flick down of the touch controls: only ever
+    // through a one-way platform; on anything else the drop press is ignored and expires with its buffer) ----
+    const dropRequested = this.dropBuffer > 0 || (this.jumpBuffer > 0 && inp.move.y < -0.6);
+    if (dropRequested && grounded && b.ground?.kind === 'oneway') {
+      this.dropThrough = 10;
+      this.jumpBuffer = 0;
+      this.dropBuffer = 0;
+      this.coyote = 0;
+      b.grounded = false;
+      b.ground = null;
+    } else if (this.jumpBuffer > 0 && (grounded || this.coyote > 0) && this.canLeaveCrouch()) {
+      // from a crouch the body stands up first; without room there is no jump (the press expires with its buffer)
+      this.setCrouched(false);
+      this.startJump(grounded);
     }
 
     // ---- variable jump height: releasing the button while rising cuts the jump ----
