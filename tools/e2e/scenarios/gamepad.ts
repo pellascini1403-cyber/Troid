@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import type { Scenario } from '../scenario';
+import { frames } from '../frames';
 
 /**
  * The gamepad in the browser through the ABSTRACT pad of the test hook (`__troid.pad`, no physical device): the stick with
  * its radial dead zone, the buttons mapped to logical actions, the D-pad, dropping through a one-way platform with down + A,
- * unplugging mid-run, and the keyboard still playing afterwards. Same simulation, same rules, a different device.
+ * unplugging mid-run, and the keyboard still playing afterwards; and, on top of that, the player systems of Prompt 5 through the same pad:
+ * LT interacts (and the icon says "LT"), Y casts the Spirit Bolt, LB drinks a bottle, Start opens and closes the pause menu. Same
+ * simulation, same rules, a different device.
  */
 export const gamepad: Scenario = {
   name: 'gamepad',
@@ -12,7 +15,7 @@ export const gamepad: Scenario = {
     await ctx.open('room=movement_test&unlock=dash');
     const { page } = ctx;
     /** The pad's own terms: the stick's +y is DOWN; `pressed` are standard-mapping button indices (A 0, B 1, X 2, Y 3, D-pad down 13…). */
-    const pad = (x: number, y: number, pressed: number[] = []): Promise<unknown> => page.evaluate(`window.__troid.pad.set(${x}, ${y}, ${JSON.stringify(pressed)})`);
+    const pad = (x: number, y: number, pressed: number[] = []): Promise<unknown> => ctx.page.evaluate(`window.__troid.pad.set(${x}, ${y}, ${JSON.stringify(pressed)})`);
 
     await ctx.teleport(95, 0); // the clear stretch of floor of the playground
     await ctx.step(30);
@@ -120,5 +123,67 @@ export const gamepad: Scenario = {
     assert.equal(s.device, 'keyboard', 'and the device is the keyboard again');
     await page.keyboard.up('KeyD');
     await ctx.step(30);
+
+    // ================================================================== the player systems on the pad: Interact (LT), Ability (Y), Bottle (LB), Start
+    await ctx.open('room=interaction_test&unlock=dash', { width: 844, height: 390 });
+    const p2 = ctx.page;
+    await ctx.teleport(11, 0); // 1 m from the card
+    await ctx.step(3);
+    await pad(0.6, 0); // touch the pad: from now on it is the device in use (a tilt that moves the hero a few centimetres)
+    await ctx.step(2);
+    await pad(0, 0);
+    await ctx.step(20);
+    s = await ctx.state();
+    assert.equal(s.device, 'gamepad');
+    await frames(p2, 6);
+    assert.equal(await p2.locator('[data-testid="prompt-hit"]').getAttribute('data-object'), 'card_spirit_bolt', 'the icon is over the card');
+    assert.equal((await p2.locator('[data-testid="prompt-glyph"]').textContent()) ?? '', 'LT', 'and it names the button of the pad in use');
+    await pad(0, 0, [6]); // LT
+    await ctx.step(1);
+    await pad(0, 0);
+    s = await ctx.state();
+    assert.equal(s.state, 'interact', 'LT interacts');
+    assert.equal(s.card, 'card_spirit_bolt', 'and the card is his');
+    await ctx.step(14);
+    await pad(0, 0, [3]); // Y
+    await ctx.step(1);
+    await pad(0, 0);
+    await ctx.step(8);
+    s = await ctx.state();
+    assert.equal(s.magic, 70, 'Y casts the Spirit Bolt with the card just taken');
+    await ctx.step(60);
+    await p2.evaluate('window.__troid.strikePlayer(1)');
+    await ctx.step(40);
+    assert.ok((await ctx.state()).health! < 5, 'hurt');
+    await pad(0, 0, [4]); // LB
+    await ctx.step(1);
+    await pad(0, 0);
+    assert.equal((await ctx.state()).state, 'drink', 'LB drinks a bottle');
+    await ctx.step(26);
+    s = await ctx.state();
+    assert.equal(s.health, 5, 'and it heals');
+    assert.deepEqual(s.bottles, ['recharging', 'ready', 'ready']);
+    await ctx.shot('02-pad-systems');
+
+    // Start opens the pause menu and Start closes it (the menu is code that is only downloaded when asked for: wait for it in real time)
+    const menuIs = async (open: '0' | '1'): Promise<void> => {
+      for (let i = 0; i < 80; i++) {
+        if ((await p2.locator('[data-testid="settings-menu"]').getAttribute('data-open').catch(() => null)) === open) return;
+        await p2.waitForTimeout(50);
+      }
+      assert.equal(await p2.locator('[data-testid="settings-menu"]').getAttribute('data-open').catch(() => null), open, `the menu is ${open === '1' ? 'open' : 'closed'}`);
+    };
+    await p2.evaluate('window.__troid.resume()'); // the loop must run for a real-time press to be seen
+    await pad(0, 0, [9]);
+    await p2.waitForTimeout(150);
+    await pad(0, 0);
+    await menuIs('1');
+    const frozen = (await ctx.state()).now;
+    await p2.waitForTimeout(300);
+    assert.equal((await ctx.state()).now, frozen, 'Start paused the game');
+    await pad(0, 0, [9]);
+    await p2.waitForTimeout(150);
+    await pad(0, 0);
+    await menuIs('0');
   },
 };

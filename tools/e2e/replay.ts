@@ -7,8 +7,10 @@ import type { Ctx, GameState } from './scenario';
  * digest of the whole simulation state every few ticks. If the browser's input path (keyboard → InputManager → InputFrame →
  * GameSession) or anything between differs from the Node simulation by a single bit, the replay says at which tick.
  *
- * What a person's hands do is the HELD state of six keys; the browser derives the press and release edges from the changes,
- * exactly as the `Driver` derives them, so a run of identical held states is one set of key events and one `step(n)`.
+ * What a person's hands do is the HELD state of nine keys; the browser derives the press and release edges from the changes,
+ * exactly as the `Driver` derives them, so a run of identical held states is one set of key events and one `step(n)`. The three
+ * keys that are only ever PRESSED (a bottle, Interact — they have no "held" in an `InputFrame`) are held for exactly the tick
+ * of their press.
  */
 export interface Held {
   right: boolean;
@@ -17,7 +19,12 @@ export interface Held {
   jump: boolean;
   attack: boolean;
   dash: boolean;
+  ability: boolean;
+  bottle: boolean;
+  interact: boolean;
 }
+
+export const NO_KEYS: Readonly<Held> = { right: false, left: false, down: false, jump: false, attack: false, dash: false, ability: false, bottle: false, interact: false };
 
 export interface Recording {
   /** Runs of identical held states, in order. */
@@ -31,10 +38,15 @@ export const DIGEST_EVERY = 50;
 
 /** The held state a frame stands for. */
 export function heldOf(f: Readonly<InputFrame>): Held {
-  return { right: f.move.x > 0.5, left: f.move.x < -0.5, down: f.move.y < -0.5, jump: f.jumpHeld, attack: f.attackHeld, dash: f.dashHeld };
+  return {
+    right: f.move.x > 0.5, left: f.move.x < -0.5, down: f.move.y < -0.5, jump: f.jumpHeld, attack: f.attackHeld, dash: f.dashHeld,
+    ability: f.abilityHeld, bottle: f.bottlePressed, interact: f.interactPressed,
+  };
 }
 
-const KEYS: Readonly<Record<keyof Held, string>> = { right: 'KeyD', left: 'KeyA', down: 'KeyS', jump: 'Space', attack: 'KeyJ', dash: 'ShiftLeft' };
+const KEYS: Readonly<Record<keyof Held, string>> = {
+  right: 'KeyD', left: 'KeyA', down: 'KeyS', jump: 'Space', attack: 'KeyJ', dash: 'ShiftLeft', ability: 'KeyK', bottle: 'KeyL', interact: 'KeyE',
+};
 
 /**
  * One line that says everything the simulation knows that matters: where the hero is, how it is, what it is doing, the world
@@ -53,8 +65,14 @@ export const DIGEST_SRC = `
     'e' + [...s.exitsReached].join('+'),
     'r' + s.rng.state,
     'd' + s.death.phase,
+    // the player's resources and what they hold: the magic, each bottle (state and progress), the card, the object with the icon
+    'm' + s.magic.current.toFixed(6),
+    'b' + s.bottles.slots.map((x) => x.state[0] + x.progress).join(','),
+    'c' + (s.loadout.equipped ? s.loadout.equipped.id : '-'),
+    'a' + (s.interaction.current ? s.interaction.current.id : '-'),
   ];
   for (const e of s.entities) if (e.kind === 'enemy') parts.push('n' + e.state + ':' + f(e.body.x) + ',' + f(e.body.y) + ':' + e.health.current);
+  for (const e of s.entities) if (e.kind === 'projectile') parts.push('j' + f(e.x) + ',' + f(e.y));
   return parts.join('|');
 `;
 export const digestOf = new Function('s', DIGEST_SRC) as (session: unknown) => string;
@@ -70,7 +88,7 @@ export function record(driver: Recordable, play: () => void): Recording {
   const runs: Recording['runs'] = [];
   const digests: Recording['digests'] = [];
   let total = 0;
-  const same = (a: Held, b: Held): boolean => a.right === b.right && a.left === b.left && a.down === b.down && a.jump === b.jump && a.attack === b.attack && a.dash === b.dash;
+  const same = (a: Held, b: Held): boolean => (Object.keys(NO_KEYS) as Array<keyof Held>).every((k) => a[k] === b[k]);
   driver.onFrame = (f) => {
     // the state now is the state after `total` ticks
     if (total > 0 && total % DIGEST_EVERY === 0) digests.push({ tick: total, digest: digestOf(driver.session) });
@@ -131,5 +149,5 @@ export async function replay(ctx: Ctx, rec: Recording, opts: ReplayOptions = {})
       if (opts.observe) await opts.observe(await ctx.state(), tick);
     }
   }
-  await hold({ right: false, left: false, down: false, jump: false, attack: false, dash: false });
+  await hold(NO_KEYS);
 }

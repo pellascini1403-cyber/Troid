@@ -5,10 +5,11 @@ import { countPixels, decodePng, isCyanLight } from '../png';
 import { centreOf, TouchScreen } from '../touch';
 
 /**
- * Magic and the Spirit Bolt in the browser (docs/PROMPT5-LOG.md S15, GAME-SPEC-2D §10.1), with REAL keyboard, an abstract gamepad
- * and real touches: no card = no Ability; with the card, a cast costs exactly 30 at the release (6 ticks of preparation), the
- * bolt flies 16 m/s over 12 m, hits for 2 and does not pierce; the magic regenerates 6/s after a second and never while casting;
- * a refused cast (below 30) shakes the bar and the card; the bolt is cyan with a white core.
+ * The Spirit Bolt in the browser (docs/PROMPT5-LOG.md S15, GAME-SPEC-2D §10.1), with REAL keyboard, an abstract gamepad and real touches:
+ * no card = no Ability; with the card, a cast costs exactly 30 at the release (6 ticks of preparation), the bolt flies 16 m/s over
+ * 12 m, hits for 2 and does not pierce, and it is cyan with a white core; the same Ability answers to the Y button and to the Ability
+ * button of the touch layer, and goes away with the card. (The bar it spends from — gradual regeneration, refusal, the ends — is the
+ * `magic` scenario.)
  */
 const sess = (page: Page, code: string): Promise<unknown> => page.evaluate(`(() => { const s = window.__troid.session; ${code} })()`);
 const style = (page: Page, id: string, prop: string): Promise<string> => page.locator(`[data-testid="${id}"]`).evaluate((el, p) => (el as HTMLElement).style.getPropertyValue(p), prop);
@@ -73,50 +74,16 @@ export const bolt: Scenario = {
     await ctx.step(60);
     assert.equal((await ctx.state()).projectiles?.length, 0, 'it fizzles out after 12 m');
 
-    // ================================================================== the magic: 1 s of delay (counted from the end of the cast), then 6 per second
-    s = await ctx.state();
-    assert.ok(s.magic! > 70 && s.magic! < 72.5, `78 ticks after the release the delay has just run out (${s.magic})`);
-    const m0 = s.magic!;
-    await ctx.step(60);
-    assert.ok(Math.abs((await ctx.state()).magic! - (m0 + 6)) < 0.15, 'six units per second');
-    await sess(page, 's.magic.restore();');
-    await ctx.step(1);
-    // ...and not a unit of it during the cast and the second after it: cast again from exactly 70 and look 50 ticks after the cast
-    await sess(page, 's.magic.set(70); s.skills.reset();');
+    // ================================================================== a refused cast spends nothing and throws no bolt
+    await sess(page, 's.magic.set(10); s.skills.reset();');
+    await ctx.step(2);
     await page.keyboard.down('KeyK');
     await ctx.step(1);
     await page.keyboard.up('KeyK');
-    await ctx.step(14 + 50); // the cast (14 ticks) and 50 ticks of the second after it
-    assert.equal((await ctx.state()).magic, 40, 'no regeneration while casting and for a second after it (70 − 30 = 40)');
-    await sess(page, 's.magic.restore();');
-    await ctx.step(40);
-
-    // ================================================================== three in a row, the fourth is refused
-    for (let i = 0; i < 3; i++) {
-      await page.keyboard.down('KeyK');
-      await ctx.step(1);
-      await page.keyboard.up('KeyK');
-      await ctx.step(40);
-    }
-    s = await ctx.state();
-    assert.equal(s.magic, 10, 'three casts from a full bar leave 10');
-    await page.keyboard.down('KeyK');
-    await ctx.step(1);
-    await page.keyboard.up('KeyK');
-    // the refusal shakes the bar and the card (real time: the page keeps rendering while the simulation is paused)
-    let shook = false;
-    for (let i = 0; i < 12 && !shook; i++) {
-      await page.waitForTimeout(25);
-      const t1 = await style(page, 'hud-magic', 'transform');
-      const t2 = await style(page, 'hud-card', 'transform');
-      shook = t1.includes('translateX') || t2.includes('translateX');
-    }
-    assert.ok(shook, 'a refused cast shakes the magic bar and the card');
     await ctx.step(30);
     s = await ctx.state();
-    assert.equal(s.projectiles?.length, 0, 'no bolt was cast');
-    assert.ok(s.magic! < 12, `and no magic was spent (${s.magic})`);
-    assert.equal(await page.locator('[data-testid="hud-card"]').getAttribute('data-state'), 'noMagic', 'the card is dimmed');
+    assert.equal(s.projectiles?.length, 0, 'below 30 no bolt is cast');
+    assert.ok(s.magic! >= 10 && s.magic! < 14, `and no magic was spent: it only kept coming back from 10 (${s.magic})`);
     await ctx.shot('02-refused');
     await sess(page, 's.magic.restore();');
     await ctx.step(40);

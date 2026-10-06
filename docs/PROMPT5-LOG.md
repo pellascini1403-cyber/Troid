@@ -15,7 +15,7 @@
 | **S16** cartas y botellas | ✅ | (ver historial) |
 | **S17** interacción contextual | ✅ | (ver historial) |
 | **S18** idioma persistente y ajustes | ✅ | (ver historial) |
-| **S19** integración en R1 y E2E | ⏳ | |
+| **S19** integración en R1 y los 8 escenarios E2E | ✅ | (ver historial) |
 | **S20** validación final y documentación | ⏳ | |
 
 ---
@@ -407,3 +407,60 @@ E2E `language` (navegador real, teclado y almacenamiento reales): un visitante n
 
 Arranque en frío de R1: **197.8 KB gz** (196.3 → 197.8, +1.5 KB: guardado, selección de idioma, icono de pausa y 7 claves; el menú, 2.1 KB gz, es un *chunk* aparte). Margen frente a 200 KB: **2.2 KB**. **S19 y S20 no deben añadir código de ejecución**: son integración, E2E y documentación.
 
+---
+
+## S19 — Integración en R1 y los ocho escenarios E2E ✅
+
+Hasta aquí cada sistema se demostró **por separado**. S19 demuestra que funcionan **juntos** en la primera sala de la vertical slice, con el mismo código de producción y **sin añadir una sola línea de ejecución** (solo tests y herramientas; el *bundle* no cambia).
+
+### 1. R1 completa: teclado bit a bit y táctil con dedos reales
+
+- **Dos recorridos guionizados**, una sola fuente (`tests/helpers/vertical.ts`): `playWin` (el túnel agachado → **recoger la carta interactuando** → dos *Spirit Bolt* → el slime golpea una vez → **una botella** → la puerta se abre → la salida) y `playDefeat` (la carta, una botella, y **gana el slime** → pantalla de derrota → reaparición). Lo mismo los afirma el test de Node y lo graba y reproduce el E2E, así que **lo que prueba uno y lo que juega el otro no pueden separarse**.
+- **`tests/integration/vertical.test.ts`** (15 tests, ~0.1 s, Node puro): empieza **sin carta**, con la barra llena, tres botellas y nada con icono · el icono aparece **antes** que la pulsación y la carta se recoge una sola vez (evento, bandera y habilidad) · **dos** lanzamientos de 30 y ninguno denegado · la puerta se abre después de los proyectiles y antes de la salida · una botella: se bebe una, cura **1** (solo faltaba 1) y se recarga mientras dos siguen llenas · no se muere ni se rechaza nada · **la derrota**: vuelve a la entrada con vida y magia llenas, **la carta sigue equipada** y su bandera recordada, **la botella no se rellena**, el slime está de vuelta a plena vida, la puerta cerrada y **la carta no vuelve a estar en el suelo del túnel** · **determinismo**: dos ejecuciones iguales dan las mismas pulsaciones y el mismo resumen de la simulación cada 50 ticks, para la victoria y para la derrota.
+- **E2E `vertical`**, dos mitades en Chromium:
+  1. **Teclado, bit a bit.** Las dos partidas se **graban en Node** y se **reproducen por el teclado real** del navegador, tick a tick, comparando cada 50 ticks un **resumen de toda la simulación** que ahora incluye lo nuevo: la **magia** (6 decimales), **cada botella** (estado y progreso), la **carta** equipada, el **objeto que tiene el icono** y los **proyectiles**. Si el navegador se desviara un solo bit, dice en qué tick. Mientras se reproduce comprueba lo que se ve: el icono sobre la carta con la **«E»** (y no pegado a un borde de la pantalla), la carta en el HUD **sin** icono, la barra en `scaleX(0.7)` tras el primer lanzamiento, el frasco que se bebe **brilla** (`data-drinking`). Al final: carta equipada, banderas `defeated:r1_slime` + `taken:card_spirit_bolt`, salida `east`, vida 5, botellas `recharging/ready/ready`. Tras la derrota: de vuelta en la entrada con vida y magia llenas, **la carta sigue, la botella no se ha rellenado, el slime ha vuelto, la puerta está cerrada**, y no hay icono donde estaba la carta.
+  2. **Táctil, con dedos reales** (CDP `TouchScreen`, reloj virtual): desde la boca del túnel, **un solo dedo** (derecha + abajo a la vez) lo cruza agachado · **un toque en el icono** recoge la carta (el icono no lleva tecla en táctil y mide ≥ 44 px) y **solo entonces aparece el botón Habilidad** · toques en **Habilidad** vencen al slime con dos *Spirit Bolt* y se abre la puerta · un golpe hace aparecer **el chip de botella** y **un toque lo bebe** (la vida vuelve a 5 y el chip desaparece) · un dedo cruza la puerta hasta `exit:reached` · **cinco golpes** → pantalla de derrota → un toque en un botón salta la espera → de vuelta con la carta, la botella aún recargándose, el slime **sigue vencido** y el botón Habilidad aún dibujado.
+
+Recorrido de la victoria (ticks de simulación; 1367 en total ≈ 22.8 s de juego): icono disponible **628** · carta **647** · golpe del slime **1077** · *Spirit Bolt* **1109** y **1134** · slime vencido y puerta abierta **1135** · bebe **1172 → 1196** (+1) · salida **1345**.
+
+### 2. Los ocho escenarios del prompt
+
+| # | Requisito | Escenario | Dispositivo | Qué demuestra |
+|---|---|---|---|---|
+| 1 | Táctil (*driver* simulado) | `touch` + mitad táctil de `vertical` | CDP `TouchScreen` | zona izquierda invisible con origen flotante, arrastre ↑ salto / ↓ agacharse, *flick* abajo = bajar de plataforma, solo Ataque/Dash/Habilidad a la derecha, un dueño por dedo (multitáctil) |
+| 2 | HUD | `hud` | teclado y táctil | vida (5), magia, carta (vacía/lista/enfriamiento/sin magia), botellas, zonas seguras, escalado, DOM sin Pixi |
+| 3 | Magia | **`magic`** (nuevo) | teclado | barra 100 antes de cualquier carta · coste exacto 30 al soltar · regeneración **gradual** 6/s tras **1 s** · nada mientras lanza ni en el segundo siguiente · tres usos dejan 10 y el cuarto se **deniega** (sacudida de barra y carta, nada gastado) · los extremos (0 y 100) |
+| 4 | Spirit Bolt | `bolt` | teclado, gamepad abstracto, táctil | sin carta no hay habilidad · lanzamiento de 6 ticks · vuelo 16 m/s y 12 m · daño 2 y **no perfora** · cian con núcleo blanco · Y y el botón táctil lanzan lo mismo · quitar la carta apaga el botón |
+| 5 | Botellas | `bottles` | teclado y táctil | canal de 24 ticks, efecto al final, golpe que interrumpe sin gastar, denegado con vida llena, recarga **de una en una** cada 60 s, estados lista/usada/recargando |
+| 6 | Interacción | `interaction` | teclado y táctil | **sin botón permanente**: el icono solo existe al alcance, flota sobre el objeto, dice la tecla del dispositivo (nada en táctil), su verbo en el idioma del jugador, **el más cercano gana**, palanca → puerta, la carta de R1 en el túnel |
+| 7 | Idioma persistente | `language` | teclado, ratón y táctil | elegir español se aplica al instante y **sobrevive** a recargar, a otra pestaña, a un navegador nuevo y a un cambio de sala · `?lang=` no pisa · valor dañado no impide arrancar · tamaño/opacidad táctil persisten |
+| 8 | Gamepad (*driver* abstracto) | `gamepad` | `VirtualPad` | stick radial con zona muerta 0.22, A/X/B/Y, D-pad, abajo + A baja de plataforma, desenchufar a mitad de carrera, **y ahora el Prompt 5 por el mismo mando: LT interactúa (el icono dice «LT»), Y lanza, LB bebe, Start abre y cierra el menú de pausa** |
+
+Más: `vertical` (R1 completa), `devtools` (el panel `?debug=1` bajo demanda) y los 12 de los Prompts 3–4 (`movement`, `crouch`, `combat`, `slime`, `r1`, `room`, `death`, `render`, `camera`, `sprites`, `vfx`, `stress`).
+
+### 3. Qué se cambió en las herramientas
+
+- **`magic` sale de `bolt`**: el escenario `bolt` mezclaba la barra (regeneración, rechazo, extremos) con el proyectil (vuelo, daño, dispositivos). Se separaron para que los ocho escenarios del prompt sean **explícitos y cada uno falle por su causa**; `bolt` conserva un rechazo bajo 30 con su propio ángulo («no sale proyectil, no se gasta nada»).
+- **`tools/e2e/replay.ts`**: el resumen y las teclas cubren lo nuevo (`ability`, `bottle`, `interact`), y la reproducción termina soltando todo.
+- **`gamepad`** gana la sección del Prompt 5 (arriba) y su ayudante `pad()` sigue a `ctx.page` (al abrir otra página el contexto anterior se cierra).
+
+### 4. Hallazgos
+
+| Hallazgo | Solución |
+|---|---|
+| Un *Spirit Bolt* lanzado **a quemarropa** vive **un tick** (nace dentro del slime y le pega al siguiente): el E2E que lo esperaba «en vuelo» solo lo veía por la casualidad del troceo (cada 4 ticks) | la condición pasa a lo que sí dura (estado `cast` con 70 de magia); el vuelo se prueba en `bolt` con un blanco **lejano** |
+| En la reproducción del navegador **la cámara va por detrás del héroe** (la simulación corre más rápido que el tiempo real): el icono quedaba sujeto al borde de la pantalla (correcto: nunca sale de la zona útil) y la captura salía sin héroe | se dejan pasar fotogramas reales hasta que la cámara le alcanza **antes** de mirar, y se comprueba que el icono está **sobre la carta** (±3 px), no pegado a un borde. No es un fallo del juego: en una partida real los *ticks* y la cámara avanzan a la vez |
+| Al caer el guardián, `gate:changed` se emite **antes** que `flag:set` **en el mismo tick** (orden interno de la sesión) | el test no depende del orden dentro de un tick: comprueba «después de los proyectiles, antes de la salida» |
+
+### 5. Pruebas
+
+| | Antes | Después |
+|---|---|---|
+| Tests | 1144 / 76 archivos | **1159 / 77 archivos** (+15, `vertical.test.ts`) |
+| E2E | 20 | **22** (`magic`, `vertical`), desarrollo y producción **22/22** |
+| `tsc --noEmit` | 0 errores | 0 errores |
+| Draw calls (peor momento) | R1 12 · sala completa 14 | `vertical` **14** en desarrollo y **13** en producción (presupuesto 60) |
+
+### 6. Bundle tras S19
+
+**197.8 KB gz** (27 *scripts*): sin cambio, porque S19 no añade código de ejecución. Margen frente a 200 KB: **2.2 KB**.
