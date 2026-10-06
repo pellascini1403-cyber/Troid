@@ -447,6 +447,38 @@ const pickupFlash: FlashVfx = {
   life: 0.22, size: [0.8, 2.2], alpha: [0.9, 0],
 };
 
+// ------------------------------------------------------------------------------------------- a seal turns a blow away
+
+/**
+ * A blow that a seal turns away (S28): a violet ring snaps open on the sigil and a few sparks spring back out of it — the ward is of the
+ * enemy's colour (GAME-SPEC-2D §3.4) and the blow did nothing. Short and dry: it is a refusal, not a hit.
+ */
+const sealRejectRing: FlashVfx = {
+  kind: 'flash', id: 'seal_reject_ring', priority: 6, palette: 'enemy', shape: 'ring', role: 'hot',
+  life: 0.28, size: [0.5, 2.3], alpha: [0.95, 0],
+};
+
+const sealRejectSparks: ParticleVfx = {
+  kind: 'particles',
+  id: 'seal_reject_sparks',
+  priority: 5,
+  palette: 'enemy',
+  blend: 'add',
+  shape: 'glow',
+  count: [7, 10],
+  speed: [2, 4.5],
+  life: [0.18, 0.38],
+  aim: 'back',
+  spread: 1.6,
+  size: [0.12, 0.22],
+  sizeEnd: 0.05,
+  gravity: 4,
+  drag: 2.6,
+  alpha: [0.95, 0],
+  colors: ['hot', 'core', 'hot'],
+  radius: 0.15,
+};
+
 export const VFX: Readonly<Record<string, VfxDefinition>> = Object.fromEntries(
   [
     slashArc, slashArcFinisher,
@@ -458,6 +490,7 @@ export const VFX: Readonly<Record<string, VfxDefinition>> = Object.fromEntries(
     boltMuzzleFlash, boltMuzzleSparks, boltImpactBurst, boltImpactFlash, boltImpactRing, boltFizzle,
     drinkGather, drinkHealMotes, drinkHealFlash,
     pickupMotes, pickupRing, pickupFlash,
+    sealRejectRing, sealRejectSparks,
   ].map((d) => [d.id, d]),
 );
 
@@ -479,4 +512,5 @@ export const VFX_BINDINGS: VfxBindings = {
   drinkStart: ['drink_gather'],
   drinkHeal: ['drink_heal_motes', 'drink_heal_flash'],
   pickup: ['pickup_motes', 'pickup_ring', 'pickup_flash'],
+  sealRejected: ['seal_reject_ring', 'seal_reject_sparks'],
 };

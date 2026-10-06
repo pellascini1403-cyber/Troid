@@ -38,6 +38,7 @@ function hudCss(): string {
 .troid-hud .hud-block { position:absolute; transform-origin:0 0; }
 .troid-hud .hud-card { position:absolute; left:0; top:0; width:${d.card.w}px; height:${d.card.h}px; box-sizing:border-box; border:1px solid ${rim}; border-radius:6px; background:${panel}; display:flex; align-items:center; justify-content:center; overflow:hidden; color:${glow}; }
 .troid-hud .hud-card[data-state="empty"] { border-style:dashed; border-color:${rgba(PALETTE.energyCore, 0.22)}; }
+.troid-hud .hud-card[data-gain="1"] { border-color:${white}; box-shadow:0 0 14px ${rgba(PALETTE.whiteHot, 0.85)}; }
 .troid-hud .hud-card[data-state="noMagic"] .hud-card-icon { opacity:0.38; filter:grayscale(0.85); }
 .troid-hud .hud-card-empty { width:14px; height:2px; border-radius:1px; background:${rgba(PALETTE.energyCore, 0.3)}; }
 .troid-hud .hud-card-sweep { position:absolute; inset:0; pointer-events:none; }
@@ -238,8 +239,14 @@ export class HudView {
       this.card.dataset['cooldown'] = String(sweep);
       this.sweep.style.background = sweep > 0 ? `conic-gradient(from 0deg, ${rgba(PALETTE.uiPanel, 0.72)} ${sweep * 360}deg, transparent 0)` : 'none';
     });
+    set(this.last, 'cardGain', c.gain > 0, () => (this.card.dataset['gain'] = c.gain > 0 ? '1' : '0'));
+    // a refused cast shakes the slot, a new card makes it swell and settle: both are one transform
     const shakeX = Math.round(c.shakeX * 10) / 10;
-    set(this.last, 'cardShake', shakeX, () => (this.card.style.transform = shakeX === 0 ? '' : `translateX(${shakeX.toFixed(1)}px)`));
+    const swell = Math.round(0.35 * c.gain * 20) / 20;
+    set(this.last, 'cardFx', `${shakeX}|${swell}`, () => {
+      const parts = [shakeX === 0 ? '' : `translateX(${shakeX.toFixed(1)}px)`, swell === 0 ? '' : `scale(${(1 + swell).toFixed(3)})`];
+      this.card.style.transform = parts.filter(Boolean).join(' ');
+    });
   }
 
   // ----------------------------------------------------------------------------------------------- bottles

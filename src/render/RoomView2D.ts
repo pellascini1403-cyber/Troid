@@ -55,7 +55,7 @@ export class RoomView2D {
     for (const gate of room.gates ?? []) {
       const solid = room.solids.find((s) => s.id === gate.solid);
       if (!solid) continue;
-      const view = drawDoor(solid.rect);
+      const view = solid.material === 'seal' ? drawSealDoor(solid.rect) : drawDoor(solid.rect);
       view.label = `gate:${gate.id}`;
       const open = isOpen(gate.id);
       view.alpha = open ? 0 : 1;
@@ -136,6 +136,27 @@ function drawDoor(r: { x0: number; y0: number; x1: number; y1: number }): Graphi
   g.rect(cx - 0.09, viewY(r.y1 - 0.6), 0.18, h - 0.6).fill({ color: PALETTE.violetCore, alpha: 0.75 });
   for (let y = 1.2; y < h - 1; y += 1.5) g.rect(cx - 0.4, viewY(y), 0.8, 0.1).fill({ color: PALETTE.violetGlow, alpha: 0.6 });
   g.rect(cx - 0.3, viewY(r.y1 - 0.6), 0.6, h - 0.6).fill({ color: PALETTE.violetCore, alpha: 0.12 });
+  return g;
+}
+
+/**
+ * The door a SEAL holds (docs/PROMPT6-LOG.md S28): not stone but a curtain of violet ink from the floor up — a dark body, bright edges, rungs
+ * of glyphs and drips that run down from the top. It dissolves when the ward is broken, like any door. PLACEHOLDER: flat shapes, deterministic.
+ */
+function drawSealDoor(r: { x0: number; y0: number; x1: number; y1: number }): Graphics {
+  const g = new Graphics();
+  const w = r.x1 - r.x0;
+  const h = r.y1 - r.y0;
+  g.rect(r.x0, viewY(r.y1), w, h).fill({ color: PALETTE.violetDeep, alpha: 0.9 });
+  g.rect(r.x0 + w * 0.25, viewY(r.y1), w * 0.5, h).fill({ color: PALETTE.enemyInk, alpha: 0.45 });
+  g.rect(r.x0, viewY(r.y1), 0.1, h).fill({ color: PALETTE.violetCore, alpha: 0.85 });
+  g.rect(r.x1 - 0.1, viewY(r.y1), 0.1, h).fill({ color: PALETTE.violetCore, alpha: 0.85 });
+  for (let y = 0.7; y < h - 0.4; y += 1.15) g.rect(r.x0 + 0.18, viewY(y), w - 0.36, 0.07).fill({ color: PALETTE.violetGlow, alpha: 0.4 });
+  // ink that runs down from the top: tapering drips of fixed, different lengths
+  for (const [f, len] of [[0.2, 1.6], [0.5, 2.6], [0.78, 1.1]] as const) {
+    const x = r.x0 + w * f;
+    g.poly([x - 0.07, viewY(r.y1), x + 0.07, viewY(r.y1), x, viewY(r.y1 - len)]).fill({ color: PALETTE.violetCore, alpha: 0.7 });
+  }
   return g;
 }
 

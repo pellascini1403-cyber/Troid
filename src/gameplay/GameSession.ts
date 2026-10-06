@@ -25,6 +25,7 @@ import type { GameEvents } from './events';
 import { HazardSystem, type HazardHost } from './HazardSystem';
 import { createPlayerStatus, type PlayerStatus } from './PlayerStatus';
 import { DEFAULT_TRANSITION, RoomTransition, type TransitionDefinition, type TransitionSnapshot } from './RoomTransition';
+import { Seal } from './Seal';
 import type { SimEntity } from './SimEntity';
 import type { SimServices } from './SimServices';
 
@@ -448,6 +449,7 @@ export class GameSession implements SimServices {
     this.lastSafe = { x: entry.x, y: entry.y };
     this._arrival = { room: room.id, entry: entry.id };
     this.placeSpawns(room);
+    this.placeSeals(room);
     this.hazards.setRoom(room.hazards);
     this.applyGates(false);
     this.interaction.setRoom(room.interactables ?? []);
@@ -465,6 +467,20 @@ export class GameSession implements SimServices {
       const enemy = new Enemy(this.ids.next(def.id), def, { x: sp.x, y: sp.y, facing: sp.facing });
       if (sp.defeatFlag !== undefined) this.defeatFlags.set(enemy.id, sp.defeatFlag);
       this.addEntity(enemy);
+    }
+  }
+
+  /**
+   * Places the room's seals (docs/PROMPT6-LOG.md S28), except those already broken: a seal's flag is the world's memory of it, so a ward
+   * that was broken is never built again and the door it held stays open. Breaking one is announced like the fall of a guardian, which is
+   * how its flag gets set.
+   */
+  private placeSeals(room: RoomDefinition): void {
+    for (const sl of room.seals ?? []) {
+      if (this.flags.has(sl.flag)) continue;
+      const seal = new Seal(this.ids.next('seal'), sl);
+      this.defeatFlags.set(seal.id, sl.flag);
+      this.addEntity(seal);
     }
   }
 

@@ -123,6 +123,16 @@ export const transition: Scenario = {
     // forward: R2 → R3 → R4 (the east zones)
     await ctx.teleport(89.5, 0);
     await arrive('R2 east', 'r3_chamber', 4, 1);
+    // R3's way on is held by the seal (S28): the zone does nothing until it is broken — here its flag is set, the breaking itself is `progression`'s
+    await ctx.teleport(77.5, 0);
+    await ctx.step(40);
+    s = await state();
+    assert.equal(s.room, 'r3_chamber', 'with the seal whole the zone of R3 east does nothing');
+    assert.deepEqual(s.exits, []);
+    assert.equal(s.transition?.phase, 'none');
+    await sess('s.flags.set("broken:r3_seal")');
+    await ctx.teleport(70, 0);
+    await ctx.step(2);
     await ctx.teleport(77.5, 0);
     await arrive('R3 east', 'r4_sanctum', 4, 1);
     // and back: the west zones

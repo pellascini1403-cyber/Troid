@@ -303,32 +303,32 @@ describe('a lever opens the door of its room', () => {
   });
 });
 
-describe('R1: the provisional card at the end of the crawl tunnel', () => {
+describe('R1: nothing to pick up (S28 moved the Spirit Bolt card to R3)', () => {
   const R1 = ROOMS.r1_gate!;
 
-  it('it is the first thing to interact with, optional, and R1\'s own door still opens only with the slime\'s defeat', () => {
+  it('R1 has no interactables at all, and its own door still opens only with the slime\'s defeat', () => {
     const { s } = setup(R1);
-    expect(R1.interactables?.map((i) => i.id)).toEqual(['card_spirit_bolt']);
+    expect(R1.interactables ?? []).toEqual([]);
     expect(s.gateOpen('exit_door')).toBe(false);
     expect(s.flags.has('defeated:r1_slime')).toBe(false);
-    // the way through the tunnel does not need the card: nothing on the critical path depends on it
     expect(R1.gates?.[0]?.openWhen).toBe('defeated:r1_slime');
   });
 
-  it('crouching inside the tunnel the card can be taken, the hero stays crouched, and the Ability works', () => {
+  it('where the card used to lie — the end of the crawl tunnel — there is no icon, and Interact does nothing: no card, no flag, no pose', () => {
     const { d, s } = setup(R1);
-    d.teleport(73.4, 0); // 1.1 m short of the card, inside the 12 m tunnel
+    d.teleport(73.4, 0); // inside the 12 m tunnel, where the card was
     d.moveY = -1;
     d.step(8);
     expect(d.p.controller.state).toBe('crouch');
-    expect(iconOf(d)).toBe('card_spirit_bolt');
+    expect(s.interaction.current).toBeNull();
     d.tap('interact');
     d.step(12);
-    expect(s.loadout.equipped?.id).toBe('card_spirit_bolt');
-    expect(d.p.controller.state).toBe('crouch'); // the ceiling is 1.2 m: he cannot stand up here
+    expect(d.p.controller.state).toBe('crouch');
+    expect(s.loadout.equipped).toBeNull();
+    expect(s.flags.has('taken:card_spirit_bolt')).toBe(false);
     d.tap('ability');
     d.step(10);
-    expect(s.magic.current).toBe(70);
+    expect(s.magic.current, 'without the card the Ability does nothing').toBe(100);
   });
 });
 

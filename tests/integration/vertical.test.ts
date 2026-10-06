@@ -2,13 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { digestOf, record } from '../../tools/e2e/replay';
 import type { Enemy } from '@/enemies/Enemy';
 import type { Driver } from '../helpers/sim';
-import { freshR1, playDefeat, playWin, toTheCard } from '../helpers/vertical';
+import { ROOMS } from '@/content';
+import { driver } from '../helpers/sim';
+import { freshR1WithBolt, playDefeat, playWin } from '../helpers/vertical';
 
 /**
  * R1 COMPLETE (docs/PROMPT5-LOG.md S19), on the pure simulation: the first room of the vertical slice played end to end with every
- * system of Prompt 5 — the crawl tunnel, the CARD taken by interacting, the Spirit Bolt and its magic, a BOTTLE drunk to heal, the
- * slime beaten, the door, the exit — and lost once on purpose to see what a defeat keeps. The browser replays these very scripts
- * through the real keyboard and compares digests (tools/e2e/scenarios/vertical.ts); here they are asserted on directly.
+ * system of Prompt 5 — the crawl tunnel, the Spirit Bolt and its magic, a BOTTLE drunk to heal, the slime beaten, the door, the exit — and
+ * lost once on purpose to see what a defeat keeps. Since S28 the card is no longer in R1 (it lies in R3, behind a climb): the hero of
+ * these runs is the one that comes back with it, and R1 has nothing to pick up. The browser replays these very scripts through the real
+ * keyboard and compares digests (tools/e2e/scenarios/vertical.ts); here they are asserted on directly.
  */
 function events(d: Driver): string[] {
   const log: string[] = [];
@@ -34,31 +37,28 @@ const bottleStates = (d: Driver): string[] => d.session.bottles.slots.map((s) =>
 const slimes = (d: Driver): Enemy[] => d.session.entities.filter((e) => e.kind === 'enemy') as Enemy[];
 
 describe('R1 complete: the win', () => {
-  const d = freshR1();
+  const d = freshR1WithBolt();
   const log = events(d);
-  it('starts with no card, a full bar, three bottles and nothing to interact with', () => {
-    expect(d.session.loadout.equipped).toBeNull();
-    expect(d.session.abilities.has('magic_attack')).toBe(false);
+  it('starts with the Spirit Bolt of R3 in hand, a full bar, three bottles and nothing to interact with', () => {
+    expect(d.session.loadout.equipped?.id).toBe('card_spirit_bolt');
+    expect(d.session.abilities.has('magic_attack')).toBe(true);
     expect(d.session.magic.current).toBe(100);
     expect(bottleStates(d)).toEqual(['ready', 'ready', 'ready']);
     expect(d.session.interaction.current).toBeNull();
     expect(d.p.health.current).toBe(5);
   });
 
-  it('plays the room: the card, two bolts, a bottle, the door, the exit', () => {
+  it('plays the room: the tunnel, two bolts, a bottle, the door, the exit', () => {
     playWin(d);
     expect(d.session.exitsReached.has('east')).toBe(true);
     expect(d.session.gateOpen('exit_door')).toBe(true);
   });
 
-  it('the card was taken by INTERACTING (icon first, then the press) and the world remembers it', () => {
-    expect(log.indexOf('available:card_spirit_bolt')).toBeGreaterThanOrEqual(0);
-    expect(log.indexOf('performed:card_spirit_bolt')).toBeGreaterThan(log.indexOf('available:card_spirit_bolt'));
-    expect(log).toContain('card:equipped:card_spirit_bolt');
-    expect(d.session.loadout.equipped?.id).toBe('card_spirit_bolt');
-    expect(d.session.abilities.has('magic_attack')).toBe(true);
+  it('R1 has nothing to pick up: in the whole run nothing was offered and nothing was taken, and the card is still the one that came with the hero', () => {
+    expect(log.filter((e) => e.startsWith('available:') || e.startsWith('performed:'))).toEqual([]);
+    expect(ROOMS.r1_gate!.interactables ?? []).toEqual([]);
+    expect(d.session.loadout.owned).toEqual(['card_spirit_bolt']);
     expect(d.session.flags.has('taken:card_spirit_bolt')).toBe(true);
-    expect(log.filter((e) => e === 'performed:card_spirit_bolt')).toHaveLength(1);
   });
 
   it('two Spirit Bolts beat the slime (3 life, 2 damage each) and each costs exactly 30', () => {
@@ -92,7 +92,7 @@ describe('R1 complete: the win', () => {
 });
 
 describe('R1 complete: the defeat', () => {
-  const d = freshR1();
+  const d = freshR1WithBolt();
   const log = events(d);
   playDefeat(d);
 
@@ -123,7 +123,7 @@ describe('R1 complete: the defeat', () => {
     expect(d.session.exitsReached.size).toBe(0);
   });
 
-  it('the card is not lying in the tunnel again: nothing has the icon where it was', () => {
+  it('nothing lies in the tunnel, before or after a defeat: nothing has the icon where the card used to be', () => {
     d.teleport(73.4, 0);
     d.step(5);
     expect(d.session.interaction.current).toBeNull();
@@ -132,8 +132,8 @@ describe('R1 complete: the defeat', () => {
 
 describe('R1 complete: determinism', () => {
   it('the same run twice leaves the same key presses and the same digest of the whole simulation every 50 ticks', () => {
-    const a = freshR1();
-    const b = freshR1();
+    const a = freshR1WithBolt();
+    const b = freshR1WithBolt();
     const ra = record(a, () => playWin(a));
     const rb = record(b, () => playWin(b));
     expect(ra.total).toBe(rb.total);
@@ -144,8 +144,10 @@ describe('R1 complete: determinism', () => {
   });
 
   it('the digest sees the new layer: it changes when the card is taken, a bolt is cast and a bottle is drunk', () => {
-    const d = freshR1();
-    toTheCard(d);
+    // the card is taken in the interaction playground (R3's is the same pickup, proved in `spiritBoltWorld`)
+    const d = driver({ room: ROOMS.interaction_test!, unlocked: ['dash'] });
+    d.teleport(11, 0).settle();
+    d.step(5);
     const before = digestOf(d.session);
     expect(before).toContain('a' + 'card_spirit_bolt'); // the object with the icon
     d.tap('interact');
@@ -160,8 +162,8 @@ describe('R1 complete: determinism', () => {
   });
 
   it('the defeat run is deterministic too', () => {
-    const a = freshR1();
-    const b = freshR1();
+    const a = freshR1WithBolt();
+    const b = freshR1WithBolt();
     const ra = record(a, () => playDefeat(a));
     const rb = record(b, () => playDefeat(b));
     expect(ra.digests).toEqual(rb.digests);

@@ -81,6 +81,12 @@ export function soak(seed: number, ticks: number, hook?: SoakHook): Result {
   const pick = <T>(xs: readonly T[]): T => xs[Math.floor(rnd() * xs.length)] as T;
   const d: Driver = driver({ room: ROOMS['r1_gate']!, unlocked: ['dash'], seed, extra: { rooms: ROOMS } });
   const s = d.session;
+  // since S28 the Spirit Bolt card is not in R1 (it lies in R3): half of the seeds begin as the hero that comes back with it, the others without,
+  // so both worlds — a bar that can be spent and one that is refused — are exercised from the first tick (and the card is still found by interacting)
+  if (seed % 2 === 0) {
+    s.loadout.acquire('card_spirit_bolt');
+    s.flags.set('taken:card_spirit_bolt');
+  }
   const violations: string[] = [];
   // the last few things that happened, so that a violation says how it came about
   const recent: string[] = [];

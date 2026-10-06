@@ -8,7 +8,7 @@ import { centreOf, TouchScreen } from '../touch';
  * Contextual interaction in the browser (docs/PROMPT5-LOG.md S17, GAME-SPEC-2D §12), with REAL keyboard and real touches: there is NO
  * permanent interaction button — the icon exists only over the object in reach, floats over it, says the key of the device in
  * use (and nothing on touch), names its verb in the language of the player, and is the button on touch. A card is taken, a lever
- * opens the door of its room, the nearest object wins, and R1's provisional card waits at the end of the crawl tunnel.
+ * opens the door of its room, the nearest object wins; R1 has nothing to take and the Spirit Bolt card lies on R3's ledge.
  */
 const attr = (page: Page, id: string, name: string): Promise<string | null> => page.locator(`[data-testid="${id}"]`).getAttribute(name);
 const css = (page: Page, id: string, prop: string): Promise<string> => page.locator(`[data-testid="${id}"]`).evaluate((el, p) => getComputedStyle(el).getPropertyValue(p), prop);
@@ -184,7 +184,7 @@ export const interaction: Scenario = {
     i = await icon(page);
     assert.equal(i.active, false);
 
-    // ================================================================== R1: the provisional card at the end of the crawl tunnel
+    // ================================================================== R1: nothing to pick up (S28 moved the card to R3)
     await ctx.open('', { width: 844, height: 390 }); // a new game: R1
     page = ctx.page;
     s = await ctx.state();
@@ -193,18 +193,37 @@ export const interaction: Scenario = {
     await page.keyboard.down('ArrowDown');
     await ctx.step(10);
     i = await icon(page);
-    assert.equal(i.active, true, 'inside the tunnel the card has the icon');
-    assert.equal(i.object, 'card_spirit_bolt');
-    await ctx.shot('04-r1-tunnel');
+    assert.equal(i.active, false, 'inside the tunnel there is nothing to take any more: the card is in R3');
     await page.keyboard.down('KeyE');
     await ctx.step(1);
     await page.keyboard.up('KeyE');
     await ctx.step(14);
     await page.keyboard.up('ArrowDown');
     s = await ctx.state();
+    assert.equal(s.card, null, 'Interact with nothing in reach gives nothing');
+    assert.equal(s.state, 'crouch', 'and the hero stays as he was: no pose');
+    await ctx.shot('04-r1-tunnel');
+
+    // ================================================================== R3: the Spirit Bolt card on the ledge, by interacting; the Ability works at once
+    await ctx.open('room=r3_chamber&unlock=dash', { width: 844, height: 390 });
+    page = ctx.page;
+    await ctx.teleport(34.5, 0); // under the card, on the lane: out of reach (the card is on the ledge, 4.8 m up)
+    await ctx.step(10);
+    assert.equal((await icon(page)).active, false, 'from the floor of the lane the card has no icon');
+    await ctx.teleport(33.6, 4.8); // on the ledge (the climb is proven by physics, and walked for real by `progression`)
+    await ctx.step(10);
+    i = await icon(page);
+    assert.equal(i.active, true, 'on the ledge the card has the icon');
+    assert.equal(i.object, 'card_spirit_bolt');
+    assert.equal(i.kind, 'pickup');
+    await ctx.shot('05-r3-ledge');
+    await page.keyboard.down('KeyE');
+    await ctx.step(1);
+    await page.keyboard.up('KeyE');
+    await ctx.step(14);
+    s = await ctx.state();
     assert.equal(s.card, 'card_spirit_bolt');
-    assert.equal(s.state, 'crouch', 'he cannot stand under a 1.2 m roof, and the pose gave him back to the crouch');
-    assert.equal(s.gates!['exit_door']!.open, false, 'R1\'s own door still waits for the slime');
+    assert.ok(s.flags!.includes('taken:card_spirit_bolt'));
     // and the Ability works at once
     await page.keyboard.down('KeyK');
     await ctx.step(1);

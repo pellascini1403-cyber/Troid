@@ -151,6 +151,30 @@ describe('card: the slot is always there', () => {
     expect([c.state, c.cooldown01]).toEqual(['cooldown', 0.6]);
   });
 
+  it('a card that was not there a moment ago (the Spirit Bolt of R3) arrives glowing, and the glow fades in 0.9 s', () => {
+    const m = new HudModel();
+    const bolt = (x: PlayerStatus): void => {
+      x.card.equipped = true;
+      x.card.iconId = 'spirit_bolt';
+      x.card.state = 'ready';
+    };
+    expect(m.update(status(), FRAME).card.gain).toBe(0);
+    expect(m.update(status(bolt), 0).card.gain).toBe(1);
+    expect(m.update(status(bolt), GAIN_SECONDS / 2).card.gain).toBeCloseTo(0.5, 6);
+    expect(m.update(status(bolt), GAIN_SECONDS).card.gain).toBe(0);
+  });
+
+  it('a game that LOADS with the card does not announce it: the first frame shows no glow, and neither does any later one', () => {
+    const bolt = (x: PlayerStatus): void => {
+      x.card.equipped = true;
+      x.card.iconId = 'spirit_bolt';
+      x.card.state = 'ready';
+    };
+    const loaded = new HudModel();
+    expect(loaded.update(status(bolt), FRAME).card.gain).toBe(0);
+    expect(loaded.update(status(bolt), FRAME).card.gain).toBe(0);
+  });
+
   it('taking the card off empties the slot again', () => {
     const m = new HudModel();
     m.update(status((x) => ((x.card.equipped = true), (x.card.iconId = 'spirit_bolt'))), FRAME);

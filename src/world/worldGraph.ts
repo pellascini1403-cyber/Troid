@@ -66,6 +66,7 @@ export function grantedFlags(room: RoomDefinition): string[] {
   const out = new Set<string>();
   for (const s of room.spawns ?? []) if (s.defeatFlag) out.add(s.defeatFlag);
   for (const i of room.interactables ?? []) for (const a of i.actions) if (a.type === 'setFlag') out.add(a.flag);
+  for (const sl of room.seals ?? []) out.add(sl.flag);
   return [...out];
 }
 
@@ -75,6 +76,7 @@ export function requiredFlags(room: RoomDefinition): string[] {
   for (const x of room.exits ?? []) if (x.requires) out.add(x.requires);
   for (const g of room.gates ?? []) if (g.openWhen) out.add(g.openWhen);
   for (const i of room.interactables ?? []) if (i.whenSet) out.add(i.whenSet);
+  for (const sl of room.seals ?? []) if (sl.needs) out.add(sl.needs);
   return [...out];
 }
 
@@ -155,6 +157,13 @@ export function analyzeProgression(graph: WorldGraph, rooms: RoomRegistry, start
             flags.add(a.flag);
             changed = true;
           }
+        }
+      }
+      // a seal breaks only for a hero who has what breaks it: with its `needs` flag, and not before
+      for (const sl of room.seals ?? []) {
+        if ((sl.needs === undefined || flags.has(sl.needs)) && !flags.has(sl.flag)) {
+          flags.add(sl.flag);
+          changed = true;
         }
       }
     }

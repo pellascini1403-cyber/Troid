@@ -309,3 +309,58 @@ describe('validateWorld', () => {
     expect(codes({ id: 'w', start: { room: 'a', entry: 'west' }, rooms: ['a', 'b'] }, rooms)).toEqual([]);
   });
 });
+
+describe('seals, on paper (docs/PROMPT6-LOG.md S28)', () => {
+  /** A → B → C: the way from B to C is held by a seal, and the card that breaks it lies in B (or behind the seal, when `behind`). */
+  function warded(opts: { needs?: string | null; behind?: boolean } = {}): { world: WorldDefinition; rooms: RoomRegistry } {
+    const needs = opts.needs === undefined ? 'taken:card' : opts.needs;
+    const rooms: RoomRegistry = {
+      a: room('a', { exits: [east('b')] }),
+      b: room('b', {
+        exits: [west('a'), east('c', 'broken:ward')],
+        gates: [{ id: 'g', solid: 'wall_r', openWhen: 'broken:ward' }],
+        interactables: [{ id: 'card', kind: 'pickup', verbKey: 'k', x: 10, y: 0, ...(opts.behind ? { whenSet: 'broken:ward' } : {}), actions: [{ type: 'setFlag', flag: 'taken:card' }] }],
+        seals: [{ id: 'ward', x: 30, y: 0, accepts: ['spirit_bolt'], flag: 'broken:ward', ...(needs ? { needs } : {}) }],
+      }),
+      c: room('c', { exits: [west('b')] }),
+    };
+    return { world: { id: 'w', start: { room: 'a', entry: 'west' }, rooms: ['a', 'b', 'c'] }, rooms };
+  }
+
+  it('a seal GRANTS the flag it sets and WAITS for the one that says the hero can break it', () => {
+    const { rooms } = warded();
+    expect(grantedFlags(rooms.b!).sort()).toEqual(['broken:ward', 'taken:card']);
+    expect(requiredFlags(rooms.b!).sort()).toEqual(['broken:ward', 'taken:card']);
+  });
+
+  it('it is broken on paper only once the card can be had: with the card in its own room, the way on opens and C is reached', () => {
+    const { world, rooms } = warded();
+    const p = analyzeProgression(buildWorldGraph(world, rooms), rooms);
+    expect(p.order).toEqual(['a', 'b', 'c']);
+    expect(p.flags.has('taken:card')).toBe(true);
+    expect(p.flags.has('broken:ward')).toBe(true);
+    expect(validateWorld(world, rooms)).toEqual([]);
+  });
+
+  it('a seal that needs nothing is broken as soon as its room is reached', () => {
+    const { world, rooms } = warded({ needs: null });
+    expect(analyzeProgression(buildWorldGraph(world, rooms), rooms).flags.has('broken:ward')).toBe(true);
+  });
+
+  it('a card that lies BEHIND the seal it breaks is a world nobody can finish: the way stays shut and the validator names the flags and the room', () => {
+    const { world, rooms } = warded({ behind: true });
+    const p = analyzeProgression(buildWorldGraph(world, rooms), rooms);
+    expect(p.flags.has('broken:ward')).toBe(false);
+    expect(p.unreachable).toEqual(['c']);
+    const found = validateWorld(world, rooms);
+    expect(found.map((i) => i.code)).toEqual(expect.arrayContaining(['flag-ungranted', 'room-unreachable']));
+    expect(found.some((i) => i.code === 'flag-ungranted' && i.message.includes('taken:card'))).toBe(true);
+    expect(found.some((i) => i.code === 'room-unreachable' && i.message.includes('"c"'))).toBe(true);
+  });
+
+  it('a seal that needs a flag nothing in the world sets is the same: it can never be broken', () => {
+    const { world, rooms } = warded({ needs: 'taken:nothing' });
+    expect(analyzeProgression(buildWorldGraph(world, rooms), rooms).flags.has('broken:ward')).toBe(false);
+    expect(codes(world, rooms)).toEqual(expect.arrayContaining(['flag-ungranted', 'room-unreachable']));
+  });
+});

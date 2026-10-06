@@ -38,6 +38,7 @@ import { ActorSprite } from '@/render/ActorSprite';
 import { CameraAdapter2D } from '@/render/CameraAdapter2D';
 import { DummyView, type DummyLike } from '@/render/DummyView';
 import { EntityViews } from '@/render/EntityViews';
+import { SealView, type SealLike } from '@/render/SealView';
 import { InteractableViews } from '@/render/InteractableViews';
 import { ProceduralActor } from '@/render/ProceduralActor';
 import { ProjectileView, type ProjectileLike } from '@/render/ProjectileView';
@@ -250,6 +251,8 @@ export class Game2D {
       },
       // a skill's projectile (the Spirit Bolt) is light: it is drawn in the additive layer with the effects
       projectile: (e) => new ProjectileView(e as unknown as ProjectileLike, vfxAtlas),
+      // the sigil of a seal (S28): violet light in front of the door it holds
+      seal: (e) => new SealView(e as unknown as SealLike),
     }, renderer.layers.fxWorld);
     this.entityViews.attach(this.session.bus, this.session.entities); // the first room's enemies already exist
     this.lifecycle.add(() => this.entityViews.destroy());
@@ -261,6 +264,8 @@ export class Game2D {
         this.shakes.last = e.shake;
       }),
     );
+    // a blow turned away by a seal jolts the view a little (it is not a hit: nothing froze, nothing was hurt)
+    this.lifecycle.add(this.session.bus.on('seal:rejected', (e) => this.camera.addTrauma(e.shake)));
     this.deathOverlay = new DeathOverlay(ui, this.translator);
     this.lifecycle.add(() => this.deathOverlay.dispose());
     this.transitionOverlay = new TransitionOverlay(ui);

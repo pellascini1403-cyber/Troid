@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ENEMIES, PLAYER, ROOMS, START, WORLD } from '@/content';
 import { BOTTLE_DEFINITIONS, BOTTLES, CARDS } from '@/content/resources';
+import { SKILLS, SPIRIT_BOLT } from '@/content/skills';
 import { CATALOGS } from '@/i18n';
 import { validateRoom } from '@/world/validateRoom';
 import { analyzeProgression, buildWorldGraph, destinationOf, edgesFrom, routeBetween, validateWorld, worldGrantedFlags } from '@/world/worldGraph';
@@ -211,5 +212,84 @@ describe('the fourth bottle', () => {
         expect(i.actions.some((a) => a.type === 'setFlag' && a.flag === flag), `${id}/${i.id}`).toBe(false);
       }
     }
+  });
+});
+
+describe('the Spirit Bolt and its seal (S28)', () => {
+  const R3 = ROOMS.r3_chamber!;
+  const cardGivers = WORLD.rooms.flatMap((id) => (ROOMS[id]!.interactables ?? []).filter((i) => i.actions.some((a) => a.type === 'acquireCard')).map((i) => ({ room: id, pickup: i })));
+
+  it('there is exactly one card in the world and it lies in R3 — not in R1, where it was while the slice was one room', () => {
+    expect(cardGivers.map((g) => `${g.room}/${g.pickup.id}`)).toEqual(['r3_chamber/card_spirit_bolt']);
+    expect(ROOMS.r1_gate!.interactables ?? []).toEqual([]);
+    // the playground keeps its own copy of the pickup (it is a sandbox for the interaction system, not part of the world)
+    expect(WORLD.rooms).not.toContain('interaction_test');
+  });
+
+  it('it lies ON the ledge of R3, reached by the climb (two jumps), and gives the card that teaches the Spirit Bolt', () => {
+    const ledge = R3.solids.find((s) => s.id === 'ledge')!.rect;
+    const { pickup } = cardGivers[0]!;
+    expect(pickup.x).toBeGreaterThan(ledge.x0 + 1);
+    expect(pickup.x).toBeLessThan(ledge.x1 - 1);
+    expect(pickup.y).toBeCloseTo(ledge.y1, 6);
+    expect(pickup.kind).toBe('pickup');
+    const give = pickup.actions.find((a) => a.type === 'acquireCard') as { cardId: string };
+    expect(CARDS[give.cardId]?.skillId).toBe('spirit_bolt');
+    expect(CARDS[give.cardId]?.grantsAbility).toBe('magic_attack');
+  });
+
+  it('it is taken once: it hides itself with the flag it sets, and the flag is its own', () => {
+    const { pickup } = cardGivers[0]!;
+    const flags = pickup.actions.filter((a) => a.type === 'setFlag').map((a) => (a as { flag: string }).flag);
+    expect(flags).toEqual(['taken:card_spirit_bolt']);
+    expect(pickup.whenClear).toBe(flags[0]);
+  });
+
+  it('the seal holds the way on: a door (a gate over a solid taller than a jump from the ledge), the ward in front of it, and the exit asks for the flag', () => {
+    expect(R3.seals).toHaveLength(1);
+    const seal = R3.seals![0]!;
+    const gate = R3.gates!.find((g) => g.openWhen === seal.flag)!;
+    expect(gate).toBeDefined();
+    const door = R3.solids.find((s) => s.id === gate.solid)!.rect;
+    const ledge = R3.solids.find((s) => s.id === 'ledge')!.rect;
+    expect(door.y1, 'no jump from the ledge (4.8 m + 3.1 m) clears it').toBeGreaterThan(ledge.y1 + 3.1 + 0.5);
+    expect(seal.x).toBeGreaterThanOrEqual(door.x0);
+    expect(seal.x).toBeLessThanOrEqual(door.x1);
+    const east = R3.exits!.find((x) => x.id === 'east')!;
+    expect(east.requires).toBe(seal.flag);
+    expect(east.rect.x0, 'the exit is beyond the door').toBeGreaterThan(door.x1);
+  });
+
+  it('only the Spirit Bolt breaks it, and what it needs is the flag the card\'s own pickup sets', () => {
+    const seal = R3.seals![0]!;
+    expect(seal.accepts).toEqual(['spirit_bolt']);
+    expect(Object.keys(SKILLS)).toContain(seal.accepts[0]);
+    expect(seal.needs).toBe(cardGivers[0]!.pickup.whenClear);
+  });
+
+  it('the bolt reaches it from far enough back for the fight to be a choice: at least 8 m of lane lie within its range, in front of the ward', () => {
+    const seal = R3.seals![0]!;
+    const door = R3.solids.find((s) => s.id === 'seal_wall')!.rect;
+    const area = seal.x - (seal.halfWidth ?? 1.4); // where the ward's area begins
+    const { range } = SPIRIT_BOLT.projectile!;
+    const muzzle = SPIRIT_BOLT.projectile!.muzzle.x;
+    // a cast from `x` flies from x + muzzle over `range` metres: it meets the ward if x + muzzle + range ≥ area
+    const farthest = area - muzzle - range;
+    expect(area, 'the area begins in front of the door').toBeLessThan(door.x0);
+    const lane = R3.solids.find((s) => s.id === 'g')!.rect;
+    expect(area - Math.max(farthest, lane.x0 + 4), 'range of the cast that still reaches').toBeGreaterThanOrEqual(8);
+  });
+
+  it('on paper: the card comes before the seal and the way to R4 opens only through it — both flags are collected, in that order, and the world is whole', () => {
+    const p = analyzeProgression(graph, ROOMS);
+    expect(p.order).toEqual(['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum']);
+    expect(p.flags.has('taken:card_spirit_bolt')).toBe(true);
+    expect(p.flags.has('broken:r3_seal')).toBe(true);
+    expect(validateWorld(WORLD, ROOMS, { player })).toEqual([]);
+    // take the card out of the world and R4 is out of reach, which is exactly what the validator is for
+    const noCard = { ...ROOMS, r3_chamber: { ...R3, interactables: [] } };
+    const stuck = analyzeProgression(buildWorldGraph(WORLD, noCard as typeof ROOMS), noCard as typeof ROOMS);
+    expect(stuck.unreachable).toEqual(['r4_sanctum']);
+    expect(validateWorld(WORLD, noCard as typeof ROOMS, { player }).map((i) => i.code)).toEqual(expect.arrayContaining(['room-unreachable']));
   });
 });

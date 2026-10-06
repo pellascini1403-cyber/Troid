@@ -56,6 +56,7 @@ export function validateRoom(room: RoomDefinition, refs: RoomRefs): RoomIssue[] 
   unique('exit', (room.exits ?? []).map((e) => e.id));
   unique('interactable', (room.interactables ?? []).map((i) => i.id));
   unique('hazard', (room.hazards ?? []).map((h) => h.id));
+  unique('seal', (room.seals ?? []).map((sl) => sl.id));
   for (const s of room.solids) if (!validRect(s.rect)) add('bad-solid', `solid "${s.id}" is not a valid rectangle`);
 
   const solids = room.solids.filter((s) => (s.kind ?? 'solid') === 'solid');
@@ -122,6 +123,20 @@ export function validateRoom(room: RoomDefinition, refs: RoomRefs): RoomIssue[] 
         else if (Math.abs(entry.x - i.x) > MAX_CHECKPOINT_DISTANCE) add('checkpoint-far', `interactable "${i.id}" rests at the entry "${a.entry}", ${Math.abs(entry.x - i.x).toFixed(1)} m away from it (at most ${MAX_CHECKPOINT_DISTANCE})`);
       }
     }
+  }
+
+  // seals: wards that stand on the ground, inside the room, that name what breaks them and the flag they set, and that hold something
+  for (const sl of room.seals ?? []) {
+    if (!Number.isFinite(sl.x) || !Number.isFinite(sl.y) || !inBounds(sl.x, sl.y)) add('seal-outside', `seal "${sl.id}" is outside the room bounds`);
+    else if (!supported(sl.x, sl.y, 0.2)) add('seal-floating', `seal "${sl.id}" has no floor under it`);
+    if ((sl.halfWidth !== undefined && !(sl.halfWidth > 0)) || (sl.height !== undefined && !(sl.height > 0))) add('bad-seal', `seal "${sl.id}" has a size that is not positive`);
+    if (sl.accepts.length === 0 || sl.accepts.some((a) => a === '')) add('seal-accepts', `seal "${sl.id}" names no attack that can break it (or an empty one): nothing could ever open it`);
+    if (sl.flag === '') add('empty-flag', `seal "${sl.id}" sets an empty flag`);
+    else gateFlags.add(sl.flag);
+    if (sl.needs === '') add('empty-flag', `seal "${sl.id}" needs an empty flag`);
+    else if (sl.needs !== undefined && !gateFlags.has(sl.needs) && !refs.externalFlags?.has(sl.needs)) add('seal-needs', `seal "${sl.id}" needs "${sl.needs}", which nothing sets: it could never be broken`);
+    const holds = (room.gates ?? []).some((g) => g.openWhen === sl.flag) || (room.exits ?? []).some((x) => x.requires === sl.flag);
+    if (sl.flag !== '' && !holds) add('seal-orphan', `seal "${sl.id}" holds nothing: no gate of the room opens with "${sl.flag}", no exit asks for it`);
   }
 
   // a door may open with a flag that something in the room sets: a guardian's defeat, a lever

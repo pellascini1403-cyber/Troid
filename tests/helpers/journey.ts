@@ -31,13 +31,39 @@ export function toTheEastExit(d: Driver, opts: Parameters<typeof runBot>[1] = {}
   letGo(d);
 }
 
-/** R1 → R2 → R3 → R4 → the end of the world. */
+/**
+ * R3 (docs/PROMPT6-LOG.md S28): the climb to the ledge (a step at 2.4 m, then 4.8 m), the Spirit Bolt card (Interact), back down to the lane, and one
+ * bolt at the seal that holds the way on. With nothing but the buttons a person has: the sword cannot break the seal, the bolt can.
+ */
+export function breakTheSeal(d: Driver): void {
+  runTo(d, 21.6);
+  jump(d);
+  standOn(d, 2.4); // the step
+  runTo(d, 26.4);
+  jump(d);
+  standOn(d, 4.8); // the ledge
+  runTo(d, 33.6);
+  d.stop();
+  d.step(6);
+  d.tap('interact'); // the card: equipped, and the ability it teaches
+  d.step(16);
+  runTo(d, 41.5); // off the east end of the ledge…
+  standOn(d, 0); // …and down to the lane
+  runTo(d, 52);
+  d.stop();
+  d.step(6); // facing east, 11 m from the ward: in range of the bolt
+  d.tap('ability'); // the Spirit Bolt: 30 magic, and the ward breaks
+  d.step(70);
+}
+
+/** R1 → R2 → R3 (the card and the seal) → R4 → the end of the world. */
 export function playWorld(d: Driver): void {
   toTheEastExit(d, { crouchZones: R1_CROUCH }); // R1: hurdle, pit, crawl, the slime, the door
   arriveIn(d, 'r2_hall');
   toTheEastExit(d, { jumpAt: R2_SPIKES_JUMP }); // R2: down into the ditch, over its spikes, up out of it, the slime beyond
   arriveIn(d, 'r3_chamber');
-  toTheEastExit(d); // R3: the lane
+  breakTheSeal(d); // R3: the climb, the card, the bolt that breaks the ward
+  toTheEastExit(d); // …and the lane to the way on
   arriveIn(d, 'r4_sanctum');
   toTheEastExit(d); // R4: the way out of the world
   d.step(20);

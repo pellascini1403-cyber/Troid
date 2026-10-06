@@ -140,8 +140,18 @@ describe('R2 «Galería de Raíces»: the fork', () => {
 });
 
 describe('R3 «Cámara del Sello»: the climb', () => {
-  it('the lane is flat from end to end: a scripted player reaches the east exit', () => {
+  it('the lane is flat from end to end: a scripted player walks it to the foot of the seal\'s door — and no further: the door is shut and the way out does nothing', () => {
     const d = walk(R3, 'west');
+    const r = runBot(d, { until: () => d.body.x >= 61, maxTicks: 3000 });
+    expect(r.done).toBe(true);
+    d.right();
+    d.step(240);
+    expect(d.body.x, 'the door stops them').toBeLessThan(63);
+    expect(d.session.exitsReached.has('east')).toBe(false);
+  });
+
+  it('with the seal broken (its flag set) the same walk reaches the east exit', () => {
+    const d = walk(R3, 'west', { extra: { flags: ['broken:r3_seal'] } });
     const r = runBot(d, { until: () => d.session.exitsReached.has('east'), maxTicks: 3000 });
     expect(r.done).toBe(true);
   });

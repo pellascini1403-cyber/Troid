@@ -104,6 +104,31 @@ export interface CameraZoneDef {
   smoothTime?: number;
 }
 
+/**
+ * A SEAL (docs/PROMPT6-LOG.md S28): a ward of violet ink that holds a way shut until it is hit by the one thing that can break it — a skill,
+ * not the sword. It is a neutral target standing in front of the door it holds (the door is an ordinary gate that opens with the flag the
+ * seal sets); every attack that is not in `accepts` bounces off it, and the first one that is breaks it for good (the flag stays set
+ * through deaths, reloads and saved games, so a broken seal is never built again).
+ */
+export interface SealDef {
+  /** Unique within the room. */
+  id: string;
+  /** Where it stands (its feet) and how far its vulnerable area reaches each side; the area is `height` tall. */
+  x: number;
+  y: number;
+  halfWidth?: number;
+  height?: number;
+  /** The attacks (the ids a hit carries: a skill's id, `spirit_bolt`) that break it; anything else is turned away. */
+  accepts: readonly string[];
+  /** The world flag it sets when it breaks: the gate it holds opens with it. */
+  flag: string;
+  /**
+   * The flag that says the hero HAS what breaks it (the card that teaches the skill). Only for the world validator: it plays the world on
+   * paper, and a seal that nobody can break (because the card is behind it) would make the rest of the world unreachable.
+   */
+  needs?: string;
+}
+
 /** What a hazard is. The interface draws it by kind; `spikes` is the one that exists today. */
 export type HazardKind = 'spikes';
 
@@ -152,6 +177,8 @@ export interface RoomDefinition {
   interactables?: InteractableDef[];
   /** Zones that hurt the hero: spikes (docs/PROMPT6-LOG.md S25). */
   hazards?: HazardDef[];
+  /** Wards that only a skill breaks (docs/PROMPT6-LOG.md S28). */
+  seals?: SealDef[];
   /** Provisional scenery behind and in front of the action (never collision): `render/backdrops` draws it. */
   art?: { backdrop: string; seed?: number };
 }

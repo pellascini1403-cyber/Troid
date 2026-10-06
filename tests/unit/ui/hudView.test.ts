@@ -130,6 +130,28 @@ describe('hud view', () => {
     expect(q(host, 'hud-card').style.transform).toBe('');
   });
 
+  it('a new card makes its slot glow and swell, then settle; a refused cast and the glow share the one transform without losing either', () => {
+    const bolt = (s: PlayerStatus): void => {
+      s.card.equipped = true;
+      s.card.id = 'card_spirit_bolt';
+      s.card.iconId = 'spirit_bolt';
+      s.card.nameKey = 'card.spiritBolt.name';
+      s.card.state = 'ready';
+    };
+    const card = q(host, 'hud-card');
+    expect(card.dataset['gain']).toBe('0');
+    show(status(bolt), 0);
+    expect(card.dataset['gain']).toBe('1');
+    expect(card.style.transform).toContain('scale(1.3');
+    model.magicDenied();
+    show(status(bolt), 0.03);
+    expect(card.style.transform).toContain('translateX');
+    expect(card.style.transform).toContain('scale(');
+    for (let i = 0; i < 90; i++) show(status(bolt));
+    expect(card.dataset['gain']).toBe('0');
+    expect(card.style.transform).toBe('');
+  });
+
   it('the card slot is EMPTY without a card: dashed, no icon, and it says so', () => {
     const card = q(host, 'hud-card');
     expect(card.dataset['state']).toBe('empty');

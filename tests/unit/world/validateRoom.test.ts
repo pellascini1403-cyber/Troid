@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { validateRoom, type RoomRefs } from '@/world/validateRoom';
 import { block, ground, oneWay, rect } from '@/world/builders';
 import type { Rect } from '@/core/math';
-import type { RoomDefinition } from '@/world/RoomDefinition';
+import type { RoomDefinition, SealDef } from '@/world/RoomDefinition';
 
 const refs: RoomRefs = { enemies: { ink_slime: { body: { halfWidth: 0.55, height: 0.9 } } } };
 
@@ -233,6 +233,52 @@ describe('validateRoom: interactables', () => {
       expect(codes(withZones(zone({ whenClear: 'defeated:r9_boss' })), { externalFlags: new Set(['defeated:r9_boss']) })).toEqual([]); // another room's
       expect(codes(withZones(zone({ whenSet: '' })))).toContain('empty-flag');
       expect(codes(withZones(zone({ whenClear: '' })))).toContain('empty-flag');
+    });
+  });
+
+  describe('seals', () => {
+    /** A room whose only door is held by one seal (the base room's own door and guardian are taken out of the way). */
+    const withSeal = (over: Partial<SealDef> = {}, patch: Partial<RoomDefinition> = {}): RoomDefinition =>
+      room({ spawns: [], gates: [{ id: 'g1', solid: 'door', openWhen: 'broken:ward' }], seals: [{ id: 'ward', x: 30, y: 0, accepts: ['spirit_bolt'], flag: 'broken:ward', ...over }], ...patch });
+
+    it('a sound seal raises no issue — its flag is what opens the door, so the door is not an orphan either', () => {
+      expect(codes(withSeal())).toEqual([]);
+      expect(codes(withSeal({ halfWidth: 1.2, height: 3 }))).toEqual([]);
+      expect(codes(withSeal({ needs: 'taken:card' }), { externalFlags: new Set(['taken:card']) })).toEqual([]);
+    });
+
+    it('ids are unique and it stands inside the room, on something', () => {
+      const a = withSeal().seals![0]!;
+      expect(codes(withSeal({}, { seals: [a, a] }))).toContain('duplicate-id');
+      expect(codes(withSeal({ x: 500 }))).toContain('seal-outside');
+      expect(codes(withSeal({ x: Number.NaN }))).toContain('seal-outside');
+      expect(codes(withSeal({ y: 6 }))).toContain('seal-floating');
+    });
+
+    it('its size, when given, is positive; and it names at least one attack that can break it — a seal nothing breaks would shut the way for good', () => {
+      expect(codes(withSeal({ halfWidth: 0 }))).toContain('bad-seal');
+      expect(codes(withSeal({ height: -1 }))).toContain('bad-seal');
+      expect(codes(withSeal({ accepts: [] }))).toContain('seal-accepts');
+      expect(codes(withSeal({ accepts: [''] }))).toContain('seal-accepts');
+    });
+
+    it('its flags are real: the one it sets is not empty, and the one it needs is set by something (the room, or the world)', () => {
+      expect(codes(withSeal({ flag: '' }))).toContain('empty-flag');
+      expect(codes(withSeal({ needs: '' }))).toContain('empty-flag');
+      expect(codes(withSeal({ needs: 'taken:nothing' }))).toContain('seal-needs');
+      const card: RoomDefinition['interactables'] = [{ id: 'card', kind: 'pickup', verbKey: 'k', x: 10, y: 0, actions: [{ type: 'setFlag', flag: 'taken:card' }] }];
+      expect(codes(withSeal({ needs: 'taken:card' }, { interactables: card }))).toEqual([]);
+    });
+
+    it('it holds something: a door of the room that opens with its flag, or an exit that asks for it — otherwise it is an orphan', () => {
+      expect(codes(withSeal({}, { gates: [] }))).toContain('seal-orphan');
+      expect(codes(withSeal({}, { gates: [], exits: [{ id: 'east', rect: rect(53, 0, 58, 4), requires: 'broken:ward' }] }))).not.toContain('seal-orphan');
+      expect(codes(withSeal({ flag: 'broken:other' }))).toContain('seal-orphan'); // the door opens with another flag
+    });
+
+    it('a door that opens with a seal\'s flag is not asking for something nothing sets', () => {
+      expect(codes(withSeal())).not.toContain('gate-flag');
+      expect(codes(withSeal({}, { seals: [] }))).toContain('gate-flag');
     });
   });
 });

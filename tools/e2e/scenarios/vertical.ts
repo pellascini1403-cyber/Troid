@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import type { Page } from 'playwright-core';
 import type { Driver } from '../../../tests/helpers/sim';
-import { freshR1, playDefeat, playWin } from '../../../tests/helpers/vertical';
+import { freshR1WithBolt, GIVE_THE_BOLT, playDefeat, playWin } from '../../../tests/helpers/vertical';
 import { frames } from '../frames';
 import { record, replay, type Recording } from '../replay';
 import type { GameState, Scenario } from '../scenario';
@@ -9,7 +9,7 @@ import { centreOf, TouchScreen } from '../touch';
 
 /** A playthrough from the shared scripts (tests/helpers/vertical.ts, asserted on by tests/integration/vertical.test.ts), recorded. */
 function recorded(play: (d: Driver) => void): Recording {
-  const d = freshR1();
+  const d = freshR1WithBolt();
   return record(d, () => play(d));
 }
 
@@ -18,19 +18,19 @@ const display = (page: Page, id: string): Promise<string> => page.locator(`[data
 
 /**
  * R1 COMPLETE (docs/PROMPT5-LOG.md S19): the first room of the vertical slice played end to end with everything Prompt 5 added —
- * movement, the crawl tunnel, the CARD taken by INTERACTING, the Spirit Bolt and its magic, a BOTTLE drunk to heal, the slime beaten,
- * the door, the exit — and lost once on purpose to see what a defeat keeps.
+ * movement, the crawl tunnel, the Spirit Bolt and its magic, a BOTTLE drunk to heal, the slime beaten, the door, the exit — and lost once on
+ * purpose to see what a defeat keeps. Since S28 the card is not found in R1 (it lies on R3's ledge: see `bolt-world` / `progression`): the hero
+ * of these runs is the one that comes back to R1 WITH it, given before tick 0 (`GIVE_THE_BOLT`, which the recorded run has too).
  *
  * Two halves, both in headless Chromium:
  *
- *  1 · KEYBOARD, bit for bit. The WIN (every new system, to the exit) and the DEFEAT (taking the card, drinking a bottle, losing to the
- *      slime) are RECORDED in Node on the pure simulation and REPLAYED through the browser's real keyboard, tick by tick, comparing
- *      a digest of the whole simulation — now including the magic, every bottle, the card and the object with the icon — every 50
- *      ticks. The browser plays the same game as the simulation, to the bit, with the new layer included.
- *  2 · TOUCH. The same room from the crawl tunnel to the exit with REAL touches: a drag crawls through the tunnel, a tap on the
- *      interaction icon takes the card (and only then does the Ability button appear), taps on the Ability button beat the slime
- *      with the Spirit Bolt, a hit makes the bottle chip appear and a tap on it drinks, five hits lose, and what the defeat keeps
- *      is checked on screen.
+ *  1 · KEYBOARD, bit for bit. The WIN (every system, to the exit) and the DEFEAT (a bottle, losing to the slime) are RECORDED in Node on the
+ *      pure simulation and REPLAYED through the browser's real keyboard, tick by tick, comparing a digest of the whole simulation — the
+ *      magic, every bottle, the card and the object with the icon included — every 50 ticks. The browser plays the same game as the
+ *      simulation, to the bit.
+ *  2 · TOUCH. The same room from the crawl tunnel to the exit with REAL touches: a drag crawls through the tunnel (and there is nothing to
+ *      take in it: no icon), taps on the Ability button beat the slime with the Spirit Bolt, a hit makes the bottle chip appear and a tap
+ *      on it drinks, five hits lose, and what the defeat keeps is checked on screen.
  *
  * (The jumps, the pit and the first sections are proven by physics in `r1.test.ts` and played for real by `room`.)
  */
@@ -51,9 +51,15 @@ export const vertical: Scenario = {
     let page = ctx.page;
     let s = await ctx.state();
     assert.equal(s.now, 0, 'not one tick has run: the replay starts from tick 0');
-    assert.equal(s.card, null, 'the hero starts with NO card (no initial ability)');
+    assert.equal(s.card, null, 'a new game has NO card (no initial ability)');
     assert.equal(await dom(page, 'hud-card', 'data-state'), 'empty', 'the card slot is the empty one');
     assert.deepEqual(s.bottles, ['ready', 'ready', 'ready']);
+    // the hero of the run is the one that comes back to R1 with the Spirit Bolt of R3 (the recorded run has it too)
+    await ctx.page.evaluate(`(() => { const s = window.__troid.session; ${GIVE_THE_BOLT} })()`);
+    await frames(page, 6);
+    assert.equal((await ctx.state()).card, 'card_spirit_bolt');
+    assert.equal(await dom(page, 'hud-card', 'data-state'), 'ready', 'the HUD shows the card');
+    assert.equal((await ctx.state()).now, 0, 'giving it ran no tick');
 
     const seen = new Set<string>();
     const once = new Set<string>();
@@ -67,29 +73,16 @@ export const vertical: Scenario = {
       chunk: 4,
       observe: async (st) => {
         note(st);
-        if (st.state === 'interact') seen.add('interact');
         if (st.state === 'cast') seen.add('cast');
         if (st.state === 'drink') seen.add('drink');
         if (st.state === 'cast' && st.magic === 70) seen.add('bolt-paid'); // the first bolt left the hand: 30 magic gone (it hits a slime within reach at once, so it is not "in flight" for long)
-        if (st.state === 'crouch' && st.x > 73) seen.add('crouch-at-the-card');
+        if (st.state === 'crouch' && st.x > 66) seen.add('crouch-in-the-tunnel');
         if (st.flags?.includes('defeated:r1_slime')) seen.add('slime-defeated');
-        // the icon over the card, before it is taken: DOM that follows the camera, so let the page draw
-        await look('c-01-icon', !!st.crouched && st.x > 73.1 && st.state === 'crouch' && !st.card, async () => {
+        if (st.state === 'interact') seen.add('interact'); // (nothing in R1 can be interacted with: this must stay empty)
+        // nothing to take in R1: the icon never appears, not even where the card used to lie
+        await look('c-01-tunnel', !!st.crouched && st.x > 73.1 && st.state === 'crouch', async () => {
           await frames(page, 40); // the camera follows in real time while the replay runs ahead of it: let it catch up with the hero
-          assert.equal(await dom(page, 'prompt-hit', 'data-active'), '1', 'the icon is over the card');
-          assert.equal(await dom(page, 'prompt-hit', 'data-object'), 'card_spirit_bolt');
-          assert.equal((await page.locator('[data-testid="prompt-glyph"]').textContent()) ?? '', 'E', 'with the keyboard it says E');
-          // it floats just above the top of the card (74.5 m, 1.2 m up), where the camera now shows it: not clamped to an edge of the screen
-          const target = (await page.evaluate('window.__troid.worldToScreen(74.5, 1.2)')) as { x: number; y: number };
-          const gs = (await page.evaluate('window.__troid.touch().layout.gestureScale')) as number;
-          const c = await centreOf(page, 'prompt-hit');
-          assert.ok(target.x > 40 && target.x < 804, `the card is on screen (${target.x.toFixed(0)})`);
-          assert.ok(Math.abs(c.x - target.x) < 3 && Math.abs(c.y - (target.y - 34 * gs)) < 3, `the icon is over the card (${c.x.toFixed(1)}, ${c.y.toFixed(1)} vs ${target.x.toFixed(1)}, ${(target.y - 34 * gs).toFixed(1)})`);
-        });
-        await look('c-02-card', st.card === 'card_spirit_bolt' && st.state === 'crouch' && st.x > 73, async () => {
-          await frames(page, 6);
-          assert.equal(await dom(page, 'hud-card', 'data-state'), 'ready', 'the HUD shows the card');
-          assert.equal(await dom(page, 'prompt-hit', 'data-active'), '0', 'and the icon is gone');
+          assert.equal(await dom(page, 'prompt-hit', 'data-active'), '0', 'no icon in the tunnel: the card is not here any more');
         });
         await look('c-03-bolt', st.state === 'cast' && st.magic === 70, async () => {
           await frames(page, 4);
@@ -103,9 +96,10 @@ export const vertical: Scenario = {
     });
     s = await ctx.state();
     note(s);
-    for (const what of ['interact', 'cast', 'bolt-paid', 'drink', 'crouch-at-the-card', 'slime-defeated']) assert.ok(seen.has(what), `the run showed "${what}" (saw ${[...seen].join(', ')})`);
+    for (const what of ['cast', 'bolt-paid', 'drink', 'crouch-in-the-tunnel', 'slime-defeated']) assert.ok(seen.has(what), `the run showed "${what}" (saw ${[...seen].join(', ')})`);
+    assert.ok(!seen.has('interact'), 'and the hero never interacted: R1 has nothing to take');
     assert.equal(s.card, 'card_spirit_bolt');
-    assert.deepEqual(s.flags, ['defeated:r1_slime', 'taken:card_spirit_bolt'], 'the card is remembered, and so is the guardian');
+    assert.deepEqual(s.flags!.slice().sort(), ['defeated:r1_slime', 'taken:card_spirit_bolt'], 'the card is remembered, and so is the guardian');
     assert.deepEqual(s.exits, ['east'], 'all the way to the exit');
     assert.equal(s.transition?.phase, 'fadeOut', 'which starts the transition to R2');
     assert.equal(s.health, 5, 'a bottle brought the life back');
@@ -123,6 +117,7 @@ export const vertical: Scenario = {
     // =================================================================================================== 1b · the defeat, by keyboard
     await ctx.open('paused=1', { width: 844, height: 390, dpr: 1 });
     page = ctx.page;
+    await ctx.page.evaluate(`(() => { const s = window.__troid.session; ${GIVE_THE_BOLT} })()`);
     s = await ctx.state();
     assert.equal(s.now, 0);
     await replay(ctx, lose, {
@@ -148,7 +143,7 @@ export const vertical: Scenario = {
     await ctx.teleport(73.4, 0);
     await ctx.step(3);
     await frames(page, 6);
-    assert.equal(await dom(page, 'prompt-hit', 'data-active'), '0', 'and the card is not lying there again');
+    assert.equal(await dom(page, 'prompt-hit', 'data-active'), '0', 'and nothing lies in the tunnel');
     await ctx.shot('d-01-respawned');
 
     // =================================================================================================== 2 · touch, from the tunnel to the exit
@@ -163,6 +158,11 @@ export const vertical: Scenario = {
     assert.equal(await display(page, 'touch-ability'), 'none', 'no card: no Ability button');
     assert.equal(await display(page, 'touch-chip'), 'none', 'full life: no bottle chip');
     assert.equal(await dom(page, 'prompt-hit', 'data-active'), '0');
+    // the hero that comes back to R1 with the card of R3: from now on the Ability button is drawn (taking the card by touch is `progression`'s)
+    await ctx.page.evaluate(`(() => { const s = window.__troid.session; ${GIVE_THE_BOLT} })()`);
+    await frames(page, 6);
+    assert.notEqual(await display(page, 'touch-ability'), 'none', 'with a card the Ability button is drawn');
+    assert.equal(await dom(page, 'hud-card', 'data-state'), 'ready');
 
     // ---- crawl through the tunnel with ONE finger: right and down at once
     await screen.touch(1, 100, 250);
@@ -174,25 +174,10 @@ export const vertical: Scenario = {
     assert.ok(s.crouched, 'crawling');
     assert.ok(s.x > 72.9 && s.x < 74.4, `at the end of the tunnel (x = ${s.x})`);
     assert.equal(s.device, 'touch');
-
-    // ---- the icon IS the button: one tap takes the card, and then the Ability button appears
+    // …and there is nothing to take at the end of it
     await frames(page, 6);
-    assert.equal(await dom(page, 'prompt-hit', 'data-active'), '1');
-    assert.equal((await page.locator('[data-testid="prompt-glyph"]').textContent()) ?? '', '', 'touch: no key on the icon');
-    const icon = await centreOf(page, 'prompt-hit');
-    assert.ok(icon.w >= 44, `a finger-sized target (${icon.w})`);
-    await ctx.shot('t-01-icon');
-    const under = await centreOf(page, 'prompt-hit'); // the icon follows the camera frame by frame: measure it again right before the finger lands
-    await screen.tap(2, under.x, under.y);
-    await ctx.step(1);
-    s = await ctx.state();
-    assert.equal(s.state, 'interact');
-    assert.equal(s.card, 'card_spirit_bolt');
-    await ctx.step(14);
-    await frames(page, 6);
-    assert.notEqual(await display(page, 'touch-ability'), 'none', 'with a card the Ability button is drawn');
-    assert.equal(await dom(page, 'hud-card', 'data-state'), 'ready');
-    assert.equal(await dom(page, 'prompt-hit', 'data-active'), '0');
+    assert.equal(await dom(page, 'prompt-hit', 'data-active'), '0', 'no icon: R1 has nothing to pick up');
+    await ctx.shot('t-01-tunnel');
 
     // ---- the slime, with the Spirit Bolt: from the arena's edge, tapping the Ability button
     await ctx.teleport(86.5, 0);

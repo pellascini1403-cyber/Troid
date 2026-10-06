@@ -15,7 +15,8 @@ import { driver, makeSession, type Driver, type MakeOptions } from '../helpers/s
  */
 const T = DEFAULT_TRANSITION;
 const WHOLE = T.fadeOut + T.hold + T.fadeIn;
-const FLAGS = ['defeated:r1_slime', 'defeated:r2_slime'];
+/** The hero of these walks has beaten R1's and R2's guardians and broken R3's seal (S28: its east exit asks for it): every way of the world is open to them. */
+const FLAGS = ['defeated:r1_slime', 'defeated:r2_slime', 'broken:r3_seal'];
 
 /** A session on the whole world, starting in `room` at `entry`, with the guardians' flags set (so nothing is in the way). */
 function world(room = 'r1_gate', entry?: string, extra: MakeOptions['extra'] = {}): Driver {

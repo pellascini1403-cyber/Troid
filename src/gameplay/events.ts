@@ -46,6 +46,8 @@ export interface GameEvents extends CombatEvents {
   'room:exiting': { roomId: string; exitId: string; to: { room: string; entry: string } };
   /** A hazard of the room (spikes) hurt the hero: a confirmed hit, not a touch during the i-frames that follow one. `x, y` is where. */
   'hazard:hit': { roomId: string; hazardId: string; kind: string; damage: number; x: number; y: number };
+  /** A seal turned a blow away (the sword, or any attack it does not accept): `x, y` is where it landed, `direction` the way the blow was going, `shake` the strength of the jolt. */
+  'seal:rejected': { id: string; attackId: string; x: number; y: number; direction: 1 | -1; shake: number };
   /** The hero rested at a checkpoint: it is where they come back after a defeat now. `x, y` is where they stand (the effect plays there). */
   'checkpoint:set': { room: string; entry: string; x: number; y: number };
   /** The player walked into a room through a connection (`room:loaded` also fires for a respawn or a debug load; this one does not). */

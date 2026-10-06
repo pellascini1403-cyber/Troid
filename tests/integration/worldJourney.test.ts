@@ -37,7 +37,34 @@ describe('the world from front to back', () => {
     expect(d.session.room.id).toBe('r4_sanctum');
     expect(d.session.transition.active).toBe(false);
     expect(d.p.health.dead).toBe(false);
-    expect(d.session.flags.list().sort()).toEqual(['defeated:r1_slime', 'defeated:r2_slime']);
+    expect(d.session.flags.list().sort()).toEqual(['broken:r3_seal', 'defeated:r1_slime', 'defeated:r2_slime', 'taken:card_spirit_bolt']);
+  });
+
+  it('R3 is where the hero gets the Spirit Bolt and uses it: the card is taken on the ledge, one bolt breaks the seal, and the sword never could', () => {
+    const d = freshWorld();
+    d.settle();
+    const log: string[] = [];
+    const bus = d.session.bus;
+    bus.on('interaction:performed', (e) => log.push(`took ${e.id}`));
+    bus.on('card:changed', (e) => log.push(`card ${e.type}`));
+    bus.on('skill:cast', (e) => log.push(`cast ${e.skillId}`));
+    bus.on('seal:rejected', () => log.push('rejected'));
+    bus.on('actor:died', (e) => e.team === 'neutral' && log.push('seal fell'));
+    bus.on('gate:changed', (e) => e.open && log.push(`opened ${e.gateId}`));
+    playWorld(d);
+    expect(d.session.loadout.equipped?.id).toBe('card_spirit_bolt');
+    expect(d.session.abilities.has('magic_attack')).toBe(true);
+    // in order: the card is acquired and equipped by the pickup, one bolt is cast, the ward falls and its door opens — and nothing was turned away
+    const at = (what: string): number => log.indexOf(what);
+    expect(at('card acquired')).toBeGreaterThanOrEqual(0);
+    expect(at('card equipped')).toBeGreaterThan(at('card acquired'));
+    expect(at('took card_spirit_bolt')).toBeGreaterThan(at('card equipped'));
+    expect(at('cast spirit_bolt')).toBeGreaterThan(at('took card_spirit_bolt'));
+    expect(at('opened seal_gate')).toBeGreaterThan(at('cast spirit_bolt'));
+    expect(at('seal fell')).toBeGreaterThan(at('cast spirit_bolt'));
+    expect(log.filter((l) => l === 'cast spirit_bolt'), 'one bolt is enough').toHaveLength(1);
+    expect(log.filter((l) => l === 'took card_spirit_bolt'), 'the card is taken once').toHaveLength(1);
+    expect(log.filter((l) => l === 'rejected'), 'the journey never swings at the seal').toEqual([]);
   });
 
   it('visits the rooms in the order the world lists them', () => {

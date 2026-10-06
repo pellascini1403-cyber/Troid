@@ -14,8 +14,8 @@
 | **S24** guardado de progreso y checkpoints | ✅ | `fc6acb8` |
 | **S25** peligros | ✅ | `056c038` |
 | **S26** zonas de cámara | ✅ | `dad0241` |
-| **S27** cuarta botella | ✅ | (ver historial) |
-| **S28** Spirit Bolt en R3 | ⏳ | |
+| **S27** cuarta botella | ✅ | `2dbe0c6` |
+| **S28** Spirit Bolt en R3 | ✅ | (ver historial) |
 | **S29** jefe | ⏳ | |
 | **S30** ajustes (volumen, remapeo, calidad, posición táctil) | ⏳ | |
 | **S31** calibración móvil (solo geometría y documentación) | ⏳ | |
@@ -424,3 +424,61 @@ interface CameraZoneDef { id; rect; bounds; viewHeight?; whenSet?; whenClear?; s
 | Tests | 1476 / 98 archivos | **1511 / 100 archivos** |
 | Arranque en frío de R1 | 192.6 KB gz | **192.9 KB gz** (+0.3 KB: el marcador del frasco y el resplandor del HUD; los efectos van en el *chunk* diferido) — margen 7.1 KB |
 | Toda la primera sesión | 203.2 KB gz | 203.6 KB gz |
+
+---
+
+## S28 — Spirit Bolt en R3 ✅
+
+**Qué cambia.** La carta del Spirit Bolt **deja de existir en R1** (era un *pickup* provisional al final del túnel de gateo, del Prompt 5) y pasa a **R3**, en la repisa de 4.8 m a la que se sube con dos saltos. Y R3 gana su razón de ser: **un sello** de tinta violeta que cierra el camino a R4 y que **solo rompe el Spirit Bolt** (la espada rebota). El jugador aprende la habilidad y la usa **en la misma sala**. Valores sin tocar: coste 30, magia máxima 100, regeneración 6/s.
+
+```ts
+// R3 «Cámara del Sello»
+interactables: [{ id: 'card_spirit_bolt', kind: 'pickup', x: 34.5, y: 4.8, whenClear: 'taken:card_spirit_bolt',
+                  actions: [{ type: 'acquireCard', cardId: 'card_spirit_bolt' }, { type: 'setFlag', flag: 'taken:card_spirit_bolt' }] }],
+solids:  [... block('seal_wall', 63, 0, 64.2, 9, 'seal')],
+gates:   [{ id: 'seal_gate', solid: 'seal_wall', openWhen: 'broken:r3_seal' }],
+seals:   [{ id: 'seal', x: 63, y: 0, accepts: ['spirit_bolt'], flag: 'broken:r3_seal', needs: 'taken:card_spirit_bolt' }],
+exits:   [..., { id: 'east', ..., requires: 'broken:r3_seal' }],
+```
+
+### Cómo funciona el sello (todo con piezas que ya existían)
+
+| Pieza | Qué es |
+|---|---|
+| `SealDef` (`RoomDefinition.seals`) | datos: dónde está, qué ataques lo rompen (`accepts`), qué bandera pone (`flag`) y qué bandera dice que el héroe **tiene** con qué romperlo (`needs`, solo para el validador de mundo) |
+| `Seal` (`gameplay/Seal.ts`) | un **`Combatant` neutral** (el combate ya dejaba a los ataques del jugador alcanzar a lo neutral y nunca a los enemigos): el combate le pregunta qué hace con cada golpe. **No acepta** el ataque → lo **gasta** (`blocked`, sin daño ni *hit-stop*), parpadea y anuncia `seal:rejected {x, y, dirección, sacudida}`. **Sí acepta** (`spirit_bolt`) → se rompe de un golpe y anuncia su caída con **el mismo `actor:died` que usa cualquier guardián**: así es como la sesión pone su bandera (`defeatFlags`), sin mecanismo nuevo |
+| La puerta | **una `GateDef` corriente**: la losa de 9 m (más que cualquier salto desde la repisa: 4.8 + 3.1 = 7.9 m) se abre con la bandera del sello, y la salida este de R3 `requires` esa bandera (el mapa del mundo lo sabe) |
+| Dónde está el área vulnerable | **delante** de la puerta (1.4 m a cada lado de x = 63): el proyectil (alcance 12 m) encuentra el sello **antes** que el muro; desde ≈ 49 m hasta el pie del sello hay carril para disparar, y más de 8 m de él alcanzan |
+| Persistencia | la bandera `broken:r3_seal` es del mundo: sobrevive a derrota, transición, recarga de sala y partida guardada; un sello roto **no se vuelve a construir** y su puerta queda abierta |
+
+**El mundo sigue siendo completable — probado, no supuesto.** `analyzeProgression` entiende los sellos: un sello concede su bandera solo cuando la `needs` ya está en el conjunto (la carta, que está **en la misma sala y antes**). `validateWorld` lo demuestra para el mundo entregado, y los tests **rompen** el mundo a propósito para ver que se queja: sin la carta, R4 queda `room-unreachable`; con la carta **detrás** del sello, `flag-ungranted` + `room-unreachable`. El validador de sala añade `bad-seal`, `seal-outside`, `seal-floating`, `seal-accepts`, `seal-needs` y `seal-orphan` (un sello que no sostiene nada: ninguna puerta de la sala se abre con su bandera ni ninguna salida la pide).
+
+### Sensación (placeholder, sin arte final)
+
+- **El sello:** la puerta se dibuja como **una cortina de tinta violeta** (cuerpo oscuro, bordes brillantes, peldaños de glifos y goteos; no la losa de piedra de R1) y delante de ella el **sigilo**: un rombo violeta con una rendija blanca sobre un halo que respira, en la capa de luz. Violeta = lo enemigo (GAME-SPEC-2D §3.4); **el protagonista sigue siendo la cápsula con espada, sin tocar**.
+- **Un golpe rechazado:** el sigilo destella en blanco y se encoge, una **onda violeta** se abre donde cayó el golpe y salen **chispas hacia atrás** (`sealRejected`, dato en `VFX_BINDINGS`), la cámara se sacude un poco (0.1) y **nada se congela** ni se hiere.
+- **Romperlo:** el bolt impacta como siempre, el sello se hincha y se desvanece en 30 ticks con **la ráfaga de tinta de cualquier muerte** (`enemyDied`), y la cortina de la puerta se disuelve.
+- **Coger la carta:** la misma luz de recogida de S27 (`pickup`), y ahora **la ranura de carta del HUD llega brillando** y se asienta (`card.gain`, 0.9 s; una partida que **carga** con la carta no lo anuncia); el botón **Ability** del táctil aparece solo (ya seguía a la carta equipada).
+
+### Lo que se adaptó (misma intención, nada borrado)
+
+| Qué fijaba | Cómo queda |
+|---|---|
+| `vertical` (test y E2E): R1 completa con la carta tomada en el túnel | el héroe de esos recorridos es **el que vuelve a R1 con la carta ya ganada** (`freshR1WithBolt` en Node; `GIVE_THE_BOLT` en el navegador, antes del tick 0: el digest incluye carta y bandera). Lo demás —túnel, dos bolts, botella, puerta, salida, derrota— igual. «R1 no ofrece nada» es ahora una aserción (ningún `available:`/`performed:` en todo el recorrido; en táctil el icono no aparece al final del túnel) |
+| `interaction` (test y E2E): «la carta provisional de R1» | R1 **sin** interactuables (el icono no aparece donde estaba y Interact no hace nada) y **la carta en la repisa de R3** (sin icono desde el suelo; con él sobre la repisa; Ability a la vez) |
+| `transitions`, `worldRooms`, `worldJourney`, `world` (E2E), `transition` (E2E) | la salida este de R3 pide la bandera: los recorridos por teletransporte llevan `broken:r3_seal`; el carril se camina hasta **el pie de la puerta** (y no más allá) y, con el sello roto, hasta la salida; **el viaje por el mundo** (`playWorld`, que el E2E graba y repite con el teclado real) ahora **sube a la repisa, coge la carta, baja y rompe el sello de un bolt** (443 ticks desde la puerta oeste de R3) |
+| `soak` | la mitad de las semillas empiezan como el héroe que vuelve con la carta (la otra mitad, sin ella: se sigue ejercitando «la barra que se gasta» y «la que se rechaza» desde el primer tick, y la carta se sigue encontrando interactuando en las salas que la tienen) |
+
+### Pruebas y E2E
+
+- **Tests (+70, de 1511 a 1581):** `seal` (17, en una sala sintética: se construye neutral con su puerta cerrada, su área está **delante** de la puerta, la espada rebota —una vez por golpe, sin daño, sin *hit-stop*, con parpadeo—, cualquier otro ataque y ninguno de los enemigos la rompen ni la alcanzan, un bolt la rompe —bandera, puerta, salida, coste— y se disuelve en 30 ticks, no se rompe dos veces, una cuclillas o desde el límite del alcance también llega y **desde más lejos se queda corto**, y **se queda rota** tras recargar la sala, tras una derrota y tras una partida guardada), `spiritBoltWorld` (18, sobre **R3 real**: sin carta Ability no hace nada; la repisa solo se alcanza con la subida; coger la carta equipa, enseña la habilidad y escribe la bandera en la misma pulsación; el estado del HUD; una sola vez; derrota, derrota previa, transición y partida guardada; el sello entero con su puerta cerrada, **nada más que el bolt pasa** —andar, saltar desde la repisa y dash—, la espada rebota las veces que haga falta, un bolt desde 11 m la rompe, la ruta completa con botones, sin magia no se rompe y **a los 6 s sí**), validador (+6) y grafo del mundo (+5: concede/espera, se rompe en papel solo cuando se puede tener la carta, la carta detrás del sello o una `needs` que nada pone dejan el mundo sin terminar), contenido (+7: una sola carta en el mundo y en R3, sobre la repisa, la puerta más alta que un salto, el sello delante, solo el bolt, ≥ 8 m de carril para disparar, mundo entero sobre el papel y roto sin la carta), `sealView` (8), `sealVfx` (4), HUD de la carta (3) y el viaje del mundo (+1).
+- **E2E (nuevo, 30.º escenario) `progression`:** **A** una partida nueva no tiene carta (Ability no hace nada, ranura vacía). **B** desde una partida guardada en la puerta oeste de R3, **graba en Node** la subida, la carta, la bajada y un bolt, y **la repite con el teclado real** comparando el digest cada 50 ticks: el héroe **toma la carta sobre la repisa** (pose de interacción), la ranura **llega brillando**, el bolt cuesta 30, **el sello cae y su puerta se disuelve**, y el mundo contó los hechos **en orden** (carta, habilidad, equipar, lanzar, puerta, caída, impacto). **C** el guardado tiene carta + habilidad + las dos banderas; recargar da el héroe con la carta (sin anunciarla), el sello **no se construye**, la repisa vacía, Ability funciona y el camino a R4 está abierto. **D** una derrota lo conserva todo. **E** en **táctil** el icono es el botón, coger la carta dibuja el botón Ability, **un toque en Ataque es rechazado por el sello** (sin daño, sin puerta abierta, sin *hit-stop*, el sello entero) y **un toque en Ability lo rompe**.
+- **Gancho/estado:** ninguno nuevo.
+
+### Medido ✅
+
+| | S27 | S28 |
+|---|---|---|
+| Tests | 1511 / 100 archivos | **1581 / 104 archivos** |
+| Arranque en frío de R1 | 192.9 KB gz | **193.9 KB gz** (+1.0 KB: `Seal`, `SealView`, la cortina de la puerta, las reglas del validador/grafo que no entran, el resplandor de la carta) — margen 6.1 KB |
+| Toda la primera sesión | 203.6 KB gz | 204.7 KB gz |

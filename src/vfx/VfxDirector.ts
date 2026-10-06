@@ -63,6 +63,10 @@ export class VfxDirector {
       bus.on('interaction:performed', (e) => {
         if (e.kind === 'pickup') this.fire('pickup', { x: e.x, y: e.y - 0.35, facing: 1 });
       }),
+      // a blow a seal turned away: a violet ring where it landed and sparks that spring back the way it came from
+      bus.on('seal:rejected', (e) => {
+        this.fire('sealRejected', { x: e.x, y: e.y, facing: e.direction, dirX: e.direction, dirY: 0 });
+      }),
       bus.on('player:hurt', (e) => {
         this.fire('playerHurt', { x: e.x, y: e.y, facing: e.direction, dirX: e.direction, dirY: 0.2 });
       }),

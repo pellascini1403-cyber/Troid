@@ -30,7 +30,7 @@ export const world: Scenario = {
     assert.equal(s.now, 0, 'not one tick has run: the replay starts from tick 0');
     // what the world tells the interface, as it happens
     await ctx.page.evaluate(
-      `(() => { const s = window.__troid.session; window.__w = []; s.bus.on('room:entered', (e) => window.__w.push('enter ' + e.roomId + ':' + e.entryId + ' from ' + e.from)); s.bus.on('exit:reached', (e) => window.__w.push('exit ' + e.roomId + '/' + e.exitId)); s.bus.on('transition:cancelled', () => window.__w.push('cancelled')); s.bus.on('player:died', () => window.__w.push('died')); })()`,
+      `(() => { const s = window.__troid.session; window.__w = []; s.bus.on('room:entered', (e) => window.__w.push('enter ' + e.roomId + ':' + e.entryId + ' from ' + e.from)); s.bus.on('exit:reached', (e) => window.__w.push('exit ' + e.roomId + '/' + e.exitId)); s.bus.on('transition:cancelled', () => window.__w.push('cancelled')); s.bus.on('player:died', () => window.__w.push('died')); s.bus.on('card:changed', (e) => e.type === 'equipped' && window.__w.push('card')); s.bus.on('actor:died', (e) => e.team === 'neutral' && window.__w.push('seal broken')); s.bus.on('seal:rejected', () => window.__w.push('seal rejected')); })()`,
     );
 
     let worst = 0;
@@ -77,12 +77,15 @@ export const world: Scenario = {
       'every east exit, the last one being the end of the world',
     );
     assert.ok(!events.includes('died') && !events.includes('cancelled'), `the hero never fell (${events.join(' | ')})`);
+    assert.ok(events.includes('card') && events.indexOf('card') < events.indexOf('seal broken'), 'the card was taken before the seal broke');
+    assert.ok(!events.includes('seal rejected'), 'and the sword never swung at the seal');
     assert.equal(transitions, 3, 'three fades were seen');
     assert.equal(s.room, 'r4_sanctum', 'the walk ends in the last room');
     assert.deepEqual(s.exits, ['east'], 'at the end of the world');
     assert.equal(s.transition?.phase, 'none');
     assert.ok(s.health! > 0);
-    assert.deepEqual(s.flags!.slice().sort(), ['defeated:r1_slime', 'defeated:r2_slime'], 'both guardians fell on the way');
+    assert.deepEqual(s.flags!.slice().sort(), ['broken:r3_seal', 'defeated:r1_slime', 'defeated:r2_slime', 'taken:card_spirit_bolt'], 'both guardians fell on the way, the card was taken on R3\'s ledge and its seal broken');
+    assert.equal(s.card, 'card_spirit_bolt', 'the hero ends the world with the Spirit Bolt in hand');
     assert.deepEqual([...shot].sort(), [...WORLD.rooms].sort(), 'every room was seen with the hero in it');
     assert.deepEqual([...camera.rooms].sort(), [...WORLD.rooms].sort());
     assert.ok(camera.worstOverrun < 0.6, `the camera never showed more than 0.6 m beyond the limits of a room (${camera.worstOverrun.toFixed(2)} m)`);

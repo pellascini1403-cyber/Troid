@@ -28,7 +28,7 @@ export type CardViewState = 'empty' | 'ready' | 'noMagic' | 'cooldown';
 export interface HudState {
   life: { max: number; current: number; segments: LifeSegmentState[]; /** The last segment pulses slowly. */ critical: boolean };
   magic: { fraction: number; regenerating: boolean; empty: boolean; /** Horizontal shake in dp (a refused cast). */ shakeX: number };
-  card: { state: CardViewState; iconId: string; nameKey: string; cooldown01: number; shakeX: number };
+  card: { state: CardViewState; iconId: string; nameKey: string; cooldown01: number; shakeX: number; /** 1 → 0 over `GAIN_SECONDS` when a card was just acquired (the slot arrives glowing). */ gain: number };
   bottles: BottleViewState[];
   /** Horizontal shake in dp of the whole row (a drink that was refused: nothing to drink, or the life is full). */
   bottlesShakeX: number;
@@ -54,11 +54,13 @@ export class HudModel {
   readonly state: HudState = {
     life: { max: 0, current: 0, segments: [], critical: false },
     magic: { fraction: 0, regenerating: false, empty: false, shakeX: 0 },
-    card: { state: 'empty', iconId: '', nameKey: '', cooldown01: 0, shakeX: 0 },
+    card: { state: 'empty', iconId: '', nameKey: '', cooldown01: 0, shakeX: 0, gain: 0 },
     bottles: [],
     bottlesShakeX: 0,
   };
   private lastLife = -1;
+  /** The card the last update showed (`''`: none; `null`: no update yet, so a game that LOADS with the card does not announce it). */
+  private lastCard: string | null = null;
   /** How many vials the last update showed (−1: none yet, so a game that LOADS with four does not announce the fourth). */
   private lastBottles = -1;
   private magicShake = 0;
@@ -129,6 +131,10 @@ export class HudModel {
     s.card.nameKey = c.equipped ? c.nameKey : '';
     s.card.cooldown01 = c.equipped ? c.cooldown01 : 0;
     s.card.shakeX = shake(this.cardShake);
+    // a card that was not there a moment ago (the Spirit Bolt of R3) arrives with a glow
+    if (this.lastCard === '' && s.card.iconId !== '') s.card.gain = 1;
+    this.lastCard = s.card.iconId;
+    s.card.gain = Math.max(0, s.card.gain - dtc / GAIN_SECONDS);
 
     // ---- bottles ----
     const bs = s.bottles;
