@@ -43,7 +43,10 @@ export const combat: Scenario = {
     assert.notEqual(s.sprite?.frame, startupFrame, 'the active frame differs from the startup frame');
     assert.ok(['attack_02', 'attack_03'].includes(s.sprite?.frame ?? ''), `active frame ${s.sprite?.frame}`);
     assert.ok((s.hitStop ?? 0) > 0, 'hit-stop');
-    assert.ok((s.trauma ?? 0) > 0, 'the impact shakes the camera');
+    assert.ok((s.shakes?.count ?? 0) >= 1 && (s.shakes?.last ?? 0) > 0, 'the impact shook the camera');
+    // VFX: the slash arc (raised when the blow became active) + the impact trio (sparks, flash, ring)
+    assert.ok((s.vfx?.spawned ?? 0) >= 4, `slash + impact effects started (${s.vfx?.spawned})`);
+    assert.ok((s.vfx?.particles ?? 0) >= 8 && (s.vfx?.sprites ?? 0) >= 4, `on screen: ${s.vfx?.particles} particles, ${s.vfx?.sprites} sprites`);
     await ctx.shot('02-impact');
 
     // ---- hit-stop: time does not advance, then it resumes ----
@@ -110,9 +113,11 @@ export const combat: Scenario = {
     // ---- taking damage: hurt pose, flash, blink, knockback, i-frames, shake ----
     await ctx.teleport(30, 0);
     await ctx.step(30);
+    const spawnedBefore = (await ctx.state()).vfx?.spawned ?? 0;
     await hooks('strikePlayer(1)');
     await ctx.step(1);
     s = await ctx.state();
+    assert.ok((s.vfx?.spawned ?? 0) - spawnedBefore >= 2, 'the hurt shards and flash started');
     assert.equal(s.health, 4);
     assert.equal(s.state, 'hurt');
     assert.ok(s.sprite?.frame?.startsWith('hurt_'), `hurt frame ${s.sprite?.frame}`);
@@ -147,11 +152,20 @@ export const combat: Scenario = {
     s = await ctx.state();
     assert.equal(s.state, 'dead', 'a dead player ignores the input');
     await ctx.shot('06-dead');
+    assert.ok((s.vfx?.spawned ?? 0) >= 10, 'the death dispersed the hero\'s energy too');
     await hooks('revive()');
     await ctx.step(10);
     s = await ctx.state();
     assert.equal(s.health, 5);
     assert.equal(s.state, 'free');
+
+    // ---- VFX run in REAL time: with the world un-paused every effect dies and goes back to its pool ----
+    await hooks('resume()');
+    await page.waitForTimeout(2600);
+    await hooks('pause()');
+    s = await ctx.state();
+    assert.equal((s.vfx?.particles ?? 0) + (s.vfx?.sprites ?? 0), 0, `effects left alive: ${s.vfx?.particles} particles, ${s.vfx?.sprites} sprites`);
+    assert.equal(s.vfx?.dropped, 0, 'nothing was dropped by the budget in a normal fight');
 
     await page.waitForTimeout(300);
     s = await ctx.state();

@@ -113,6 +113,12 @@ export class PlayerCombat {
     if (phase === 'active') {
       const p = this.player;
       attackRect(a, p.body.x, p.body.y, p.facing, this.rect);
+      if (this.ticks === a.startup) {
+        // the blow starts now: VFX and audio hang their slash from this moment, not from the press
+        sim.bus.emit('player:attackActive', {
+          attackId: a.id, x: p.body.x, y: p.body.y, facing: p.facing, air: !p.body.grounded, combo: this._combo, rect: { ...this.rect },
+        });
+      }
       sim.combat.submit({
         ownerId: p.id,
         team: 'player',

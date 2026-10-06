@@ -15,7 +15,7 @@
 | **S4** retirar Three.js | ✅ | (ver historial) |
 | **S5** agacharse | ✅ | (ver historial) |
 | **S6** combate | ✅ | (ver historial) |
-| S7 VFX | ⬜ | |
+| **S7** VFX | ✅ | (ver historial) |
 | S8 muerte, reaparición, i18n | ⬜ | |
 | S9 Ink Slime | ⬜ | |
 | S10 sala R1 | ⬜ | |
@@ -236,3 +236,40 @@ Agacharse es un **estado con consecuencias de colisión** ([GAME-SPEC §6](GAME-
 **Desviaciones y notas**
 - En el E2E la animación temporal no avanza (el juego está en pausa para poder avanzar tick a tick): por eso la captura de la muerte muestra el primer fotograma de `death`; en juego real el clip corre.
 - El *placeholder* sigue siendo el de S3; los VFX del tajo, del impacto y del daño son **S7**.
+
+
+---
+
+## S7 — VFX ✅ (slash, impacto, daño, dash, muerte; negro / blanco / cian; con *pooling*)
+
+**Qué hay**
+- `presentation/vfx.ts` (**puro**): `VfxDefinition` (`particles` · `arc` · `flash`; el rastro del dash es un `flash` con `spacing`), ranuras de paleta (`energy`, `enemy`, `accent`, `neutral` → colores por *rol* `core/hot/deep/ink`, nunca hex), emisor determinista con un `Rng` inyectado (`initParticle`, `stepParticle`, curvas de tamaño y alfa), geometría del arco (`arcPose`: encaja en el hitbox del ataque y se espeja con la orientación) y los presupuestos por perfil (**150 / 300 / 400** partículas, 24 / 40 / 64 sprites).
+- `content/vfx.ts`: **16 efectos como datos** y la tabla `VFX_BINDINGS` (trigger → efectos). El color del héroe es **cian con núcleo blanco**; la energía enemiga, violeta; la tinta, **negra**. El acento cálido (`accent`) queda **apagado por defecto** (cae a cian) y solo lo pide el remate de la cadena (`slash_arc_finisher`); `?accent=1` en el laboratorio lo enciende para compararlo.
+- `assets/vfxAtlas.ts`: **un solo atlas procedural en blanco** (8 formas: brillo, chispa, esquirla, anillo, polvo, tinta, estela, **arco/media luna**); el color sale de la ranura en tiempo de ejecución, así que el mismo efecto sirve al héroe y a los enemigos.
+- `vfx/VfxSystem.ts`: dos `ParticleContainer` (aditivo y normal: la tinta negra no puede ser aditiva) y sprites con *pool*; **gobernador de presupuesto** (al llenarse, se descartan primero las partículas de menor `priority`; si aun así no cabe, la ráfaga se recorta o se descarta y se cuenta); corre en **tiempo real** (se le da `dt`, nunca ticks), de modo que **un hit-stop no congela las chispas**; el azar es el de la vista, **no** el `Rng` de la simulación.
+- `vfx/VfxDirector.ts`: escucha el bus y levanta *triggers* (`slash`, `slashFinisher`, `hitLanded`, `playerHurt`, `dashStart`, `dashDust`, `dashTrail`, `enemyDied`, `playerDied`); un golpe que cae sobre el jugador **no** levanta el impacto genérico (lo hace `player:hurt`: sin efectos dobles); el rastro del dash se pinta por **distancia recorrida** (cada 0.45 m), no por tiempo: continuo a cualquier frame rate.
+- Simulación: **nuevo evento `player:attackActive`** (primer tick activo del ataque, con el `rect` del hitbox) del que cuelga el tajo: el arco **es** la zona que golpea, así que nunca se desalinea de lo que daña.
+- `render/layers.ts`: capa `fxNormal` (mezcla normal) bajo `fxWorld` (aditiva). Laboratorio `?lab=vfx` (cada trigger por el director real; `?manual=1` para fotogramas exactos, `?vh=` para acercar, `?tier=`, `?accent=1`).
+
+**Qué se ve** (capturas revisadas en el laboratorio y en el juego): tajo en media luna con halo, cuerpo cian y núcleo blanco, con un barrido distinto por ataque (el abridor baja, el remate sube, el agachado es plano); impacto con chispas cian/blancas + destello + anillo; daño recibido con esquirlas cian-blancas y destello (no depende del rojo); dash con estela larga cian + fragmentos + ráfaga hacia atrás + polvo en el suelo; muerte de enemigo con salpicadura de **tinta negra** con subtono violeta y motas violetas; muerte del héroe con dispersión de energía cian/blanca.
+
+**Medidas ✅**
+| | Resultado |
+|---|---|
+| *Draw calls* con el momento más cargado en pantalla (muerte de enemigo + impacto + daño + remate a la vez) | **5** (peor fotograma 6) |
+| Perfil **bajo**, 30 × todos los efectos sin descanso | pico **150/150** partículas, 241 efectos descartados por el gobernador |
+| *Pools* | acotados por la necesidad simultánea **máxima** (≤ 61 objetos para un combate completo), **no** por cuántos efectos se reproduzcan: 440 combates seguidos no crean nada más; con `prewarm` el crecimiento es **cero** (0 *misses*) y 0 descartes |
+| Fin de vida | todo vuelve a su *pool* (0 partículas y 0 sprites vivos tras cada trigger y tras un combate real) |
+
+**Tests: +48 (336 → 384)**
+- `tests/unit/vfx/vfxMath.test.ts` (24): ranuras → colores (acento apagado por defecto y solo en el remate), emisor determinista con semilla, rangos de velocidad/vida/tamaño, cono y dirección (adelante, atrás, arriba, circular, dirección explícita), alineación con la velocidad, radio de dispersión, conteos y escala, gravedad/arrastre/muerte, arrastre independiente del frame rate, curvas de tamaño y alfa, geometría del arco (encaja en el hitbox, espejo, barrido por ataque, *fallback*), integridad de la tabla (todo trigger ligado, todo id definido, números sanos, **nada vive más de 2 s**, la tinta negra es el único efecto normal-oscuro) y **presupuestos 150/300/400**.
+- `tests/unit/vfx/vfxSystem.test.ts` (13, happy-dom sin renderer): contenedor correcto por mezcla, devolución al *pool*, **pooling acotado y sin fugas**, `prewarm` (cero *misses*), **presupuesto duro**, **prioridad** (lo importante expulsa lo trivial y no al revés; lo trivial se descarta si todo es importante), presupuesto de sprites, **determinismo**, ignora el hit-stop (solo conoce `dt`), id desconocido, `clear/destroy` idempotentes.
+- `tests/unit/vfx/vfxDirector.test.ts` (7): cada evento → su trigger, el rastro por distancia (5 *puffs* en un frame largo; hacia la izquierda; se detiene al acabar; tope por frame), sin efectos dobles al recibir daño, `dispose` desuscribe todo.
+- `tests/integration/combat.test.ts` (+4): `player:attackActive` una vez por ataque, en el primer tick activo y con el mismo `rect` que el hitbox; la cadena lo emite dos veces; un ataque interrumpido en *startup* no lo emite; aéreo y agachado con su id.
+
+**E2E (dev y producción, 8/8):** `vfx` nuevo (cada trigger en pantalla y vuelve a cero, ≤ 12 *draw calls* en el peor momento, *pools* sin crecer en 46 combates, acento encendido, perfil bajo con tope duro), y `combat`/`crouch` ampliados (el tajo y el impacto, el daño y la muerte arrancan sus efectos; sin pausa, todo muere y vuelve a su *pool*; el temblor de cámara se comprueba por el evento y no por el decaimiento en tiempo real).
+
+**Desviaciones y notas**
+- **Telegraph** violeta del enemigo: es del paso **S9** (el enemigo aún no existe); la ranura `enemy` y las capas ya están listas.
+- La estela del dash son *puffs* de brillo alargado + esquirlas, no imágenes residuales del sprite (ARCHITECTURE §7.7 las mencionaba): con el *placeholder* no aportan nada y el arte final decidirá (P7). `lightPool` (charco de luz bajo el actor) tampoco se implementa aún; tampoco hay polvo de aterrizaje.
+- En el E2E el juego está en pausa, y los VFX **se pausan con él** (para que las capturas sean estables); sin pausa corren en tiempo real, también durante un hit-stop.

@@ -26,6 +26,8 @@ export interface Layers {
   propsBack: Container;
   terrain: Container;
   actors: Container;
+  /** Normal blend: ink splashes, smoke and dust (dark things cannot be additive). */
+  fxNormal: Container;
   /** Additive: projectiles, slash arcs, trails, sparks, light pools. */
   fxWorld: Container;
   foreground: Container;
@@ -58,6 +60,7 @@ export function createLayers(stage: Container): Layers {
     propsBack: child('propsBack'),
     terrain: child('terrain'),
     actors: child('actors'),
+    fxNormal: child('fxNormal'),
     fxWorld: child('fxWorld', 'add'),
     foreground: child('foreground'),
     lightOverlay: child('lightOverlay', 'add'),

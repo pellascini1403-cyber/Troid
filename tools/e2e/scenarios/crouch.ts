@@ -86,6 +86,7 @@ export const crouch: Scenario = {
     await ctx.step(1);
     s = await ctx.state();
     assert.equal(s.state, 'dash', 'dashing');
+    assert.ok((s.vfx?.spawned ?? 0) >= 3, `dash burst, flash and dust started (${s.vfx?.spawned})`);
     assert.equal(s.bodyHeight, 1.0, 'the crouched body is kept during the dash');
     assert.equal(s.anim, 'crouchWalk', 'a crouched dash slides low');
     const x0 = s.x;

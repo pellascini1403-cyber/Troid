@@ -120,6 +120,54 @@ describe('attack timeline (slash_1: 4 startup · 3 active · 8 recovery)', () =>
   });
 });
 
+describe('player:attackActive (the moment the blow exists: what VFX and audio hang the slash from)', () => {
+  it('is emitted ONCE per attack, on the first active tick, with the hitbox rect', () => {
+    const d = fighter();
+    const subs = recordSubmissions(d);
+    const seen: Array<{ tick: number; attackId: string; combo: number; rect: { x0: number; x1: number; y0: number; y1: number } }> = [];
+    d.session.bus.on('player:attackActive', (e) => void seen.push({ tick: d.session.now, attackId: e.attackId, combo: e.combo, rect: e.rect }));
+    d.tap('attack').step(24);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]!.attackId).toBe('slash_1');
+    expect(seen[0]!.tick).toBe(subs[0]!.tick); // the same tick as the first hitbox
+    expect(seen[0]!.rect).toEqual(subs[0]!.rect);
+  });
+
+  it('a chain emits it twice (combo 0 then 1), each at its own first active tick', () => {
+    const d = fighter();
+    const seen: Array<{ attackId: string; combo: number }> = [];
+    d.session.bus.on('player:attackActive', (e) => void seen.push({ attackId: e.attackId, combo: e.combo }));
+    d.tap('attack');
+    d.until(() => d.p.combat.attackTicks >= 9, 60);
+    d.tap('attack').step(60);
+    expect(seen).toEqual([{ attackId: 'slash_1', combo: 0 }, { attackId: 'slash_2', combo: 1 }]);
+  });
+
+  it('an attack interrupted during its startup never produced a blow: no event', () => {
+    const d = fighter();
+    let n = 0;
+    d.session.bus.on('player:attackActive', () => void n++);
+    d.tap('attack').step(2);
+    strikeOnPlayer(d);
+    d.step(60);
+    expect(n).toBe(0);
+  });
+
+  it('the air and crouch attacks emit it with their own ids', () => {
+    const air = fighter();
+    const ids: string[] = [];
+    air.session.bus.on('player:attackActive', (e) => void ids.push(`${e.attackId}:${e.air}`));
+    air.tap('jump').step(6);
+    air.tap('attack').step(20);
+    const crouch = fighter();
+    crouch.session.bus.on('player:attackActive', (e) => void ids.push(`${e.attackId}:${e.air}`));
+    crouch.moveY = -1;
+    crouch.step(3);
+    crouch.tap('attack').step(20);
+    expect(ids).toEqual(['air_slash:true', 'crouch_slash:false']);
+  });
+});
+
 describe('hit-once, damage and knockback', () => {
   it('one swing hits a target ONCE even though the hitbox stays active for 3 ticks', () => {
     const d = fighter();

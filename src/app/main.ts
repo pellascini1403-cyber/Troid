@@ -9,6 +9,10 @@ if (lab === 'sprites') {
   // Sprite-set contact sheet + live actor (docs/MIGRATION-2D.md S3).
   const { startSpriteLab } = await import('./labs/spriteLab');
   await startSpriteLab(host, params);
+} else if (lab === 'vfx') {
+  // VFX stage: every trigger through the real director (docs/MIGRATION-2D.md S7).
+  const { startVfxLab } = await import('./labs/vfxLab');
+  await startVfxLab(host, params);
 } else if (lab === 'stress') {
   // Render-budget benchmark (docs/MIGRATION-2D.md S1): 800+ animated sprites, parallax layers, a filter, particles.
   const { startStressLab } = await import('./labs/stressLab');

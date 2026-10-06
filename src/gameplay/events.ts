@@ -14,6 +14,8 @@ export interface GameEvents extends CombatEvents {
   'player:dashed': { x: number; y: number; facing: 1 | -1; air: boolean };
   'player:dashEnded': { x: number; y: number };
   'player:attacked': { attackId: string; x: number; y: number; facing: 1 | -1; air: boolean; combo: number };
+  /** The first ACTIVE tick of an attack: the hitbox exists from now on (`rect` is where, in world space). */
+  'player:attackActive': { attackId: string; x: number; y: number; facing: 1 | -1; air: boolean; combo: number; rect: { x0: number; y0: number; x1: number; y1: number } };
   'player:hurt': { x: number; y: number; damage: number; direction: 1 | -1 };
   'player:died': { x: number; y: number };
   'ability:unlocked': { id: string };

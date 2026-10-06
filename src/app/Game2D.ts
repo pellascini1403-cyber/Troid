@@ -1,9 +1,11 @@
 import type { Texture } from 'pixi.js';
 import { SpriteAssetManager, type LoadedSpriteSet } from '@/assets/SpriteAssetManager';
 import { createPixiSpriteLoader } from '@/assets/spriteLoader';
+import { createVfxAtlas } from '@/assets/vfxAtlas';
 import { CAMERA_2D } from '@/camera/camera2d';
 import type { CameraTarget } from '@/camera/CameraRig';
 import { ABILITIES, PLAYER, PROCEDURAL_ATLASES, ROOMS, SPRITE_SETS } from '@/content';
+import { VFX, VFX_BINDINGS } from '@/content/vfx';
 import { DisposableStore } from '@/core/lifecycle';
 import type { Hurtbox } from '@/combat/Combatant';
 import type { Rect } from '@/core/math';
@@ -19,12 +21,15 @@ import { DEFAULT_BINDINGS } from '@/input/bindings';
 import { InputManager } from '@/input/InputManager';
 import { attachKeyboardMouse } from '@/input/sources/KeyboardMouseSource';
 import type { AnchorId } from '@/presentation/vocabulary';
+import { PARTICLE_BUDGET, SPRITE_FX_BUDGET } from '@/presentation/vfx';
 import { ActorSprite } from '@/render/ActorSprite';
 import { CameraAdapter2D } from '@/render/CameraAdapter2D';
 import { DummyView, type DummyLike } from '@/render/DummyView';
 import { EntityViews } from '@/render/EntityViews';
 import { Renderer2D } from '@/render/Renderer2D';
 import { RoomView2D } from '@/render/RoomView2D';
+import { VfxDirector } from '@/vfx/VfxDirector';
+import { VfxSystem } from '@/vfx/VfxSystem';
 import { listen } from './dom';
 import { GameLoop } from './GameLoop';
 import { optionsFromQuery, type GameOptions } from './options';
@@ -51,6 +56,10 @@ export class Game2D {
   private readonly bindings = structuredClone(DEFAULT_BINDINGS);
   private readonly playerSprite: ActorSprite;
   private readonly entityViews: EntityViews;
+  private readonly vfx: VfxSystem;
+  private readonly vfxDirector: VfxDirector;
+  /** Camera shakes triggered by impacts and the strength of the last one (the trauma itself decays in real time). */
+  private shakes = { count: 0, last: 0 };
   private colliders: ColliderOverlay2D | null = null;
   private panel: DebugPanel | null = null;
 
@@ -107,7 +116,26 @@ export class Game2D {
     this.entityViews.attach(this.session.bus);
     this.lifecycle.add(() => this.entityViews.destroy());
     // impact → camera shake (real time: the camera keeps moving through the hit-stop)
-    this.lifecycle.add(this.session.bus.on('combat:hit', (e) => this.camera.addTrauma(e.shake)));
+    this.lifecycle.add(
+      this.session.bus.on('combat:hit', (e) => {
+        this.camera.addTrauma(e.shake);
+        this.shakes.count++;
+        this.shakes.last = e.shake;
+      }),
+    );
+    // VFX: pooled, budgeted, driven by simulation events and running in REAL time (a hit-stop does not freeze the sparks)
+    const vfxAtlas = createVfxAtlas();
+    this.lifecycle.add(() => vfxAtlas.destroy());
+    const tier = renderer.qualityTier;
+    this.vfx = new VfxSystem({ add: renderer.layers.fxWorld, normal: renderer.layers.fxNormal }, vfxAtlas, VFX, {
+      particleBudget: PARTICLE_BUDGET[tier],
+      spriteBudget: SPRITE_FX_BUDGET[tier],
+    });
+    this.vfx.prewarm();
+    this.lifecycle.add(() => this.vfx.destroy());
+    const body = this.session.player.body;
+    this.vfxDirector = new VfxDirector(this.session.bus, this.vfx, VFX_BINDINGS, VFX, () => ({ x: body.x, y: body.y }));
+    this.lifecycle.add(() => this.vfxDirector.dispose());
     this.buildRoomView();
     this.registerDebugActions();
     this.setupDebug();
@@ -173,6 +201,10 @@ export class Game2D {
     const animDt = this.debug.get('paused') || this.session.frozen ? 0 : realDt * this.debug.get('timeScale');
     this.playerSprite.sync(v, a, animDt);
     this.entityViews.sync(a, animDt);
+    // VFX run in real time: only the pause (debug / tests) and the debug time scale affect them, never a hit-stop
+    const vfxDt = this.debug.get('paused') ? 0 : realDt * this.debug.get('timeScale');
+    this.vfxDirector.update();
+    this.vfx.update(vfxDt);
 
     // The camera follows the INTERPOLATED position — exactly what is drawn — so camera and player never jitter apart.
     const target: CameraTarget = { x, y, vx: p.body.vx, vy: p.body.vy, facing: p.facing, grounded: p.body.grounded };
@@ -344,7 +376,7 @@ export class Game2D {
           anim: this.session.player.view.anim, state: this.session.player.controller.state,
           crouched: this.session.player.controller.crouched, bodyHeight: b.height,
           health: this.session.player.health.current, maxHealth: this.session.player.health.max,
-          hitStop: this.session.hitStopLeft, now: this.session.now, trauma: this.camera.rig.currentTrauma,
+          hitStop: this.session.hitStopLeft, now: this.session.now, trauma: this.camera.rig.currentTrauma, shakes: { ...this.shakes },
           invulnerable: this.session.player.invulnerable, blink: this.session.player.view.blink, flash: this.session.player.view.flash,
           combat: {
             attack: this.session.player.combat.attack?.id ?? null, phase: this.session.player.view.phase,
@@ -355,6 +387,7 @@ export class Game2D {
             return { id: d.id, x: d.body.x, y: d.body.y, vx: d.body.vx, hp: d.health.current, hits: d.hits };
           }),
           views: this.entityViews.count,
+          vfx: this.vfx.stats,
           sprite: {
             set: ps.spriteSetId, frame: ps.frame, facing: ps.root.scale.x, visible: ps.root.visible,
             hand: anchor('hand_r'), grip: anchor('weapon_grip'), tip: anchor('weapon_tip'),
