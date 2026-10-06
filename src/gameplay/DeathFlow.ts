@@ -74,9 +74,14 @@ export class DeathFlow {
     return out;
   }
 
-  /** Starts the flow (the player died). Ignored if it is already running. */
+  /**
+   * Starts the flow (the player died). Ignored while it runs and the player is still down (`dying … hold`); NOT during the
+   * fade-in, where the player is alive again and may fall once more (a hazard, a heavy hit): then the defeat starts over —
+   * otherwise they would be left dead when the fade ends, with no flow left to bring them back.
+   */
   start(): void {
-    if (this.active) return;
+    if (this.active && this._phase !== 'fadeIn') return;
+    this.host.scheduler.cancelOwner(this.owner); // the pending end of the fade-in must not fire in the middle of the new defeat
     this.enter('dying', this.def.dying, () => this.fadeOut());
     this.host.emitStarted();
   }

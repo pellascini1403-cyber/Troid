@@ -307,6 +307,86 @@ describe('defeat flow: respawn costs nothing', () => {
   });
 });
 
+describe('defeat flow: a heavy blow while the screen is still coming back (found by the S20 soak)', () => {
+  /** Respawned, alive, and a few ticks into the fade-in. */
+  function intoTheFadeIn(): Driver {
+    const d = fighter();
+    die(d);
+    untilRespawned(d);
+    d.step(5);
+    expect(phase(d)).toBe('fadeIn');
+    expect(d.p.health.dead).toBe(false);
+    return d;
+  }
+
+  it('starts the defeat over: the hero is never left dead with no flow to bring them back', () => {
+    const d = intoTheFadeIn();
+    const log = eventLog(d);
+    die(d);
+    expect(phase(d)).toBe('dying');
+    expect(log.filter((l) => l.type === 'death:started')).toHaveLength(1);
+    finish(d);
+    expect(d.p.health.dead).toBe(false);
+    expect(d.p.health.current).toBe(d.p.health.max);
+    expect(d.p.controller.state).toBe('free');
+    expect(log.filter((l) => l.type === 'death:respawned')).toHaveLength(1);
+    expect(d.session.scheduler.pending).toBe(0);
+  });
+
+  it('the end of the old fade-in does not fire in the middle of the new defeat', () => {
+    const d = intoTheFadeIn(); // 25 ticks of the fade-in were still to run
+    die(d);
+    d.step(D.dying - 12); // far more than 25 ticks, still inside `dying`
+    expect(phase(d)).toBe('dying');
+    expect(d.p.health.dead).toBe(true);
+  });
+
+  it('is the same defeat as the first one: the same phases in the same order, a respawn at the end', () => {
+    const d = intoTheFadeIn();
+    const seen: DeathPhase[] = [];
+    die(d);
+    while (phase(d) !== 'none') {
+      if (seen[seen.length - 1] !== phase(d)) seen.push(phase(d));
+      d.step(1);
+    }
+    expect(seen).toEqual(['dying', 'fadeOut', 'hold', 'fadeIn']);
+  });
+});
+
+describe('defeat flow: a hero who falls out of the world while dying (found by the S20 soak)', () => {
+  it('is put back on solid ground but stays dead: the rescue does not hand the control back to a hero with no life', () => {
+    const d = fighter();
+    d.teleport(120, 0).settle();
+    die(d);
+    expect(d.p.controller.state).toBe('dead');
+    d.body.y = -31; // below the floor of the world
+    d.step(12); // (the first ticks are the hit-stop of the death: the world is frozen and nothing is rescued yet)
+    expect(d.body.y).toBeGreaterThan(-1); // back on the ground…
+    expect(d.p.health.dead).toBe(true);
+    expect(d.p.controller.state).toBe('dead'); // …but it is a body, not a player
+    d.right().tap('attack');
+    d.tap('ability');
+    d.tap('dash');
+    d.step(20);
+    expect(d.p.controller.state).toBe('dead');
+    expect(d.body.x).toBeCloseTo(120, 3);
+    expect(d.session.magic.current).toBe(d.session.magic.max); // nothing was cast
+    finish(d);
+    expect(d.p.health.dead).toBe(false); // the flow brings the hero back as always
+    expect(d.p.health.current).toBe(d.p.health.max);
+  });
+
+  it('a living hero who falls out of the world is still rescued with a clean slate (unchanged)', () => {
+    const d = fighter();
+    d.teleport(120, 0).settle();
+    d.body.y = -31;
+    d.step(1);
+    expect(d.body.y).toBeGreaterThan(-1);
+    expect(d.p.health.dead).toBe(false);
+    expect(d.p.controller.state).toBe('free');
+  });
+});
+
 describe('defeat flow: determinism', () => {
   it('is bit-for-bit reproducible, including the skip', () => {
     const run = (): string[] => {

@@ -29,6 +29,12 @@ export function attachKeyboardMouse(
     const b = bindings().keyboard;
     return ACTIONS.filter((a) => b[a].includes(code));
   };
+  // Several keys can mean ONE action (A and ←, the two Shifts, L and Q, Esc and P): the action stays held while ANY of them is down,
+  // so letting go of one never drops what another still holds (S20: found by the input soak).
+  const keysDown = new Set<string>();
+  const buttonsDown = new Set<number>();
+  const heldByKeys = (a: Action): boolean => bindings().keyboard[a].some((c) => keysDown.has(c));
+  const heldByMouse = (a: Action): boolean => (bindings().mouse[a] ?? []).some((b) => buttonsDown.has(b));
 
   /** A key typed into UI that has its own keyboard handling (the settings menu, the debug panel) is not game input — except the pause key, which closes it. */
   const typedIntoUi = (e: KeyboardEvent): boolean => fromBlockedUi(e.target) && !actionsForKey(e.code).includes('pause');
@@ -42,6 +48,7 @@ export function attachKeyboardMouse(
     const actions = actionsForKey(e.code);
     if (actions.length === 0) return;
     e.preventDefault();
+    keysDown.add(e.code);
     for (const a of actions) input.setAction(SOURCE, a, true);
   });
 
@@ -50,7 +57,8 @@ export function attachKeyboardMouse(
     const actions = actionsForKey(e.code);
     if (actions.length === 0) return;
     e.preventDefault();
-    for (const a of actions) input.setAction(SOURCE, a, false);
+    keysDown.delete(e.code);
+    for (const a of actions) input.setAction(SOURCE, a, heldByKeys(a));
   });
 
   const mouseActions = (button: number): Action[] => {
@@ -62,10 +70,12 @@ export function attachKeyboardMouse(
     if (actions.length === 0) return;
     // Only game-surface clicks: UI buttons / the debug panel keep their own mouse handling.
     if (fromBlockedUi(e.target)) return;
+    buttonsDown.add(e.button);
     for (const a of actions) input.setAction(MOUSE, a, true);
   });
   listen(store, target, 'mouseup', (e) => {
-    for (const a of mouseActions(e.button)) input.setAction(MOUSE, a, false);
+    buttonsDown.delete(e.button);
+    for (const a of mouseActions(e.button)) input.setAction(MOUSE, a, heldByMouse(a));
   });
   // Mouse2 is "ability": never open the browser context menu over the game.
   listen(store, target, 'contextmenu', (e) => {
@@ -74,6 +84,8 @@ export function attachKeyboardMouse(
 
   // Losing focus must never leave a key "stuck" down (alt-tab, devtools, a dialog).
   const releaseAll = () => {
+    keysDown.clear();
+    buttonsDown.clear();
     input.releaseSource(SOURCE);
     input.releaseSource(MOUSE);
   };

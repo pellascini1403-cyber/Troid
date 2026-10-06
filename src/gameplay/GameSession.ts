@@ -293,10 +293,15 @@ export class GameSession implements SimServices {
     this.bus.emit('room:loaded', { roomId: this.current.id, entryId: this._respawnPoint.entry });
   }
 
-  /** Puts the player back on the last solid ground they stood on (falling out of the world, debug). */
+  /**
+   * Puts the player back on the last solid ground they stood on (falling out of the world, debug). A player who is already down
+   * is only moved: `respawn` would reset their controller and hand the control back to a hero with no life.
+   */
   rescuePlayer(): void {
-    this.player.respawn(this.lastSafe.x, this.lastSafe.y, this.player.facing);
-    this.collision.probeGround(this.player.body);
+    const p = this.player;
+    if (p.health.dead) p.teleport(this.lastSafe.x, this.lastSafe.y, p.facing);
+    else p.respawn(this.lastSafe.x, this.lastSafe.y, p.facing);
+    this.collision.probeGround(p.body);
   }
 
   // ------------------------------------------------------------------------------------------- SimServices

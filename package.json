@@ -2,7 +2,7 @@
   "name": "troid",
   "version": "0.1.0",
   "private": true,
-  "description": "Troid \u2014 stylized 3D side-scrolling metroidvania (iOS / Android / PC). Vertical-slice foundation.",
+  "description": "Troid \u2014 2D side-scrolling metroidvania on PixiJS (iOS / Android / PC). Vertical-slice foundation.",
   "type": "module",
   "engines": {
     "node": ">=22.12"

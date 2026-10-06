@@ -104,6 +104,58 @@ describe('keyboard + mouse source', () => {
     expect(f.attackHeld).toBe(false);
   });
 
+  it('two keys for ONE action: letting go of one keeps it held while the other is down (A and ←, both Shifts, found by the S20 soak)', () => {
+    key('keydown', 'KeyA');
+    key('keydown', 'ArrowLeft');
+    expect(input.sample().move.x).toBe(-1);
+    key('keyup', 'KeyA');
+    expect(input.sample().move.x).toBe(-1); // ← is still down: the hero keeps going left
+    key('keyup', 'ArrowLeft');
+    expect(input.sample().move.x).toBe(0);
+
+    key('keydown', 'ShiftLeft');
+    key('keydown', 'ShiftRight');
+    key('keyup', 'ShiftLeft');
+    expect(input.sample().dashHeld).toBe(true);
+    key('keyup', 'ShiftRight');
+    expect(input.sample().dashHeld).toBe(false);
+  });
+
+  it('a second key for an action already held is not a new press, and the last one up releases it', () => {
+    key('keydown', 'KeyL'); // bottle
+    expect(input.sample().bottlePressed).toBe(true);
+    key('keydown', 'KeyQ'); // the other bottle key, with L still down
+    expect(input.sample().bottlePressed).toBe(false);
+    key('keyup', 'KeyL');
+    key('keydown', 'KeyL'); // L again while Q still holds the action: still the same press
+    expect(input.sample().bottlePressed).toBe(false);
+    key('keyup', 'KeyL');
+    key('keyup', 'KeyQ');
+    input.sample();
+    key('keydown', 'KeyQ'); // everything was up: a fresh press
+    expect(input.sample().bottlePressed).toBe(true);
+  });
+
+  it('the same holds for the mouse buttons of one action, and a blur forgets both devices', () => {
+    bindings.mouse = { attack: [0, 1] };
+    window.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
+    window.dispatchEvent(new MouseEvent('mousedown', { button: 1, bubbles: true }));
+    window.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true }));
+    expect(input.sample().attackHeld).toBe(true);
+    window.dispatchEvent(new MouseEvent('mouseup', { button: 1, bubbles: true }));
+    expect(input.sample().attackHeld).toBe(false);
+
+    key('keydown', 'KeyA');
+    key('keydown', 'ArrowLeft');
+    window.dispatchEvent(new Event('blur'));
+    expect(input.sample().move.x).toBe(0);
+    key('keyup', 'KeyA'); // the keys went up while the window was away: nothing is left over
+    expect(input.sample().move.x).toBe(0);
+    key('keydown', 'KeyA');
+    key('keyup', 'ArrowLeft'); // a key the game never saw go down must not release this one
+    expect(input.sample().move.x).toBe(-1);
+  });
+
   it('remapping is just data: change the binding and the new key works immediately', () => {
     bindings.keyboard.jump = ['KeyZ'];
     key('keydown', 'Space');

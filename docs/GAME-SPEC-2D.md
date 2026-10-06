@@ -236,7 +236,7 @@ El gameplay solo conoce `InputFrame`; nunca teclas, botones ni elementos de UI. 
 | Caminar (mitad de velocidad) | Ctrl | | inclinar el stick |
 | Pausa | Esc · P | | Start (9) |
 
-Hoy existen ✅ las filas de teclado, ratón y gamepad (como datos) salvo **botella** e **interacción**, que son nuevas; *atravesar plataforma* ya existe como `abajo + salto` ✅. El gamepad está **preparado** (mapeo y deadzone 0.22 en datos) y se implementa en el Prompt 5.
+> **Implementado en el Prompt 5** (S13, [PROMPT5-LOG](PROMPT5-LOG.md)): **todas** las filas existen ✅ como datos (`input/bindings.ts`) y las prueba un E2E por dispositivo (teclado, ratón, gamepad abstracto `VirtualPad`, táctil con dedos CDP). El gamepad (`GamepadSource`) lee el stick con **zona muerta radial 0.22** (dentro lee 0; fuera, el resto se reescala para que una inclinación leve camine y una firme corra), mapea cada botón por datos, hace *polling* una vez por *tick* y suelta todo al desenchufarse. *Atravesar plataforma* es `abajo + salto` (teclado y gamepad) o un *flick* (táctil). **Contrato de ejes** (decisión de S13, no estaba en el spec): `move.x` es la velocidad y `move.y < −0.6` agacharse, **independientes**: las fuentes digitales dan exactamente −1/0/1 por eje (dos teclas dan (±1, ±1), sin normalizar), el stick se recorta al disco unidad y el arrastre táctil recorta cada eje por separado; con varias fuentes cada eje toma el de mayor magnitud. Una acción con **varias teclas** (A y ←, las dos Shift, L y Q, Esc y P) se mantiene mientras **cualquiera** siga abajo (corregido en S20: soltar una soltaba la acción aunque la otra siguiera pulsada).
 
 ### 4.3 Táctil — diseño (DC-26)
 
@@ -319,7 +319,8 @@ Solo **Ataque**, **Dash** y **Habilidad**. Sin botón de salto ni de interacció
 | Habilidad | (−184, −164) | 68 | 84 |
 | Chip de botella (contextual) | (−64, −196) | 52 | 64 |
 
-Comprobado por cálculo ✅: no hay solapes entre zonas táctiles (hueco mínimo 12 dp, entre Ataque y Dash) y los huecos visibles son ≥ 28 dp. Disposición **provisional**: se valida en dispositivo y será ajustable (tamaño, opacidad y posición) en Ajustes (Prompt 5).
+Comprobado por cálculo ✅: no hay solapes entre zonas táctiles (hueco mínimo 12 dp, entre Ataque y Dash) y los huecos visibles son ≥ 28 dp. Disposición **provisional**: se valida en dispositivo.
+> **Implementado en el Prompt 5** (S18): el tamaño (**80–140 %**) y la opacidad (**30–100 %**) son ajustables en el menú de pausa, se aplican al instante y se guardan. ⚠ **La posición NO es ajustable todavía** (el campo `touch.layout` de ARCHITECTURE-2D §11 llegará como una migración de los ajustes, cuando haya un dispositivo real en el que calibrarla: Prompt 6/7).
 **Habilidad** ejecuta la carta equipada (§10); si todavía no hay carta, el botón **no se dibuja** (no hay controles sobrantes).
 
 #### 4.3.5 Botellas — solución táctil (DC-26)
@@ -342,6 +343,8 @@ No hay botón. Cuando existe una interacción válida aparece un **icono anclado
 - `touch-action: none`, sin selección ni menú contextual, sin *zoom* (ya configurado ✅). Márgenes seguros (`env(safe-area-inset-*)`) más `edgeMargin`. Android 10+ captura gestos desde los bordes laterales: se recomienda excluir las zonas de control (R3, nativo, Prompt 7).
 - `uiScale = clamp(min(ancho, alto × 2.1) / 844, 0.9, 1.6)` escala radios, botones y umbrales: iPad y móvil comparten diseño.
 - El **reconocedor de gestos es TypeScript puro** (sin DOM): se prueba con secuencias de punteros sintéticas (correr, saltar, *flick*, deriva, inversión, segundo dedo, cancelación, blur).
+
+> **Implementado en el Prompt 5** (S13, S19, S20): `input/gestures/TouchGestureRecognizer` (puro) + `input/sources/TouchSource` (un dueño por `pointerId`; objetivos `zone · attack · dash · ability · interact · bottle · bottle:n`) + `ui/touch/TouchControls` (DOM, `z-index` 20, `pointer-events:none` salvo sus hijos) con los números de arriba **sin cambios** (`TouchConfig`, `layout.ts`). Un dedo que baja no cambia de dueño; un segundo dedo en un botón o en la zona ocupados se ignora; `pointercancel`, pérdida de captura, `blur`, ocultar la app, rotar y **redimensionar** liberan todo (⚠ en un navegador móvil con barra de direcciones que se esconde, un `resize` a mitad de partida suelta los dedos: no ocurre en pantalla completa / Capacitor; a vigilar en dispositivo). El botón **Habilidad** y el **chip de botella** viven ocultos hasta que tienen sentido, y si **desaparecen bajo un dedo** lo sueltan. Probado: unitario (reconocedor, fuente, DOM), integración (gestos → `InputFrame` → `GameSession`), **E2E con dedos CDP** (movimiento + ataque, movimiento + dash…, R1 completa en `vertical`) y **sondeos aleatorios** (cinco dedos a la vez contra un modelo ingenuo; capa DOM con botones que aparecen y desaparecen). ⚠ **Nada de esto se ha verificado en un iPhone ni en un Android reales**: la ergonomía, la deriva del pulgar (R18) y el rendimiento táctil siguen pendientes de dispositivo.
 
 ---
 
@@ -481,6 +484,13 @@ Todo el flujo corre por `Scheduler` con dueño y es determinista. No hay sistema
 
 La arquitectura admite **muchas habilidades** (`SkillDefinition` con coste, enfriamiento, temporización, *handler* por id); la primera versión tiene **una**.
 
+> **Implementado en el Prompt 5** (S14a, S15; detalle en [PROMPT5-LOG](PROMPT5-LOG.md)) con **todos** los números de la tabla, sin desviación y como datos (`content/resources.ts`, `content/skills.ts`):
+> - `Magic` guarda **milésimas de unidad en enteros** (más un acumulador de resto): el gasto de 30 es exactamente 30, la regeneración de 6/s es 6.000 tras 60 ticks, siempre, bit a bit. No regenera **mientras se lanza** y el segundo de espera cuenta desde que **termina** el lanzamiento; una derrota la deja llena.
+> - Estado `cast` del jugador: 6 ticks de preparación → **liberación** (aquí se **paga** el coste y nace el proyectil) → 8 de recuperación con 40 % de control = **14 ticks**. Un golpe en la preparación cancela **sin coste ni enfriamiento**; el *dash* cancela la recuperación; se puede lanzar en el aire y agachado.
+> - Sin carta equipada, **Ability no es una acción** (ni estado, ni coste, ni rechazo, ni botón). Con carta y magia < 30: `skill:denied` **una vez por pulsación** y sacudida de barra y carta; un enfriamiento no rechaza (la pulsación espera en el *buffer* de 0.12 s).
+> - `Projectile` (entidad de simulación): 16 m/s contando **ticks enteros** (45 ticks = 12 m), termina en lo primero que daña (**no perfora**), en una pared (barrido por tick: sin *tunneling*) o al final del alcance; atraviesa plataformas *one-way*; nunca golpea al héroe.
+> - Aspecto: cian con núcleo blanco (`ProjectileView` + 6 efectos como datos); sin violeta ni acento cálido. La carta del HUD muestra `ready · noMagic · cooldown`.
+
 ### 10.2 Carta o habilidad equipada (DC-24)
 
 La **carta** es la habilidad activa seleccionada y su estado. Se muestra arriba a la izquierda (§17). El botón **Habilidad** ejecuta **siempre la habilidad de la carta equipada**, nunca una fija.
@@ -488,6 +498,8 @@ La **carta** es la habilidad activa seleccionada y su estado. Se muestra arriba 
 - Primera slice: **una** habilidad equipada (la obtiene el jugador al explorar, §13). Antes de tenerla, el botón y la carta no se muestran.
 - Estados de la carta: lista · magia insuficiente (apagada) · en enfriamiento (barrido radial).
 - El sistema soporta varias (`CardLoadout`); un selector es posterior. **No hay inventario complejo.**
+
+> **Implementado en el Prompt 5:** una carta equipada o ninguna; **no hay habilidad inicial inventada** (el héroe empieza sin carta: el botón no se dibuja y la carta del HUD muestra su casilla vacía). `CardDefinition.skillId` decide qué ejecuta Habilidad y `grantsAbility` concede `magic_attack` al **adquirir** la carta. `card:changed` anuncia `acquired · equipped · unequipped`. Tras una derrota **la carta sigue equipada** (§9.2 «sin pérdidas»).
 
 ### 10.3 Cartas y modificadores
 
@@ -515,6 +527,8 @@ Cada botella es **una carga** con un efecto potente y una **recuperación lenta*
 
 Tests: recarga secuencial · interrupción sin consumo · uso denegado · efecto aplicado al final del canal · independencia de la magia · determinismo.
 
+> **Implementado en el Prompt 5** (S14a, S16) **sin desviación**: 3 ranuras (máximo 4; la cuarta, `addBottleSlot`, es una recompensa que ninguna sala coloca todavía fuera de `interaction_test`), +2 de vida, **canal de 24 ticks** (el efecto cae en el último y **solo entonces** se gasta la botella: un golpe, perder el suelo o llenarse la vida a mitad no gastan nada), recarga **secuencial** de 60 s (una `recharging`, las demás `empty` esperando turno) y **una derrota no las rellena**. Estado `drink` del jugador (prioridad `dash > ataque > Habilidad > botella > interactuar > agacharse > libre`; desde `crouch` se puede beber y se vuelve a `crouch`). La tecla y el chip piden «la siguiente lista» (`bottleSlot` −1) y un icono del HUD pide **esa**; una petición que no sirve se **deniega una vez** (`bottle:denied · full | none`) y sacude la fila de viales. El vial que se bebe se vacía durante el canal (`PlayerStatus.drink`); estados visibles `ready · empty · recharging`. El chip táctil aparece solo con vida que curar y una botella lista (`PlayerStatus.bottleUseful`). La recarga por punto de guardado (`checkpoint`) y por `hits`/`kills` **no existen todavía** (Prompt 6): `refillAll()` está listo y probado.
+
 ---
 
 ## 12. Interacción (DC-28)
@@ -526,6 +540,9 @@ Un `Interactable` define: id, tipo (`open · talk · pickup · activate · enter
 - Eventos: `interaction:available`, `interaction:lost`, `interaction:performed`.
 - Interactuar bloquea el control ≤ 12 ticks (pose `interact`) salvo los diálogos/menús futuros.
 - Las **recompensas** (cartas, ranuras, vida) son interactuables de tipo `pickup` que escriben **flags** del mundo (§14.3).
+
+> **Implementado en el Prompt 5** (S17) **con todos los números de arriba**: `interaction/InteractionSystem` (puro; alcance 1.6 × 1.2 m con bordes incluidos, el más cercano, empate por `priority` y luego por orden de sala, histéresis de 0.3 m que **conserva pero nunca concede**), tick 4 de `GameSession.tick`. Estado `interact` (prioridad tras la botella; solo en suelo, **agachado también**; en el aire la pulsación espera al aterrizaje dentro del *buffer* de 0.12 s y sin objeto caduca **sin ningún aviso**) que ejecuta las acciones, mira al objeto y retiene el control **≤ 12 ticks** (`lock`, dato). Las acciones son un conjunto cerrado (`acquireCard · addBottleSlot · setFlag · clearFlag`). El icono (`ui/prompt/InteractionPrompt`, DOM, `z-index` 26) se ancla a la **parte superior del objeto** con 10 px de hueco, se mantiene dentro de la zona segura, lleva el nombre de la tecla/botón derivado de los *bindings* (nada en táctil), tiene el verbo en el idioma del jugador como nombre accesible y es el **botón** en táctil (≥ 44 px); **no hay ningún botón de interacción permanente**. Casos verificables: `interaction_test` (carta · ranura de botella · palanca → puerta · puerta `open`) y la carta de R1.
+> ⚠ **Desviación documentada (no conflicto):** la carta del Spirit Bolt está **provisionalmente en R1** (final del túnel agachado, x = 74.5) y no en R3 (§14.4, diseño «inicial, ajustable en el Prompt 6»): así la primera sala ya demuestra el bucle completo interactuar → equipar → lanzar. Es opcional, no vuelve a aparecer tras cogerla (ni tras una muerte) y la puerta de R1 **sigue abriéndose solo al vencer al slime**. El Prompt 6 la mueve a R3.
 
 ---
 
@@ -541,7 +558,7 @@ Filosofía metroidvania: **explorar → descubrir una habilidad → acceder a un
 | Mejoras | +1 vida, +1 ranura de botella (hasta 4), nueva carta | pickups |
 
 Dash y agacharse son **base** (el jugador los tiene desde el principio; en pruebas, `unlock` por URL lo sigue controlando). La **primera puerta** de la slice es un **sello de energía** que solo abre el Spirit Bolt (§14.4).
-Hallazgo ✅: `ABILITIES` marca `magic_attack` como `implemented: true` pero **no existe su comportamiento**; se corrige en el Prompt 5 (R25).
+Hallazgo ✅: `ABILITIES` marcaba `magic_attack` como `implemented: true` sin que existiera su comportamiento. **Resuelto en el Prompt 5 (S15, R25):** la carta del Spirit Bolt concede `magic_attack` al adquirirse y el comportamiento (estado `cast`, coste, proyectil) existe y está probado.
 
 ---
 
@@ -586,6 +603,8 @@ Pequeña. Debe permitir probar **entrar → explorar → combatir → conseguir 
 | **R5** «Arena» | **enfrentarse a un enemigo** | jefe con fases (Prompt 6) | todo lo anterior |
 
 > **R1 implementada en el Prompt 4** (`content/rooms/r1Gate.ts`, [PROMPT4-LOG](PROMPT4-LOG.md) S10): entrada → movimiento → plataformas (foso de 5 m, escaleras *one-way*) → pasaje bajo de 1.2 m × 12 m → arena del Ink Slime → **puerta que solo abre `defeated:r1_slime`** → salida (`exit:reached`). Un guardián con `defeatFlag` **no vuelve a colocarse** mientras su bandera esté puesta (lo ganado se conserva: §9.2 «sin pérdidas»); los enemigos sin bandera reaparecen siempre. Probada **completable por física** con un jugador *scripted* (de la entrada a la salida en 995 ticks, sin daño).
+
+> **R1 en el Prompt 5** (`content/rooms/r1Gate.ts`, [PROMPT5-LOG](PROMPT5-LOG.md) S17/S19): gana la **carta provisional del Spirit Bolt** al final del túnel (⚠ en el diseño inicial esta carta está en R3: el Prompt 6 la mueve) y es la sala que demuestra todo lo del Prompt 5 junta: túnel agachado → **recoger la carta interactuando** → dos *Spirit Bolt* (30 de magia cada uno, 2 de daño; el slime tiene 3) → una botella tras un golpe → puerta → salida. Se juega entera **por teclado bit a bit** (el navegador reproduce una partida grabada en Node y coincide con la simulación cada 50 ticks) y **por táctil con dedos reales** (`vertical` E2E), y se pierde a propósito para ver qué conserva una derrota: **la carta sigue, la botella no se rellena, el slime vuelve y la puerta se cierra**.
 
 Secreto: tras el muro de R2, una **cuarta ranura de botella**. Recompensa del jefe: **Air Dash** (anuncia la siguiente región).
 
@@ -661,6 +680,8 @@ Minimalista, **oscuro, moderno y legible**, con acentos cian/azul. Diseño **pro
 
 Tamaño a escala `uiScale`; márgenes seguros + 16 dp. Sin texto ni números permanentes. Otros elementos de UI: icono de interacción (§12), chip de botella (§4.3.5), título de derrota (§9.2), barra de jefe (Prompt 6) y menú de pausa mínimo (Prompt 5). Los *skins* son reemplazables por PNG propios sin tocar los sistemas.
 
+> **Implementado en el Prompt 5** (S14, S17, S18; [PROMPT5-LOG](PROMPT5-LOG.md)) con los números de arriba. Arquitectura: **simulación → `GameSession.status()` (la única puerta) → `HudModel` (puro) → `HudView` (DOM)**; Pixi no sabe que existe y `ui/` no importa `pixi.js` ni `render/` (lo impone `tests/unit/architecture.test.ts`). Vida: **5 segmentos** (uno por punto; crece con la vida máxima), fantasma del segmento perdido 0.4 s + destello 0.15 s, pulso del último punto. Magia: barra continua 140 × 8 dp (`scaleX`), brillo mientras regenera, sacudida 0.28 s al denegar. Carta: casilla **vacía** con borde discontinuo mientras no hay carta (el botón de Habilidad no se dibuja); `ready · noMagic · cooldown` (barrido radial). Botellas: 3–4 viales `ready · empty · recharging`; el que se bebe se vacía durante el canal; zona táctil de 44 de alto × **36 de ancho** (su paso: con el hueco de 6 dp los 44 de ancho se solaparían entre vecinos y un dedo debe significar **una** botella). Escribe en el DOM **solo lo que cambió**. Sin texto propio (nombres accesibles por `t('hud.*')`). Capas DOM: controles táctiles 20 · botón de pausa 24 · **HUD 25** · icono de interacción 26 · título de derrota 40 · menú de ajustes 45. El **botón de pausa** es **un solo icono pequeño arriba al centro** (no a la derecha, no es un control de juego; objetivo ≥ 44 px, nunca toma el foco del teclado): el «menú de pausa mínimo» que esta sección prevé, necesario para que el idioma sea alcanzable en un móvil.
+
 ---
 
 ## 18. Localización (DC-08)
@@ -673,6 +694,8 @@ Idiomas iniciales: **español** e **inglés**. Preparado para añadir francés, 
 - Reglas de diseño: sin texto horneado en texturas; maquetación flexible (los textos se alargan hasta ≈ 40 % en alemán/francés); fuentes con respaldo del sistema (CJK en fases posteriores).
 - Pruebas obligatorias: mismas claves y mismos parámetros en todos los idiomas · toda clave referenciada por el contenido existe · ningún literal de interfaz en `ui/`.
 
+> **Implementado en el Prompt 5** (S18): el idioma elegido **persiste** (sobrevive a recargar, a otra pestaña, a un navegador nuevo y a un cambio de sala) y se aplica al instante en toda la interfaz y en `<html lang>`. Precedencia (`i18n/chooseLocale`, pura): **`?lang=` (una sola visita, no se guarda nunca) › lo elegido y guardado › los idiomas del dispositivo › inglés**; un idioma sin catálogo se salta, nunca es un error. El cambio en caliente es el *observable* `Translator.changed` (no un evento del bus de juego como sugería `i18n:changed`: la interfaz se suscribe al traductor, la simulación no sabe de idiomas). Los nombres de idioma se muestran **en su propio nombre** (`Intl.DisplayNames`: no se traducen, así que no son literales ni claves). Los catálogos `es.json`/`en.json` tienen las mismas claves y parámetros, **ningún texto idéntico entre ambos** y **ninguna clave huérfana** (cada clave aparece como literal en `src/`); lo comprueba `tests/unit/architecture.test.ts` junto con «ningún literal de interfaz asignado a `textContent`/`innerText`/`innerHTML` en `ui/`». Solo español e inglés; los demás idiomas siguen siendo «añadir un catálogo».
+
 ---
 
 ## 19. Audio (solo arquitectura ahora)
@@ -682,6 +705,8 @@ Debe prever SFX de ataque, impactos, dash, magia, daño, muerte, interacción, a
 ## 20. Persistencia (solo arquitectura ahora)
 
 Debe poder guardar progreso, habilidades, cartas, ranuras, flags, punto de guardado, configuración, idioma, volumen y controles. **Progreso** y **ajustes** se guardan por separado, versionados, con copia de seguridad y migraciones. No hay sistema de guardado en el Prompt 3; la configuración (idioma) llega con el Prompt 5 y el progreso con el 6. Detalle en ARCHITECTURE-2D §11.
+
+> **Implementado en el Prompt 5** (S18, endurecido en S20): **solo los ajustes**, versión 1 = `{ version, language | null, touch: { scale, opacity } }` (⚠ más estrecha que la v1 que dibuja ARCHITECTURE-2D §11: volumen, *bindings*, calidad y accesibilidad se añaden **por migración** el día que exista cada cosa; la cadena de migraciones y un archivo dorado de la v1 ya están). `repairSettings` arregla cualquier valor dañado campo a campo y se aplica a lo leído **y** a lo que se va a escribir. Escritura segura: `clave.bak` ← anterior **buena** · se **comprueba** que el respaldo está ahí · `clave` ← nuevo · se **lee de vuelta** · se borra el `.bak`; un valor idéntico **no se reescribe**. Carga: `clave` → si no se puede leer se **conserva** como `clave.corrupt` y se prueba `clave.bak` → defaults; un valor de una **versión posterior** se aparta, no se pisa. Garantía probada con un sondeo de **fallos aleatorios** (escrituras que lanzan, que guardan solo la primera parte, que se pierden en silencio, borrados que fallan, el proceso muerto a mitad de un guardado): una carga limpia **nunca da algo más viejo que el último cambio que se guardó bien**. **El progreso (flags, cartas, ranuras, punto de guardado) NO se guarda todavía: Prompt 6.**
 
 ## 21. Rendimiento (objetivos de juego)
 

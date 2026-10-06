@@ -51,7 +51,7 @@ Tras la auditoría del Prompt 2 el propietario del proyecto fijó la **direcció
 | **DC-37** | **Migración** por estrangulamiento, pasos S0–S11 y **cortes seguros A/B/C** | riesgo primero, siempre verde | — |
 | **DC-38** | **Tests:** los 192 se conservan; 23 se **portan** antes de retirar código; 3 de pose 3D se retiran **porque su comportamiento deja de existir**; los 40 de movimiento son puerta de regresión | no borrar por ser «3D» | — |
 | **DC-39** | **WIP `wip/f6-combat-core` intacto** (`b695c98`); se rescata **copiando archivos** desde el commit | mandato | — |
-| **DC-40** | Corregir en P5 el dato `magic_attack.implemented: true` (no hay comportamiento) | hallazgo ✅ | trivial |
+| **DC-40** | Corregir en P5 el dato `magic_attack.implemented: true` (no hay comportamiento) | hallazgo ✅ | trivial · **✅ resuelto en el Prompt 5 (S15, R25):** el comportamiento existe |
 | **DC-41** | **No se versionan capturas de otros juegos** (referencias de escenarios) en el repositorio | prudencia de propiedad intelectual | — |
 | **DC-42** | Nombres de trabajo: región «Ancient Forest Ruins», enemigo «Ink Slime», habilidad «Spirit Bolt»; son **claves de texto** | cambiar un nombre = editar un catálogo | trivial |
 

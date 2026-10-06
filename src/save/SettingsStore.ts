@@ -98,8 +98,17 @@ export class SettingsStore {
     const bak = `${this.key}.bak`;
     try {
       const previous = await this.storage.get(this.key);
-      const replacing = previous !== null && previous !== text;
-      if (replacing) await this.storage.set(bak, previous);
+      if (previous === text) return true; // it is already exactly what is stored: nothing to write, so nothing to put at risk
+      // Only a GOOD previous copy is worth keeping: a damaged one (a write that stopped halfway) must never replace the good backup.
+      const replacing = previous !== null && parseSettings(previous) !== null;
+      if (replacing) {
+        await this.storage.set(bak, previous);
+        // the main file is not touched until the backup is known to be there: a backup that did not land leaves the main file as it was
+        if ((await this.storage.get(bak)) !== previous) {
+          this.report('the backup of the settings did not read back as written; nothing was changed');
+          return false;
+        }
+      }
       await this.storage.set(this.key, text);
       if ((await this.storage.get(this.key)) !== text) {
         this.report('a settings write did not read back as written; the previous copy is kept');

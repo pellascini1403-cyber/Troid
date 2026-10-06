@@ -16,7 +16,7 @@
 | **S17** interacción contextual | ✅ | (ver historial) |
 | **S18** idioma persistente y ajustes | ✅ | (ver historial) |
 | **S19** integración en R1 y los 8 escenarios E2E | ✅ | (ver historial) |
-| **S20** validación final y documentación | ⏳ | |
+| **S20** validación final y documentación (sondeos aleatorios que hallaron 5 defectos latentes) | ✅ | (ver historial) |
 
 ---
 
@@ -464,3 +464,68 @@ Más: `vertical` (R1 completa), `devtools` (el panel `?debug=1` bajo demanda) y 
 ### 6. Bundle tras S19
 
 **197.8 KB gz** (27 *scripts*): sin cambio, porque S19 no añade código de ejecución. Margen frente a 200 KB: **2.2 KB**.
+
+---
+
+## S20 — Validación final y documentación ✅
+
+S20 re-ejecuta **todo** (`tsc`, tests, build, bundle, E2E en desarrollo y en producción) y además **exprime** lo construido: en lugar de fiarse de los casos dirigidos, se añadieron **sondeos aleatorios con semilla** (*soak*) sobre cada capa nueva. Hallaron **cinco defectos latentes** que ninguna prueba dirigida había visto —uno de ellos alcanzable hoy por un jugador de teclado—; se corrigieron cada uno con su prueba de regresión.
+
+### 1. Los sondeos
+
+Cada uno tira de una semilla, comprueba sus invariantes **después de cada tick / evento** y puede profundizarse (`SOAK_SEEDS`, `SOAK_TICKS`). Lo que se mide es lo que **nunca** puede ocurrir, no la respuesta de un escenario.
+
+| Sondeo | Qué hace | Invariantes | Por defecto → profundidad medida |
+|---|---|---|---|
+| `soak` (`tests/helpers/soak.ts`) | juego aleatorio contra la **sesión real**: botones, golpes (algunos letales), muertes, recargas de sala, caídas fuera del mundo, saltos junto a cada objeto, la carta quitada a mitad de un lanzamiento, la barra fijada a valores arbitrarios (incluso fuera de rango) | magia y vida dentro de sus barras y **solo cambian por una causa** (gasto exacto de 30, regeneración ≤ 0.1 por tick, golpes, botellas); una sola botella recargando, ninguna aparece ni desaparece; el icono solo sobre algo disponible y al alcance, nunca sobre un muerto; `PlayerStatus` de acuerdo con la simulación; lo ganado no desaparece; una semilla dos veces = misma simulación **bit a bit** | 8 × 6000 ticks → **300 × 20000** (6 M de ticks) |
+| `hudSoak` | la misma partida alimentando el `HudModel` y el `HudView` **reales**, con fotogramas de todas las duraciones (1.5 s de una pestaña oculta incluidos), ventana que cambia y preferencia de tamaño | el DOM dice exactamente lo que dice la simulación (vida, magia, carta, botellas, vial que se bebe), ningún `NaN`/`undefined`, transitorios en rango, **ni un nodo de más** | 4 × 6000 → 40 × 15000 |
+| `inputSoak` | teclado + ratón + **cinco dedos** + mando a la vez, con `blur`, mando desenchufado a mitad, stick que reporta `NaN`/∞, dedos que aterrizan en lo equivocado, se cancelan o se levantan en otro orden, contra un **modelo ingenuo** («una acción está mantenida mientras CUALQUIER entrada física ligada a ella lo esté») | lo mantenido está mantenido y nada más; **un borde de pulsación no se pierde** aunque se suelte antes del muestreo; rangos; al soltarlo todo la trama es silencio; un dedo, un dueño | 6 × 4000 → 200 × 20000 |
+| `touchDomSoak` | eventos de puntero contra los **elementos reales** de `TouchControls`, con botones que aparecen y desaparecen bajo un dedo y la ventana que se redimensiona, pierde el foco, rota o se oculta | un botón **parece pulsado** ⇔ un dedo lo posee; lo que no se muestra no lo posee nadie; la capa apagada no sostiene dedos; tras soltar nada queda pulsado | 3 × 4000 → 20 × 10000 |
+| `storageSoak` | cambios de ajustes y **arranques en frío** contra un almacenamiento que lanza, guarda solo la primera parte, pierde la escritura sin avisar o falla al borrar, y con el **proceso muerto a mitad de un guardado** | una carga limpia da ajustes **válidos y nunca más viejos que el último cambio que se guardó bien** | 8 × 600 → 300 × 1200 |
+| E2E `soak` | 1600 rondas de juego aleatorio en el **navegador real** (teclado, mando abstracto, ganchos de prueba) con Pixi, VFX, HUD, icono y pantalla de derrota en marcha | **consola limpia** (el *runner* falla ante cualquier error), ≤ 60 *draw calls* y ≤ 400 partículas en el peor momento, números del HUD dentro de sus barras, y **comparando una sala tranquila antes y después: ni un objeto de Pixi, vista, partícula ni nodo DOM de más** | 1 escenario (≈ 16 s): 39 golpes, 8 derrotas, 13 recargas de sala, 14 lanzamientos (5 rechazados), 5 tragos (41 denegados), peor momento **22 draw calls** y **285 partículas** |
+
+### 2. Defectos hallados y corregidos
+
+| # | Defecto | ¿Alcanzable hoy? | Corrección | Regresión |
+|---|---|---|---|---|
+| 1 | **Teclado: varias teclas para una acción** (A y ←, las dos Shift, L y Q, Esc y P). `KeyboardMouseSource` guardaba la acción por *fuente*, no por tecla: soltar una soltaba la acción aunque la otra siguiera abajo (el héroe se detenía con `←` aún pulsada), y volver a pulsar una con la otra abajo creaba un borde de pulsación falso | **Sí**: un jugador de teclado que mantiene `A` y `←` y suelta una | `KeyboardMouseSource` lleva las teclas y botones **físicos** abajo y mantiene la acción mientras **cualquiera** siga; `blur`/`visibilitychange` los olvidan | 3 tests en `keyboardSource` (fallan con el código anterior) + `inputSoak` |
+| 2 | **Una muerte durante el `fadeIn`** (los 30 ticks tras reaparecer): `DeathFlow.start()` la ignoraba («ya está en marcha») y, al acabar el fundido, el héroe quedaba **muerto sin flujo que lo devolviera** | No con el contenido actual (el slime hace 1 de daño y se reaparece con 5), pero **sí** con los peligros y el jefe del Prompt 6 | durante el `fadeIn` `start()` cancela el temporizador pendiente y **reinicia** la derrota | 3 tests en `death` (fallan sin la corrección) + `soak` |
+| 3 | **`rescuePlayer()` devolvía el control a un héroe muerto** que caía por debajo del mundo: llamaba a `player.respawn()` (que reinicia el controlador a `free`) y un cadáver con 0 de vida podía andar, atacar, lanzar y beber durante la derrota | No con el contenido actual (nada mata junto a un foso) | un héroe muerto **solo se recoloca** (`teleport`) y sigue en `dead`; el vivo se rescata como antes | 2 tests en `death` (uno falla sin la corrección; el otro fija lo que no cambia) + `soak` |
+| 4 | **`SettingsStore` reescribía un valor idéntico** (un `update` que no cambia nada): una escritura que se parase a medias destruía la **única** copia | Exótico (`localStorage` escribe atómicamente por clave), pero es justo para lo que está el respaldo | un valor idéntico al guardado **no se escribe** (y resuelve `true`) | 1 test (**cambiado**: el de S18 fijaba el comportamiento viejo) + `storageSoak` |
+| 5 | **`SettingsStore` copiaba un `main` dañado sobre el `.bak` bueno** y no comprobaba que el respaldo hubiera llegado antes de tocar el archivo principal | Exótico (dos fallos seguidos) | solo se respalda un `main` **legible**; el respaldo se **lee de vuelta** antes de reescribir `main` (si no llegó, no se toca nada) | 1 test (falla sin la corrección) + `storageSoak` |
+
+Un único test existente se cambió, y es de este mismo prompt (S18): `settingsStore › writing the same thing again…` fijaba el comportamiento viejo (reescribir lo idéntico) y ahora fija que **no se escribe nada**. **Los 617 tests de partida no se tocaron.** Las correcciones son de unas pocas líneas cada una (+0.1 KB gz en el arranque).
+
+**Premisas de mis propios sondeos que resultaron falsas** (y por eso no son defectos del juego, pero se anotan porque eran trampas fáciles): un icono «fuera de alcance» durante un *hit-stop* (nada se actualiza mientras el mundo está congelado: el sondeo no mueve al jugador entonces); un lanzamiento ya empezado que termina aunque se quite la carta (por diseño: está comprometido; la carta no se puede quitar en el juego); el chip de botella **no** es exclusivo de un dedo (es un toque, sin «mantenido»: dos dedos pueden pulsarlo); el atributo accesible de la barra de magia puede ir menos de un punto por detrás (la barra se reescribe cada cuarto de punto porcentual); `Driver.tap()` avanza un tick por su cuenta (el sondeo aplica los toques sin avanzar para comprobar **todos** los ticks).
+
+### 3. Determinismo
+
+La simulación sigue siendo determinista bit a bit y ahora se comprueba a **cuatro** niveles: (1) las suites de determinismo de 14 archivos de integración (movimiento, combate, agacharse, muerte, slime, botellas, magia, interacción, mando, táctil, R1…); (2) `vertical.test.ts`: la victoria y la derrota de R1 dos veces dan **las mismas pulsaciones y el mismo resumen cada 50 ticks**, y el resumen **ve lo nuevo** (cambia al coger la carta, al lanzar y al beber); (3) los sondeos: una semilla dos veces = la misma simulación (resumen cada 50 ticks) y los mismos totales; (4) los E2E `room` y `vertical`: **el navegador reproduce por el teclado real una partida grabada en Node y coincide con la simulación cada 50 ticks** (magia, botellas, carta, objeto con icono y proyectiles incluidos). Los E2E que no son deterministas por naturaleza (HUD y VFX en tiempo real, GL por software) esperan fotogramas reales antes de mirar (`frames(page, n)`), nunca recortan el comportamiento.
+
+### 4. Consola limpia
+
+El *runner* de E2E **falla** cualquier escenario con un error de consola o de página, e imprime los avisos distintos que vea: en las **23** ejecuciones de desarrollo y las **23** de producción **no apareció ni un error ni un aviso** (incluido el escenario `soak`, que provoca 8 derrotas, 13 recargas de sala, 5 lanzamientos rechazados y 41 tragos denegados). Los avisos de tipo «clip no encontrado» del *placeholder* que los estados nuevos podían provocar no existen: `cast`, `drink` e `interact` tienen su clip propio.
+
+### 5. Validación final
+
+| | Inicio del Prompt 5 (S12) | **Final (S20)** |
+|---|---|---|
+| Tests | 617 / 42 archivos | **1180 / 82 archivos** (+563) |
+| E2E | 12 escenarios | **23 escenarios**, desarrollo **23/23** y producción **23/23** |
+| `tsc --noEmit` | 0 errores | **0 errores** |
+| Build de producción | ✅ | ✅ (`npm run build`: `tsc` + Vite) |
+| Arranque en frío de R1 (gz) | 195.6 KB (179.6 KB tras desactivar extensiones de Pixi que el juego no usa) | **197.9 KB** gz en **27 *scripts*** (628.5 KB sin comprimir); margen **2.1 KB** frente a 200 KB |
+| *Draw calls* (peor momento) | 14 (sala completa) | R1 **12** · sala completa **14** · R1 completa (`vertical`) **14** · juego aleatorio (`soak`) **22**; presupuesto 60 |
+| Partículas vivas (peor momento) | — | **285** en juego aleatorio (presupuesto 400) |
+
+**El protagonista sigue siendo el *placeholder* abstracto (cápsula con espada) del Prompt 3/4 y no se ha tocado:** el único cambio en su módulo (`content/placeholders/playerPlaceholder.ts`) son **tres entradas de la tabla de clips** (`cast` → las poses de `attack2`, `drink` e `interact` → las de `idle`) para que los estados nuevos no caigan en el *fallback* que escribe un aviso de consola; **cero fotogramas nuevos** (siguen siendo 62), ni cara, cabeza humana, pelo, máscara, ropa ni silueta alternativa. HUD, controles y VFX usan solo la paleta cerrada (negro, blanco, cian/azul; violeta para los avisos enemigos; carmín opcional y apagado).
+
+### 6. Pendiente y para el Prompt 6
+
+**No verificado en dispositivo real** (declarado en cada paso): nada del Prompt 5 se ha probado en un iPhone, un Android ni con un mando físico. Lo táctil se prueba con toques CDP simulados (reloj virtual, Chromium sin GPU: la cifra de rendimiento sirve para comparar, no como valor absoluto), y el mando con uno **abstracto**. Quedan por calibrar en dispositivo: los umbrales de `TouchConfig` (el salto accidental por deriva del pulgar, R18) y la disposición de `layout.ts`; las zonas seguras con un notch / Dynamic Island reales (hoy emuladas con `env()` simulado); y el `resize` que **suelta los dedos** (un navegador móvil con barra de direcciones que se esconde a mitad de partida; no ocurre en pantalla completa ni en Capacitor).
+
+**Para el Prompt 6** (ver también [ROADMAP](ROADMAP.md)): mover la carta del Spirit Bolt de R1 a R3 (hoy provisional); transiciones entre salas y puntos de guardado (la recarga completa de botellas ya existe: `refillAll()`); **guardado del progreso** (hoy solo se guardan los ajustes); peligros, zonas de cámara y el jefe con fases; la cuarta ranura de botella colocada en una sala; ajustes **por migración** (volumen, remapeo de teclas, calidad, accesibilidad y la **posición** de los controles táctiles, de los que hoy solo hay tamaño y opacidad). **Presupuesto de bundle:** el margen de 2.1 KB obliga a presupuestar antes de añadir (cargar bajo demanda lo que no haga falta en el arranque, o decidir subir el techo con una medición delante).
+
+### 7. Documentos
+
+`GAME-SPEC-2D` (notas técnicas de implementación en §4, §10–§14, §17, §18 y §20, con las desviaciones marcadas ⚠), `ARCHITECTURE-2D` (estado real de módulos, eventos, orden del tick, entrada, HUD/UI, i18n, persistencia, pruebas y depuración), `ROADMAP` (Prompt 5 ✅ y qué queda), `README` (estado y controles por dispositivo), ADR-0003 (DC-40 resuelto) y esta bitácora. **Conflictos con decisiones cerradas: ninguno** (`⚠ CONFLICTO` no se ha tenido que usar). Desviaciones menores ya documentadas: la carta provisional en R1 (S17), la v1 de los ajustes más estrecha que la del diseño (S18) y el botón de pausa como único añadido visible a la interfaz táctil (S18).

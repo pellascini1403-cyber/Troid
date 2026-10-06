@@ -12,14 +12,25 @@ Cada paso termina con `npm run check` en verde, build de producción y —cuando
 | **Prompt 2** | auditoría técnica y plan ([AUDIT-2026-10](AUDIT-2026-10.md)) | ✅ |
 | **Prompt 3** | especificación definitiva 2D, arquitectura, migración, ADR (solo documentación) | ✅ |
 | **Prompt 4** | migración a 2D + PixiJS y núcleo jugable: movimiento, agacharse, combate, enemigo, sala, muerte, VFX mínimos, i18n | ✅ (617 tests · 12 escenarios E2E · R1 jugable con teclado; [bitácora](PROMPT4-LOG.md)) |
-| **Prompt 5** | magia, cartas, botellas, interacción, **controles táctiles por gestos**, gamepad, HUD, ajustes e idioma persistentes | ⬜ **siguiente** |
-| **Prompt 6** | mundo conectado, flags, puntos de guardado, guardado, jefe con fases | ⬜ |
+| **Prompt 5** | magia, cartas, botellas, interacción, **controles táctiles por gestos**, gamepad, HUD, ajustes e idioma persistentes | ✅ (1180 tests · 23 escenarios E2E · R1 completa por teclado, **táctil** y mando; arranque en frío 197.9 KB gz; [bitácora](PROMPT5-LOG.md)). ⚠ **Sin verificar en un iPhone ni un Android reales** |
+| **Prompt 6** | mundo conectado, flags, puntos de guardado, guardado, jefe con fases | ⬜ **siguiente** |
 | **Prompt 7** | arte definitivo, VFX, pulido, rendimiento, empaquetado nativo (Capacitor), QA | ⬜ |
 
 ### Pasos del Prompt 4 ✅ (cortes seguros: **A** = S0–S4 · **B** = S5–S8 · **C** = S9–S11)
 
 S0 base y etiqueta `proto-3d-f5` · S1 *spike* Pixi + `Game2D` · S2 cámara 2D · S3 sprites, animador, validador y tests portados · S4 retirar Three.js ·
 S5 agacharse · S6 combate (rescate de `wip/f6-combat-core`) · S7 VFX mínimos · S8 muerte, i18n y overlay · S9 primer enemigo · S10 primera sala y salida · S11 E2E, rendimiento y documentación.
+
+### Pasos del Prompt 5 ✅ (S12–S20)
+
+S12 baseline y revisión del bundle · S13 entrada unificada (contrato de ejes, gestos táctiles, mando) · S14 HUD en DOM y los recursos que muestra · S15 magia y Spirit Bolt · S16 botellas de energía y cartas · S17 interacción contextual · S18 idioma persistente y ajustes · S19 R1 completa con todo lo nuevo y los ocho escenarios E2E · S20 validación final (sondeos aleatorios que hallaron y corrigieron cinco defectos latentes) y documentación.
+
+### Qué queda para el Prompt 6 (y no se hizo a propósito en el 5)
+
+- **Mundo y progreso:** mover la carta del Spirit Bolt de R1 a R3 (hoy es provisional, ⚠ desviación documentada), transiciones entre salas (`RoomTransition`: fundido y carga con `ExitDef.to`), puntos de guardado (recarga completa de botellas; `refillAll()` ya está listo), **guardado del progreso** (flags, cartas, ranuras, punto de guardado: hoy solo se guardan los ajustes), peligros y zonas de cámara, jefe con fases. La cuarta ranura de botella existe (`addBottleSlot`) pero ninguna sala la coloca todavía.
+- **Ajustes por migración:** volumen, *bindings* (remapeo), calidad y accesibilidad, y la **posición** de los controles táctiles (hoy solo tamaño y opacidad).
+- **Dispositivo real (⚠ no verificado en el Prompt 5):** ergonomía táctil y deriva del pulgar (R18), safe areas en un iPhone con notch / Dynamic Island, un mando físico, rendimiento en Android de gama baja, el `resize` que suelta los dedos con la barra de direcciones de un navegador móvil. Ahí se calibran los umbrales de `TouchConfig` y la disposición de `layout.ts`.
+- **Presupuesto de bundle:** el arranque en frío está en **197.9 KB gz** frente al techo de 200 KB (margen 2.1 KB). El Prompt 6 debe **presupuestar** antes de añadir: cargar bajo demanda más código que no haga falta en el arranque, o decidir subir el techo con una medición delante.
 
 ## Reglas de trabajo
 

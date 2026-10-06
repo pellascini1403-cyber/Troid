@@ -130,14 +130,32 @@ describe('saving', () => {
     expect(storage.log).toEqual([`set ${KEY}`]);
   });
 
-  it('writing the same thing again touches nothing it does not have to', async () => {
+  it('writing the same thing again writes NOTHING: what is stored is already right, so there is nothing to put at risk (S20)', async () => {
     const storage = new FlakyStorage();
     const store = new SettingsStore(storage);
     await store.load();
     await store.update({ language: 'es' });
     storage.log.length = 0;
+    expect(await store.update({ language: 'es' })).toBe(true); // it IS saved
+    expect(storage.log).toEqual([]); // (found by the persistence soak: a rewrite that stopped halfway destroyed the only copy)
+  });
+
+  it('a backup that does not land (silently lost) leaves the main file untouched, and a damaged main never replaces the good backup (S20)', async () => {
+    const storage = new FlakyStorage();
+    const store = new SettingsStore(storage);
+    await store.load();
     await store.update({ language: 'es' });
-    expect(storage.log).toEqual([`set ${KEY}`]); // no `.bak` of an identical value
+    // 1 · the backup write is lost: nothing is changed, the main file keeps the good value
+    storage.dropSets = true;
+    expect(await store.update({ language: 'en' })).toBe(false);
+    storage.dropSets = false;
+    expect(await storage.inner.get(KEY)).toContain('"es"');
+    // 2 · a damaged main file (a write that stopped halfway) is not copied over the good backup
+    await storage.inner.set(`${KEY}.bak`, JSON.stringify({ version: 1, language: 'es', touch: { scale: 1, opacity: 1 } }));
+    await storage.inner.set(KEY, '{"version":1,"lang');
+    expect(await store.update({ language: 'en' })).toBe(true);
+    expect(await storage.inner.get(`${KEY}.bak`)).toContain('"es"'); // the good copy was not replaced by the damaged text
+    expect(await storage.inner.get(KEY)).toContain('"en"');
   });
 
   it('two quick changes reach the storage in order and the last one wins', async () => {

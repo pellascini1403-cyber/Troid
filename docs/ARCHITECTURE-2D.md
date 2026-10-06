@@ -1,6 +1,6 @@
 # Arquitectura 2D — Troid
 
-> **Estado:** implementada en el Prompt 4 (pasos S0–S11; [bitácora](PROMPT4-LOG.md)) · **Fecha:** 2026-10-06 · **Fase:** vertical slice jugable en 2D con PixiJS v8; Three.js retirado.
+> **Estado:** implementada en el Prompt 4 (pasos S0–S11; [bitácora](PROMPT4-LOG.md)) y ampliada en el **Prompt 5** (pasos S12–S20; [bitácora](PROMPT5-LOG.md): entrada unificada, controles táctiles por gestos, HUD, magia, cartas, botellas, interacción, idioma y ajustes persistentes) · **Fecha:** 2026-10-06 · **Fase:** vertical slice jugable en 2D con PixiJS v8 por teclado, táctil y mando; Three.js retirado.
 > Este documento conserva el diseño; donde la implementación se apartó de él, la desviación está anotada en el apartado (*«Implementado: …»*) y en la bitácora.
 > Qué se construye: [GAME-SPEC-2D](GAME-SPEC-2D.md) · En qué orden y qué se conserva: [MIGRATION-2D](MIGRATION-2D.md) · Registro de decisiones: [ADR-0003](adr/0003-arquitectura-2d-definitiva.md).
 >
@@ -85,6 +85,8 @@ Se **añaden** (Prompt 4, paso S4; están en MIGRATION-2D §6):
 | `presentation/` e `i18n/` solo importan `core/` | datos puros, testeables en Node |
 | ningún literal de texto de interfaz asignado a `textContent`/`innerText`/`innerHTML` en `ui/` | localización desde el principio (§9) |
 
+> **Implementado en el Prompt 5:** todas estas reglas se cumplen y las comprueba `tests/unit/architecture.test.ts`, que en el Prompt 5 ganó: `abilities/`, `interaction/`, `save/`, `i18n/` y `input/` (salvo `input/sources/`, plataforma) entre los módulos **puros** (sin Pixi, sin DOM, sin globales) · `ui/` no importa `pixi.js` ni `render/` (el HUD, el icono de interacción, los controles táctiles y el menú son DOM) · solo `app/` y `content/` importan `content/` · los catálogos `es.json`/`en.json` tienen las mismas claves y parámetros, **ningún texto idéntico** entre ambos y **ninguna clave huérfana** (cada clave aparece como literal en `src/`; las claves de datos se escriben `*Key:`).
+
 ---
 
 ## 3. Estructura de carpetas propuesta
@@ -135,6 +137,8 @@ tests/   unit/ integration/ e2e/ helpers/            tools/  e2e/ · atlas/ (val
 
 Módulos que **no** existen en la carpeta hasta que se necesiten: `bosses/` (contratos en el Prompt 4, implementación en el 6), `save/` (contratos en el 5, implementación en el 6), `audio/` (arquitectura ahora, motor en el 5/7).
 
+> **Estado real tras el Prompt 5.** `abilities/` = `Magic · BottleSet · CardLoadout (con `CardDefinition`) · SkillDefinition · SkillRuntime` (`ModifierStack` y `BottleEffects` **no existen**: no hay mejoras ni más efectos que `heal`; llegan cuando los necesite una mejora real). `interaction/` = `Interactable · InteractionSystem`. `input/` = `InputFrame · InputManager · bindings · glyphs · gestures/{TouchGestureRecognizer, TouchConfig} · sources/{KeyboardMouseSource, TouchSource, GamepadSource, VirtualPad}`. `ui/` = `hud/{HudModel, HudView, layout} · touch/{TouchControls, layout} · prompt/InteractionPrompt · settings/{PauseButton, SettingsMenu} · overlays/{DeathOverlay, deathOverlayModel} · icons · safeArea` (no hay `skins/` todavía). `save/` = `SettingsData · SettingsStore · StorageAdapter` (**solo ajustes**; el progreso es del Prompt 6). `app/` = `Game2D · GameLoop · devTools · storage · dom · options · main · labs/`. `gameplay/` ganó `PlayerStatus` y `Projectile`.
+
 ---
 
 ## 4. Contrato simulación → vista
@@ -175,6 +179,8 @@ Convención `<sujeto>:<verboPasado>`; cargas de **datos planos** (nunca un nodo 
 | Muerte | `death:started` · `death:fadeOut` · `death:respawned` | overlays · audio · cámara |
 | Enemigos | `enemy:alerted` · `enemy:telegraph {ticks}` | VFX · audio |
 
+> **Implementado en el Prompt 5** (nombres reales, `gameplay/events.ts`): `magic:changed {current, max, delta, reason: spend | regen | restore | set}` · `skill:cast {skillId, x, y, facing, cost}` · `skill:denied {reason: noMagic}` · `projectile:ended {reason: hit | wall | range}` · `bottle:changed {type: used | recharging | recharged | added | refilled, slot, states}` · `bottle:drinkStarted` · `bottle:drunk {slot, healed}` · `bottle:interrupted {reason: hit | air | full}` · `bottle:denied {reason: none | full}` (no existe `bottle:used`) · `card:changed {type: acquired | equipped | unequipped, cardId}` (no `card:equipped`) · `interaction:available | lost | performed` · `flag:set | flag:cleared` · `gate:changed` · `exit:reached` · `room:loaded` · `death:started | fadeOut | respawned | fadeIn`. El cambio de idioma **no** es un evento del bus: es el *observable* `Translator.changed` (§9).
+
 ### 4.3 Modelos de vista (puros)
 
 `HudModel` (vida, magia, carta, botellas, prompt de interacción, jefe) es un objeto **plano** que se actualiza por eventos y se **vuelca al DOM solo si cambió** (§8). Cambiar de interfaz = cambiar `HudView`/*skin*, no los sistemas.
@@ -201,6 +207,8 @@ GameSession.tick(input):
 
 El orden es **parte del contrato**: los tests de determinismo ✅ (mismo input ⇒ mismo estado, bit a bit) lo cubren y se amplían con combate, enemigos y recursos.
 
+> **Implementado** (`GameSession.tick`): `0` hit-stop (resta, **conserva los pulsos** de entrada y no avanza nada más) → `muerte` (una pulsación tras 30 ticks de pantalla negra salta la espera y **esa pulsación se gasta**) → `1` jugador → `2` entidades (enemigos, **proyectiles**) → `3` combate → `4` **interacción** (`interaction.update`, con el jugador ya movido y el combate ya resuelto; `enabled = !muerto`) → `6` recursos (`magic.tick(lanzando)`, `bottles.tick()`, `skills.tick()`: **congelados por el hit-stop** como el resto del mundo) → `7` flujos (suelo seguro, rescate, salidas) → `8` vaciado de entidades → `9` *scheduler* (el flujo de derrota vive aquí). Un detalle que importa: lo que ocurre **después** del paso 4 (el rescate del paso 7 mueve al jugador) deja el icono de interacción un tick desfasado; el siguiente tick lo corrige y ningún sistema lo lee entre medias.
+
 ### 5.2 `GameSession` y servicios
 
 `GameSession` posee el bus, el *scheduler*, el `Rng`, `abilities`, `collision`, `combat`, las entidades, el estado de muerte y los flags. Las entidades reciben **`SimServices`** (superficie mínima ✅, ampliada como en el WIP): `bus`, `scheduler`, `rng`, `abilities`, `collision`, `combat`, `player` (solo lectura, `PlayerTarget`), `now`, `godMode`, `spawn/despawn`, `requestHitStop`. Nunca el objeto sesión completo.
@@ -211,6 +219,8 @@ El orden es **parte del contrato**: los tests de determinismo ✅ (mismo input �
 `playerAnimation.deriveAnimation()` sigue siendo una **función pura** (estado de lógica → `AnimState` + velocidad) y se amplía con los estados nuevos.
 
 `PlayerBody` resuelve la altura de pie/agachado y el espacio para levantarse con `CollisionWorld.overlapsSolid` ✅ (sin tocar la colisión).
+
+> **Implementado:** estados `free · crouch · dash · attack · cast · drink · interact · hurt · dead` (no hay `locked`). Prioridad de entrada: muerto > herido > `dash` > ataque > **Habilidad** > **botella** > **interactuar** > agacharse > libre. `free`, `crouch` y `dash` **no cambiaron** (los tests de movimiento del Prompt 4 siguen pasando sin tocarlos). Habilidad, botella e interactuar comparten el mismo *buffer* de 0.12 s. Un reinicio (`controller.reset()`) devuelve a `free`: **por eso `rescuePlayer()` no se lo hace a un héroe muerto** (corregido en S20: un cadáver que caía por debajo del mundo recuperaba el control con 0 de vida).
 
 ### 5.4 Combate
 
@@ -232,6 +242,8 @@ type RechargeRule = { type: 'time'; seconds; sequential } | { type: 'checkpoint'
 
 Los efectos de botella son un **registro** (`heal`, `shield`, …) con `isUseful(ctx)` y `apply(ctx)`; la magia y las botellas son independientes.
 
+> **Implementado:** `Magic` (milésimas enteras + acarreo: determinista bit a bit; `spend · restore · set · tick(blocked)`), `BottleSet` (`ready · empty · recharging`; recarga secuencial; `resolve · consume · addSlot · refillAll`; el efecto `heal` es un dato `{type:'heal', amount}` y el canal `channelSeconds` también), `CardLoadout` (una equipada o ninguna). Los tres son **estado puro**: qué hace *beber* (canal, interrupción, curación) es del `PlayerController`, y la regla «¿se puede lanzar ahora?» (`ok · noSkill · cooldown · noMagic`) es de `SkillRuntime`, compartida por el jugador, la carta del HUD y el botón de Habilidad. `GameSession.status(out)` rellena un `PlayerStatus` reutilizable (**sin asignar por fotograma**): es la **única puerta** por la que la interfaz lee al jugador.
+
 ### 5.6 Habilidades y cartas
 
 `AbilitySystem` (posesión) ✅ responde «¿puede el jugador hacer X?»; **no** se duplica. `SkillDefinition` describe una habilidad **activa**: coste, enfriamiento, temporización de lanzamiento, *handler* por id y parámetros (p. ej. un proyectil). `SkillRuntime` gestiona enfriamientos y `canCast/cast`. `CardDefinition` referencia una habilidad y modificadores; `CardLoadout` guarda las cartas poseídas y la **equipada**. El botón de Habilidad ejecuta `loadout.equipped.skillId`, nunca un id fijo.
@@ -243,10 +255,14 @@ Glosario para no confundir: **Ability** = posesión/progresión (`AbilitySystem`
 
 `InteractionSystem` recibe la posición del jugador y la lista de `Interactable` (entidades), elige el **más cercano** válido con histéresis y emite `available/lost`; `interactPressed` (o el toque en el icono) ejecuta la acción registrada: `pickup` (escribe flags y concede carta/habilidad), `door` (`loadRoom`), `lever`/`switch` (activa/desactiva un `Collider`), `node` (punto de guardado).
 
+> **Implementado:** `InteractionSystem` (puro) con acciones de un conjunto cerrado (`acquireCard · addBottleSlot · setFlag · clearFlag`: una recompensa escribe **flags**, que es lo que la hace sobrevivir a una muerte) y su anfitrión `InteractionHost` (la sesión). `door` como `loadRoom` y `node` (guardado) **no existen todavía** (Prompt 6): una puerta de sala es hoy un sólido que se apaga con una bandera (`gates`), y una palanca es una acción `setFlag`.
+
 ### 5.8 Muerte y reinicio
 
 `DeathFlow` es una máquina de fases en **ticks** con `Scheduler` y dueño: `dying (≈72) → fadeOut (30) → hold (60) → respawn → fadeIn (30)` (parámetros en datos). `RespawnPoint = { room, entry }` (la entrada de la sala hoy; el último nodo de guardado en el Prompt 6). El reinicio recarga la sala (`loadRoom`, ✅ reconstruye colisión sin fugas), restaura vida y magia y **no** rellena botellas.
 
+> **Endurecido en S20:** una muerte **durante el `fadeIn`** (el héroe ya vive y puede volver a caer: un peligro, un golpe fuerte) **reinicia la derrota** (cancela el temporizador pendiente y vuelve a `dying`); antes `start()` la ignoraba y el héroe quedaba muerto sin flujo que lo devolviera. Hoy no hay contenido que lo provoque (el slime hace 1 de daño y el héroe vuelve con 5), pero sí lo harán los peligros y el jefe del Prompt 6.
+>
 > **Implementado: `DeathFlow`** (`gameplay/DeathFlow.ts`): `dying 72 → fadeOut 30 → hold 60 → reaparición → fadeIn 30` en **ticks de simulación**, `skipAfter 30` (cualquier botón tras 30 ticks de pantalla negra salta la espera y **esa pulsación se gasta**: no actúa en el jugador que vuelve). El tick de la muerte cuenta como el primero de `dying` y el hit-stop de la muerte (8) no cuenta: la reaparición llega 161 ticks después de `death:started`. El overlay es DOM (`ui/overlays`), sin texto literal (`t(clave)`), y se reconstruye con `room:loaded`.
 
 ### 5.9 Enemigos
@@ -284,6 +300,8 @@ Se conserva todo lo existente (`move`, `jump*`, `attack*`, `dash*`, `ability*`, 
 | `TouchSource` | D (Prompt 5) | une `TouchGestureRecognizer` + `TouchControls` |
 | `GamepadSource` | D (Prompt 5) | *polling* en `sample()`, mapeo estándar, deadzone radial 0.22, alta/baja en caliente |
 
+> **Implementado en el Prompt 5** (S13): las tres fuentes existen ✅ y entran por el **mismo** `InputManager` (no hay un camino paralelo al juego). Fuente por dispositivo; `registerSource(id, device, modo de ejes)`. **Contrato de ejes** (`InputFrame`): digital independiente por eje (−1/0/1, dos teclas dan (±1, ±1)), el stick `radial` (disco unidad), el táctil `independent` (cada eje recortado por separado), y con varias fuentes cada eje toma el de mayor magnitud. `TouchSource` da **un dueño único por dedo** (`down/move/up/cancel/releaseAll`; devuelve si el dedo quedó con algo). `GamepadSource` (`attachGamepad`) lee un `PadProvider` (el navegador, o un `VirtualPad` abstracto: el mismo en pruebas unitarias, de integración y E2E), **zona muerta radial 0.22**, *polling* por `sample()`, el mando en uso es el primero conectado y se mantiene, y al desconectarse suelta todo. `KeyboardMouseSource` mantiene una acción **mientras cualquiera de sus teclas/botones siga abajo** (S20) y un `blur`/`visibilitychange` los olvida a todos; una tecla escrita en un elemento `data-ui-block` (el menú, el panel de depuración) **no es entrada de juego**, salvo la de pausa. `InputManager` hace *latch* de los bordes (un toque más corto que un tick no se pierde), `requestBottle(fuente, ranura)` (−1 = la siguiente lista) y `noteUse(fuente)` (el dispositivo en uso, para el glifo del icono de interacción: `input/glyphs.ts`, derivado de los *bindings*). Gestos, botones y disposición táctil con los números de GAME-SPEC-2D §4.3 sin cambios.
+
 ### 6.3 `TouchGestureRecognizer` (TypeScript **puro**)
 
 Entrada: eventos de puntero sintéticos `{id, tipo, x, y, t}` en dp. Salida por tick: `{ ax, ay, jumpPressed, jumpHeld, jumpReleased, dropPressed }`. Estado: puntero de movimiento, origen flotante, armado del salto. Parámetros: `TouchConfig` (GAME-SPEC-2D §4.3.1). Algoritmo:
@@ -314,7 +332,7 @@ Capa `#touch` con `pointer-events: none` y **hijos interactivos** (`pointer-even
 
 ### 6.6 Pruebas
 
-Unitarias: reconocedor, `InputManager` multi-fuente ✅ (13), teclado ✅ (8). Integración: gestos → `InputFrame` → `GameSession`. **E2E táctil** con toques CDP (`Input.dispatchTouchEvent` ✅ dos punteros verificados) para las combinaciones de la matriz de GAME-SPEC-2D §4.3.7. Dispositivo real: ⚠️ pendiente.
+Unitarias: reconocedor, `InputManager` multi-fuente ✅ (13), teclado ✅ (12), gamepad, `TouchSource`, `TouchControls` en `happy-dom`. Integración: gestos → `InputFrame` → `GameSession` (`touchControls`, `gamepad`) y **dos sondeos aleatorios** (`inputSoak`: teclado + ratón + cinco dedos + mando a la vez contra un modelo ingenuo de «una acción está mantenida mientras CUALQUIER entrada física ligada a ella lo esté»; `touchDomSoak`: eventos de puntero contra los elementos reales con botones que aparecen y desaparecen bajo un dedo). **E2E táctil** con toques CDP (`Input.dispatchTouchEvent` ✅ dos punteros verificados) para las combinaciones de la matriz de GAME-SPEC-2D §4.3.7 (`touch`, y la mitad táctil de `vertical`, que juega R1 de un solo dedo). Dispositivo real: ⚠️ pendiente (**nada de lo táctil ni del mando se ha verificado en un iPhone, un Android ni un mando físico**).
 
 ---
 
@@ -563,6 +581,8 @@ Actualizado al terminar el Prompt 4: lo que era intención de diseño ahora est�
 - **Accesibilidad:** opción de reducir destellos y sacudidas; contraste ≥ 4.5 : 1 en textos.
 - **Pruebas:** DOM con `happy-dom` ✅ (ya es *devDependency*): el modelo y la vista se prueban sin navegador.
 
+> **Implementado en el Prompt 5** (S14, S17, S18): el patrón es **simulación → `GameSession.status()` → `HudModel` → `HudView`**; la vista escribe **solo lo que cambió** (probado con `MutationObserver`: 20 fotogramas idénticos = 0 mutaciones) y los transitorios de interfaz (fantasma de vida, sacudidas, *pop* del vial) corren en **tiempo real**, así que se ven durante un *hit-stop*. Pila de capas real (`z-index`): `canvas` → controles táctiles **20** → botón de pausa **24** → HUD **25** (`pointer-events:none`, salvo los viales) → icono de interacción **26** → título de derrota **40** → menú de ajustes **45**; `#ui` es transparente al puntero **salvo lo que lo pide** (`pointer-events:auto`). El **menú de ajustes** (`ui/settings/SettingsMenu`) y las **herramientas de desarrollo** (`app/devTools`, panel `?debug=1`) son *chunks* **bajo demanda**: una carga normal no los pide (lo comprueban los E2E `language` y `devtools`). Capa extra: `ui/safeArea` lee `env(safe-area-inset-*)`; todo se coloca dentro de la zona segura a la `uiScale` de la ventana.
+
 ---
 
 ## 9. Localización
@@ -572,6 +592,8 @@ Actualizado al terminar el Prompt 4: lo que era intención de diseño ahora est�
 - **Selección:** idioma del dispositivo si es `es*`/`en*`, si no inglés; se guarda en `SettingsData.language`; cambio en caliente con el evento `i18n:changed`.
 - **Fuentes:** pila del sistema con respaldo; sin texto horneado en texturas; maquetación elástica (+40 % de longitud).
 - **Pruebas:** paridad de claves y de parámetros entre idiomas · toda clave referenciada por el contenido existe · ningún literal en `ui/` (comprobación estática en el test de arquitectura) · el texto de debug queda fuera del catálogo.
+
+> **Implementado en el Prompt 5** (S18): el cambio en caliente es `Translator.changed` (un `Observable<string>` al que se suscribe la interfaz; no hay evento `i18n:changed` en el bus de juego), la selección es `chooseLocale` (pura: `?lang=` › guardado › dispositivo › inglés; un idioma sin catálogo se salta) y el idioma elegido **se guarda** en los ajustes (`save/`, §11) y se aplica a `<html lang>`. Los nombres de idioma se muestran en su propio nombre (`Intl.DisplayNames`).
 
 ---
 
@@ -622,6 +644,8 @@ interface SettingsData {                // versión 1
 - **Cuándo:** en cambios de sala y en puntos de guardado (progreso) · al cambiar un ajuste (ajustes). Reglas de muerte en datos (`DeathFlow`).
 - **Fases:** contratos en el Prompt 4/5, ajustes en el 5, progreso en el 6.
 
+> **Implementado en el Prompt 5** (S18, endurecido en S20): `save/` es **puro** y el almacenamiento se inyecta (`StorageAdapter` asíncrono; `MemoryStorage` en pruebas; `app/storage.ts` aporta `LocalStorageAdapter`, con cada acceso protegido: una lectura imposible es «nada guardado» y una escritura imposible lanza para que el *store* lo cuente **una vez** y el juego siga con lo que tiene en memoria; sin almacenamiento alguno cae en memoria). **Solo `SettingsData` v1** = `{ version, language: string | null, touch: { scale, opacity } }` (⚠ **desviación menor**: sin volumen, *bindings*, calidad ni accesibilidad, que no existen; cada uno llegará **por migración**, con su archivo dorado). `SettingsStore` **nunca lanza**: carga `clave` → si no se puede leer la **conserva** como `clave.corrupt` y prueba `clave.bak` → defaults (un valor de una **versión posterior** se aparta, no se pisa); escribe `clave.bak` ← anterior **buena** · comprueba el respaldo · `clave` ← nuevo · lo lee de vuelta · borra el `.bak`; las escrituras van **en cola** y un valor idéntico no se reescribe. **Probado con un sondeo de fallos aleatorios** (`storageSoak`: escrituras que lanzan, que guardan la mitad, que se pierden en silencio, borrados que fallan y el proceso muerto a mitad de un guardado): una carga limpia **jamás da algo inválido ni más viejo que el último cambio que se guardó bien**. El sello de tiempo, el progreso (`SaveData`), los puntos de guardado y `CapacitorPreferencesAdapter` **no existen todavía** (Prompt 6/7).
+
 ---
 
 ## 12. Datos y contenido
@@ -647,6 +671,10 @@ Los textos viven en `i18n/locales/` y el contenido solo guarda claves.
 
 Los tests de gameplay **no importan Pixi** (lo impide la regla de capas). Los **192 tests** actuales se conservan (MIGRATION-2D §4).
 
+> **Estado tras el Prompt 5:** **1180 tests en 82 archivos** (617 al empezar el Prompt 5) y **23 escenarios E2E** (12 al empezar), en desarrollo y en producción. Además de los casos dirigidos, hay **sondeos aleatorios con semilla** (`tests/helpers/soak.ts` y `tests/integration/{soak,hudSoak,inputSoak,touchDomSoak,storageSoak}.test.ts`, y el escenario E2E `soak`): miles de *ticks* o eventos de juego, hits, muertes, recargas de sala, dedos, teclas y fallos de almacenamiento al azar contra invariantes que **nunca** pueden romperse (magia y vida dentro de sus barras y solo cambian por una causa, una botella recargando a la vez, el icono solo sobre algo disponible y al alcance, `PlayerStatus` de acuerdo con la simulación, el DOM del HUD de acuerdo con el estado, ninguna entrada atascada, ningún ajuste más viejo que el último guardado). Una semilla dos veces da la misma simulación bit a bit. Se pueden profundizar con `SOAK_SEEDS=300 SOAK_TICKS=20000 npx vitest run tests/integration/soak.test.ts`. El E2E `vertical` graba en Node una partida completa de R1 y la **reproduce con el teclado real** del navegador comparando un resumen de **toda** la simulación (magia, botellas, carta, objeto con icono, proyectiles incluidos) cada 50 ticks.
+
 ## 15. Depuración
 
 Se conserva el modo oculto ✅ y se amplían: visor de gestos táctiles (origen, ejes, umbrales), panel de recursos (magia, botellas, cartas), *teleport* a salas, forzar eventos de muerte/respawn y selector de perfil de calidad.
+
+> **Implementado:** el panel, la rejilla de colisiones y las acciones de depuración viven en `app/devTools.ts`, un módulo que **solo se descarga con `?debug=1`** (o la tecla `` ` `` en desarrollo): un jugador no descarga herramientas de desarrollo (≈ 3.6 KB gz que no entran en el arranque en frío). No importa los enemigos (los pide al juego por *callbacks*) para no crear *chunks* compartidos. Los ganchos de prueba `window.__troid` (`?hooks=1`) permiten a los E2E avanzar la simulación tick a tick, teletransportar, soltar slimes, golpear al héroe, leer el estado y manejar un mando abstracto. El visor de gestos y el selector de calidad **no se han hecho** (no hacían falta para el Prompt 5).

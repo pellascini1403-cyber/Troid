@@ -25,13 +25,14 @@ import { r1 } from './scenarios/r1';
 import { room } from './scenarios/room';
 import { render } from './scenarios/render';
 import { slime } from './scenarios/slime';
+import { soak } from './scenarios/soak';
 import { sprites } from './scenarios/sprites';
 import { stress } from './scenarios/stress';
 import { touch } from './scenarios/touch';
 import { vertical } from './scenarios/vertical';
 import { vfx } from './scenarios/vfx';
 
-const ALL: Scenario[] = [movement, crouch, combat, slime, r1, room, death, render, camera, sprites, vfx, stress, touch, gamepad, hud, magic, bolt, bottles, interaction, devtools, language, vertical];
+const ALL: Scenario[] = [movement, crouch, combat, slime, r1, room, death, render, camera, sprites, vfx, stress, touch, gamepad, hud, magic, bolt, bottles, interaction, devtools, language, vertical, soak];
 const filter = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const prod = process.argv.includes('--prod');
 const selected = ALL.filter((s) => !filter || s.name.includes(filter));
