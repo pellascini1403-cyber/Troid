@@ -5,6 +5,7 @@ import { createVfxAtlas } from '@/assets/vfxAtlas';
 import { CAMERA_2D } from '@/camera/camera2d';
 import type { CameraTarget } from '@/camera/CameraRig';
 import { ABILITIES, ENEMIES, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, ROOMS, SPRITE_SETS, START } from '@/content';
+import { BOTTLE_DEFINITIONS, BOTTLES, CARDS, MAGIC } from '@/content/resources';
 import { VFX, VFX_BINDINGS } from '@/content/vfx';
 import { DisposableStore } from '@/core/lifecycle';
 import type { Hurtbox } from '@/combat/Combatant';
@@ -109,6 +110,7 @@ export class Game2D {
       rooms: ROOMS,
       player: PLAYER,
       abilities: ABILITIES,
+      resources: { magic: MAGIC, bottles: { definitions: BOTTLE_DEFINITIONS, initial: BOTTLES.initial, rules: BOTTLES.rules }, cards: CARDS },
       enemies: ENEMIES,
       startRoom,
       unlocked: options.room ? options.unlock : [...START.unlocked, ...options.unlock],

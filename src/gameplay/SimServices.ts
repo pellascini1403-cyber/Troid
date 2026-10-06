@@ -1,3 +1,6 @@
+import type { BottleSet } from '@/abilities/BottleSet';
+import type { CardLoadout } from '@/abilities/CardLoadout';
+import type { Magic } from '@/abilities/Magic';
 import type { CombatSystem } from '@/combat/CombatSystem';
 import type { Health } from '@/combat/Health';
 import type { EventBus } from '@/core/events';
@@ -28,6 +31,10 @@ export interface SimServices {
   readonly abilities: AbilitySystem;
   readonly collision: CollisionWorld;
   readonly combat: CombatSystem;
+  /** The player's magic bar, bottles and equipped card: resources, independent of each other (docs/GAME-SPEC-2D.md §10–§11). */
+  readonly magic: Magic;
+  readonly bottles: BottleSet;
+  readonly loadout: CardLoadout;
   readonly player: PlayerTarget;
   /** Number of simulation ticks elapsed (frozen while hit-stop holds the world still). */
   readonly now: number;

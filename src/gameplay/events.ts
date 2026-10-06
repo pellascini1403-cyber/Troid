@@ -1,3 +1,6 @@
+import type { BottleChange } from '@/abilities/BottleSet';
+import type { CardChange } from '@/abilities/CardLoadout';
+import type { MagicChange } from '@/abilities/Magic';
 import type { CombatEvents } from '@/combat/CombatSystem';
 import type { SimEntity } from './SimEntity';
 
@@ -39,6 +42,12 @@ export interface GameEvents extends CombatEvents {
   'gate:changed': { roomId: string; gateId: string; open: boolean };
   /** The player touched a way out of the room. Once per exit per room build. */
   'exit:reached': { roomId: string; exitId: string; to?: { room: string; entry: string } };
+  /** The magic bar changed: spent (exactly), regained (about once per unit), refilled. */
+  'magic:changed': MagicChange;
+  /** A bottle was drunk, started or finished recharging, was added or refilled. `state` lists every slot afterwards. */
+  'bottle:changed': BottleChange & { states: string[] };
+  /** A card was acquired, equipped or taken off. */
+  'card:changed': CardChange;
   'ability:unlocked': { id: string };
   'ability:locked': { id: string };
   'entity:spawned': { entity: SimEntity };

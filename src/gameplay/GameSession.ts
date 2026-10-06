@@ -1,3 +1,6 @@
+import { BottleSet, type BottleDefinition, type BottleRules } from '@/abilities/BottleSet';
+import { CardLoadout, type CardDefinition } from '@/abilities/CardLoadout';
+import { Magic, type MagicDefinition } from '@/abilities/Magic';
 import { CombatSystem } from '@/combat/CombatSystem';
 import { EventBus } from '@/core/events';
 import { IdGenerator } from '@/core/ids';
@@ -15,13 +18,22 @@ import { bodyRect, CollisionWorld } from '@/world/collision';
 import type { RoomDefinition } from '@/world/RoomDefinition';
 import { DeathFlow, DEFAULT_DEATH_FLOW, type DeathFlowDefinition, type DeathSnapshot } from './DeathFlow';
 import type { GameEvents } from './events';
+import { createPlayerStatus, type PlayerStatus } from './PlayerStatus';
 import type { SimEntity } from './SimEntity';
 import type { SimServices } from './SimServices';
+
+/** The player's resources, as data (docs/GAME-SPEC-2D.md §10–§11): the magic bar, the bottles and the cards that exist. */
+export interface PlayerResources {
+  magic: MagicDefinition;
+  bottles: { definitions: Readonly<Record<string, BottleDefinition>>; initial: readonly string[]; rules: BottleRules };
+  cards: Readonly<Record<string, CardDefinition>>;
+}
 
 export interface SessionOptions {
   rooms: Readonly<Record<string, RoomDefinition>>;
   player: PlayerDefinition;
   abilities: readonly AbilityDefinition[];
+  resources: PlayerResources;
   startRoom: string;
   startEntry?: string;
   seed?: number;
@@ -59,6 +71,10 @@ export class GameSession implements SimServices {
   readonly player: Player;
   readonly collision = new CollisionWorld();
   readonly combat: CombatSystem;
+  /** The magic bar, the bottles and the card equipped: independent resources of the player (docs/GAME-SPEC-2D.md §10–§11). */
+  readonly magic: Magic;
+  readonly bottles: BottleSet;
+  readonly loadout: CardLoadout;
   /** The defeat flow: dying → fade out → title → respawn → fade in (docs/GAME-SPEC-2D.md §9.2). */
   readonly death: DeathFlow;
   /** World memory that outlives room visits and deaths: defeated guardians, opened doors (docs/GAME-SPEC-2D.md §14.3). */
@@ -104,6 +120,11 @@ export class GameSession implements SimServices {
       requestHitStop: (n) => this.requestHitStop(n),
     });
     this.player = new Player(opts.player, this.ids.next('player'));
+    this.magic = new Magic(opts.resources.magic, (change) => this.bus.emit('magic:changed', change));
+    this.bottles = new BottleSet(opts.resources.bottles.definitions, opts.resources.bottles.initial, opts.resources.bottles.rules, (change) =>
+      this.bus.emit('bottle:changed', { ...change, states: this.bottles.slots.map((slot) => slot.state) }),
+    );
+    this.loadout = new CardLoadout(opts.resources.cards, (change) => this.bus.emit('card:changed', change));
     this.death = new DeathFlow(
       {
         scheduler: this.scheduler,
@@ -162,6 +183,37 @@ export class GameSession implements SimServices {
     return this.exitsTouched;
   }
 
+  /**
+   * What the HUD reads, as plain numbers, written into `out` (reused every frame: no allocation in steady state). The
+   * interface never touches the player, the resources or any entity: this is the only door.
+   */
+  status(out: PlayerStatus = createPlayerStatus()): PlayerStatus {
+    const h = this.player.health;
+    out.life.current = h.current;
+    out.life.max = h.max;
+    out.magic.current = this.magic.current;
+    out.magic.max = this.magic.max;
+    out.magic.regenerating = this.magic.regenerating;
+    const card = this.loadout.equipped;
+    out.card.equipped = card !== null;
+    out.card.id = card?.id ?? '';
+    out.card.nameKey = card?.nameKey ?? '';
+    out.card.iconId = card?.iconId ?? '';
+    out.card.state = 'ready';
+    out.card.cooldown01 = 0;
+    const slots = this.bottles.slots;
+    out.bottles.length = slots.length;
+    for (let i = 0; i < slots.length; i++) {
+      const slot = slots[i] as (typeof slots)[number];
+      const b = (out.bottles[i] ??= { state: 'ready', fill01: 1, iconId: '' });
+      b.state = slot.state;
+      b.fill01 = this.bottles.fill(i);
+      b.iconId = this.bottles.definition(i)?.iconId ?? '';
+    }
+    out.bottleUseful = !h.dead && h.current < h.max && this.bottles.readyCount > 0;
+    return out;
+  }
+
   /** Advances the simulation by exactly one fixed step. */
   tick(input: InputFrame): void {
     if (this.disposed) return;
@@ -178,6 +230,8 @@ export class GameSession implements SimServices {
     this.player.tick(this, frame); // 1
     for (const e of this.live) e.tick(this); // 2
     this.combat.resolve(); // 3
+    this.magic.tick(false); // 6 — resources: the magic regenerates, the bottles recharge, one at a time
+    this.bottles.tick();
     this.trackSafeGround(); // 7 (flows)
     this.rescueIfFallen();
     this.checkExits();
@@ -194,7 +248,7 @@ export class GameSession implements SimServices {
     this.unloadRoom();
     this.current = this.requireRoom(roomId);
     this.buildRoom(this.current, entryId);
-    if (this.player.health.dead) this.player.revive();
+    if (this.player.health.dead) this.revivePlayer();
     this.bus.emit('room:loaded', { roomId: this.current.id, entryId: this._respawnPoint.entry });
   }
 
@@ -314,8 +368,14 @@ export class GameSession implements SimServices {
     this.unloadRoom();
     this.current = this.requireRoom(room);
     this.buildRoom(this.current, entry);
-    this.player.revive();
+    this.revivePlayer();
     this.bus.emit('room:loaded', { roomId: this.current.id, entryId: entry });
+  }
+
+  /** Coming back from a defeat: life AND magic full (GAME-SPEC-2D §9.2). The bottles are NOT refilled: their recharge is slow on purpose. */
+  private revivePlayer(): void {
+    this.player.revive();
+    this.magic.restore();
   }
 
   /** End-of-tick entity bookkeeping: despawns first (explicit and `expired`), then spawns. */

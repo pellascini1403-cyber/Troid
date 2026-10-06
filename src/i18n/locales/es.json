@@ -6,5 +6,7 @@
   "touch.attack": "Atacar",
   "touch.dash": "Esquiva",
   "touch.ability": "Habilidad",
-  "touch.bottle": "Beber una botella"
+  "touch.bottle": "Beber una botella",
+  "bottle.energy.name": "Botella de energía",
+  "card.spiritBolt.name": "Proyectil espiritual"
 }

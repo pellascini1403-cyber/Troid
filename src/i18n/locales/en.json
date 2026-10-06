@@ -6,5 +6,7 @@
   "touch.attack": "Attack",
   "touch.dash": "Dash",
   "touch.ability": "Ability",
-  "touch.bottle": "Drink a bottle"
+  "touch.bottle": "Drink a bottle",
+  "bottle.energy.name": "Energy bottle",
+  "card.spiritBolt.name": "Spirit Bolt"
 }
