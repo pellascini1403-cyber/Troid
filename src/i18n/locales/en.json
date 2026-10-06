@@ -2,5 +2,9 @@
   "death.title": "You fell",
   "death.hint": "Press any button to continue",
   "enemy.inkSlime.name": "Ink Slime",
-  "room.r1.name": "Ruins Gate"
+  "room.r1.name": "Ruins Gate",
+  "touch.attack": "Attack",
+  "touch.dash": "Dash",
+  "touch.ability": "Ability",
+  "touch.bottle": "Drink a bottle"
 }

@@ -4,7 +4,7 @@ import type { Page } from 'playwright-core';
 export interface Ctx {
   page: Page;
   /** Fresh load of the game at `?<query>` (hooks on). Resolves when the player model has loaded. */
-  open(query?: string, size?: { width: number; height: number; dpr?: number }): Promise<void>;
+  open(query?: string, size?: { width: number; height: number; dpr?: number; touch?: boolean }): Promise<void>;
   shot(name: string): Promise<void>;
   /** Advances the simulation by `n` ticks with the CURRENT keyboard/mouse state. */
   step(n: number): Promise<void>;
@@ -50,6 +50,8 @@ export interface GameState {
   /** 2D view only: the defeat flow, the interface language and the respawn point. */
   death?: { phase: string; ticks: number; length: number; canSkip: boolean };
   lang?: string;
+  /** 2D view only: the device the player used last (keyboard / touch / gamepad). */
+  device?: string;
   respawnPoint?: { room: string; entry: string };
   /** 2D view only: VFX counters. */
   vfx?: { particles: number; sprites: number; spawned: number; dropped: number; peakParticles: number; poolCreated: number };

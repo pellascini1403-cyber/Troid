@@ -2,5 +2,9 @@
   "death.title": "Has caído",
   "death.hint": "Pulsa cualquier botón para continuar",
   "enemy.inkSlime.name": "Baba de tinta",
-  "room.r1.name": "Puerta de las Ruinas"
+  "room.r1.name": "Puerta de las Ruinas",
+  "touch.attack": "Atacar",
+  "touch.dash": "Esquiva",
+  "touch.ability": "Habilidad",
+  "touch.bottle": "Beber una botella"
 }

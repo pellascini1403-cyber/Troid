@@ -20,9 +20,13 @@ import { Enemy } from '@/enemies/Enemy';
 import type { EnemyDefinition } from '@/enemies/EnemyDefinition';
 import { TrainingDummy } from '@/enemies/TrainingDummy';
 import { GameSession } from '@/gameplay/GameSession';
+import { DEFAULT_TOUCH } from '@/input/gestures/TouchConfig';
 import { DEFAULT_BINDINGS } from '@/input/bindings';
 import { InputManager } from '@/input/InputManager';
+import { attachGamepad, browserPads } from '@/input/sources/GamepadSource';
 import { attachKeyboardMouse } from '@/input/sources/KeyboardMouseSource';
+import { TouchSource } from '@/input/sources/TouchSource';
+import { VirtualPad } from '@/input/sources/VirtualPad';
 import type { AnchorId } from '@/presentation/vocabulary';
 import { PARTICLE_BUDGET, SPRITE_FX_BUDGET } from '@/presentation/vfx';
 import { ActorSprite } from '@/render/ActorSprite';
@@ -33,6 +37,8 @@ import { ProceduralActor } from '@/render/ProceduralActor';
 import { Renderer2D } from '@/render/Renderer2D';
 import { RoomView2D } from '@/render/RoomView2D';
 import { DeathOverlay } from '@/ui/overlays/DeathOverlay';
+import { applySafeOverride, SafeArea } from '@/ui/safeArea';
+import { TouchControls } from '@/ui/touch/TouchControls';
 import { VfxDirector } from '@/vfx/VfxDirector';
 import { VfxSystem } from '@/vfx/VfxSystem';
 import { listen } from './dom';
@@ -61,6 +67,11 @@ export class Game2D {
   private readonly vfx: VfxSystem;
   private readonly vfxDirector: VfxDirector;
   private readonly deathOverlay: DeathOverlay;
+  private readonly safeArea: SafeArea;
+  private readonly touchSource: TouchSource;
+  private readonly touchControls: TouchControls;
+  /** The abstract pad of the E2E (`__troid.pad`): while it exists it replaces the browser's pads. */
+  private virtualPad: VirtualPad | null = null;
   readonly translator: Translator;
   /** A room was (re)built by the simulation (death respawn, debug reset): rebuild the scenery at the next frame. */
   private roomDirty = false;
@@ -110,8 +121,26 @@ export class Game2D {
     const { bounds: _bounds, ...roomCamera } = this.session.room.camera ?? {};
     this.camera = new CameraAdapter2D(renderer, { ...roomCamera, ...options.camera });
 
-    // ---- input ----
+    // interface language: ?lang=, else the device's, else English; the interface only ever asks for keys
+    const preferred = options.lang ? [options.lang] : [...navigator.languages];
+    this.translator = createTranslator(CATALOGS, detectLocale(preferred, SUPPORTED_LOCALES, FALLBACK_LOCALE), FALLBACK_LOCALE);
+
+    // ---- input: three devices, one abstraction (docs/PROMPT5-LOG.md S13) ----
     attachKeyboardMouse(this.lifecycle, this.input, () => this.bindings);
+    const gamepad = attachGamepad(this.input, () => this.bindings, () => (this.virtualPad ? [this.virtualPad] : browserPads()));
+    this.lifecycle.add(() => gamepad.dispose());
+    const ui = document.getElementById('ui') ?? document.body;
+    applySafeOverride(document.documentElement, options.safe);
+    this.safeArea = new SafeArea(ui);
+    this.lifecycle.add(() => this.safeArea.dispose());
+    this.touchSource = new TouchSource(this.input, DEFAULT_TOUCH, () => this.touchControls.gestureScale);
+    this.touchControls = new TouchControls(ui, this.touchSource, this.translator);
+    this.lifecycle.add(() => this.touchControls.dispose());
+    // a desktop with a mouse and a keyboard never sees the touch layer; a touch screen (or ?touch=1) does, and so does the first touch
+    this.touchControls.setVisible(options.touch || (typeof matchMedia === 'function' && matchMedia('(any-pointer: coarse)').matches));
+    listen(this.lifecycle, window, 'pointerdown', (e) => {
+      if (e.pointerType === 'touch') this.touchControls.setVisible(true);
+    }, { capture: true });
 
     // ---- views ----
     this.roomView = new RoomView2D(renderer.layers);
@@ -141,10 +170,7 @@ export class Game2D {
         this.shakes.last = e.shake;
       }),
     );
-    // interface language: ?lang=, else the device's, else English; the overlay only ever asks for keys
-    const preferred = options.lang ? [options.lang] : [...navigator.languages];
-    this.translator = createTranslator(CATALOGS, detectLocale(preferred, SUPPORTED_LOCALES, FALLBACK_LOCALE), FALLBACK_LOCALE);
-    this.deathOverlay = new DeathOverlay(document.getElementById('ui') ?? document.body, this.translator);
+    this.deathOverlay = new DeathOverlay(ui, this.translator);
     this.lifecycle.add(() => this.deathOverlay.dispose());
     this.lifecycle.add(this.session.bus.on('room:loaded', () => (this.roomDirty = true)));
     // a door dissolves when the flag that opens it is set (the simulation already switched its collider off)
@@ -174,17 +200,22 @@ export class Game2D {
       this.loop.paused = true;
     }
 
-    listen(this.lifecycle, window, 'resize', () => this.renderer.resize());
+    listen(this.lifecycle, window, 'resize', () => {
+      this.renderer.resize();
+      this.layoutUi();
+    });
     // Mobile: never simulate (or burn battery) while hidden, never replay the time away, never leave a key stuck.
     listen(this.lifecycle, document, 'visibilitychange', () => {
       if (document.hidden) {
         this.loop.stop();
         this.input.releaseAll();
+        this.touchControls.releaseAll();
       } else {
         this.loop.start();
       }
     });
     this.renderer.resize();
+    this.layoutUi();
     if (options.hooks || import.meta.env.DEV) this.exposeTestHooks();
   }
 
@@ -205,6 +236,12 @@ export class Game2D {
   /** Runs exactly one tick with the current input (debug "step" and E2E tests). */
   stepOnce(): void {
     this.tick();
+  }
+
+  /** Places the DOM interface (the touch controls today) for the window and its safe area. Called on start and on every resize. */
+  private layoutUi(): void {
+    const ui = document.getElementById('ui') ?? document.body;
+    this.touchControls.place(ui.clientWidth || window.innerWidth, ui.clientHeight || window.innerHeight, this.safeArea.read());
   }
 
   // ---------------------------------------------------------------------------------------------------- views
@@ -415,6 +452,24 @@ export class Game2D {
           damage: 1, knockback: { x: 5.5, y: 4 }, stun: 14, hitStop: 6, shake: 0.2, facing, alreadyHit: new Set(),
         });
       },
+      /** Test hook: what the touch layer sees right now (fingers owned, the movement gesture, the layout in px). */
+      touch: () => ({
+        visible: this.touchControls.isVisible,
+        active: this.touchSource.active,
+        gesture: this.touchSource.gesture,
+        layout: this.touchControls.current,
+      }),
+      /** Test hook: the abstract gamepad, in the Gamepad API's own terms (+y of the stick is DOWN); `pressed` = held button indices. */
+      pad: {
+        set: (x: number, y: number, pressed: number[] = []) => {
+          const pad = this.virtualPad ?? (this.virtualPad = new VirtualPad());
+          pad.connected = true;
+          pad.neutral().stick(x, y);
+          for (const i of pressed) pad.press(i);
+        },
+        disconnect: () => void this.virtualPad?.disconnect(),
+        remove: () => void (this.virtualPad = null),
+      },
       revive: () => {
         this.session.player.revive();
         this.session.rescuePlayer();
@@ -464,6 +519,7 @@ export class Game2D {
           views: this.entityViews.count,
           vfx: this.vfx.stats,
           death: this.session.deathSnapshot, lang: this.translator.locale,
+          device: this.input.device,
           respawnPoint: { ...this.session.respawnPoint },
           sprite: {
             set: ps.spriteSetId, frame: ps.frame, facing: ps.root.scale.x, visible: ps.root.visible,

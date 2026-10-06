@@ -70,6 +70,7 @@ export class TouchSource {
       this.input.requestBottle(SOURCE, target === 'bottle' ? -1 : Number(target.slice('bottle:'.length)));
     }
     this.owners.set(pointerId, target);
+    this.input.noteUse(SOURCE); // a finger on the screen is touch use, even before it moves or presses anything
     return true;
   }
 

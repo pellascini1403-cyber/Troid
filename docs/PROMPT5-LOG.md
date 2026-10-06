@@ -9,7 +9,7 @@
 | Paso | Estado | Commit |
 |---|---|---|
 | **S12** baseline y revisión del bundle | ✅ | (ver historial) |
-| **S13** input unificado | ⏳ | |
+| **S13** input unificado (4 commits: contrato, gestos, gamepad, capa DOM + E2E) | ✅ | (ver historial) |
 | **S14** HUD (DOM) | ⏳ | |
 | **S15** magia y Spirit Bolt | ⏳ | |
 | **S16** cartas y botellas | ⏳ | |
@@ -83,3 +83,73 @@ No se cambió de versión ni de API de Pixi, no se eliminó ninguna función y n
 **Opciones no tomadas (ya medidas, por si hicieran falta):** cargar el panel de depuración (`DebugPanel`, `TuningInspector`, `ColliderOverlay2D`) solo con `?debug=1` (≈ 3–4 KB gz) · separar de `Graphics` los *pipes* de canvas que `scene/graphics/init` registra (≈ 4–5 KB gz, requiere configurar el agrupado de *chunks* de Rolldown: más frágil) · cargar el código táctil solo en dispositivos con puntero grueso (**descartado**: la plataforma prioritaria es el móvil, la cifra sería artificial).
 
 **Regla para el resto del prompt:** el bundle se vuelve a medir al terminar cada paso que añade código visible (S13, S14, S16, S18) y la cifra queda en esta bitácora. Si algún día supera 200 KB gz, se diagnostica y se documenta aquí en lugar de recortar funcionalidad.
+
+
+---
+
+## S13 — Input unificado ✅ (`S13a` contrato · `S13b` gestos · `S13c` gamepad · `S13d` capa DOM, hooks y E2E)
+
+Tres dispositivos, **una** abstracción: teclado/ratón, táctil y gamepad llaman a `InputManager.setAction / setAxis / requestBottle`; la simulación solo ve un `InputFrame`. Nada de gameplay conoce teclas, botones ni elementos de UI.
+
+### 1. El hallazgo del Prompt 4 y el contrato de ejes (decisión explícita)
+
+**Hallazgo.** `InputManager.sample()` normalizaba **todo** vector combinado a la circunferencia unidad: un teclado con *derecha + abajo* daba `(0.707, −0.707)` mientras los tests de movimiento (y las grabaciones que el navegador reproduce) usan el `(1, −1)` crudo. No era solo una diferencia de tests: con la normalización, **pulsar `W` o `S` mientras se corre bajaba la velocidad horizontal a 5.8 m/s** (`speedForMagnitude(0.707)`), un defecto latente del teclado.
+
+**Contrato** (documentado en `InputFrame.ts`; `move.x` = cuánto correr, `move.y < −0.6` = agacharse; son dos intenciones independientes y la velocidad horizontal **nunca** depende del eje vertical):
+
+| Fuente | Semántica de los ejes |
+|---|---|
+| Teclado, cruceta, botones | **Digital, independiente por eje**: exactamente −1 / 0 / 1; dos teclas dan `(±1, ±1)`; sin normalizar |
+| Stick del gamepad | **`radial`**: un único vector físico, recortado al disco unidad por la fuente; zona muerta radial 0.22 reescalada |
+| Arrastre táctil | **`independent`**: cada eje significa otra cosa (correr / agacharse), se recorta por separado; `(1, −0.7)` se queda como está |
+| Varias fuentes a la vez | Por eje gana la mayor magnitud (empate: la tecla) |
+
+Implementación: `InputManager.registerSource(source, device, 'radial' | 'independent')` (por defecto `radial`, que conserva el comportamiento de cualquier fuente analógica antigua), y el recorte se aplica **por fuente** al muestrear. Un vector táctil radial habría desplazado el umbral de agacharse (a −0.7 con `x = 1` quedaría `(0.82, −0.57)` y no agacharía): por eso el táctil es `independent` (así lo exige GAME-SPEC-2D §4.3.2, «los ejes X e Y son independientes»).
+
+**Consecuencias.** Se retira `Driver.keyboardLike` (el apaño temporal del Prompt 4) y la línea que lo activaba en `tests/unit/tools/replay.test.ts` y en el E2E `room`: la grabación de Node y el teclado real del navegador ya producen los mismos ejes y el *replay* sigue coincidiendo con el resumen de la simulación cada 50 ticks. **Ningún test antiguo cambió de aserción**; la única edición es el *ejemplo* de tecla sin enlazar de `keyboardSource.test.ts` (`KeyQ` → `KeyV`), porque `Q` es ahora «botella» según GAME-SPEC-2D §4.2.
+
+### 2. Acciones nuevas
+
+`InputFrame` gana `bottlePressed` + `bottleSlot` (−1 = «la siguiente lista»), `interactPressed` y `dropPressed`, todos latcheados (un toque más corto que un tick no se pierde; `GameSession` los conserva también a través del *hit-stop*). Datos en `input/bindings.ts` (GAME-SPEC-2D §4.2): botella `L · Q` / `LB`, interacción `E` / `LT`; *soltarse de una plataforma one-way* no tiene tecla propia (`abajo + salto`, como ya era) y en táctil es un *flick*. `PlayerController`: `dropPressed` (buffer 0.08 s, dato en `MovementTuning.dropBuffer`) atraviesa una plataforma one-way; en cualquier otro suelo se ignora.
+
+### 3. Táctil
+
+- **`input/gestures/`** (TypeScript puro, sin DOM ni reloj): `TouchConfig` con **todos** los números de §4.3 como dato (Rx 56 · Ry 44 dp, zona muerta 0.12, salto 0.55/0.30/0.25, *flick* 28 dp/100 ms, zona 46 %, `edgeMargin` 28) y `uiScale`; `TouchGestureRecognizer`: origen flotante que sigue al dedo (invertir la dirección cuesta 2·Rx), eje X con zona muerta reescalada, eje Y independiente (agacharse), salto por arrastre/*flick* hacia arriba con histéresis y rearmado, *flick* hacia abajo = soltarse (una sola vez por barrido), un segundo dedo en la zona se ignora.
+- **`input/sources/TouchSource`**: **un único dueño por dedo** (zona, Ataque, Dash, Habilidad, icono de interacción, chip y iconos de botella); un dedo no cambia de dueño; un segundo dedo en un botón o en la zona ocupados se ignora; cancelar / soltar / `blur` / ocultar / girar / redimensionar libera lo que ese dedo sostenía. Es el `PointerRouter` de ARCHITECTURE-2D §6.4 **fusionado con la fuente** (el DOM solo traduce eventos; así todas las reglas se prueban en Node).
+- **`ui/touch/layout.ts`** (función pura): posiciones de los botones colgadas de la esquina inferior derecha **segura** (`env(safe-area-inset-*)`), `uiScale`, tamaño elegido por el jugador; la zona cede ante un control si la ventana es extrema. Probado en 4:3, 16:9, 19.5:9, 20:9, 21:9 y 1080p, con y sin *notch* / isla dinámica / indicador de inicio / esquinas redondeadas, a ×0.8, ×1 y ×1.4: **ningún solape** entre áreas táctiles, huecos visibles ≥ 28 dp, nada fuera de la zona segura.
+- **`ui/touch/TouchControls` (DOM)**: capa `#touch` con la zona **invisible** (sin fondo, sin hijos) y los botones **Ataque** y **Dash**; **Habilidad** y el **chip de botella** existen pero están ocultos (la Habilidad solo se dibuja con una carta equipada; el chip solo cuando una botella sirve). **No hay joystick ni botón de salto**. Glifos abstractos en SVG (`createElementNS`, sin texto) con la paleta cerrada; nombres accesibles por `t('touch.*')`. Cada elemento captura su puntero (`setPointerCapture`); el contenedor lleva `data-ui-block` para que un toque nunca sea también un «ataque» de ratón.
+- **Visibilidad:** la capa se muestra con `(any-pointer: coarse)`, con `?touch=1` o con el primer toque; en un PC con ratón y teclado no aparece. **Zonas seguras:** `ui/safeArea` lee `env(safe-area-inset-*)` con una sonda; `?safe=top,right,bottom,left` los imita en pruebas por el mismo camino de código.
+
+### 4. Gamepad
+
+`input/sources/GamepadSource`: stick izquierdo con **zona muerta radial 0.22** reescalada (`(|v|−dz)/(1−dz)`, dirección conservada, y invertida para que arriba sea positivo), botones mapeados por **datos** a las acciones lógicas (A salto · X ataque · B/RB dash · Y habilidad · LB botella · LT interacción · Start pausa · cruceta = cuatro direcciones digitales), gatillos analógicos > 0.5, **se queda con el primer mando conectado**, al desconectarse **libera todo** (el héroe no sigue corriendo), alta en caliente. Se lee por *polling* una vez por tick (`InputManager.addPoller`). El proveedor de mandos es inyectable: los tests y el E2E usan un **mando abstracto** (`input/sources/VirtualPad`), sin dispositivo físico.
+
+### 5. Hallazgos del propio trabajo (todos resueltos)
+
+| Hallazgo | Dónde apareció | Solución |
+|---|---|---|
+| `-0` en el eje vertical con el dedo quieto | test del reconocedor | `ay = (oy − y) / ry` (da `+0`) |
+| Un dedo apoyado sin moverse no cambiaba el dispositivo a «táctil» | E2E | `InputManager.noteUse(source)` al aceptar un `down` |
+| La zona táctil solapaba un control con ventana pequeña + isla + controles ×1.4 | test de layout | la zona cede ante el control más a la izquierda |
+| El E2E táctil no podía medir un *flick*: con render por software los `pointermove` llegan a >100 ms | sondeo de tiempos | el driver CDP da a cada evento un `timestamp` de un **reloj virtual** (el reconocedor mide con `event.timeStamp`) |
+| Levantar el 2.º dedo detenía el héroe | sondeo del E2E | en CDP `touchEnd` nombra el dedo que **se suelta**, no los que quedan (error del driver, no del juego) |
+
+### 6. Pruebas
+
+| | Antes | Después |
+|---|---|---|
+| Tests (Vitest) | 617 / 42 archivos | **791 / 53 archivos** (+174) |
+| E2E | 12 escenarios | **14** (`touch`: toques CDP reales, multitáctil; `gamepad`: mando abstracto) |
+
+Nuevos: contrato de ejes (19) · teclado (4) · soltarse (9) · reconocedor (30) · fuente táctil (21) · táctil → simulación (20) · gamepad (26) + gamepad → simulación (9) · layout (14) · `TouchControls` en `happy-dom` (20) · claves de i18n referenciadas en datos (2). E2E `touch` (14 comprobaciones agrupadas): qué hay (y qué **no**) en pantalla, zona invisible, correr / caminar / zona muerta / origen flotante / invertir, salto completo y salto corto, agacharse con histéresis, soltarse con *flick* (y solo agacharse con un arrastre lento o en suelo sólido), **mover + atacar, mover + dash, atacar + dash, segundo dedo en la zona ignorado, un dedo que nunca cambia de dueño**, toque cancelado, rotación, capa oculta en escritorio, *notch* (47 px a la derecha desplazan Ataque 47 px; 21 px de indicador, 21 px).
+
+### 7. Bundle tras S13
+
+Arranque en frío de R1: **184.7 KB gz** (179.6 → 184.7, +5.1 KB: contrato, reconocedor, fuentes, capa DOM, iconos, claves). Margen restante frente a 200 KB: **15.3 KB**.
+
+### 8. Pendiente / decisiones diferidas
+
+- **Ajustes de entrada** (tamaño y opacidad de los controles, zona muerta del gamepad, remapeo): el *modelo de datos* ya está (`bindings`, `TouchControlsOptions`, `deadZone`), la **persistencia** y la pantalla de ajustes llegan en S18 junto al idioma.
+- `driftRelax` (relajación del origen vertical para el riesgo R18, «apagada por defecto» en la especificación) **no se implementa**: sin dispositivo real no hay forma de calibrarla; los umbrales ya son dato.
+- Visor de gestos táctiles del panel de depuración (ARCHITECTURE-2D §15): `TouchSource.gesture` ya expone origen, ejes y armado; el visor queda para el Prompt 6/7.
+- Rendimiento y ergonomía en iPhone / Android **reales: sin verificar** (no hay dispositivo en este entorno).

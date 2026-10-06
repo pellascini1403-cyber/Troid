@@ -77,6 +77,11 @@ export class InputManager {
     this.lastDevice = this.deviceOf.get(source) ?? this.lastDevice;
   }
 
+  /** `source` was just used without pressing anything (a finger resting on the screen): the prompts follow it. */
+  noteUse(source: string): void {
+    this.lastDevice = this.deviceOf.get(source) ?? this.lastDevice;
+  }
+
   setAxis(source: string, x: number, y: number): void {
     let a = this.axes.get(source);
     if (a) {

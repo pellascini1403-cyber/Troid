@@ -14,6 +14,10 @@ export interface GameOptions {
   paused: boolean;
   /** `?lang=es|en` forces the interface language (default: the device's, English if unsupported). */
   lang?: string;
+  /** `?touch=1` shows the touch controls even on a device without a touch screen (tests, desktop preview). They appear by themselves on the first touch. */
+  touch: boolean;
+  /** `?safe=44,47,21,47` (top, right, bottom, left, px) imitates the safe-area insets of a phone with a notch. */
+  safe?: string;
   camera: Partial<CameraConfig>;
 }
 
@@ -33,6 +37,8 @@ export function optionsFromQuery(q: URLSearchParams): GameOptions {
     hooks: q.get('hooks') === '1',
     paused: q.get('paused') === '1',
     lang: q.get('lang') ?? undefined,
+    touch: q.get('touch') === '1',
+    safe: q.get('safe') ?? undefined,
     camera: cameraConfigFromQuery(q),
   };
 }
