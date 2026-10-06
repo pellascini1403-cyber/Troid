@@ -159,8 +159,9 @@ export class Game2D {
         if (e.type === 'used') this.hudModel.bottleUsed(e.slot);
       }),
     );
-    // a refused cast (not enough magic): the bar and the card shake
+    // a refused cast (not enough magic): the bar and the card shake; a refused drink (no bottle, or full life): the bottles do
     this.lifecycle.add(this.session.bus.on('skill:denied', () => this.hudModel.magicDenied()));
+    this.lifecycle.add(this.session.bus.on('bottle:denied', () => this.hudModel.bottlesDenied()));
     // a desktop with a mouse and a keyboard never sees the touch layer; a touch screen (or ?touch=1) does, and so does the first touch
     this.touchControls.setVisible(options.touch || (typeof matchMedia === 'function' && matchMedia('(any-pointer: coarse)').matches));
     listen(this.lifecycle, window, 'pointerdown', (e) => {

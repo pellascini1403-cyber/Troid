@@ -182,6 +182,19 @@ describe('hud view', () => {
     expect(q(host, 'hud-bottle-0').style.transform).toBe('');
   });
 
+  it('the vial being drunk glows and drains with the channel; a refused drink shakes the row of bottles and it settles', () => {
+    show(status((s) => (s.drink = { slot: 2, progress01: 0.5 })));
+    expect(all(host, 'hud-bottle-').map((e) => e.dataset['drinking'])).toEqual(['0', '0', '1']);
+    expect((q(host, 'hud-bottle-2').querySelector('.hud-liquid') as HTMLElement).style.transform).toBe('scaleY(0.5)');
+    show(status());
+    expect(q(host, 'hud-bottle-2').dataset['drinking']).toBe('0');
+    model.bottlesDenied();
+    show(status(), 0.03);
+    expect(q(host, 'hud-bottles').style.transform).not.toBe('');
+    for (let i = 0; i < 30; i++) show(status());
+    expect(q(host, 'hud-bottles').style.transform).toBe('');
+  });
+
   it('a fourth bottle and an extra life segment appear when the numbers grow', () => {
     show(status((s) => s.bottles.push({ state: 'ready', fill01: 1, iconId: 'bottle' })));
     expect(all(host, 'hud-bottle-')).toHaveLength(4);

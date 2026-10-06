@@ -222,6 +222,9 @@ export class GameSession implements SimServices {
       b.fill01 = this.bottles.fill(i);
       b.iconId = this.bottles.definition(i)?.iconId ?? '';
     }
+    const drink = this.player.controller.drinkProgress();
+    out.drink.slot = drink.slot;
+    out.drink.progress01 = drink.t;
     out.bottleUseful = !h.dead && h.current < h.max && this.bottles.readyCount > 0;
     return out;
   }

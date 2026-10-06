@@ -130,7 +130,9 @@ export type VfxTrigger =
   | 'playerDied'
   | 'boltCast'
   | 'boltImpact'
-  | 'boltEnd';
+  | 'boltEnd'
+  | 'drinkStart'
+  | 'drinkHeal';
 
 export type VfxBindings = Readonly<Record<VfxTrigger, readonly string[]>>;
 

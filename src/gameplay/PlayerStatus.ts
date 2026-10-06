@@ -29,6 +29,8 @@ export interface PlayerStatus {
   magic: { current: number; max: number; regenerating: boolean };
   card: CardStatus;
   bottles: BottleStatus[];
+  /** The bottle being drunk right now (`slot` −1 = none) and how far through its channel the hero is, 0 … 1: that vial drains meanwhile. */
+  drink: { slot: number; progress01: number };
   /** A bottle is ready AND drinking it would help now (life below the maximum): the contextual chip of the touch controls shows. */
   bottleUseful: boolean;
 }
@@ -39,6 +41,7 @@ export function createPlayerStatus(): PlayerStatus {
     magic: { current: 0, max: 0, regenerating: false },
     card: { equipped: false, id: '', nameKey: '', iconId: '', state: 'ready', cooldown01: 0 },
     bottles: [],
+    drink: { slot: -1, progress01: 0 },
     bottleUseful: false,
   };
 }

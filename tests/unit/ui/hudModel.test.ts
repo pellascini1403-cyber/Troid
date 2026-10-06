@@ -189,6 +189,29 @@ describe('bottles: ready, empty, recharging; a pop when one is drunk', () => {
     m.update(status(), FRAME);
     expect(() => m.bottleUsed(9)).not.toThrow();
   });
+
+  it('the vial being drunk drains over the channel and the others stay full', () => {
+    const m = new HudModel();
+    let s = m.update(status((x) => (x.drink = { slot: 1, progress01: 0.25 })), FRAME);
+    expect(s.bottles.map((b) => b.drinking)).toEqual([false, true, false]);
+    expect(s.bottles.map((b) => b.fill01)).toEqual([1, 0.75, 1]);
+    s = m.update(status((x) => (x.drink = { slot: 1, progress01: 1 })), FRAME);
+    expect(s.bottles[1]!.fill01).toBe(0);
+    s = m.update(status(), FRAME); // the channel ended or was interrupted: nothing drains any more
+    expect(s.bottles.map((b) => [b.drinking, b.fill01])).toEqual([[false, 1], [false, 1], [false, 1]]);
+  });
+
+  it('a refused drink shakes the whole row of bottles, and it settles in 0.28 s; the bar and the card do not move', () => {
+    const m = new HudModel();
+    m.update(status(), FRAME);
+    expect(m.state.bottlesShakeX).toBe(0);
+    m.bottlesDenied();
+    const s = m.update(status(), 0.03);
+    expect(s.bottlesShakeX).not.toBe(0);
+    expect(s.magic.shakeX).toBe(0);
+    expect(s.card.shakeX).toBe(0);
+    expect(m.update(status(), SHAKE_SECONDS).bottlesShakeX).toBe(0);
+  });
 });
 
 describe('time and reuse', () => {

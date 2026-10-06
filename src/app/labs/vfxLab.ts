@@ -26,7 +26,7 @@ import { VfxSystem } from '@/vfx/VfxSystem';
  *
  *   ?vh=8 visible height in metres (smaller = zoom in) · ?manual=1  · ?cycle=0 (no auto-play) · ?accent=1 (the optional warm accent ON, to compare) · ?tier=low|medium|high
  */
-const TRIGGERS: readonly VfxTrigger[] = ['slash', 'slashFinisher', 'hitLanded', 'playerHurt', 'dashStart', 'enemyDied', 'enemyTelegraph', 'playerDied', 'boltCast', 'boltImpact', 'boltEnd'];
+const TRIGGERS: readonly VfxTrigger[] = ['slash', 'slashFinisher', 'hitLanded', 'playerHurt', 'dashStart', 'enemyDied', 'enemyTelegraph', 'playerDied', 'boltCast', 'boltImpact', 'boltEnd', 'drinkStart', 'drinkHeal'];
 
 export async function startVfxLab(host: HTMLElement, params: URLSearchParams): Promise<void> {
   const manual = params.get('manual') === '1';
@@ -108,6 +108,12 @@ export async function startVfxLab(host: HTMLElement, params: URLSearchParams): P
         break;
       case 'boltEnd':
         bus.emit('projectile:ended', { id: 'lab_bolt', skillId: SPIRIT_BOLT.id, x: 0.3, y: 1, facing: 1, reason: 'range' });
+        break;
+      case 'drinkStart':
+        bus.emit('bottle:drinkStarted', { slot: 0, x: -1.6, y: 0, ticks: 24 });
+        break;
+      case 'drinkHeal':
+        bus.emit('bottle:drunk', { slot: 0, healed: 2, x: -1.6, y: 0 });
         break;
       default:
         break;

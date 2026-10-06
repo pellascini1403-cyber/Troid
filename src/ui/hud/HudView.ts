@@ -56,6 +56,7 @@ function hudCss(): string {
 .troid-hud .hud-liquid { position:absolute; left:0; right:0; bottom:0; height:100%; transform-origin:50% 100%; background:linear-gradient(0deg, ${core}, ${glow}); }
 .troid-hud .hud-vial[data-state="ready"] .hud-glass { box-shadow:0 0 8px ${rgba(PALETTE.energyGlow, 0.55)}; border-color:${glow}; }
 .troid-hud .hud-vial[data-state="empty"] .hud-glass { opacity:0.55; }
+.troid-hud .hud-vial[data-drinking="1"] .hud-glass { border-color:${white}; box-shadow:0 0 12px ${rgba(PALETTE.whiteHot, 0.7)}; }
 .troid-hud .hud-vial[data-state="recharging"] .hud-liquid { opacity:0.7; background:linear-gradient(0deg, ${mid}, ${core}); }
 @keyframes hud-pulse { 0%,100% { opacity:1; } 50% { opacity:0.45; } }
 @keyframes hud-shine { from { transform:translateX(-140px); } to { transform:translateX(0); } }
@@ -251,9 +252,12 @@ export class HudView {
       if (set(c, 'state', b.state, () => (v.el.dataset['state'] = b.state))) this.refreshVialLabel(i, b.state);
       const fill = Math.round((b.state === 'empty' ? 0 : b.fill01) * 200) / 200;
       set(c, 'fill', fill, () => (v.liquid.style.transform = `scaleY(${fill})`));
+      set(c, 'drinking', b.drinking, () => (v.el.dataset['drinking'] = b.drinking ? '1' : '0'));
       const pop = Math.round(b.pop * 20) / 20;
       set(c, 'pop', pop, () => (v.el.style.transform = pop === 0 ? '' : `scale(${(1 + 0.3 * pop).toFixed(3)})`));
     }
+    const shakeX = Math.round(s.bottlesShakeX * 10) / 10;
+    set(this.last, 'bottlesShake', shakeX, () => (this.bottleRow.style.transform = shakeX === 0 ? '' : `translateX(${shakeX.toFixed(1)}px)`));
   }
 
   // ----------------------------------------------------------------------------------------------- structure

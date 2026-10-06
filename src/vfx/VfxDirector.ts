@@ -48,6 +48,12 @@ export class VfxDirector {
         // when it hit something the impact effect already played; a bolt that ends on a wall or at the end of its range fizzles
         if (e.reason !== 'hit') this.fire('boltEnd', { x: e.x, y: e.y, facing: e.facing });
       }),
+      bus.on('bottle:drinkStarted', (e) => {
+        this.fire('drinkStart', { x: e.x, y: e.y + 0.9, facing: 1 });
+      }),
+      bus.on('bottle:drunk', (e) => {
+        this.fire('drinkHeal', { x: e.x, y: e.y + 0.9, facing: 1 });
+      }),
       bus.on('player:hurt', (e) => {
         this.fire('playerHurt', { x: e.x, y: e.y, facing: e.direction, dirX: e.direction, dirY: 0.2 });
       }),

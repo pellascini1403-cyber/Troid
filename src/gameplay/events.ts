@@ -52,6 +52,14 @@ export interface GameEvents extends CombatEvents {
   'magic:changed': MagicChange;
   /** A bottle was drunk, started or finished recharging, was added or refilled. `state` lists every slot afterwards. */
   'bottle:changed': BottleChange & { states: string[] };
+  /** The hero began drinking: `ticks` ticks of channel, standing still. The effect lands on the last one. */
+  'bottle:drinkStarted': { slot: number; x: number; y: number; ticks: number };
+  /** The channel ended: the bottle is spent and its effect landed (`healed` = points of life actually restored). */
+  'bottle:drunk': { slot: number; healed: number; x: number; y: number };
+  /** The channel was broken before its end (a hit, losing the ground, nothing left to heal): nothing was spent. */
+  'bottle:interrupted': { slot: number; reason: 'hit' | 'air' | 'full' };
+  /** A request to drink was refused: no bottle is ready (`none`) or the life is already full (`full`). The interface answers (the bottles shake). */
+  'bottle:denied': { reason: 'none' | 'full' };
   /** A card was acquired, equipped or taken off. */
   'card:changed': CardChange;
   'ability:unlocked': { id: string };

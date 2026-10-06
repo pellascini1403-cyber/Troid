@@ -20,6 +20,8 @@ export interface BottleRules {
   rechargeSeconds: number;
   /** Most slots the player can ever have: the fourth is a reward. */
   maxSlots: number;
+  /** Seconds the hero stands still drinking before the effect lands (GAME-SPEC-2D §11: 24 ticks). A hit during them spends nothing. */
+  channelSeconds: number;
 }
 
 export interface BottleSlot {
@@ -41,11 +43,13 @@ export interface BottleChange {
  * one from the left, `rechargeSeconds` each — and a bottle that is waiting for its turn is just empty. No purchases, no economy.
  *
  * This class is the STATE and its rules (pure, deterministic: it counts simulation ticks). What drinking does (the channel,
- * the interruption, the heal itself) is the player's, in `PlayerController`.
+ * the interruption, the heal itself) is the player's, in `PlayerController`: the bottle is consumed only when the channel
+ * ENDS, so a hit in the middle costs nothing.
  */
 export class BottleSet {
   readonly slots: BottleSlot[] = [];
   private readonly rechargeTicks: number;
+  private readonly channelTicks: number;
 
   constructor(
     private readonly defs: Readonly<Record<string, BottleDefinition>>,
@@ -54,6 +58,7 @@ export class BottleSet {
     private readonly onChange: (change: BottleChange) => void = () => {},
   ) {
     this.rechargeTicks = Math.max(1, secondsToTicks(rules.rechargeSeconds));
+    this.channelTicks = Math.max(1, secondsToTicks(rules.channelSeconds));
     for (const id of initial.slice(0, rules.maxSlots)) {
       if (!defs[id]) throw new Error(`unknown bottle definition "${id}"`);
       this.slots.push({ definitionId: id, state: 'ready', progress: 0 });
@@ -72,6 +77,10 @@ export class BottleSet {
   /** Ticks a full recharge takes. */
   get rechargeLength(): number {
     return this.rechargeTicks;
+  }
+  /** Ticks the drinking channel lasts: the effect lands on the last one. */
+  get channelLength(): number {
+    return this.channelTicks;
   }
 
   definition(slot: number): BottleDefinition | undefined {

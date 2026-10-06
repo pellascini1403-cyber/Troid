@@ -373,6 +373,43 @@ const boltFizzle: ParticleVfx = {
   radius: 0.15,
 };
 
+// --------------------------------------------------------------------------------------- the energy bottle
+
+/**
+ * Drinking a bottle (GAME-SPEC-2D §11): while the 0.4 s channel runs a ring of light closes in on the hero, and when the life comes
+ * back a soft flash and a few motes rise from him. Light only (additive, the hero's cyan / white): nothing here is a hit.
+ */
+const drinkGather: FlashVfx = {
+  kind: 'flash', id: 'drink_gather', priority: 4, palette: 'energy', shape: 'ring', role: 'hot',
+  life: 0.4, size: [2.2, 0.7], alpha: [0.7, 0.2],
+};
+
+const drinkHealMotes: ParticleVfx = {
+  kind: 'particles',
+  id: 'drink_heal_motes',
+  priority: 5,
+  palette: 'energy',
+  blend: 'add',
+  shape: 'glow',
+  count: [10, 14],
+  speed: [1.2, 3.2],
+  life: [0.35, 0.7],
+  aim: 'up',
+  spread: 1.3,
+  size: [0.14, 0.28],
+  sizeEnd: 0.2,
+  gravity: 0.5,
+  drag: 1.6,
+  alpha: [0.95, 0],
+  colors: ['hot', 'core', 'hot'],
+  radius: 0.45,
+};
+
+const drinkHealFlash: FlashVfx = {
+  kind: 'flash', id: 'drink_heal_flash', priority: 5, palette: 'energy', shape: 'glow', role: 'hot',
+  life: 0.22, size: [0.8, 2.4], alpha: [0.9, 0],
+};
+
 export const VFX: Readonly<Record<string, VfxDefinition>> = Object.fromEntries(
   [
     slashArc, slashArcFinisher,
@@ -382,6 +419,7 @@ export const VFX: Readonly<Record<string, VfxDefinition>> = Object.fromEntries(
     deathInk, deathMotes, deathFlash, energyScatter,
     telegraphRing, telegraphMotes,
     boltMuzzleFlash, boltMuzzleSparks, boltImpactBurst, boltImpactFlash, boltImpactRing, boltFizzle,
+    drinkGather, drinkHealMotes, drinkHealFlash,
   ].map((d) => [d.id, d]),
 );
 
@@ -400,4 +438,6 @@ export const VFX_BINDINGS: VfxBindings = {
   boltCast: ['bolt_muzzle_flash', 'bolt_muzzle_sparks'],
   boltImpact: ['bolt_impact_burst', 'bolt_impact_flash', 'bolt_impact_ring'],
   boltEnd: ['bolt_fizzle'],
+  drinkStart: ['drink_gather'],
+  drinkHeal: ['drink_heal_motes', 'drink_heal_flash'],
 };

@@ -16,6 +16,8 @@ export interface BottleViewState {
   iconId: string;
   /** 1 → 0 over `POP_SECONDS` when the bottle is drunk (the vial "pops"). */
   pop: number;
+  /** This vial is being drunk right now: its liquid drains over the channel and the glass glows. */
+  drinking: boolean;
 }
 
 export type CardViewState = 'empty' | 'ready' | 'noMagic' | 'cooldown';
@@ -26,6 +28,8 @@ export interface HudState {
   magic: { fraction: number; regenerating: boolean; empty: boolean; /** Horizontal shake in dp (a refused cast). */ shakeX: number };
   card: { state: CardViewState; iconId: string; nameKey: string; cooldown01: number; shakeX: number };
   bottles: BottleViewState[];
+  /** Horizontal shake in dp of the whole row (a drink that was refused: nothing to drink, or the life is full). */
+  bottlesShakeX: number;
 }
 
 export const GHOST_SECONDS = 0.4;
@@ -40,7 +44,7 @@ const SHAKE_CYCLES = 3;
  * out. It owns the short transients of the interface — the ghost of a lost life segment, the shake of a refused cast, the pop of
  * a drunk bottle — in REAL time (`dt` is the frame's), so they play through a hit-stop. It knows no DOM, no pixi and no entity.
  *
- * Things that happen are told to it (`magicDenied`, `bottleUsed`) by whoever listens to the gameplay events: the model never
+ * Things that happen are told to it (`magicDenied`, `bottlesDenied`, `bottleUsed`) by whoever listens to the gameplay events: the model never
  * subscribes to the simulation itself.
  */
 export class HudModel {
@@ -49,15 +53,22 @@ export class HudModel {
     magic: { fraction: 0, regenerating: false, empty: false, shakeX: 0 },
     card: { state: 'empty', iconId: '', nameKey: '', cooldown01: 0, shakeX: 0 },
     bottles: [],
+    bottlesShakeX: 0,
   };
   private lastLife = -1;
   private magicShake = 0;
   private cardShake = 0;
+  private bottleShake = 0;
 
   /** A cast was refused for lack of magic: the bar and the card shake. */
   magicDenied(): void {
     this.magicShake = SHAKE_SECONDS;
     this.cardShake = SHAKE_SECONDS;
+  }
+
+  /** A drink was refused (no bottle ready, or the life is already full): the row of bottles shakes. */
+  bottlesDenied(): void {
+    this.bottleShake = SHAKE_SECONDS;
   }
 
   /** A bottle was drunk: its vial pops. */
@@ -100,6 +111,7 @@ export class HudModel {
     // ---- magic ----
     this.magicShake = Math.max(0, this.magicShake - dtc);
     this.cardShake = Math.max(0, this.cardShake - dtc);
+    this.bottleShake = Math.max(0, this.bottleShake - dtc);
     s.magic.fraction = status.magic.max > 0 ? status.magic.current / status.magic.max : 0;
     s.magic.regenerating = status.magic.regenerating;
     s.magic.empty = status.magic.current <= 0;
@@ -115,16 +127,19 @@ export class HudModel {
 
     // ---- bottles ----
     const bs = s.bottles;
-    while (bs.length < status.bottles.length) bs.push({ state: 'ready', fill01: 1, iconId: '', pop: 0 });
+    while (bs.length < status.bottles.length) bs.push({ state: 'ready', fill01: 1, iconId: '', pop: 0, drinking: false });
     bs.length = status.bottles.length;
     for (let i = 0; i < bs.length; i++) {
       const b = bs[i] as BottleViewState;
       const src = status.bottles[i] as (typeof status.bottles)[number];
       b.state = src.state;
-      b.fill01 = src.fill01;
+      // the vial being drunk drains over the channel (it is spent on the last tick, so it never jumps)
+      b.drinking = status.drink.slot === i;
+      b.fill01 = b.drinking ? Math.max(0, 1 - status.drink.progress01) : src.fill01;
       b.iconId = src.iconId;
       b.pop = Math.max(0, b.pop - dtc / POP_SECONDS);
     }
+    s.bottlesShakeX = shake(this.bottleShake);
     return s;
   }
 }

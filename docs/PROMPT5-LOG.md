@@ -12,7 +12,7 @@
 | **S13** input unificado (4 commits: contrato, gestos, gamepad, capa DOM + E2E) | ✅ | (ver historial) |
 | **S14** HUD (DOM) y los recursos que muestra (2 commits: recursos, HUD) | ✅ | (ver historial) |
 | **S15** magia y Spirit Bolt | ✅ | (ver historial) |
-| **S16** cartas y botellas | ⏳ | |
+| **S16** cartas y botellas | ✅ | (ver historial) |
 | **S17** interacción contextual | ⏳ | |
 | **S18** idioma persistente | ⏳ | |
 | **S19** integración en R1 y E2E | ⏳ | |
@@ -253,3 +253,52 @@ E2E `bolt` (teclado real, mando abstracto, toque CDP real): sin carta Ability no
 ### 7. Bundle tras S15
 
 Arranque en frío de R1: **192.8 KB gz** (190.3 → 192.8, +2.5 KB: habilidad, proyectil, estado de lanzamiento, vista y efectos). Margen frente a 200 KB: **7.2 KB** con S16–S18 por venir. Si se agota, las opciones ya medidas (cargar bajo demanda el panel de depuración ≈ 3–4 KB gz y la pantalla de ajustes) siguen disponibles sin recortar funcionalidad.
+
+
+---
+
+## S16 — Botellas de energía (y la carta como forma de equipar) ✅
+
+Las **cartas** ya estaban completas desde S14a/S15 (una equipada o ninguna; Ability solo funciona con carta; sin inventario ni *deckbuilding*; `card:changed` y la carta del HUD con estados `empty · ready · noMagic · cooldown`). S16 cierra el otro recurso del jugador: **las botellas se beben de verdad**.
+
+### 1. El estado `drink` (`PlayerController`)
+
+GAME-SPEC-2D §11, sin ninguna desviación:
+
+- **Canal de 24 ticks (0.4 s)**, en suelo, **sin moverse** (la velocidad horizontal se frena; el stick, el salto, el ataque y el *dash* no cambian el estado: no hay recuperación que cancelar). Es dato: `BottleRules.channelSeconds` (`content/resources.ts`), `BottleSet.channelLength`.
+- **El efecto cae en el ÚLTIMO tick** y **solo entonces se gasta la botella**: `consume(slot)` + `heal(2)`. Un golpe a mitad de canal **no gasta nada** (`bottle:interrupted · hit`); perder el suelo, tampoco (`air`); si la vida se llenó por otra vía durante el canal, tampoco (`full`). Un golpe que llega **en el mismo tick** en que termina el canal cae **después** del efecto (el jugador actúa primero y luego se resuelve el combate: orden definido y probado).
+- **Solo si sirve:** con la vida completa o sin botella lista, la petición se **deniega una vez** (`bottle:denied · full | none`) sin gastar ni parar al héroe. Una petición hecha en el aire espera al aterrizaje dentro del *buffer* (0.12 s, el mismo que Ability) y, si no llega, caduca en silencio.
+- **Qué botella:** la tecla y el chip táctil piden «la siguiente lista» (−1, la primera desde la izquierda); un icono del HUD pide **esa** (0…n) y se deniega si no está lista aunque haya otras.
+- **Prioridad:** `dash` > ataque > Habilidad > botella > agacharse > libre. Desde `crouch` se puede beber y se vuelve a `crouch`.
+- Eventos de simulación: `bottle:drinkStarted`, `bottle:drunk` (`healed`), `bottle:interrupted`, `bottle:denied`. Lo que el HUD, el VFX y el audio futuro necesitan sale de ahí; la simulación no sabe quién escucha.
+- **La magia es independiente**: beber no la paga ni la detiene (la regeneración sigue durante el canal); la recarga de botellas sigue siendo secuencial, de una en una, 60 s cada una, y una derrota **no** las rellena.
+
+### 2. Lo que se ve
+
+- **HUD** (`HudModel`/`HudView`, sin tocar la simulación): el vial que se bebe **se vacía durante el canal** (`PlayerStatus.drink = { slot, progress01 }`, la única puerta) y brilla en blanco; al gastarse hace *pop* y pasa a recargándose. Una petición denegada **sacude la fila de botellas** (0.28 s, como la barra de magia ante una Habilidad denegada).
+- **VFX como datos** (energía cian/blanca; sin violeta ni acento cálido): `drinkStart` = un anillo de luz que **se cierra** sobre el héroe durante el canal, `drinkHeal` = destello blanco + motas que suben. El director los levanta de `bottle:drinkStarted` y `bottle:drunk`; interrumpido o denegado no hay efecto de curación.
+- **Placeholder:** el clip `drink` reutiliza las poses de `idle` en bucle (**ningún fotograma nuevo**, siguen siendo 62). El protagonista sigue siendo la cápsula abstracta.
+
+### 3. Pruebas
+
+| | Antes | Después |
+|---|---|---|
+| Tests | 958 / 64 archivos | **997 / 66 archivos** (+39) |
+| E2E | 16 | **17** (`bottles`), desarrollo y producción 17/17 |
+| `tsc --noEmit` | 0 errores | 0 errores |
+
+Nuevos: `tests/integration/bottles.test.ts` (28: canal de 24 ticks y efecto en el último; +2 sin pasar del máximo; quieto; agachado; el *dash* no cancela; golpe a mitad no gasta; golpe en el tick final cae después; letal; perder el suelo; vida llena durante el canal; cambio de sala; denegación `full`/`none` una sola vez; petición diferida tras un ataque; icono de un vial vacío; qué botella se bebe; cuarta botella; espera al aterrizaje; recarga secuencial de 3600 ticks; magia independiente; derrota sin rellenar; estado del HUD; determinismo) · `bottleSet` (+1: canal como dato) · `drinkVfx` (6) · `hudModel` (+2) · `hudView` (+1) · `placeholderStates` (+1).
+
+E2E `bottles` (teclado real L/Q, mando abstracto LB y toques reales): tres viales listos · un trago con la vida llena se deniega y **sacude la fila** · el canal: a medias el vial está a la mitad y la vida sigue en 3, **en el tick 24 la vida pasa a 5** y la botella pasa a recargándose, el héroe no se movió · un golpe a mitad de canal no gasta nada (vida 3 → 2) · el mando bebe la siguiente lista y **la segunda queda vacía esperando su turno** · la primera vuelve a los 60 s y **solo entonces** empieza la segunda · táctil: el chip aparece solo con vida que curar, tocarlo bebe; un icono del HUD bebe **ese** vial; un vial gastado denegado sacude la fila; la cuarta botella es una carga más.
+
+### 4. Hallazgos
+
+| Hallazgo | Solución |
+|---|---|
+| El E2E de la sacudida fallaba aunque el HUD funcionaba (comprobado con un observador en la página): con *render* por software **el primer fotograma tras un cambio puede tardar ~0.8 s** y el HUD reproduce sus transitorios cortos en tiempo real, así que un evento que cae dentro de ese fotograma largo ya ha terminado al siguiente | el escenario espera a que la página dibuje de verdad (`frames(page)`: 8 fotogramas seguidos) antes del evento y registra con un `MutationObserver` **cualquier** fotograma en que la fila se movió, en lugar de sondear. No se tocó el HUD ni se recortó su comportamiento. **Regla para los E2E que quedan:** esperar fotogramas antes de transitorios de tiempo real |
+| Tick aritmético de mis propias pruebas: el canal «de 24 ticks» son 24 `update` **tras** el tick de la pulsación (el efecto cae 24 ticks después de pulsar) | los tests lo fijan así (23 → vida sin cambio, 24 → +2) |
+
+### 5. Bundle tras S16
+
+Arranque en frío de R1: **193.6 KB gz** (192.8 → 193.6, +0.8 KB). Margen frente a 200 KB: **6.4 KB** con S17 (interacción) y S18 (idioma + ajustes) por venir; la pantalla de ajustes irá cargada bajo demanda.
+

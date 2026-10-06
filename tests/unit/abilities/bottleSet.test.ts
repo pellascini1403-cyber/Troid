@@ -29,6 +29,16 @@ describe('bottles: the start', () => {
     expect(RECHARGE).toBe(3600);
   });
 
+  it('drinking is a channel of 24 ticks (0.4 s), and it is data: the rules say so, the set only counts', () => {
+    const { set } = make();
+    expect(BOTTLES.rules.channelSeconds).toBe(0.4);
+    expect(set.channelLength).toBe(24);
+    const slower = new BottleSet(BOTTLE_DEFINITIONS, BOTTLES.initial, { ...BOTTLES.rules, channelSeconds: 1 });
+    expect(slower.channelLength).toBe(60);
+    const instant = new BottleSet(BOTTLE_DEFINITIONS, BOTTLES.initial, { ...BOTTLES.rules, channelSeconds: 0 });
+    expect(instant.channelLength).toBe(1); // never zero: the effect still lands on a tick of its own
+  });
+
   it('at most four slots; an unknown bottle is refused loudly', () => {
     expect(() => make(['nope'])).toThrow(/unknown bottle/);
     const { set } = make(['energy_bottle', 'energy_bottle', 'energy_bottle', 'energy_bottle', 'energy_bottle']);

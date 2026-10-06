@@ -9,7 +9,7 @@ import type { SimServices } from '@/gameplay/SimServices';
 import type { MovementTuning } from './MovementTuning';
 import type { Player } from './Player';
 
-export type PlayerStateId = 'free' | 'crouch' | 'dash' | 'attack' | 'cast' | 'hurt' | 'dead';
+export type PlayerStateId = 'free' | 'crouch' | 'dash' | 'attack' | 'cast' | 'drink' | 'hurt' | 'dead';
 
 /** Ticks the white hit flash lasts. */
 const FLASH_TICKS = 6;
@@ -29,7 +29,9 @@ const FLASH_TICKS = 6;
  *
  * Combat (docs/GAME-SPEC-2D.md §5.1, §7, §9): `attack` (ground / air / crouch variants, chain of two), `hurt` (stun,
  * knockback, i-frames) and `dead`. Magic (§10): `cast` runs the skill of the equipped card (6 ticks of preparation, the release
- * that pays the cost and spawns the projectile, 8 of recovery). Priority: dead > hurt > dash > attack > cast > crouch > free.
+ * that pays the cost and spawns the projectile, 8 of recovery). Bottles (§11): `drink` is a channel of 24 ticks standing still
+ * on the ground; the effect lands, and the bottle is spent, on its LAST tick, so a hit in the middle costs nothing.
+ * Priority: dead > hurt > dash > attack > cast > drink > crouch > free.
  * `free`, `crouch` and `dash` behave exactly as before (the 40 movement tests are the proof).
  */
 export class PlayerController {
@@ -42,6 +44,7 @@ export class PlayerController {
   private jumpBuffer = 0;
   private dropBuffer = 0;
   private abilityBuffer = 0;
+  private bottleBuffer = 0;
   private dashBuffer = 0;
   private dashCooldown = 0;
   private dashTicksLeft = 0;
@@ -62,6 +65,10 @@ export class PlayerController {
   private castSkill: SkillDefinition | null = null;
   private castTicks = 0;
   private castReleased = false;
+  /** Which bottle the pending request asked for (−1 = the next one that is ready), the slot being drunk (−1 = none) and the ticks of the channel done. */
+  private bottleRequest = -1;
+  private drinkSlot = -1;
+  private drinkTicks = 0;
 
   private jumping = false;
   private jumpCut = false;
@@ -87,6 +94,7 @@ export class PlayerController {
         dash: { enter: (c) => c.enterDash(), update: (c) => c.updateDash(), exit: (c) => c.exitDash() },
         attack: { enter: (c) => c.enterAttack(), update: (c) => c.updateAttack(), exit: (c) => c.player.combat.end() },
         cast: { enter: (c) => c.enterCast(), update: (c) => c.updateCast(), exit: (c) => c.exitCast() },
+        drink: { enter: (c) => c.enterDrink(), update: (c) => c.updateDrink(), exit: (c, to) => c.exitDrink(to) },
         hurt: { update: (c) => c.updateHurt() },
         dead: { update: (c) => c.updateDead() },
       },
@@ -107,6 +115,15 @@ export class PlayerController {
   /** A cast is in progress (preparation or recovery): the magic does not regenerate meanwhile. */
   get casting(): boolean {
     return this.fsm.current === 'cast';
+  }
+  /** A bottle is being drunk (the channel): the hero stands still. */
+  get drinking(): boolean {
+    return this.fsm.current === 'drink';
+  }
+  /** The bottle being drunk (−1 = none) and how far through the channel it is, 0 … 1 (the HUD drains that vial meanwhile). */
+  drinkProgress(): { slot: number; t: number } {
+    if (this.fsm.current !== 'drink') return { slot: -1, t: 0 };
+    return { slot: this.drinkSlot, t: Math.min(1, this.drinkTicks / Math.max(1, this.sim.bottles.channelLength)) };
   }
   /** Where the cast is, for the animation: its phase and how far through it. `startup` → the release tick is `active` → `recovery`. */
   castProgress(): { phase: 'startup' | 'active' | 'recovery'; t: number } {
@@ -148,12 +165,14 @@ export class PlayerController {
 
   /** Clears transient state (respawn, room change, debug teleport). Permanent progression is untouched. */
   reset(): void {
-    this.coyote = this.jumpBuffer = this.dropBuffer = this.abilityBuffer = this.dashBuffer = this.dashCooldown = this.dashTicksLeft = 0;
+    this.coyote = this.jumpBuffer = this.dropBuffer = this.abilityBuffer = this.bottleBuffer = this.dashBuffer = this.dashCooldown = this.dashTicksLeft = 0;
     this.dropThrough = this.jumpHeldTicks = this.airDashesUsed = this.invulnerable = this.landTicks = 0;
     this.hurtInvuln = this.flashTicks = this.hurtTicks = 0;
     this.jumping = this.jumpCut = false;
     this.castSkill = null;
     this.castReleased = false;
+    this.bottleRequest = this.drinkSlot = -1; // a reset is not a gameplay interruption: no event
+    this.drinkTicks = 0;
     this.player.combat.end();
     this.fsm.go('free');
     // Hard reset of the shape (respawn / room change): the spawn point is always free, so no room check.
@@ -171,6 +190,10 @@ export class PlayerController {
     else if (this.dropBuffer > 0) this.dropBuffer--;
     if (this.input.abilityPressed) this.abilityBuffer = secondsToTicks(t.abilityBuffer);
     else if (this.abilityBuffer > 0) this.abilityBuffer--;
+    if (this.input.bottlePressed) {
+      this.bottleBuffer = secondsToTicks(t.abilityBuffer); // same grace as the Ability press
+      this.bottleRequest = this.input.bottleSlot;
+    } else if (this.bottleBuffer > 0) this.bottleBuffer--;
     if (this.input.dashPressed) this.dashBuffer = secondsToTicks(t.dash.buffer);
     else if (this.dashBuffer > 0) this.dashBuffer--;
     if (this.dashCooldown > 0) this.dashCooldown--;
@@ -262,7 +285,10 @@ export class PlayerController {
     if (this.player.combat.wantsAttack) this.fsm.go('attack');
 
     // ---- ability: a buffered press casts the skill of the equipped card, unless an attack is starting this very tick ----
-    if (this.abilityBuffer > 0 && !this.player.combat.wantsAttack && this.canCast()) this.fsm.go('cast');
+    // ---- bottle: a buffered request drinks (the next ready one, or the one asked for) when it would help; the cast wins a tie ----
+    const attacking = this.player.combat.wantsAttack;
+    if (!attacking && this.abilityBuffer > 0 && this.canCast()) this.fsm.go('cast');
+    else if (!attacking && this.bottleBuffer > 0 && this.canDrink()) this.fsm.go('drink');
 
     // ---- dash (overrides the rest: a dash keeps whatever shape the body has) ----
     if (this.dashBuffer > 0 && this.canDash()) this.fsm.go('dash');
@@ -514,6 +540,90 @@ export class PlayerController {
   private exitCast(): void {
     this.castSkill = null;
     this.castReleased = false;
+  }
+
+  // ------------------------------------------------------------------------------------------------ drink
+
+  /**
+   * Can a bottle be drunk now? It needs a READY bottle (the one asked for, or the next) whose effect would help — a heal with
+   * the life already full does not — otherwise the request is REFUSED, once, with `bottle:denied` (the interface answers;
+   * nothing is spent). The effect needs the ground: in the air the request waits for the landing inside its buffer.
+   */
+  private canDrink(): boolean {
+    const sim = this.sim;
+    const slot = sim.bottles.resolve(this.bottleRequest);
+    if (slot < 0 || !this.bottleHelps(slot)) {
+      this.bottleBuffer = 0; // refused once, not once per tick of the buffer
+      sim.bus.emit('bottle:denied', { reason: slot < 0 ? 'none' : 'full' });
+      return false;
+    }
+    return this.player.body.grounded;
+  }
+
+  /** Would the effect of this bottle change anything? Today every bottle heals: it helps while the life is below the maximum. */
+  private bottleHelps(slot: number): boolean {
+    const effect = this.sim.bottles.definition(slot)?.effect;
+    if (!effect) return false;
+    return effect.type === 'heal' ? this.player.health.current < this.player.health.max : true;
+  }
+
+  private enterDrink(): void {
+    const sim = this.sim;
+    const b = this.player.body;
+    this.drinkSlot = sim.bottles.resolve(this.bottleRequest);
+    this.drinkTicks = 0;
+    this.bottleBuffer = 0;
+    this.jumping = false;
+    this.animSerial++;
+    sim.bus.emit('bottle:drinkStarted', { slot: this.drinkSlot, x: b.x, y: b.y, ticks: sim.bottles.channelLength });
+  }
+
+  /**
+   * One tick of the channel: the hero stands still (nothing steers him, the run speed bleeds off) and the effect lands on the
+   * last tick. Losing the ground ends it without spending anything; a hit does too (`exitDrink`).
+   */
+  private updateDrink(): void {
+    const b = this.player.body;
+    const t = this.tuning;
+    if (!b.grounded) {
+      this.breakDrink('air');
+      return;
+    }
+    b.vx = approachValue(b.vx, 0, t.groundDecel * TICK_SECONDS);
+    b.vy = Math.max(b.vy - this.gravityNow() * TICK_SECONDS, -t.maxFallSpeed);
+    if (++this.drinkTicks >= this.sim.bottles.channelLength) this.finishDrink();
+  }
+
+  /** The end of the channel: the bottle is spent and the effect lands — unless it no longer helps, in which case nothing is spent. */
+  private finishDrink(): void {
+    const sim = this.sim;
+    const p = this.player;
+    const slot = this.drinkSlot;
+    const effect = sim.bottles.definition(slot)?.effect;
+    if (!effect || !this.bottleHelps(slot) || !sim.bottles.consume(slot)) {
+      this.breakDrink('full');
+      return;
+    }
+    const healed = effect.type === 'heal' ? p.health.heal(effect.amount) : 0;
+    this.drinkSlot = -1; // done: leaving the state is not an interruption
+    sim.bus.emit('bottle:drunk', { slot, healed, x: p.body.x, y: p.body.y });
+    this.fsm.go(this.postAttackState());
+  }
+
+  /** Ends the channel before its last tick without spending anything. */
+  private breakDrink(reason: 'air' | 'full'): void {
+    this.sim.bus.emit('bottle:interrupted', { slot: this.drinkSlot, reason });
+    this.drinkSlot = -1;
+    this.fsm.go(this.postAttackState());
+  }
+
+  /** Whatever ends the state while a channel is still running (a hit, death) spent nothing, and says so. */
+  private exitDrink(to: PlayerStateId): void {
+    if (this.drinkSlot >= 0) {
+      this.sim.bus.emit('bottle:interrupted', { slot: this.drinkSlot, reason: to === 'hurt' || to === 'dead' ? 'hit' : 'air' });
+    }
+    this.drinkSlot = -1;
+    this.drinkTicks = 0;
   }
 
   // ------------------------------------------------------------------------------------- hurt and death

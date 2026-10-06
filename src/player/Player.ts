@@ -123,6 +123,8 @@ export class Player extends Actor implements Combatant {
       v.anim = 'cast';
       v.phase = cp.phase;
       v.phaseT = cp.t;
+    } else if (c.state === 'drink') {
+      v.anim = 'drink';
     } else if (c.state === 'attack' && attack) {
       const p = this.combat.progress();
       v.anim = attack.anim;

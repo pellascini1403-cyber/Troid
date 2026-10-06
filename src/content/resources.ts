@@ -10,10 +10,13 @@ export const BOTTLE_DEFINITIONS: Readonly<Record<string, BottleDefinition>> = {
   energy_bottle: { id: 'energy_bottle', nameKey: 'bottle.energy.name', iconId: 'bottle', effect: { type: 'heal', amount: 2 } },
 };
 
-/** Three bottles at the start, four at most (the fourth is a reward); one recharges at a time, 60 s each. No purchases. */
+/**
+ * Three bottles at the start, four at most (the fourth is a reward); one recharges at a time, 60 s each. No purchases.
+ * Drinking is a 0.4 s channel standing still (24 ticks): the effect lands at its end, a hit before that spends nothing.
+ */
 export const BOTTLES: { initial: readonly string[]; rules: BottleRules } = {
   initial: ['energy_bottle', 'energy_bottle', 'energy_bottle'],
-  rules: { rechargeSeconds: 60, maxSlots: 4 },
+  rules: { rechargeSeconds: 60, maxSlots: 4, channelSeconds: 0.4 },
 };
 
 /** The cards of the first slice: one, which equips the Spirit Bolt. The hero starts WITHOUT any card (no initial ability). */
