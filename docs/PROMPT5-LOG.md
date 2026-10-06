@@ -10,7 +10,7 @@
 |---|---|---|
 | **S12** baseline y revisión del bundle | ✅ | (ver historial) |
 | **S13** input unificado (4 commits: contrato, gestos, gamepad, capa DOM + E2E) | ✅ | (ver historial) |
-| **S14** HUD (DOM) | ⏳ | |
+| **S14** HUD (DOM) y los recursos que muestra (2 commits: recursos, HUD) | ✅ | (ver historial) |
 | **S15** magia y Spirit Bolt | ⏳ | |
 | **S16** cartas y botellas | ⏳ | |
 | **S17** interacción contextual | ⏳ | |
@@ -153,3 +153,46 @@ Arranque en frío de R1: **184.7 KB gz** (179.6 → 184.7, +5.1 KB: contrato, re
 - `driftRelax` (relajación del origen vertical para el riesgo R18, «apagada por defecto» en la especificación) **no se implementa**: sin dispositivo real no hay forma de calibrarla; los umbrales ya son dato.
 - Visor de gestos táctiles del panel de depuración (ARCHITECTURE-2D §15): `TouchSource.gesture` ya expone origen, ejes y armado; el visor queda para el Prompt 6/7.
 - Rendimiento y ergonomía en iPhone / Android **reales: sin verificar** (no hay dispositivo en este entorno).
+
+
+---
+
+## S14 — HUD (DOM) y los recursos que muestra ✅ (`S14a` recursos · `S14b` HUD)
+
+> **Desviación de orden (documentada):** el HUD tiene que mostrar magia, botellas y carta, así que en S14 se construyeron también las **clases puras de esos recursos** (su estado y sus reglas). Lo que queda para S15 y S16 son las **acciones** que los usan (lanzar el Spirit Bolt, beber una botella, equipar una carta recogida, la Habilidad). Así el HUD nunca muestra datos de mentira ni hay código provisional que tirar.
+
+### 1. Recursos como estado puro (`S14a`)
+
+| Clase (`src/abilities/`) | Reglas |
+|---|---|
+| `Magic` | 0 … 100; gasto **exacto** (un coste de 30 quita 30 y nada más; por debajo del coste se rechaza sin tocar nada); regeneración **gradual** de 6/s tras **1.0 s** sin gastar; no regenera mientras se lanza (`tick(blocked)`); aritmética en **milésimas enteras** con acarreo: 60 ticks de regeneración dan 6.000 exactos, también con tasas que no dividen entre 60 (7/s → 7.000); eventos al gastar, ~1 por unidad regenerada (6/s, no 60/s) y al llenarse |
+| `BottleSet` | 3 ranuras (máx. 4); estados `ready · empty · recharging`; recarga **secuencial de 60 s (3600 ticks), una a la vez, la primera vacía de izquierda a derecha**; una botella que espera su turno está «vacía»; `resolve(−1 \| n)` (la siguiente lista / ese icono del HUD); `addSlot` (la cuarta, recompensa) y `refillAll` (punto de guardado del Prompt 6) |
+| `CardLoadout` | una carta equipada **o ninguna**; la primera adquirida se equipa sola; `serialize/restore`; sin inventario ni selector |
+
+Datos en `content/resources.ts` (nada de números en las clases) y claves de i18n. **El héroe empieza sin carta** (no hay habilidad inicial inventada).
+
+`GameSession` crea los recursos, los avanza en el paso 6 del tick (`magic.tick`, `bottles.tick`: **congelados por el hit-stop** igual que el resto del mundo), emite `magic:changed`, `bottle:changed` (con el estado de todas las ranuras) y `card:changed`, y al volver de una derrota rellena **vida y magia pero NO las botellas** (GAME-SPEC-2D §9.2: «su recarga es lenta a propósito»). `SimServices` expone `magic / bottles / loadout` para las habilidades de S15–S16.
+
+**`GameSession.status(out)`** rellena un `PlayerStatus` reutilizable (vida, magia, estado de la carta, ranuras de botellas con su relleno, `bottleUseful`): es **la única puerta** por la que la interfaz lee al jugador — el HUD no importa el jugador, los recursos ni ninguna entidad.
+
+### 2. HUD (`S14b`)
+
+Arquitectura: **simulación → `status()` → `HudModel` (puro) → `HudView` (DOM)**; Pixi no sabe que existe.
+
+- **`ui/hud/layout.ts`** (puro): esquina **superior izquierda** + zona segura + 16 dp, a la `uiScale` de la ventana por la preferencia de tamaño; los números de GAME-SPEC-2D §17 (tarjeta 52 × 68, segmentos 22 × 10 con hueco 3, barra 140 × 8, viales 22 × 30). **Zona táctil de los viales: 44 de alto × 36 de ancho** (su paso), en vez de 44 × 44: con el hueco de la especificación (6 dp) los 44 de ancho se solaparían entre vecinos y un dedo tiene que significar **una** botella.
+- **`ui/hud/HudModel.ts`** (puro): `PlayerStatus` + `dt` real → `HudState`. Lleva los transitorios de interfaz **en tiempo real** (pasan por un *hit-stop*): el **fantasma** del segmento perdido (0.4 s) y su destello (0.15 s), la **sacudida** de barra y carta al denegar un lanzamiento (0.28 s, amortiguada), el **«pop»** del vial al beber (0.25 s), el pulso del último punto de vida.
+- **`ui/hud/HudView.ts`** (DOM): tarjeta (vacía con borde discontinuo si no hay carta; icono; apagada sin magia; barrido radial en enfriamiento), **5 segmentos** de vida (uno por punto: crece con la vida máxima), **barra de magia continua** (`scaleX`, brillo que avanza mientras regenera), **3–4 viales** (lista · vacía · recargando con relleno progresivo). Escribe en el DOM **solo si algo cambió** (probado con `MutationObserver`: 20 fotogramas idénticos = 0 mutaciones). **Sin texto propio**: solo nombres accesibles (`role`, `aria-valuenow`, `aria-label` por `t('hud.*')`), que siguen al idioma. CSS generado desde los tokens de `palette.ts`; `prefers-reduced-motion` apaga sus animaciones.
+- **Cableado (`Game2D`)**: un `HudView` y un `HudModel`; cada fotograma `session.status()` → modelo → vista, y el mismo estado gobierna los controles táctiles **contextuales**: el **botón de Habilidad aparece solo con una carta equipada** (con su icono, atenuado sin magia) y el **chip de botella solo cuando hay una botella lista y la vida no está al máximo**. Un dedo sobre un vial entra por el mismo `TouchSource` de dueño único (`bottle:<ranura>`) y queda **por encima de la zona de movimiento**. El título de derrota pasa a `z-index 40`: cubre HUD y controles.
+
+### 3. Pruebas
+
+| | Antes | Después |
+|---|---|---|
+| Tests | 791 / 53 archivos | **904 / 60 archivos** (+113) |
+| E2E | 14 | **15** (`hud`) |
+
+Nuevos: magia (17) · botellas (18) · cartas (9) · recursos en la sesión (18) · `HudModel` (22) · layout (9) · `HudView` en `happy-dom` (20). E2E `hud`: qué hay en pantalla (5 segmentos, barra llena, **carta vacía**, 3 viales; todo en `#ui`, **un solo canvas**, **cero texto**); posición y tamaño reales (tarjeta 52 × 68 dp a la escala de la ventana, vial con zona táctil real y **por encima** de la zona de movimiento); un punto de vida perdido = un segmento vacío + fantasma que se desvanece en < 0.7 s; vida crítica; barra de magia al 50 % y regeneración visible (brillo tras 1 s, ≈ +6 en el segundo siguiente); botellas: **solo una recarga a la vez** y la siguiente empieza al terminar la primera (3600 ticks reales); cuarta botella; carta → icono y botón de Habilidad (y se va al quitarla); chip contextual; un dedo en un vial **no** inicia el gesto de movimiento; **5 relaciones de aspecto** (4:3, 16:9, 19.5:9, 21:9 y un móvil pequeño): HUD entero en pantalla, arriba a la izquierda, a 16 dp escalados del borde y sin tocar los controles; **notch** (47 px izquierda, 44 px arriba); ES ↔ EN.
+
+### 4. Bundle tras S14
+
+Arranque en frío de R1: **190.3 KB gz** (184.7 → 190.3, +5.6 KB: recursos, estado, modelo + vista + CSS del HUD, claves). Margen frente a 200 KB: **9.7 KB**, con S15–S18 por venir: si se agota, las opciones ya medidas siguen siendo cargar bajo demanda el panel de depuración (≈ 3–4 KB gz) y la pantalla de ajustes (nueva), sin recortar funcionalidad.

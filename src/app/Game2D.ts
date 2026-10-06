@@ -21,6 +21,7 @@ import { Enemy } from '@/enemies/Enemy';
 import type { EnemyDefinition } from '@/enemies/EnemyDefinition';
 import { TrainingDummy } from '@/enemies/TrainingDummy';
 import { GameSession } from '@/gameplay/GameSession';
+import { createPlayerStatus } from '@/gameplay/PlayerStatus';
 import { DEFAULT_TOUCH } from '@/input/gestures/TouchConfig';
 import { DEFAULT_BINDINGS } from '@/input/bindings';
 import { InputManager } from '@/input/InputManager';
@@ -37,6 +38,8 @@ import { EntityViews } from '@/render/EntityViews';
 import { ProceduralActor } from '@/render/ProceduralActor';
 import { Renderer2D } from '@/render/Renderer2D';
 import { RoomView2D } from '@/render/RoomView2D';
+import { HudModel } from '@/ui/hud/HudModel';
+import { HudView } from '@/ui/hud/HudView';
 import { DeathOverlay } from '@/ui/overlays/DeathOverlay';
 import { applySafeOverride, SafeArea } from '@/ui/safeArea';
 import { TouchControls } from '@/ui/touch/TouchControls';
@@ -71,6 +74,10 @@ export class Game2D {
   private readonly safeArea: SafeArea;
   private readonly touchSource: TouchSource;
   private readonly touchControls: TouchControls;
+  /** The HUD (DOM): a pure model fed by the session's status snapshot, and the view that applies it. */
+  private readonly hudModel = new HudModel();
+  private readonly hud: HudView;
+  private readonly hudStatus = createPlayerStatus();
   /** The abstract pad of the E2E (`__troid.pad`): while it exists it replaces the browser's pads. */
   private virtualPad: VirtualPad | null = null;
   readonly translator: Translator;
@@ -138,6 +145,17 @@ export class Game2D {
     this.touchSource = new TouchSource(this.input, DEFAULT_TOUCH, () => this.touchControls.gestureScale);
     this.touchControls = new TouchControls(ui, this.touchSource, this.translator);
     this.lifecycle.add(() => this.touchControls.dispose());
+    // the HUD sits in the top-left; a finger on one of its bottle icons goes through the same single-owner touch source
+    this.hud = new HudView(ui, this.translator, {
+      down: (id, slot, x, y, t) => this.touchSource.down(id, `bottle:${slot}`, x, y, t),
+      up: (id) => this.touchSource.up(id),
+    });
+    this.lifecycle.add(() => this.hud.dispose());
+    this.lifecycle.add(
+      this.session.bus.on('bottle:changed', (e) => {
+        if (e.type === 'used') this.hudModel.bottleUsed(e.slot);
+      }),
+    );
     // a desktop with a mouse and a keyboard never sees the touch layer; a touch screen (or ?touch=1) does, and so does the first touch
     this.touchControls.setVisible(options.touch || (typeof matchMedia === 'function' && matchMedia('(any-pointer: coarse)').matches));
     listen(this.lifecycle, window, 'pointerdown', (e) => {
@@ -243,7 +261,19 @@ export class Game2D {
   /** Places the DOM interface (the touch controls today) for the window and its safe area. Called on start and on every resize. */
   private layoutUi(): void {
     const ui = document.getElementById('ui') ?? document.body;
-    this.touchControls.place(ui.clientWidth || window.innerWidth, ui.clientHeight || window.innerHeight, this.safeArea.read());
+    const width = ui.clientWidth || window.innerWidth;
+    const height = ui.clientHeight || window.innerHeight;
+    const insets = this.safeArea.read();
+    this.touchControls.place(width, height, insets);
+    this.hud.place(width, height, insets);
+  }
+
+  /** The HUD and the contextual touch controls follow the simulation's status (read through one snapshot; nothing else is touched). */
+  private updateHud(dt: number): void {
+    const st = this.session.status(this.hudStatus);
+    this.hud.update(this.hudModel.update(st, dt));
+    this.touchControls.setChip(st.bottleUseful);
+    this.touchControls.setAbility(st.card.equipped, st.card.iconId, st.card.state !== 'noMagic');
   }
 
   // ---------------------------------------------------------------------------------------------------- views
@@ -280,6 +310,7 @@ export class Game2D {
     this.vfx.update(vfxDt);
     this.roomView.update(realDt);
     this.deathOverlay.update(this.session.deathSnapshot);
+    this.updateHud(realDt);
 
     // The camera follows the INTERPOLATED position — exactly what is drawn — so camera and player never jitter apart.
     const target: CameraTarget = { x, y, vx: p.body.vx, vy: p.body.vy, facing: p.facing, grounded: p.body.grounded };
@@ -359,6 +390,7 @@ export class Game2D {
     }
     this.playerSprite.sync(this.session.player.view, 1, 0);
     this.deathOverlay.update(this.session.deathSnapshot);
+    this.updateHud(0);
   }
 
   /** Bodies (green), hurtboxes (blue) and the hitboxes active in the last tick (magenta). */
@@ -461,6 +493,8 @@ export class Game2D {
         gesture: this.touchSource.gesture,
         layout: this.touchControls.current,
       }),
+      /** Test hook: the HUD as the model computed it and as laid out (px). */
+      hud: () => ({ state: this.hudModel.state, layout: this.hud.current }),
       /** Test hook: the abstract gamepad, in the Gamepad API's own terms (+y of the stick is DOWN); `pressed` = held button indices. */
       pad: {
         set: (x: number, y: number, pressed: number[] = []) => {

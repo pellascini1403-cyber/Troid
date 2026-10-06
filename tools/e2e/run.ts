@@ -12,6 +12,7 @@ import { camera } from './scenarios/camera';
 import { combat } from './scenarios/combat';
 import { crouch } from './scenarios/crouch';
 import { gamepad } from './scenarios/gamepad';
+import { hud } from './scenarios/hud';
 import { death } from './scenarios/death';
 import { movement } from './scenarios/movement';
 import { r1 } from './scenarios/r1';
@@ -23,7 +24,7 @@ import { stress } from './scenarios/stress';
 import { touch } from './scenarios/touch';
 import { vfx } from './scenarios/vfx';
 
-const ALL: Scenario[] = [movement, crouch, combat, slime, r1, room, death, render, camera, sprites, vfx, stress, touch, gamepad];
+const ALL: Scenario[] = [movement, crouch, combat, slime, r1, room, death, render, camera, sprites, vfx, stress, touch, gamepad, hud];
 const filter = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const prod = process.argv.includes('--prod');
 const selected = ALL.filter((s) => !filter || s.name.includes(filter));

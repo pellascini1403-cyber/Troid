@@ -39,6 +39,7 @@ export class DeathOverlay {
       fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
       textAlign: 'center',
       padding: '0 1.5rem',
+      zIndex: '40', // above the HUD (25) and the touch controls (20): a defeat covers everything
     });
     this.title = doc.createElement('div');
     this.title.dataset['testid'] = 'death-title';
