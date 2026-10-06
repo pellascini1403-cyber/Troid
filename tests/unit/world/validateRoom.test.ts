@@ -142,4 +142,32 @@ describe('validateRoom: interactables', () => {
     expect(codes(room({ entries, interactables: shrine('start') }))).toContain('checkpoint-far'); // 6 m away
     expect(codes(room({ entries, interactables: shrine('rest', 18) }))).toContain('checkpoint-far');
   });
+
+  describe('hazards', () => {
+    const spikes = (over: Partial<NonNullable<RoomDefinition['hazards']>[number]> = {}): RoomDefinition['hazards'] => [{ id: 'sp', kind: 'spikes', rect: rect(20, 0, 24, 0.6), ...over }];
+
+    it('a sound hazard raises no issue', () => {
+      expect(codes(room({ hazards: spikes() }))).toEqual([]);
+      expect(codes(room({ hazards: spikes({ damage: 2 }) }))).toEqual([]);
+    });
+
+    it('ids are unique, the zone is a real rectangle inside the room, and it takes a whole number of points, at least one', () => {
+      expect(codes(room({ hazards: [...spikes()!, ...spikes()!] }))).toContain('duplicate-id');
+      expect(codes(room({ hazards: spikes({ rect: { x0: 5, y0: 0, x1: 3, y1: 1 } }) }))).toContain('bad-hazard');
+      expect(codes(room({ hazards: spikes({ rect: rect(500, 0, 504, 1) }) }))).toContain('hazard-outside');
+      for (const damage of [0, -1, 1.5, Number.NaN]) expect(codes(room({ hazards: spikes({ damage }) })), `damage ${damage}`).toContain('hazard-damage');
+    });
+
+    it('an entrance must not put the hero inside a hazard: arriving, or coming back from a defeat, must not start by being hurt', () => {
+      expect(codes(room({ hazards: spikes({ rect: rect(2, 0, 6, 1) }) }))).toContain('entry-in-hazard');
+      expect(codes(room({ hazards: spikes({ rect: rect(5, 0, 8, 1) }) }))).not.toContain('entry-in-hazard'); // beside it
+    });
+
+    it('an exit must not overlap a hazard, nor an interactable stand in one', () => {
+      expect(codes(room({ hazards: spikes({ rect: rect(54, 0, 56, 1) }) }))).toContain('hazard-in-exit');
+      const lever: RoomDefinition['interactables'] = [{ id: 'lever', kind: 'activate', verbKey: 'k', x: 22, y: 0, actions: [{ type: 'setFlag', flag: 'x' }] }];
+      expect(codes(room({ hazards: spikes(), interactables: lever }))).toContain('interactable-in-hazard');
+      expect(codes(room({ hazards: spikes({ rect: rect(30, 0, 33, 1) }), interactables: lever }))).not.toContain('interactable-in-hazard');
+    });
+  });
 });

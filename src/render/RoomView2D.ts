@@ -64,6 +64,14 @@ export class RoomView2D {
       this.gates.set(gate.id, { graphics: view, alpha: open ? 0 : 1, target: open ? 0 : 1 });
     }
 
+    // the zones that hurt: spikes, drawn with the terrain (they never change, so there is nothing to update)
+    for (const h of room.hazards ?? []) {
+      const spikes = drawSpikes(h.rect);
+      spikes.label = `hazard:${h.id}`;
+      this.layers.terrain.addChild(spikes);
+      this.extras.push(spikes);
+    }
+
     for (const x of room.exits ?? []) {
       const shaft = drawExitShaft(x.rect);
       shaft.label = `exit:${x.id}`;
@@ -145,5 +153,24 @@ function drawExitShaft(r: { x0: number; y0: number; x1: number; y1: number }): G
   g.rect(r.x0, viewY(r.y0 + h * 0.8), 0.07, h * 0.8).fill({ color: PALETTE.whiteHot, alpha: 0.35 });
   g.rect(r.x1 - 0.07, viewY(r.y0 + h * 0.8), 0.07, h * 0.8).fill({ color: PALETTE.whiteHot, alpha: 0.35 });
   g.blendMode = 'add';
+  return g;
+}
+
+/**
+ * Spikes: a row of dark thorns with a lit tip and a faint violet haze at their foot — the colour of what hurts (docs/GAME-SPEC-2D.md §3.4).
+ * A PLACEHOLDER shape from the zone's rectangle: about 0.45 m per thorn, as tall as the zone.
+ */
+function drawSpikes(r: { x0: number; y0: number; x1: number; y1: number }): Graphics {
+  const g = new Graphics();
+  const w = r.x1 - r.x0;
+  const h = r.y1 - r.y0;
+  const n = Math.max(1, Math.round(w / 0.45));
+  const sw = w / n;
+  for (let i = 0; i < n; i++) {
+    const x0 = r.x0 + i * sw;
+    g.poly([x0, viewY(r.y0), x0 + sw / 2, viewY(r.y1), x0 + sw, viewY(r.y0)]).fill({ color: PALETTE.enemyInk });
+    g.poly([x0 + sw * 0.34, viewY(r.y0 + h * 0.6), x0 + sw / 2, viewY(r.y1), x0 + sw * 0.66, viewY(r.y0 + h * 0.6)]).fill({ color: PALETTE.violetGlow, alpha: 0.85 });
+  }
+  g.rect(r.x0, viewY(r.y0 + 0.14), w, 0.14).fill({ color: PALETTE.violetCore, alpha: 0.35 });
   return g;
 }

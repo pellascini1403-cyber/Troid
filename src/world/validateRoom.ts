@@ -55,6 +55,7 @@ export function validateRoom(room: RoomDefinition, refs: RoomRefs): RoomIssue[] 
   unique('gate', (room.gates ?? []).map((g) => g.id));
   unique('exit', (room.exits ?? []).map((e) => e.id));
   unique('interactable', (room.interactables ?? []).map((i) => i.id));
+  unique('hazard', (room.hazards ?? []).map((h) => h.id));
   for (const s of room.solids) if (!validRect(s.rect)) add('bad-solid', `solid "${s.id}" is not a valid rectangle`);
 
   const solids = room.solids.filter((s) => (s.kind ?? 'solid') === 'solid');
@@ -66,6 +67,8 @@ export function validateRoom(room: RoomDefinition, refs: RoomRefs): RoomIssue[] 
   /** Is there floor (a solid or a one-way top) right under the feet? */
   const supported = (x: number, y: number, halfWidth: number): boolean =>
     room.solids.some((s) => s.rect.x0 < x + halfWidth - 0.01 && s.rect.x1 > x - halfWidth + 0.01 && Math.abs(s.rect.y1 - y) <= SUPPORT_TOLERANCE);
+  /** The player's standing body at (x, y), slightly shrunk so touching an edge is not being inside. */
+  const bodyAt = (x: number, y: number): Rect => ({ x0: x - player.halfWidth + 1e-6, x1: x + player.halfWidth - 1e-6, y0: y + 1e-6, y1: y + player.height - 1e-6 });
   const inBounds = (x: number, y: number): boolean => x >= room.bounds.x0 && x <= room.bounds.x1 && y >= room.bounds.y0 && y <= room.bounds.y1;
 
   for (const e of room.entries) {
@@ -131,6 +134,24 @@ export function validateRoom(room: RoomDefinition, refs: RoomRefs): RoomIssue[] 
   for (const x of room.exits ?? []) {
     if (!validRect(x.rect)) add('bad-exit', `exit "${x.id}" is not a valid rectangle`);
     else if (!overlaps(x.rect, room.bounds)) add('exit-outside', `exit "${x.id}" is outside the room bounds`);
+  }
+
+  // hazards: a zone that exists, inside the room, that takes at least a point of life, and where nothing the hero relies on is put
+  const hazards = room.hazards ?? [];
+  for (const h of hazards) {
+    if (!validRect(h.rect)) add('bad-hazard', `hazard "${h.id}" is not a valid rectangle`);
+    else if (!overlaps(h.rect, room.bounds)) add('hazard-outside', `hazard "${h.id}" is outside the room bounds`);
+    if (h.damage !== undefined && !(Number.isInteger(h.damage) && h.damage >= 1)) add('hazard-damage', `hazard "${h.id}" takes ${h.damage} points of life (a whole number, at least 1)`);
+    if (!validRect(h.rect)) continue;
+    for (const e of room.entries) {
+      if (overlaps(bodyAt(e.x, e.y), h.rect)) add('entry-in-hazard', `entrance "${e.id}" puts the player inside the hazard "${h.id}" (a hero who arrives, or comes back from a defeat, must not start by being hurt)`);
+    }
+    for (const x of room.exits ?? []) {
+      if (validRect(x.rect) && overlaps(x.rect, h.rect)) add('hazard-in-exit', `hazard "${h.id}" overlaps the exit "${x.id}"`);
+    }
+    for (const i of room.interactables ?? []) {
+      if (Number.isFinite(i.x) && Number.isFinite(i.y) && overlaps({ x0: i.x - 0.2, x1: i.x + 0.2, y0: i.y, y1: i.y + 1 }, h.rect)) add('interactable-in-hazard', `interactable "${i.id}" is inside the hazard "${h.id}"`);
+    }
   }
 
   if (room.killY !== undefined && room.killY >= room.bounds.y1) add('bad-killy', 'killY is above the top of the room');

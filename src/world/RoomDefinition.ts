@@ -83,6 +83,25 @@ export interface ExitDef {
   requires?: string;
 }
 
+/** What a hazard is. The interface draws it by kind; `spikes` is the one that exists today. */
+export type HazardKind = 'spikes';
+
+/**
+ * A danger that is part of the room and hurts whoever touches it (docs/PROMPT6-LOG.md S25). It is not an enemy: it has no health, no brain
+ * and no telegraph — its zone simply hurts the hero while they stand in it. It hurts through the COMBAT system, so every rule of a hit
+ * applies as it is: damage, the knockback away from the zone, stun, hit-stop, the i-frames that follow (a second touch during them does
+ * nothing) and the usual events. A pit is not one: falling out of the world is `killY`.
+ */
+export interface HazardDef {
+  /** Unique within the room. */
+  id: string;
+  kind: HazardKind;
+  /** The zone that hurts, world metres. */
+  rect: Rect;
+  /** Points of life each hit takes (default 1). */
+  damage?: number;
+}
+
 export interface RoomDefinition {
   id: string;
   regionId: string;
@@ -105,6 +124,8 @@ export interface RoomDefinition {
   exits?: ExitDef[];
   /** Things the player can interact with: pickups, levers… (docs/GAME-SPEC-2D.md §12). Rewards write world flags. */
   interactables?: InteractableDef[];
+  /** Zones that hurt the hero: spikes (docs/PROMPT6-LOG.md S25). */
+  hazards?: HazardDef[];
   /** Provisional scenery behind and in front of the action (never collision): `render/backdrops` draws it. */
   art?: { backdrop: string; seed?: number };
 }

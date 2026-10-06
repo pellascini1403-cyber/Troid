@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ROOMS, WORLD } from '@/content';
 import { runBot } from '../helpers/bot';
 import { jump, runTo, standOn } from '../helpers/hops';
+import { R2_SPIKES_JUMP } from '../helpers/journey';
 import { driver, type Driver } from '../helpers/sim';
 
 /**
@@ -52,10 +53,13 @@ describe('every entry of every room of the world is a place the player can stand
 });
 
 describe('R2 «Galería de Raíces»: the fork', () => {
-  it('the LOW road: a scripted player walks from the west entry to the east exit, down into the ditch and up out of it', () => {
+  it('the LOW road: a scripted player walks from the west entry to the east exit, down into the ditch, over its spikes and up out of it', () => {
     const d = walk(R2, 'west');
     const seen = lowest(d);
-    const r = runBot(d, { until: () => d.session.exitsReached.has('east'), maxTicks: 5000 });
+    let hurt = 0;
+    d.session.bus.on('hazard:hit', () => hurt++);
+    const r = runBot(d, { jumpAt: R2_SPIKES_JUMP, until: () => d.session.exitsReached.has('east'), maxTicks: 5000 });
+    expect(hurt, 'it hopped the spikes').toBe(0);
     expect(r.done, `stuck at x=${d.body.x.toFixed(1)} y=${d.body.y.toFixed(1)} after ${r.ticks} ticks`).toBe(true);
     expect(d.p.health.dead).toBe(false);
     expect(seen.min, 'it really went through the ditch').toBeLessThan(-3);

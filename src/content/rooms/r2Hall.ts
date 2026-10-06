@@ -65,6 +65,10 @@ export const R2_HALL_ROOM: RoomDefinition = {
     { id: 'west', rect: rect(0, 0, 2.4, 4), to: { room: 'r1_gate', entry: 'east' } },
     { id: 'east', rect: rect(88, 0, 91, 4), to: { room: 'r3_chamber', entry: 'west' } },
   ],
+  // the danger of the low road (S25): a strip of spikes on the floor of the ditch, 2.5 m wide and 0.6 m high. A running jump clears it with
+  // room to spare (it is above 0.6 m for ≈ 5.4 m of a 6 m flight, the strip and the body need 3.2: the take-off window is ≈ 0.25 s);
+  // walking into it costs a point of life, and the knockback throws the hero up and out of it
+  hazards: [{ id: 'spikes_ditch', kind: 'spikes', rect: rect(39.5, -3.2, 42, -2.6) }],
   // the first place to rest after R1: a defeat in this room (or the next) brings the hero back here, not to the Ruins Gate
   interactables: [{ id: 'shrine', kind: 'rest', verbKey: 'interact.rest', x: 12, y: 0, actions: [{ type: 'checkpoint', entry: 'rest' }] }],
   art: { backdrop: 'ruins', seed: 2 },

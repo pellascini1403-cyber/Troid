@@ -11,8 +11,8 @@
 | **S21** baseline | ✅ | `1b4756a` |
 | **S22** grafo de mundo (`WorldDefinition`, R1–R4, validación) | ✅ | `99f0649` |
 | **S23** transiciones entre salas | ✅ | `ce5ab17` |
-| **S24** guardado de progreso y checkpoints | ✅ | (ver historial) |
-| **S25** peligros | ⏳ | |
+| **S24** guardado de progreso y checkpoints | ✅ | `fc6acb8` |
+| **S25** peligros | ✅ | (ver historial) |
 | **S26** zonas de cámara | ⏳ | |
 | **S27** cuarta botella | ⏳ | |
 | **S28** Spirit Bolt en R3 | ⏳ | |
@@ -303,3 +303,44 @@ S24 llevó el arranque en frío a **201.0 KB gz** (+1.9 KB sobre S23; presupuest
 - **E2E (nuevos):** `checkpoint` (descansar con el teclado real → la derrota en R2 y en R3 vuelven al santuario; vida, magia y botellas solo las da el descanso; el icono sobre el santuario) y `save` (guardado al ocurrir, **una sola clave**, recarga que devuelve sala, banderas, carta, habilidades, botellas y *checkpoint*, y **un Spirit Bolt lanzado tras la recarga**; copia dañada → partida nueva con el texto conservado; dañada con `.bak` → el `.bak`; versión futura → apartada; sala fantasma → inicio del mundo con lo ganado; un *playground* no toca el guardado; `?new=1`).
 - **Lo que el E2E encontró:** (1) la reaparición no guardaba `at` (volver tras una derrota a otro sitio dejaba el guardado apuntando a la sala donde se cayó): ahora `death:respawned` guarda; (2) la pipe de partículas diferida (arriba); (3) una carrera de un solo toque en `vertical` (el icono sigue a la cámara fotograma a fotograma: se vuelve a medir justo antes de tocar).
 - **Adaptado (misma intención):** el escenario `transition` (el *checkpoint* ya no se mueve con una transición), tres tests de S23 que fijaban «la llegada es el punto de reaparición» (ahora fijan que **no lo es**: la llegada es donde continúa un guardado) y la premisa de vida del sondeo (arriba). Ninguno se borró ni se debilitó.
+
+---
+
+## S25 — Peligros ✅
+
+**Qué es.** Una sala puede declarar `hazards: HazardDef[]` — zonas que hieren al héroe mientras están dentro (`kind: 'spikes'`, `rect`, `damage` opcional). **No son enemigos**: sin vida, sin cerebro, sin aviso. Y **no pasan por un sistema nuevo de daño**: la zona **envía su *hitbox* al sistema de combate cada tick en que el héroe está dentro**, y el combate decide, con las reglas de siempre. Por eso todo lo que se pidió sale de las reglas existentes y no de código nuevo:
+
+| Requisito | De dónde sale |
+|---|---|
+| ***Hitbox*** | el `rect` de la zona (`team: 'enemy'`, `hits: ['player']`: los pinchos no hieren a los enemigos ni a lo neutral) |
+| **Detección del jugador** | `HazardSystem.update` comprueba el cuerpo del héroe contra cada zona antes de enviar nada (sin basura por tick) |
+| **Daño** | `damage` de la zona, 1 por defecto (el golpe estándar de GAME-SPEC-2D §9.1: aturdimiento 14 ticks, *hit-stop* 6) |
+| **Empuje** | hacia **arriba** (7 m/s) y un poco **lejos del centro** de la zona (3.5): quien toca pinchos sale despedido de ellos, no a lo largo. En el centro exacto, contra el lado al que miraba |
+| **Respeta los *i-frames*** | el combate ignora a un blanco `invulnerable`: un segundo contacto durante los 60 ticks no hace nada; **el primero tras ellos hiere otra vez** (la repetición) |
+| **Emite evento** | `hazard:hit {roomId, hazardId, kind, damage, x, y}` solo cuando el golpe **conecta** (`onConfirm`); además salen `combat:hit`, `player:hurt`, `health:changed` como en cualquier golpe |
+| **Funciona con la muerte** | con 1 de vida, el golpe mata por el flujo de siempre; un héroe caído no recibe más golpes; la reaparición vuelve al *checkpoint* |
+| **Funciona durante la reaparición** | tras reaparecer el héroe está vivo y los pinchos le hieren de nuevo; si una sala pusiera el punto de reaparición *dentro* de una zona letal (error de contenido), la derrota **vuelve a empezar** cada vez (la corrección S20) sin fugas ni bloqueo (test) |
+| **El pozo no cambia** | caer por debajo de `killY` sigue siendo daño + rescate; los pinchos son otra cosa |
+
+**Dos detalles que hubo que cerrar:**
+
+- **El suelo seguro nunca está dentro de una zona** (`trackSafeGround` consulta `hazards.touches`): sin esto, un héroe que cayera al vacío justo después de pisar pinchos podría ser devuelto **encima** de ellos. Test dedicado.
+- **El validador** rechaza lo que haría injusta o rota una sala: `bad-hazard`, `hazard-outside`, `hazard-damage` (entero ≥ 1), `entry-in-hazard` (**ninguna entrada, ni la de un santuario, deja al héroe dentro**: llegar o volver de una derrota no puede empezar con un golpe), `hazard-in-exit` e `interactable-in-hazard`.
+
+**Los pinchos de R2 (el precio del camino bajo).** Una franja de **2.5 m × 0.6 m** (x 39.5 … 42) en el suelo de la zanja. Medida con el bot: un salto corrido pasa 5.4 m de un vuelo de 6 m **por encima de 0.6 m**; la franja y el cuerpo piden 3.2 m ⇒ la **ventana de despegue es de ≈ 0.25 s** (x de 37 a 38.5 con la carrera de la bajada). Antes de ajustarla era de 0.16 s (una franja de 3 m × 0.8 m): se estrechó y se bajó para que un jugador de móvil la acierte. Fallar cuesta **un punto y un empujón hacia arriba y fuera**, no la partida, y el camino alto (las plataformas) los evita del todo. La carrera del bot que recorre el mundo (`journey.ts`) los salta con `jumpAt: [37.6]` y el test del viaje afirma que **no los toca**. El diseño respeta la regla del 20 % de margen: `span ≤ 0.8 × 5.4`.
+
+**Vista.** `RoomView2D` dibuja cada zona con el terreno: filas de espinas oscuras con la punta clara en el violeta de lo que hiere (GAME-SPEC-2D §3.4) y una neblina violeta al pie; ~0.45 m por espina, una sola figura por zona, nada que actualizar. *Placeholder*: la forma sale del rectángulo.
+
+### Pruebas y E2E
+
+- **Tests (+33, de 1388 a 1421):** `hazardSystem` (9: sin zonas, el *hitbox* y sus números, bordes, héroe caído, dirección del empuje, varias zonas, el evento solo al confirmar, `touches`, cambio de sala), `hazards` (14 sobre la sala real: caminar dentro, el golpe de siempre —aturdido, hacia arriba y fuera, *hit-stop*, *i-frames*—, la repetición cada 60 ticks, `godMode`, saltarlos, el *i-frame* del dash, suelo seguro, el pozo de R1 intacto, morir por ellos y volver al santuario, héroe caído no herido, reaparición dentro de una zona letal, muerte en una transición, ciclo de vida de la sala, determinismo), 5 del validador, 3 de contenido y 3 de la vista.
+- **E2E (nuevo) `hazard`:** los pinchos **se ven** (109 píxeles violeta en pantalla), **caminar dentro con el teclado real** cuesta un punto, empuja hacia arriba (`vy > 3`), activa el parpadeo y las invulnerabilidades, **sacude la cámara** y el HUD lo muestra; durante los *i-frames* un segundo contacto no hace nada, tras ellos hiere otra vez (≥ 60 ticks de diferencia); un **salto corrido con el teclado real los pasa sin tocarlos**; con 1 de vida **matan** y el héroe vuelve al santuario con el HUD y las capas limpios.
+- **Adaptado (misma intención):** `worldRooms` (el camino bajo los salta) y `checkpoints` («caer una y otra vez» ya no se teletransporta a x = 40, que ahora está sobre los pinchos).
+
+### Medido ✅
+
+| | S24 | S25 |
+|---|---|---|
+| Tests | 1388 / 94 archivos | **1421 / 96 archivos** |
+| Arranque en frío de R1 | 191.7 KB gz | **192.2 KB gz** (+0.5 KB: `HazardSystem`, la vista y las reglas del validador que no entran) — margen 7.8 KB |
+| Toda la primera sesión | 202.2 KB gz | 202.7 KB gz |

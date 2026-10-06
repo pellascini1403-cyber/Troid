@@ -10,6 +10,9 @@ import { letGo, R1_CROUCH } from './vertical';
  * the test proves and what the browser plays cannot drift apart.
  */
 
+/** Where the bot takes off to clear the spikes of R2's ditch: the middle of the ≈ 0.25 s window a running jump has (x from 37 to 38.5 m). */
+export const R2_SPIKES_JUMP = [37.6] as const;
+
 /** A new game: the whole world, R1, the Dash taught. */
 export function freshWorld(seed = 1): Driver {
   return driver({ room: ROOMS.r1_gate!, unlocked: ['dash'], seed, extra: { rooms: ROOMS } });
@@ -31,7 +34,7 @@ export function toTheEastExit(d: Driver, opts: Parameters<typeof runBot>[1] = {}
 export function playWorld(d: Driver): void {
   toTheEastExit(d, { crouchZones: R1_CROUCH }); // R1: hurdle, pit, crawl, the slime, the door
   arriveIn(d, 'r2_hall');
-  toTheEastExit(d); // R2: down into the ditch and up out of it, the slime beyond
+  toTheEastExit(d, { jumpAt: R2_SPIKES_JUMP }); // R2: down into the ditch, over its spikes, up out of it, the slime beyond
   arriveIn(d, 'r3_chamber');
   toTheEastExit(d); // R3: the lane
   arriveIn(d, 'r4_sanctum');

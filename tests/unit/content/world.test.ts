@@ -148,3 +148,28 @@ describe('the shrines (checkpoints)', () => {
     }
   });
 });
+
+describe('the hazards', () => {
+  it('R2 has one strip of spikes on the floor of its ditch — the price of the low road — and no other room of the world has any', () => {
+    const found = WORLD.rooms.flatMap((id) => (ROOMS[id]!.hazards ?? []).map((h) => `${id}/${h.id}`));
+    expect(found).toEqual(['r2_hall/spikes_ditch']);
+    const r2 = ROOMS.r2_hall!;
+    const strip = r2.hazards![0]!.rect;
+    const floor = r2.solids.find((s) => s.id === 'g_low')!.rect;
+    expect(strip.y0, 'standing on the floor of the ditch').toBeCloseTo(floor.y1, 6);
+    expect(strip.x0).toBeGreaterThan(floor.x0 + 6); // a run-up of at least 6 m after the drop
+    expect(strip.x1).toBeLessThan(floor.x1 - 8); // and room after it before the steps
+  });
+
+  it('is jumpable with margin: the strip and the body need less than 80 % of the ≈ 5.4 m a running jump spends above its height', () => {
+    const strip = ROOMS.r2_hall!.hazards![0]!;
+    const span = strip.rect.x1 - strip.rect.x0 + 2 * PLAYER.body.halfWidth;
+    expect(span).toBeLessThanOrEqual(5.4 * 0.8);
+    expect(strip.rect.y1 - strip.rect.y0, 'low enough for a hop').toBeLessThanOrEqual(0.8);
+  });
+
+  it('the hero never starts, arrives or comes back from a defeat inside it (every entry of every room is clear of every hazard)', () => {
+    expect(validateWorld(WORLD, ROOMS, { player })).toEqual([]);
+    for (const id of WORLD.rooms) expect(validateRoom(ROOMS[id]!, { enemies: ENEMIES, player }).map((i) => i.code).filter((c) => c.includes('hazard')), id).toEqual([]);
+  });
+});

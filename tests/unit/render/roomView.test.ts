@@ -164,3 +164,29 @@ describe('provisional backdrops', () => {
     expect(count(b.layers.backdropNear)).toBe(0);
   });
 });
+
+describe('RoomView2D: hazards', () => {
+  const withSpikes = (): RoomDefinition => ({ ...room(), hazards: [{ id: 'sp', kind: 'spikes', rect: rect(20, 0, 22.5, 0.6) }, { id: 'sp2', kind: 'spikes', rect: rect(40, 0, 42, 0.6) }] });
+
+  it('draws each zone of spikes with the terrain, one object each, labelled by its id', () => {
+    const { layers, view } = stage();
+    view.build(withSpikes());
+    expect(labels(layers.terrain)).toEqual(['room:t', 'gate:door_1', 'hazard:sp', 'hazard:sp2']);
+  });
+
+  it('a room without hazards draws none', () => {
+    const { layers, view } = stage();
+    view.build(room());
+    expect(labels(layers.terrain).filter((l) => l.startsWith('hazard:'))).toEqual([]);
+  });
+
+  it('rebuilding (a transition, a defeat) leaves no spikes of the old room behind', () => {
+    const { layers, view } = stage();
+    for (let i = 0; i < 6; i++) view.build(withSpikes());
+    expect(labels(layers.terrain).filter((l) => l.startsWith('hazard:'))).toHaveLength(2);
+    view.build(room());
+    expect(labels(layers.terrain).filter((l) => l.startsWith('hazard:'))).toEqual([]);
+    view.destroy();
+    expect(count(layers.terrain)).toBe(0);
+  });
+});

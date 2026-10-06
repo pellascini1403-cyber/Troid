@@ -16,6 +16,7 @@ function record(d: Driver): string[] {
   on('exit:reached', (e) => `exit ${e.roomId}/${e.exitId}`);
   on('transition:cancelled', (e) => `cancelled ${e.reason}`);
   on('player:died', () => 'DIED');
+  on('hazard:hit', (e) => `HAZARD ${e.roomId}/${e.hazardId}`);
   return log;
 }
 
@@ -32,6 +33,7 @@ describe('the world from front to back', () => {
     ]);
     expect(log.filter((l) => l.includes(' exit ')).map((l) => l.replace(/^\d+ /, ''))).toEqual(['exit r1_gate/east', 'exit r2_hall/east', 'exit r3_chamber/east', 'exit r4_sanctum/east']);
     expect(log.some((l) => l.includes('DIED') || l.includes('cancelled'))).toBe(false);
+    expect(log.filter((l) => l.includes('HAZARD')), 'the journey hops the spikes of R2: it never touches them').toEqual([]);
     expect(d.session.room.id).toBe('r4_sanctum');
     expect(d.session.transition.active).toBe(false);
     expect(d.p.health.dead).toBe(false);

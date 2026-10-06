@@ -27,6 +27,8 @@ export interface BotOptions {
   dashAt?: number;
   /** Stand still from this x on (a run that lets the slime win). */
   haltAt?: number;
+  /** Jump (a full held jump) the first time it passes each of these x while standing on the ground: how it hops what the geometry does not block, like spikes. */
+  jumpAt?: readonly number[];
 }
 
 export interface BotResult {
@@ -54,6 +56,7 @@ export function runBot(d: Driver, opts: BotOptions = {}): BotResult {
   let releaseAttack = false;
   let releaseDash = false;
   let dashed = false;
+  const hopped = new Set<number>();
   const startHealth = d.p.health.current;
 
   const enemies = (): Enemy[] => s.entities.filter((e) => e.kind === 'enemy' && !(e as Enemy).health.dead) as Enemy[];
@@ -116,6 +119,18 @@ export function runBot(d: Driver, opts: BotOptions = {}): BotResult {
         d.press('jump');
         jumpHeld = jumpHold;
         jumps++;
+      }
+    }
+
+    if (jumpHeld === 0 && b.grounded && !crouchHere && d.moveX > 0) {
+      for (const at of opts.jumpAt ?? []) {
+        if (b.x >= at && !hopped.has(at)) {
+          hopped.add(at);
+          d.press('jump');
+          jumpHeld = jumpHold;
+          jumps++;
+          break;
+        }
       }
     }
 

@@ -182,7 +182,7 @@ describe('a defeat brings the hero back at the LAST CHECKPOINT', () => {
     restAtShrine(d);
     const listeners = d.session.bus.listenerCount();
     for (let i = 0; i < 6; i++) {
-      d.teleport(40, 0).settle();
+      d.teleport(66, 0).settle(); // (on the far ground: x = 40 is above the ditch, and the ditch has spikes in it)
       kill(d);
       comeBack(d);
       expect(d.body.x).toBeCloseTo(12.8, 6);

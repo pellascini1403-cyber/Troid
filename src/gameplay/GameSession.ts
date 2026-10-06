@@ -22,6 +22,7 @@ import { bodyRect, CollisionWorld } from '@/world/collision';
 import type { Destination, RoomDefinition } from '@/world/RoomDefinition';
 import { DeathFlow, DEFAULT_DEATH_FLOW, type DeathFlowDefinition, type DeathSnapshot } from './DeathFlow';
 import type { GameEvents } from './events';
+import { HazardSystem, type HazardHost } from './HazardSystem';
 import { createPlayerStatus, type PlayerStatus } from './PlayerStatus';
 import { DEFAULT_TRANSITION, RoomTransition, type TransitionDefinition, type TransitionSnapshot } from './RoomTransition';
 import type { SimEntity } from './SimEntity';
@@ -90,6 +91,8 @@ export class GameSession implements SimServices {
   readonly interaction: InteractionSystem;
   /** The defeat flow: dying → fade out → title → respawn → fade in (docs/GAME-SPEC-2D.md §9.2). */
   readonly death: DeathFlow;
+  /** The zones of the current room that hurt the hero (spikes): they submit their hitboxes to combat every tick the hero stands in one. */
+  readonly hazards = new HazardSystem();
   /** Walking out of a room into the next: fade out → swap → fade in, one at a time and with the player's control held (docs/PROMPT6-LOG.md S23). */
   readonly transition: RoomTransition;
   /** World memory that outlives room visits and deaths: defeated guardians, opened doors (docs/GAME-SPEC-2D.md §14.3). */
@@ -117,6 +120,7 @@ export class GameSession implements SimServices {
   private readonly exitsTouched = new Set<string>();
   private readonly scratch: Rect = { x0: 0, y0: 0, x1: 0, y1: 0 };
   private readonly transitionScratch: TransitionSnapshot = { phase: 'none', ticks: 0, length: 0 };
+  private readonly hazardHost: HazardHost;
 
   // ---- hit-stop: the world holds still; the player's presses are kept for the first tick after it ----
   private hitStopTicks = 0;
@@ -141,6 +145,7 @@ export class GameSession implements SimServices {
       requestHitStop: (n) => this.requestHitStop(n),
     });
     this.player = new Player(opts.player, this.ids.next('player'));
+    this.hazardHost = { combat: this.combat, player: this.player, hit: (e) => this.bus.emit('hazard:hit', { roomId: this.current.id, ...e }) };
     this.magic = new Magic(opts.resources.magic, (change) => this.bus.emit('magic:changed', change));
     this.bottles = new BottleSet(opts.resources.bottles.definitions, opts.resources.bottles.initial, opts.resources.bottles.rules, (change) =>
       this.bus.emit('bottle:changed', { ...change, states: this.bottles.slots.map((slot) => slot.state) }),
@@ -319,6 +324,7 @@ export class GameSession implements SimServices {
     if (this.transition.active) frame = NEUTRAL_INPUT;
     this.player.tick(this, frame); // 1
     for (const e of this.live) e.tick(this); // 2
+    this.hazards.update(this.hazardHost); // 2b — the zones that hurt submit their hitboxes with everyone else's
     this.combat.resolve(); // 3
     this.interaction.update(this.player.body.x, this.player.body.y, !this.player.health.dead); // 4 — who has the icon
     this.magic.tick(this.player.controller.casting); // 6 — resources: the magic regenerates (not while casting), the bottles recharge one at a time
@@ -420,6 +426,7 @@ export class GameSession implements SimServices {
     for (const e of this.live.splice(0)) this.release(e);
     this.pendingDespawn.clear();
     this.defeatFlags.clear();
+    this.hazards.setRoom(undefined);
     this.gateStates.clear();
     this.exitsTouched.clear();
     this.interaction.setRoom([]); // the icon of the old room goes away
@@ -441,6 +448,7 @@ export class GameSession implements SimServices {
     this.lastSafe = { x: entry.x, y: entry.y };
     this._arrival = { room: room.id, entry: entry.id };
     this.placeSpawns(room);
+    this.hazards.setRoom(room.hazards);
     this.applyGates(false);
     this.interaction.setRoom(room.interactables ?? []);
   }
@@ -634,7 +642,7 @@ export class GameSession implements SimServices {
     const b = this.player.body;
     const g = b.ground;
     if (!b.grounded || !g || g.kind !== 'solid') return;
-    if (b.x > g.rect.x0 + 0.6 && b.x < g.rect.x1 - 0.6) {
+    if (b.x > g.rect.x0 + 0.6 && b.x < g.rect.x1 - 0.6 && !this.hazards.touches(bodyRect(b, this.scratch))) {
       this.lastSafe.x = b.x;
       this.lastSafe.y = b.y;
     }
