@@ -232,6 +232,39 @@ const deathFlash: FlashVfx = {
   life: 0.2, size: [0.8, 2.2], alpha: [0.95, 0],
 };
 
+// ------------------------------------------------------------------------------------------ the warning
+
+/**
+ * The wind-up of an enemy lunge (docs/GAME-SPEC-2D.md §15.1: 24 ticks = 0.4 s): a violet ring CLOSES in on the creature —
+ * a clock the eye reads without text, brightest the instant before the blow — while violet ink motes rise off it. The
+ * creature's own aura, white-hot eyes and squash are drawn by its view; these are the cues of the light layer.
+ */
+const telegraphRing: FlashVfx = {
+  kind: 'flash', id: 'telegraph_ring', priority: 8, palette: 'enemy', shape: 'ring', role: 'hot',
+  life: 0.4, size: [3.8, 1.1], alpha: [0.05, 0.95],
+};
+
+const telegraphMotes: ParticleVfx = {
+  kind: 'particles',
+  id: 'telegraph_motes',
+  priority: 7,
+  palette: 'enemy',
+  blend: 'add',
+  shape: 'glow',
+  count: [8, 12],
+  speed: [0.5, 1.5],
+  life: [0.28, 0.4],
+  aim: 'up',
+  spread: 3.4,
+  size: [0.14, 0.26],
+  sizeEnd: 0.3,
+  gravity: 3.2,
+  drag: 2,
+  alpha: [0.9, 0],
+  colors: ['core', 'hot', 'core'],
+  radius: 0.8,
+};
+
 /** The hero's energy disperses (docs §9.2: "dispersión de energía"): cyan and white motes rise slowly. */
 const energyScatter: ParticleVfx = {
   kind: 'particles',
@@ -261,6 +294,7 @@ export const VFX: Readonly<Record<string, VfxDefinition>> = Object.fromEntries(
     hurtShards, hurtFlash,
     dashBurst, dashFlash, dashDust, dashTrail, dashTrailShards,
     deathInk, deathMotes, deathFlash, energyScatter,
+    telegraphRing, telegraphMotes,
   ].map((d) => [d.id, d]),
 );
 
@@ -274,5 +308,6 @@ export const VFX_BINDINGS: VfxBindings = {
   dashDust: ['dash_dust'],
   dashTrail: ['dash_trail', 'dash_trail_shards'],
   enemyDied: ['death_ink', 'death_motes', 'death_flash'],
+  enemyTelegraph: ['telegraph_ring', 'telegraph_motes'],
   playerDied: ['energy_scatter'],
 };

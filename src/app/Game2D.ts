@@ -4,7 +4,7 @@ import { createPixiSpriteLoader } from '@/assets/spriteLoader';
 import { createVfxAtlas } from '@/assets/vfxAtlas';
 import { CAMERA_2D } from '@/camera/camera2d';
 import type { CameraTarget } from '@/camera/CameraRig';
-import { ABILITIES, PLAYER, PROCEDURAL_ATLASES, ROOMS, SPRITE_SETS } from '@/content';
+import { ABILITIES, ENEMIES, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, ROOMS, SPRITE_SETS } from '@/content';
 import { VFX, VFX_BINDINGS } from '@/content/vfx';
 import { DisposableStore } from '@/core/lifecycle';
 import type { Hurtbox } from '@/combat/Combatant';
@@ -16,6 +16,8 @@ import { DebugState } from '@/debug/DebugState';
 import { DrawCallCounter } from '@/debug/DrawCallCounter';
 import { FpsMeter } from '@/debug/FpsMeter';
 import { CATALOGS, createTranslator, detectLocale, FALLBACK_LOCALE, SUPPORTED_LOCALES, type Translator } from '@/i18n';
+import { Enemy } from '@/enemies/Enemy';
+import type { EnemyDefinition } from '@/enemies/EnemyDefinition';
 import { TrainingDummy } from '@/enemies/TrainingDummy';
 import { GameSession } from '@/gameplay/GameSession';
 import { DEFAULT_BINDINGS } from '@/input/bindings';
@@ -27,6 +29,7 @@ import { ActorSprite } from '@/render/ActorSprite';
 import { CameraAdapter2D } from '@/render/CameraAdapter2D';
 import { DummyView, type DummyLike } from '@/render/DummyView';
 import { EntityViews } from '@/render/EntityViews';
+import { ProceduralActor } from '@/render/ProceduralActor';
 import { Renderer2D } from '@/render/Renderer2D';
 import { RoomView2D } from '@/render/RoomView2D';
 import { DeathOverlay } from '@/ui/overlays/DeathOverlay';
@@ -115,9 +118,17 @@ export class Game2D {
     this.playerSprite = new ActorSprite(playerSet, { zIndex: 10 });
     renderer.layers.actors.addChild(this.playerSprite.root);
     this.lifecycle.add(() => this.playerSprite.dispose());
+    const vfxAtlas = createVfxAtlas();
+    this.lifecycle.add(() => vfxAtlas.destroy());
     // one view per live entity, driven by the spawn / despawn events (the simulation never knows views exist)
     this.entityViews = new EntityViews(renderer.layers.actors, {
       dummy: (e) => ('view' in e && 'body' in e ? new DummyView(e as unknown as DummyLike) : null),
+      // an enemy is drawn as its definition says: a procedural look today (the ink creatures); a sprite set when the art exists
+      enemy: (e) => {
+        const view = (e as Enemy).def.view;
+        const look = 'proceduralId' in view ? PROCEDURAL_LOOKS[view.proceduralId] : undefined;
+        return look ? new ProceduralActor(look, e as Enemy, { glow: vfxAtlas.frames.glow }) : null;
+      },
     });
     this.entityViews.attach(this.session.bus);
     this.lifecycle.add(() => this.entityViews.destroy());
@@ -136,8 +147,6 @@ export class Game2D {
     this.lifecycle.add(() => this.deathOverlay.dispose());
     this.lifecycle.add(this.session.bus.on('room:loaded', () => (this.roomDirty = true)));
     // VFX: pooled, budgeted, driven by simulation events and running in REAL time (a hit-stop does not freeze the sparks)
-    const vfxAtlas = createVfxAtlas();
-    this.lifecycle.add(() => vfxAtlas.destroy());
     const tier = renderer.qualityTier;
     this.vfx = new VfxSystem({ add: renderer.layers.fxWorld, normal: renderer.layers.fxNormal }, vfxAtlas, VFX, {
       particleBudget: PARTICLE_BUDGET[tier],
@@ -345,6 +354,12 @@ export class Game2D {
         s.spawn(new TrainingDummy(s.ids.next('dummy'), { x: p.x + p.facing * 3, y: p.y, facing: -p.facing as 1 | -1 }));
       }),
     );
+    this.lifecycle.add(
+      a.register('combat', 'spawn ink slime', () => {
+        const p = s.player;
+        s.spawn(new Enemy(s.ids.next('ink_slime'), ENEMIES.ink_slime as EnemyDefinition, { x: p.x + p.facing * 6, y: p.y, facing: -p.facing as 1 | -1 }));
+      }),
+    );
     this.lifecycle.add(a.register('combat', 'heal', () => s.player.health.restore()));
     this.lifecycle.add(
       a.register('combat', 'revive', () => {
@@ -378,6 +393,11 @@ export class Game2D {
       spawnDummy: (x: number, y = 0, health = 5) => {
         const dummy = this.session.spawn(new TrainingDummy(this.session.ids.next('dummy'), { x, y, health }));
         return dummy.id;
+      },
+      /** Test hook: an Ink Slime at `(x, y)` looking at `facing` (joins the world at the end of the next tick). */
+      spawnSlime: (x: number, y = 0, facing: 1 | -1 = -1) => {
+        const slime = this.session.spawn(new Enemy(this.session.ids.next('ink_slime'), ENEMIES.ink_slime as EnemyDefinition, { x, y, facing }));
+        return slime.id;
       },
       /** Test hook: an enemy hitbox over the player's torso, resolved by the next tick (1 damage, standard knockback). */
       strikePlayer: (facing: 1 | -1 = 1) => {
@@ -417,6 +437,13 @@ export class Game2D {
           dummies: this.session.entities.filter((e) => e.kind === 'dummy').map((e) => {
             const d = e as TrainingDummy;
             return { id: d.id, x: d.body.x, y: d.body.y, vx: d.body.vx, hp: d.health.current, hits: d.hits };
+          }),
+          enemies: this.session.entities.filter((e) => e.kind === 'enemy').map((e) => {
+            const n = e as Enemy;
+            return {
+              id: n.id, def: n.def.id, state: n.state, ticks: n.stateTicks, x: n.body.x, y: n.body.y, vx: n.body.vx, facing: n.facing,
+              hp: n.health.current, hits: n.hits, anim: n.view.anim, phase: n.view.phase, phaseT: n.view.phaseT, opacity: n.view.opacity,
+            };
           }),
           views: this.entityViews.count,
           vfx: this.vfx.stats,

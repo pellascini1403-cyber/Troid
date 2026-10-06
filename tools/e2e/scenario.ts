@@ -35,6 +35,10 @@ export interface GameState {
   flash?: number;
   combat?: { attack: string | null; phase: string; ticks: number; combo: number };
   dummies?: Array<{ id: string; x: number; y: number; vx: number; hp: number; hits: number }>;
+  enemies?: Array<{
+    id: string; def: string; state: string; ticks: number; x: number; y: number; vx: number; facing: number;
+    hp: number; hits: number; anim: string; phase: string; phaseT: number; opacity: number;
+  }>;
   views?: number;
   /** 2D view only: the defeat flow, the interface language and the respawn point. */
   death?: { phase: string; ticks: number; length: number; canSkip: boolean };

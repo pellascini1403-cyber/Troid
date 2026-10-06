@@ -25,7 +25,7 @@ import { VfxSystem } from '@/vfx/VfxSystem';
  *
  *   ?vh=8 visible height in metres (smaller = zoom in) · ?manual=1  · ?cycle=0 (no auto-play) · ?accent=1 (the optional warm accent ON, to compare) · ?tier=low|medium|high
  */
-const TRIGGERS: readonly VfxTrigger[] = ['slash', 'slashFinisher', 'hitLanded', 'playerHurt', 'dashStart', 'enemyDied', 'playerDied'];
+const TRIGGERS: readonly VfxTrigger[] = ['slash', 'slashFinisher', 'hitLanded', 'playerHurt', 'dashStart', 'enemyDied', 'enemyTelegraph', 'playerDied'];
 
 export async function startVfxLab(host: HTMLElement, params: URLSearchParams): Promise<void> {
   const manual = params.get('manual') === '1';
@@ -92,6 +92,9 @@ export async function startVfxLab(host: HTMLElement, params: URLSearchParams): P
         break;
       case 'enemyDied':
         bus.emit('actor:died', { id: 'd', team: 'enemy', x: 0.3, y: 0 });
+        break;
+      case 'enemyTelegraph':
+        bus.emit('enemy:telegraph', { id: 'lab_slime', defId: 'ink_slime', x: 0.3, y: 0, facing: -1, ticks: 24 });
         break;
       case 'playerDied':
         bus.emit('player:died', { x: -1.6, y: 0 });

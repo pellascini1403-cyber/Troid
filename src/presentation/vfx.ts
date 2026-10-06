@@ -126,6 +126,7 @@ export type VfxTrigger =
   | 'dashDust'
   | 'dashTrail'
   | 'enemyDied'
+  | 'enemyTelegraph'
   | 'playerDied';
 
 export type VfxBindings = Readonly<Record<VfxTrigger, readonly string[]>>;

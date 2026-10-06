@@ -10,6 +10,13 @@ const near = (a: number, b: number, tol: number): boolean => Math.abs(a - b) <= 
 export const render: Scenario = {
   name: 'render',
   async run(ctx) {
+    // A viewport change reaches the game through the browser's `resize` event; on a busy machine that takes longer than any
+    // fixed wait, so wait for the backing store to follow instead (DPR 1: one backing pixel per CSS pixel).
+    const resizeTo = async (width: number, height: number): Promise<void> => {
+      await ctx.page.setViewportSize({ width, height });
+      await ctx.page.waitForFunction(`window.__troid.state().canvas.width === ${width} && window.__troid.state().canvas.height === ${height}`, undefined, { timeout: 15000 });
+      await ctx.page.waitForTimeout(100);
+    };
     await ctx.open('room=movement_test&unlock=dash', { width: 844, height: 390, dpr: 1 });
     await ctx.step(10);
     await ctx.page.waitForTimeout(150);
@@ -24,8 +31,7 @@ export const render: Scenario = {
     await ctx.shot('01-phone');
 
     // ---- resize at runtime: 16:9 desktop ----
-    await ctx.page.setViewportSize({ width: 1920, height: 1080 });
-    await ctx.page.waitForTimeout(250);
+    await resizeTo(1920, 1080);
     s = await ctx.state();
     assert.ok(s.canvas && s.view);
     assert.equal(s.canvas.cssWidth, 1920);
@@ -34,8 +40,7 @@ export const render: Scenario = {
     await ctx.shot('02-desktop');
 
     // ---- ultra-wide: pillarboxed to 21:9, never reveals more than 31.5 m ----
-    await ctx.page.setViewportSize({ width: 2560, height: 1080 });
-    await ctx.page.waitForTimeout(250);
+    await resizeTo(2560, 1080);
     s = await ctx.state();
     assert.ok(s.view);
     assert.ok(near(s.view.visibleWidth, 13.5 * (21 / 9), 1e-6), `visible ${s.view.visibleWidth}`);
@@ -43,8 +48,7 @@ export const render: Scenario = {
     await ctx.shot('03-ultrawide');
 
     // ---- 4:3 tablet ----
-    await ctx.page.setViewportSize({ width: 1024, height: 768 });
-    await ctx.page.waitForTimeout(250);
+    await resizeTo(1024, 768);
     s = await ctx.state();
     assert.ok(s.view);
     assert.ok(near(s.view.visibleWidth, 13.5 * (4 / 3), 1e-6));
@@ -52,8 +56,7 @@ export const render: Scenario = {
     await ctx.shot('04-tablet');
 
     // ---- portrait: letterboxed, asks to rotate ----
-    await ctx.page.setViewportSize({ width: 390, height: 844 });
-    await ctx.page.waitForTimeout(250);
+    await resizeTo(390, 844);
     s = await ctx.state();
     assert.ok(s.view);
     assert.equal(s.view.rotateDevice, true);

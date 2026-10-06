@@ -53,6 +53,9 @@ export class VfxDirector {
       bus.on('actor:died', (e) => {
         if (e.team !== 'player') this.fire('enemyDied', { x: e.x, y: e.y + 0.7, facing: 1 });
       }),
+      bus.on('enemy:telegraph', (e) => {
+        this.fire('enemyTelegraph', { x: e.x, y: e.y + 0.45, facing: e.facing });
+      }),
       bus.on('player:died', (e) => {
         this.fire('playerDied', { x: e.x, y: e.y + 0.9, facing: 1 });
       }),

@@ -13,6 +13,10 @@ if (lab === 'sprites') {
   // VFX stage: every trigger through the real director (docs/MIGRATION-2D.md S7).
   const { startVfxLab } = await import('./labs/vfxLab');
   await startVfxLab(host, params);
+} else if (lab === 'slime') {
+  // The Ink Slime's procedural poses and its wind-up warning (docs/MIGRATION-2D.md S9).
+  const { startSlimeLab } = await import('./labs/slimeLab');
+  await startSlimeLab(host, params);
 } else if (lab === 'stress') {
   // Render-budget benchmark (docs/MIGRATION-2D.md S1): 800+ animated sprites, parallax layers, a filter, particles.
   const { startStressLab } = await import('./labs/stressLab');

@@ -229,7 +229,7 @@ describe('slash arc geometry', () => {
 });
 
 describe('the effect table (content/vfx.ts)', () => {
-  const TRIGGERS: VfxTrigger[] = ['slash', 'slashFinisher', 'hitLanded', 'playerHurt', 'dashStart', 'dashDust', 'dashTrail', 'enemyDied', 'playerDied'];
+  const TRIGGERS: VfxTrigger[] = ['slash', 'slashFinisher', 'hitLanded', 'playerHurt', 'dashStart', 'dashDust', 'dashTrail', 'enemyDied', 'enemyTelegraph', 'playerDied'];
 
   it('binds every trigger, and every bound id is a defined effect', () => {
     expect(Object.keys(VFX_BINDINGS).sort()).toEqual([...TRIGGERS].sort());
@@ -286,5 +286,22 @@ describe('the effect table (content/vfx.ts)', () => {
     expect(worst(VFX_BINDINGS.hitLanded)).toBeLessThan(PARTICLE_BUDGET.low / 4);
     expect(worst(VFX_BINDINGS.enemyDied)).toBeLessThan(PARTICLE_BUDGET.low / 2);
     expect(worst(VFX_BINDINGS.playerDied)).toBeLessThan(PARTICLE_BUDGET.low / 3);
+    expect(worst(VFX_BINDINGS.enemyTelegraph)).toBeLessThan(PARTICLE_BUDGET.low / 6);
+  });
+
+  it('the warning of a lunge is VIOLET and lasts the 24-tick wind-up (0.4 s): the telegraph is readable and never longer than the blow', () => {
+    for (const id of VFX_BINDINGS.enemyTelegraph) {
+      const d = VFX[id]!;
+      expect(d.palette, id).toBe('enemy');
+      const life = d.kind === 'particles' ? d.life[1] : d.life;
+      expect(life, id).toBeLessThanOrEqual(24 / 60 + 1e-9);
+    }
+    // the ring CLOSES in (a clock): it starts wide and ends tight, and gets brighter as it does
+    const ring = VFX.telegraph_ring!;
+    expect(ring.kind).toBe('flash');
+    if (ring.kind === 'flash') {
+      expect(ring.size[1]).toBeLessThan(ring.size[0]);
+      expect(ring.alpha[1]).toBeGreaterThan(ring.alpha[0]);
+    }
   });
 });

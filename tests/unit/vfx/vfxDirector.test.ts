@@ -103,6 +103,18 @@ describe('VfxDirector: simulation events → effects (the sim never knows it exi
     expect(ids().slice(-VFX_BINDINGS.playerDied.length)).toEqual(VFX_BINDINGS.playerDied);
   });
 
+  it('the wind-up of an enemy lunge starts the violet warning on the creature, facing where it will strike', () => {
+    const { bus, calls, ids } = setup();
+    bus.emit('enemy:telegraph', { id: 'slime_1', defId: 'ink_slime', x: 12, y: 0, facing: -1, ticks: 24 });
+    expect(ids()).toEqual(VFX_BINDINGS.enemyTelegraph);
+    expect(calls[0]!.at).toMatchObject({ x: 12, facing: -1 });
+    expect(calls[0]!.at.y).toBeGreaterThan(0); // on its body, not on the floor
+    // noticing the player is an audio cue, not a visual effect (yet)
+    calls.length = 0;
+    bus.emit('enemy:alerted', { id: 'slime_1', defId: 'ink_slime', x: 12, y: 0 });
+    expect(calls).toHaveLength(0);
+  });
+
   it('dispose() unsubscribes everything (no listener survives a room or a hot reload)', () => {
     const { bus, ids, director } = setup();
     expect(bus.listenerCount()).toBeGreaterThan(0);

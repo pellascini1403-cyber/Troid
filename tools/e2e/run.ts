@@ -14,11 +14,12 @@ import { crouch } from './scenarios/crouch';
 import { death } from './scenarios/death';
 import { movement } from './scenarios/movement';
 import { render } from './scenarios/render';
+import { slime } from './scenarios/slime';
 import { sprites } from './scenarios/sprites';
 import { stress } from './scenarios/stress';
 import { vfx } from './scenarios/vfx';
 
-const ALL: Scenario[] = [movement, crouch, combat, death, render, camera, sprites, vfx, stress];
+const ALL: Scenario[] = [movement, crouch, combat, slime, death, render, camera, sprites, vfx, stress];
 const filter = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const prod = process.argv.includes('--prod');
 const selected = ALL.filter((s) => !filter || s.name.includes(filter));
@@ -43,6 +44,10 @@ for (const scenario of selected) {
       return opened.current?.warnings ?? [];
     },
     async open(query = '', size) {
+      // A page left open keeps its render loop running (software GL: it eats the CPU the next scenes need), so a scenario
+      // that opens several pages in a row only ever has the latest one alive.
+      await opened.current?.page.context().close();
+      opened.current = null;
       const o = await openPage(browser, `${server.url}/?hooks=1&${query}`, size);
       opened.current = o;
       await o.page.waitForFunction('window.__troid && window.__troid.ready()', undefined, { timeout: 30000 });
