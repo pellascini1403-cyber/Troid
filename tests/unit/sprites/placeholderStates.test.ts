@@ -10,11 +10,11 @@ const { def, meta, frames } = PLAYER_PLACEHOLDER;
 const available = new Set(frames.map((f) => f.name));
 
 /**
- * The states Prompt 5 added to the player (`cast`, `drink`; `interact` with its step) have their OWN clip in the
+ * The states Prompt 5 added to the player (`cast`, `drink`, `interact`) have their OWN clip in the
  * abstract placeholder, so playing them never falls back (a fallback logs a warning every time). The poses are the placeholder's
  * own abstract ones — a capsule and a sword — and no new character art is invented.
  */
-const PROMPT5_STATES = ['cast', 'drink'] as const;
+const PROMPT5_STATES = ['cast', 'drink', 'interact'] as const;
 
 describe('placeholder: the states of Prompt 5', () => {
   it('each has its own clip, with every frame in the atlas', () => {
@@ -37,11 +37,13 @@ describe('placeholder: the states of Prompt 5', () => {
     expect(frames).toHaveLength(62);
   });
 
-  it('the drink shows the standing poses, looping: no new frames either', () => {
-    const drink = def.clips.drink!;
-    expect(drink.frames).toBe(def.clips.idle!.frames);
-    expect(drink.count).toBe(def.clips.idle!.count);
-    expect(drink.loop).toBe(true);
+  it('the drink and the interact pose show the standing poses, looping: no new frames either', () => {
+    for (const state of ['drink', 'interact'] as const) {
+      const clip = def.clips[state]!;
+      expect(clip.frames, state).toBe(def.clips.idle!.frames);
+      expect(clip.count, state).toBe(def.clips.idle!.count);
+      expect(clip.loop, state).toBe(true);
+    }
     expect(frames).toHaveLength(62);
   });
 

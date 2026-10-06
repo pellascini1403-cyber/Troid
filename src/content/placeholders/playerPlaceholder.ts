@@ -127,10 +127,19 @@ const BUILT = buildPlaceholderSet(PLAYER_PLACEHOLDER_SPEC);
  *
  * The states Prompt 5 added get their OWN clip (so playing them never falls back, which logs a warning each time) without a
  * single new frame: `cast` is the rising slash's sword poses, phase-driven like an attack (preparation · release · recovery);
- * `drink` is the standing idle poses, looping (the hero stands still while the bottle channels; the glow is the VFX's).
+ * `drink` and `interact` are the standing idle poses, looping (the hero stands still while the bottle channels or the object is
+ * taken; the glow is the VFX's).
  * The placeholder stays what it was — a capsule and a sword; no new character art is invented.
  */
 export const PLAYER_PLACEHOLDER = {
   ...BUILT,
-  def: { ...BUILT.def, clips: { ...BUILT.def.clips, cast: BUILT.def.clips.attack2!, drink: { ...BUILT.def.clips.idle!, loop: true } } },
+  def: {
+    ...BUILT.def,
+    clips: {
+      ...BUILT.def.clips,
+      cast: BUILT.def.clips.attack2!,
+      drink: { ...BUILT.def.clips.idle!, loop: true },
+      interact: { ...BUILT.def.clips.idle!, loop: true },
+    },
+  },
 };

@@ -2,6 +2,7 @@ import type { BottleChange } from '@/abilities/BottleSet';
 import type { CardChange } from '@/abilities/CardLoadout';
 import type { MagicChange } from '@/abilities/Magic';
 import type { CombatEvents } from '@/combat/CombatSystem';
+import type { InteractionNotice } from '@/interaction/InteractionSystem';
 import type { SimEntity } from './SimEntity';
 
 /**
@@ -62,6 +63,11 @@ export interface GameEvents extends CombatEvents {
   'bottle:denied': { reason: 'none' | 'full' };
   /** A card was acquired, equipped or taken off. */
   'card:changed': CardChange;
+  /** An interactable got the icon (the player is in reach and it is available): `x, y` is where the icon floats. */
+  'interaction:available': InteractionNotice;
+  'interaction:lost': { id: string };
+  /** The player interacted: the object's actions ran. */
+  'interaction:performed': InteractionNotice;
   'ability:unlocked': { id: string };
   'ability:locked': { id: string };
   'entity:spawned': { entity: SimEntity };

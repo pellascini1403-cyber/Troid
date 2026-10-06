@@ -9,11 +9,7 @@ import { BOTTLE_DEFINITIONS, BOTTLES, CARDS, MAGIC } from '@/content/resources';
 import { SKILLS } from '@/content/skills';
 import { VFX, VFX_BINDINGS } from '@/content/vfx';
 import { DisposableStore } from '@/core/lifecycle';
-import type { Hurtbox } from '@/combat/Combatant';
-import type { Rect } from '@/core/math';
-import { ColliderOverlay2D } from '@/debug/ColliderOverlay2D';
 import { DebugActions } from '@/debug/DebugActions';
-import { DebugPanel } from '@/debug/DebugPanel';
 import { DebugState } from '@/debug/DebugState';
 import { DrawCallCounter } from '@/debug/DrawCallCounter';
 import { FpsMeter } from '@/debug/FpsMeter';
@@ -27,6 +23,7 @@ import { createPlayerStatus } from '@/gameplay/PlayerStatus';
 import { DEFAULT_TOUCH } from '@/input/gestures/TouchConfig';
 import { DEFAULT_BINDINGS } from '@/input/bindings';
 import { InputManager } from '@/input/InputManager';
+import { interactGlyph } from '@/input/glyphs';
 import { attachGamepad, browserPads } from '@/input/sources/GamepadSource';
 import { attachKeyboardMouse } from '@/input/sources/KeyboardMouseSource';
 import { TouchSource } from '@/input/sources/TouchSource';
@@ -37,6 +34,7 @@ import { ActorSprite } from '@/render/ActorSprite';
 import { CameraAdapter2D } from '@/render/CameraAdapter2D';
 import { DummyView, type DummyLike } from '@/render/DummyView';
 import { EntityViews } from '@/render/EntityViews';
+import { InteractableViews } from '@/render/InteractableViews';
 import { ProceduralActor } from '@/render/ProceduralActor';
 import { ProjectileView, type ProjectileLike } from '@/render/ProjectileView';
 import { Renderer2D } from '@/render/Renderer2D';
@@ -44,11 +42,13 @@ import { RoomView2D } from '@/render/RoomView2D';
 import { HudModel } from '@/ui/hud/HudModel';
 import { HudView } from '@/ui/hud/HudView';
 import { DeathOverlay } from '@/ui/overlays/DeathOverlay';
+import { InteractionPrompt } from '@/ui/prompt/InteractionPrompt';
 import { applySafeOverride, SafeArea } from '@/ui/safeArea';
 import { TouchControls } from '@/ui/touch/TouchControls';
 import { VfxDirector } from '@/vfx/VfxDirector';
 import { VfxSystem } from '@/vfx/VfxSystem';
 import { listen } from './dom';
+import type { DevTools } from './devTools';
 import { GameLoop } from './GameLoop';
 import { optionsFromQuery, type GameOptions } from './options';
 
@@ -68,6 +68,10 @@ export class Game2D {
   private readonly loop: GameLoop;
   private readonly camera: CameraAdapter2D;
   private readonly roomView: RoomView2D;
+  /** The markers of the room's interactables (a floating card, a lever) and the DOM icon that floats over the one in reach. */
+  private readonly interactableViews: InteractableViews;
+  private readonly prompt: InteractionPrompt;
+  private readonly promptPoint = { x: 0, y: 0 };
   private readonly bindings = structuredClone(DEFAULT_BINDINGS);
   private readonly playerSprite: ActorSprite;
   private readonly entityViews: EntityViews;
@@ -88,8 +92,10 @@ export class Game2D {
   private roomDirty = false;
   /** Camera shakes triggered by impacts and the strength of the last one (the trauma itself decays in real time). */
   private shakes = { count: 0, last: 0 };
-  private colliders: ColliderOverlay2D | null = null;
-  private panel: DebugPanel | null = null;
+  /** The developer tools (panel, collision overlay, debug actions): a separate chunk, fetched the first time they are asked for. */
+  private tools: DevTools | null = null;
+  private toolsRequest: Promise<void> | null = null;
+  private closed = false;
 
   /** Pixi's `Application.init` is asynchronous, hence the factory. */
   static async create(host: HTMLElement, query = new URLSearchParams(location.search)): Promise<Game2D> {
@@ -154,6 +160,12 @@ export class Game2D {
       up: (id) => this.touchSource.up(id),
     });
     this.lifecycle.add(() => this.hud.dispose());
+    // the interaction icon: it exists only over the object in reach, and a finger on it is the same single-owner touch source
+    this.prompt = new InteractionPrompt(ui, this.translator, {
+      down: (id, x, y, t) => this.touchSource.down(id, 'interact', x, y, t),
+      up: (id) => this.touchSource.up(id),
+    });
+    this.lifecycle.add(() => this.prompt.dispose());
     this.lifecycle.add(
       this.session.bus.on('bottle:changed', (e) => {
         if (e.type === 'used') this.hudModel.bottleUsed(e.slot);
@@ -164,6 +176,8 @@ export class Game2D {
     this.lifecycle.add(this.session.bus.on('bottle:denied', () => this.hudModel.bottlesDenied()));
     // a desktop with a mouse and a keyboard never sees the touch layer; a touch screen (or ?touch=1) does, and so does the first touch
     this.touchControls.setVisible(options.touch || (typeof matchMedia === 'function' && matchMedia('(any-pointer: coarse)').matches));
+    // a screen that shows the touch controls from the start IS a touch device: the prompts speak touch until another device is used
+    if (this.touchControls.isVisible) this.input.noteUse('touch');
     listen(this.lifecycle, window, 'pointerdown', (e) => {
       if (e.pointerType === 'touch') this.touchControls.setVisible(true);
     }, { capture: true });
@@ -171,6 +185,8 @@ export class Game2D {
     // ---- views ----
     this.roomView = new RoomView2D(renderer.layers);
     this.lifecycle.add(() => this.roomView.destroy());
+    this.interactableViews = new InteractableViews(renderer.layers);
+    this.lifecycle.add(() => this.interactableViews.clear());
     this.playerSprite = new ActorSprite(playerSet, { zIndex: 10 });
     renderer.layers.actors.addChild(this.playerSprite.root);
     this.lifecycle.add(() => this.playerSprite.dispose());
@@ -215,7 +231,6 @@ export class Game2D {
     this.vfxDirector = new VfxDirector(this.session.bus, this.vfx, VFX_BINDINGS, VFX, () => ({ x: body.x, y: body.y }), new Set(Object.keys(SKILLS)));
     this.lifecycle.add(() => this.vfxDirector.dispose());
     this.buildRoomView();
-    this.registerDebugActions();
     this.setupDebug();
 
     this.loop = new GameLoop({
@@ -252,6 +267,8 @@ export class Game2D {
   }
 
   dispose(): void {
+    this.closed = true;
+    this.tools?.dispose();
     this.lifecycle.dispose();
   }
 
@@ -274,6 +291,7 @@ export class Game2D {
     const insets = this.safeArea.read();
     this.touchControls.place(width, height, insets);
     this.hud.place(width, height, insets);
+    this.prompt.place(width, height, insets, this.touchControls.gestureScale);
   }
 
   /** The HUD and the contextual touch controls follow the simulation's status (read through one snapshot; nothing else is touched). */
@@ -284,12 +302,28 @@ export class Game2D {
     this.touchControls.setAbility(st.card.equipped, st.card.iconId, st.card.state !== 'noMagic');
   }
 
+  /** The interaction icon floats over its object: the world point goes through the camera, the DOM gets screen pixels. */
+  private updatePrompt(): void {
+    const n = this.hudStatus.interaction;
+    if (n.active) this.renderer.worldToScreen(n.x, n.y, this.promptPoint);
+    this.prompt.update({
+      active: n.active,
+      id: n.id,
+      kind: n.kind,
+      verbKey: n.verbKey,
+      x: this.promptPoint.x,
+      y: this.promptPoint.y,
+      glyph: interactGlyph(this.input.device, this.bindings),
+    });
+  }
+
   // ---------------------------------------------------------------------------------------------------- views
 
   private buildRoomView(): void {
     const room = this.session.room;
     this.roomView.build(room, (gateId) => this.session.gateOpen(gateId));
-    this.colliders?.setRoom(this.session.collision);
+    this.interactableViews.build(room.interactables ?? [], (id) => this.session.interaction.isAvailable(id));
+    this.tools?.setRoom();
     this.camera.setRoom(room);
   }
 
@@ -317,18 +351,19 @@ export class Game2D {
     this.vfxDirector.update();
     this.vfx.update(vfxDt);
     this.roomView.update(realDt);
+    this.interactableViews.update(realDt, (id) => this.session.interaction.isAvailable(id));
     this.deathOverlay.update(this.session.deathSnapshot);
     this.updateHud(realDt);
 
     // The camera follows the INTERPOLATED position — exactly what is drawn — so camera and player never jitter apart.
     const target: CameraTarget = { x, y, vx: p.body.vx, vy: p.body.vy, facing: p.facing, grounded: p.body.grounded };
     this.camera.update(realDt, target);
+    this.updatePrompt(); // after the camera: the icon follows the object with THIS frame's transform
 
-    if (this.debug.get('colliders') && this.colliders) this.updateColliderOverlay();
     this.loop.timeScale = this.debug.get('timeScale');
     this.loop.paused = this.debug.get('paused');
     this.session.godMode = this.debug.get('godMode');
-    this.panel?.update(performance.now());
+    this.tools?.frame(performance.now());
 
     this.counter.beginFrame();
     this.renderer.render();
@@ -342,47 +377,25 @@ export class Game2D {
     listen(this.lifecycle, window, 'keydown', (e) => {
       if (e.code !== 'Backquote') return;
       e.preventDefault();
-      this.ensurePanel();
-      this.debug.toggle('panel');
+      this.debug.toggle('panel'); // the panel reads the state when it is built, so the first press can come before its code
+      void this.loadTools();
     });
-    this.lifecycle.add(
-      this.debug.changed.on('change', ({ key, value }) => {
-        if (key === 'colliders') this.setColliderOverlay(Boolean(value));
-      }),
-    );
     if (this.options.debug) {
-      this.ensurePanel();
       this.debug.set('panel', true);
+      void this.loadTools();
     }
   }
 
-  private ensurePanel(): void {
-    if (this.panel) return;
-    const ui = document.getElementById('ui') ?? document.body;
-    const p = this.session.player;
-    this.panel = new DebugPanel(ui, {
-      state: this.debug,
-      actions: this.debugActions,
-      fps: this.fps,
-      step: () => this.stepOnce(),
-      readout: () => {
-        const b = p.body;
-        const c = p.controller;
-        const vp = this.renderer.viewport;
-        return [
-          `room   ${this.session.room.id}   tick ${this.session.now}`,
-          `pos    ${b.x.toFixed(2)}, ${b.y.toFixed(2)}`,
-          `vel    ${b.vx.toFixed(2)}, ${b.vy.toFixed(2)}`,
-          `state  ${c.state}  anim ${p.view.anim}`,
-          `ground ${b.grounded ? 'yes' : 'no'}  dash cd ${c.dashCooldown01.toFixed(2)}  hp ${p.health.current}/${p.health.max}`,
-          `abil   ${this.session.abilities.serialize().join(',') || '—'}`,
-          `input  ${this.input.device}`,
-          `view   ${vp.contentWidth.toFixed(0)}×${vp.contentHeight.toFixed(0)}  ×${vp.resolution.toFixed(2)}  ${vp.ppm.toFixed(1)} px/m  draws ${this.counter.median}`,
-        ].join('\n');
-      },
-      tuning: [{ title: 'movement', target: p.def.movement }],
+  /** Fetches the developer tools the first time they are asked for (a player's first load never carries them). */
+  private loadTools(): Promise<void> {
+    this.toolsRequest ??= import('./devTools').then(({ DevTools }) => {
+      if (this.closed) return;
+      this.tools = new DevTools(
+        { session: this.session, debug: this.debug, actions: this.debugActions, fps: this.fps, counter: this.counter, input: this.input, renderer: this.renderer, step: () => this.stepOnce() },
+        document.getElementById('ui') ?? document.body,
+      );
     });
-    this.lifecycle.add(() => this.panel?.dispose());
+    return this.toolsRequest;
   }
 
   /**
@@ -399,74 +412,7 @@ export class Game2D {
     this.playerSprite.sync(this.session.player.view, 1, 0);
     this.deathOverlay.update(this.session.deathSnapshot);
     this.updateHud(0);
-  }
-
-  /** Bodies (green), hurtboxes (blue) and the hitboxes active in the last tick (magenta). */
-  private updateColliderOverlay(): void {
-    const s = this.session;
-    const bodies = [s.player.body];
-    for (const e of s.entities) if ('body' in e) bodies.push((e as unknown as { body: typeof s.player.body }).body);
-    this.colliders?.updateBodies(bodies);
-    const hurt: Rect[] = [];
-    const scratch: Hurtbox[] = [];
-    for (const c of s.combat.all) {
-      scratch.length = 0;
-      c.collectHurtboxes(scratch);
-      for (const h of scratch) hurt.push(h.rect);
-    }
-    this.colliders?.updateCombat(hurt, s.combat.activeHitboxes.map((h) => h.rect));
-  }
-
-  private setColliderOverlay(on: boolean): void {
-    if (on && !this.colliders) {
-      this.colliders = new ColliderOverlay2D(this.renderer.layers.debug);
-      this.colliders.setRoom(this.session.collision);
-    } else if (!on && this.colliders) {
-      this.colliders.destroy();
-      this.colliders = null;
-    }
-  }
-
-  private registerDebugActions(): void {
-    const a = this.debugActions;
-    const s = this.session;
-    this.lifecycle.add(
-      a.register('abilities', 'unlock all', () => s.abilities.list().filter((d) => d.implemented).forEach((d) => s.abilities.unlock(d.id))),
-    );
-    this.lifecycle.add(a.register('abilities', 'lock all', () => s.abilities.list().forEach((d) => s.abilities.lock(d.id))));
-    this.lifecycle.add(a.register('player', 'rescue', () => s.rescuePlayer()));
-    this.lifecycle.add(
-      a.register('combat', 'spawn dummy', () => {
-        const p = s.player;
-        s.spawn(new TrainingDummy(s.ids.next('dummy'), { x: p.x + p.facing * 3, y: p.y, facing: -p.facing as 1 | -1 }));
-      }),
-    );
-    this.lifecycle.add(
-      a.register('combat', 'spawn ink slime', () => {
-        const p = s.player;
-        s.spawn(new Enemy(s.ids.next('ink_slime'), ENEMIES.ink_slime as EnemyDefinition, { x: p.x + p.facing * 6, y: p.y, facing: -p.facing as 1 | -1 }));
-      }),
-    );
-    this.lifecycle.add(a.register('combat', 'heal', () => s.player.health.restore()));
-    // the player's resources (magic, bottles, cards): the debug panel can put them in any state
-    this.lifecycle.add(a.register('resources', 'refill magic', () => s.magic.restore()));
-    this.lifecycle.add(a.register('resources', 'spend 30 magic', () => void s.magic.spend(30)));
-    this.lifecycle.add(a.register('resources', 'give the Spirit Bolt card', () => void s.loadout.acquire('card_spirit_bolt')));
-    this.lifecycle.add(a.register('resources', 'take the card off', () => void s.loadout.equip(null)));
-    this.lifecycle.add(a.register('resources', 'drink a bottle', () => void s.bottles.consume(s.bottles.resolve(-1))));
-    this.lifecycle.add(a.register('resources', 'refill bottles', () => s.bottles.refillAll()));
-    this.lifecycle.add(a.register('resources', 'add a bottle slot', () => void s.bottles.addSlot('energy_bottle')));
-    this.lifecycle.add(
-      a.register('combat', 'revive', () => {
-        s.player.revive();
-        s.rescuePlayer();
-      }),
-    );
-    this.lifecycle.add(
-      a.register('room', 'reset room', () => {
-        s.loadRoom(s.room.id); // the `room:loaded` event rebuilds the scenery
-      }),
-    );
+    this.updatePrompt();
   }
 
   /** `window.__troid`: lets Playwright drive and inspect the game deterministically (dev builds / `?hooks=1`). */
@@ -509,6 +455,8 @@ export class Game2D {
         gesture: this.touchSource.gesture,
         layout: this.touchControls.current,
       }),
+      /** Test hook: where a point of the world is on screen (CSS px), with the camera of the last frame. */
+      worldToScreen: (x: number, y: number) => this.renderer.worldToScreen(x, y),
       /** Test hook: the HUD as the model computed it and as laid out (px). */
       hud: () => ({ state: this.hudModel.state, layout: this.hud.current }),
       /** Test hook: the abstract gamepad, in the Gamepad API's own terms (+y of the stick is DOWN); `pressed` = held button indices. */

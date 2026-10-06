@@ -15,5 +15,8 @@
   "hud.cardEmpty": "Sin habilidad equipada",
   "hud.bottleReady": "Botella {number}: lista",
   "hud.bottleRecharging": "Botella {number}: recargando",
-  "hud.bottleEmpty": "Botella {number}: vacía"
+  "hud.bottleEmpty": "Botella {number}: vacía",
+  "interact.pickUp": "Recoger",
+  "interact.activate": "Activar",
+  "interact.open": "Abrir"
 }

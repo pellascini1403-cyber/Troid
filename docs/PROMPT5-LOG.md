@@ -13,7 +13,7 @@
 | **S14** HUD (DOM) y los recursos que muestra (2 commits: recursos, HUD) | ✅ | (ver historial) |
 | **S15** magia y Spirit Bolt | ✅ | (ver historial) |
 | **S16** cartas y botellas | ✅ | (ver historial) |
-| **S17** interacción contextual | ⏳ | |
+| **S17** interacción contextual | ✅ | (ver historial) |
 | **S18** idioma persistente | ⏳ | |
 | **S19** integración en R1 y E2E | ⏳ | |
 | **S20** validación final y documentación | ⏳ | |
@@ -301,4 +301,59 @@ E2E `bottles` (teclado real L/Q, mando abstracto LB y toques reales): tres viale
 ### 5. Bundle tras S16
 
 Arranque en frío de R1: **193.6 KB gz** (192.8 → 193.6, +0.8 KB). Margen frente a 200 KB: **6.4 KB** con S17 (interacción) y S18 (idioma + ajustes) por venir; la pantalla de ajustes irá cargada bajo demanda.
+
+
+---
+
+## S17 — Interacción contextual ✅
+
+**Sin botón permanente de interacción.** Un objeto al alcance recibe un **icono** que flota sobre él; en teclado y mando se acciona con `interact` (E / LT), en táctil **el propio icono es el botón**. Si no hay nada que hacer, el icono no existe (ni recoge un dedo) y pulsar Interact no hace nada.
+
+### 1. El sistema (`interaction/`, puro)
+
+- **Datos** (`Interactable.ts`): `InteractableDef { id, kind (open · talk · pickup · activate · enter · use), verbKey, x, y, iconHeight?, reach?, priority?, whenSet?, whenClear?, lock?, actions[] }`. Las acciones son un conjunto **cerrado** (`acquireCard · addBottleSlot · setFlag · clearFlag`): una recompensa escribe **flags del mundo** (GAME-SPEC-2D §14.3), que es lo que hace que sobreviva a una muerte y a recargar la sala. El texto nunca vive aquí: `verbKey` es una clave del catálogo.
+- **Elección** (`InteractionSystem.ts`): entre los **disponibles** (sus flags lo permiten) y **al alcance** (1.6 m de ancho, 1.2 m de alto, bordes incluidos) gana el **más cercano**; empate → mayor `priority`, luego el primero de la sala. **Histéresis de 0.3 m**: el objeto con el icono lo conserva hasta que el jugador está 0.3 m más lejos de su alcance, o hasta que otro está **claramente** más cerca (> 0.3 m); la histéresis conserva, nunca concede.
+- **Eventos:** `interaction:available` (con el punto de anclaje del icono y la clave del verbo) · `interaction:lost` (también al dejar de estar disponible, al morir o al cambiar de sala) · `interaction:performed`. Posición en el tick: **4** (tras el combate, antes de los recursos), como fija ARCHITECTURE-2D §5.1. La única puerta hacia la interfaz es `PlayerStatus.interaction`.
+
+### 2. El jugador (`interact`)
+
+Estado nuevo con **prioridad** `dash > ataque > Habilidad > botella > interactuar > agacharse > libre`. Se acepta con un objeto al alcance **y en suelo** (en el aire la pulsación espera al aterrizaje dentro del *buffer* de 0.12 s; sin objeto, caduca **sin ningún aviso**: el icono es la única señal). Al entrar **ejecuta** las acciones, mira hacia el objeto y **retiene el control `lock` ticks (por defecto y como máximo 12)**; un golpe lo corta (lo hecho, hecho). Se puede hacer **agachado** (la carta del túnel de R1 está bajo un techo de 1.2 m) y se vuelve a `crouch`. Clip `interact` del *placeholder* = poses de `idle` en bucle: **ningún fotograma nuevo** (siguen 62).
+
+### 3. Datos de sala y contenido
+
+- `RoomDefinition.interactables`; `validateRoom` comprueba ids únicos, que estén dentro y **sobre un suelo**, verbo no vacío, alcance positivo, `lock` entero 0…12, banderas no vacías, que la carta/botella que dan **existan** y que una palanca pueda abrir una puerta de su sala (la bandera que pone cuenta como algo que la pone).
+- **`interaction_test`** (`?room=interaction_test`): un cajón de arena con cada caso simple de §12: una **carta** (recoger), una **ranura de botella** a 2 m (el más cercano gana), una **palanca** que abre una puerta de la sala y una **puerta que se abre al interactuar con ella** (tipo `open`).
+- **R1 — carta del Spirit Bolt, PROVISIONAL (⚠ desviación documentada, no conflicto):** la carta espera al final del túnel agachado (x = 74.5). GAME-SPEC-2D §14.4 la sitúa en **R3**, pero ese diseño es «inicial, ajustable en el Prompt 6»; ponerla en R1 permite que la primera sala ya muestre el bucle completo (interactuar → equipar → lanzar) que el Prompt 5 debe demostrar. Es **opcional** (nada del camino a la salida la necesita), una vez cogida no vuelve a aparecer (ni tras una muerte) y la puerta de R1 **sigue abriéndose solo con la derrota del slime** (`r1.test.ts` lo prueba). El Prompt 6 la mueve a R3.
+
+### 4. Lo que se ve
+
+- **`ui/prompt/InteractionPrompt`** (DOM, sin texto propio): un disco de 48 px (objetivo táctil de 60) con el icono del tipo (carta · palanca · genérico), anclado a la **parte superior del objeto** y colocado **encima** con 10 px de hueco, así el objeto nunca queda tapado sea cual sea el *zoom*; se atenúa en 120 ms; se mantiene dentro de la zona segura; en teclado/mando lleva el **nombre de la tecla/botón** (`input/glyphs.ts`, **derivado de los *bindings***: remapear cambia el icono) y en táctil nada; su nombre accesible es el verbo por el traductor (ES/EN). Escribe en el DOM solo lo que cambió, suelta el dedo si el icono desaparece bajo él y escala con los controles (el objetivo también). `z-index` 26: sobre el HUD (25), bajo las superposiciones (40).
+- **`presentation/worldToScreen`** (pura, probada **contra el `Container` de Pixi**, incluido el balanceo) + `Renderer2D.worldToScreen`: el icono sigue al objeto con la transformación de **este** fotograma. `ui/` sigue sin conocer ni Pixi ni `render/`.
+- **`render/InteractableViews`**: marcas abstractas en el cian/blanco del héroe — una carta flotante de luz que se desvanece al cogerla; un poste con pomo que se apaga cuando se gasta.
+- **Dispositivo inicial:** una pantalla que arranca con los controles táctiles visibles **es** un dispositivo táctil (`noteUse('touch')`); sin esto el icono mostraba la tecla E hasta el primer toque.
+
+### 5. Pruebas
+
+| | Antes | Después |
+|---|---|---|
+| Tests | 997 / 66 archivos | **1082 / 71 archivos** (+85) |
+| E2E | 17 | **19** (`interaction`, `devtools`), desarrollo y producción 19/19 |
+| `tsc --noEmit` | 0 errores | 0 errores |
+
+Nuevos: `InteractionSystem` (23: alcance y bordes, nearest, prioridad, histéresis, flags, muerte, acciones en orden, una sola vez, sala, lock, determinismo) · `interaction` integración (21: el icono solo al alcance y su anuncio; el estado lo trae; sin objeto no pasa nada; recoger = carta + habilidad + flag + `performed` antes que `lost`; 12 ticks sin control; mira al objeto; una sola vez; Ability al terminar; sobrevive a una muerte; golpe; agachado; en el aire; pulsación anticipada; el más cercano; palanca → puerta → atravesarla; R1 en el túnel; determinismo) · `validateRoom` (+7) · `InteractionPrompt` (14) · `InteractableViews` (7) · `worldToScreen` (+3, contra Pixi) · `glyphs` (4) · `touchControls` integración (+5: el icono con toque, sin objeto, mover + interactuar, el chip y un icono del HUD, un segundo dedo) · `placeholderStates` (+0, ampliado a `interact`).
+
+E2E `interaction` (teclado real, toque real): sin nada al alcance **no hay icono, no recoge dedos y no hay ningún control táctil de interacción**; Interact sin objeto no hace nada · al llegar a 1.6 m aparece sobre la carta (a la posición proyectada **± 2 px**), con el verbo en el idioma del jugador y la tecla **E** · el más cercano gana (la ranura a 14 m vence a la carta a 12 m) · la tecla coge la carta, **12 ticks sin control**, el HUD la muestra y el icono desaparece · una palanca abre **la puerta de su sala** (se disuelve y se atraviesa; antes paraba) · una **puerta tipo `open`** se abre al interactuar con ella y se atraviesa · táctil: el icono lleva **sin tecla**, es un objetivo de ≥ 44 px y **un toque lo acciona** · R1: bajo el techo de 1.2 m el icono sale, se coge la carta, el héroe sigue agachado, **la puerta de R1 sigue cerrada** y la Habilidad se lanza. E2E `devtools`: una carga normal **ni pide** el código de las herramientas; `?debug=1` lo trae y el panel lista sus acciones y las ejecuta.
+
+### 6. Hallazgos
+
+| Hallazgo | Solución |
+|---|---|
+| El icono tapaba el objeto: anclado 1.4 m sobre los pies, un disco de 48 px (≈ 1.7 m a 29 px/m) cubría la carta entera | el punto de anclaje es la **parte superior del objeto** y el disco se sitúa encima con un hueco **en píxeles** (independiente del *zoom*) |
+| El icono mostraba **E** en un móvil hasta el primer toque (el dispositivo inicial era «teclado») | una pantalla con controles táctiles visibles arranca como táctil |
+| `Interact` hecho **2 ticks antes de llegar** se perdía | entra en el mismo *buffer* de 0.12 s que Habilidad y botella |
+| **Rolldown parte en trozos pequeños lo que comparten dos *chunks* perezosos** (al sacar el panel de depuración a un módulo propio aparecieron 5 *chunks* compartidos nuevos: `dom`, `actorViewState`, `worldTransform`, `math`, `log`) | medido: el ahorro neto es menor que el tamaño del módulo (−0.8 KB gz en vez de −3.7). Se probó agrupar `src/**` en un *chunk* común con `codeSplitting.groups` (`minShareCount: 2`): **empeoró** (230 KB: arrastró módulos de Pixi) → descartado y revertido. Consecuencia para S18: la pantalla de ajustes reutilizará esos *chunks* compartidos ya creados |
+
+### 7. Bundle tras S17 (y el panel de depuración bajo demanda)
+
+Sumar interacción (sistema, estado, icono, marcas, glifos, contenido, claves) llevó el arranque en frío de R1 a **197.0 KB gz** (+3.4 KB sobre S16). Con solo **3.0 KB** de margen y S18 por venir, se aplicó la opción ya medida desde S12: **el panel de depuración, la rejilla de colisiones y las acciones de depuración pasan a un módulo propio (`app/devTools.ts`) que solo se descarga con `?debug=1` (o la tecla ` en desarrollo)**. Resultado: **196.2 KB gz** (28 *scripts*; −0.8 KB neto por el reparto en *chunks* de arriba), margen **3.8 KB**. Un jugador no descarga herramientas de desarrollo; su comportamiento no cambia (`devtools` E2E lo prueba).
 

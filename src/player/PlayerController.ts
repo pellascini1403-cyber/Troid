@@ -4,12 +4,13 @@ import { TICK_SECONDS, secondsToTicks } from '@/core/time';
 import type { SkillDefinition } from '@/abilities/SkillDefinition';
 import type { HitInfo } from '@/combat/Combatant';
 import { Projectile } from '@/gameplay/Projectile';
+import { interactLock } from '@/interaction/InteractionSystem';
 import { NEUTRAL_INPUT, type InputFrame } from '@/input/InputFrame';
 import type { SimServices } from '@/gameplay/SimServices';
 import type { MovementTuning } from './MovementTuning';
 import type { Player } from './Player';
 
-export type PlayerStateId = 'free' | 'crouch' | 'dash' | 'attack' | 'cast' | 'drink' | 'hurt' | 'dead';
+export type PlayerStateId = 'free' | 'crouch' | 'dash' | 'attack' | 'cast' | 'drink' | 'interact' | 'hurt' | 'dead';
 
 /** Ticks the white hit flash lasts. */
 const FLASH_TICKS = 6;
@@ -31,7 +32,8 @@ const FLASH_TICKS = 6;
  * knockback, i-frames) and `dead`. Magic (§10): `cast` runs the skill of the equipped card (6 ticks of preparation, the release
  * that pays the cost and spawns the projectile, 8 of recovery). Bottles (§11): `drink` is a channel of 24 ticks standing still
  * on the ground; the effect lands, and the bottle is spent, on its LAST tick, so a hit in the middle costs nothing.
- * Priority: dead > hurt > dash > attack > cast > drink > crouch > free.
+ * Interaction (§12): `interact` performs the object that has the icon and holds the control for its `lock` (at most 12 ticks).
+ * Priority: dead > hurt > dash > attack > cast > drink > interact > crouch > free.
  * `free`, `crouch` and `dash` behave exactly as before (the 40 movement tests are the proof).
  */
 export class PlayerController {
@@ -45,6 +47,7 @@ export class PlayerController {
   private dropBuffer = 0;
   private abilityBuffer = 0;
   private bottleBuffer = 0;
+  private interactBuffer = 0;
   private dashBuffer = 0;
   private dashCooldown = 0;
   private dashTicksLeft = 0;
@@ -69,6 +72,8 @@ export class PlayerController {
   private bottleRequest = -1;
   private drinkSlot = -1;
   private drinkTicks = 0;
+  /** Ticks of the `interact` pose left (the control is held until it runs out). */
+  private interactTicks = 0;
 
   private jumping = false;
   private jumpCut = false;
@@ -95,6 +100,7 @@ export class PlayerController {
         attack: { enter: (c) => c.enterAttack(), update: (c) => c.updateAttack(), exit: (c) => c.player.combat.end() },
         cast: { enter: (c) => c.enterCast(), update: (c) => c.updateCast(), exit: (c) => c.exitCast() },
         drink: { enter: (c) => c.enterDrink(), update: (c) => c.updateDrink(), exit: (c, to) => c.exitDrink(to) },
+        interact: { enter: (c) => c.enterInteract(), update: (c) => c.updateInteract() },
         hurt: { update: (c) => c.updateHurt() },
         dead: { update: (c) => c.updateDead() },
       },
@@ -165,7 +171,7 @@ export class PlayerController {
 
   /** Clears transient state (respawn, room change, debug teleport). Permanent progression is untouched. */
   reset(): void {
-    this.coyote = this.jumpBuffer = this.dropBuffer = this.abilityBuffer = this.bottleBuffer = this.dashBuffer = this.dashCooldown = this.dashTicksLeft = 0;
+    this.coyote = this.jumpBuffer = this.dropBuffer = this.abilityBuffer = this.bottleBuffer = this.interactBuffer = this.dashBuffer = this.dashCooldown = this.dashTicksLeft = 0;
     this.dropThrough = this.jumpHeldTicks = this.airDashesUsed = this.invulnerable = this.landTicks = 0;
     this.hurtInvuln = this.flashTicks = this.hurtTicks = 0;
     this.jumping = this.jumpCut = false;
@@ -173,6 +179,7 @@ export class PlayerController {
     this.castReleased = false;
     this.bottleRequest = this.drinkSlot = -1; // a reset is not a gameplay interruption: no event
     this.drinkTicks = 0;
+    this.interactTicks = 0;
     this.player.combat.end();
     this.fsm.go('free');
     // Hard reset of the shape (respawn / room change): the spawn point is always free, so no room check.
@@ -194,6 +201,8 @@ export class PlayerController {
       this.bottleBuffer = secondsToTicks(t.abilityBuffer); // same grace as the Ability press
       this.bottleRequest = this.input.bottleSlot;
     } else if (this.bottleBuffer > 0) this.bottleBuffer--;
+    if (this.input.interactPressed) this.interactBuffer = secondsToTicks(t.abilityBuffer); // the same grace as the other presses
+    else if (this.interactBuffer > 0) this.interactBuffer--;
     if (this.input.dashPressed) this.dashBuffer = secondsToTicks(t.dash.buffer);
     else if (this.dashBuffer > 0) this.dashBuffer--;
     if (this.dashCooldown > 0) this.dashCooldown--;
@@ -289,6 +298,7 @@ export class PlayerController {
     const attacking = this.player.combat.wantsAttack;
     if (!attacking && this.abilityBuffer > 0 && this.canCast()) this.fsm.go('cast');
     else if (!attacking && this.bottleBuffer > 0 && this.canDrink()) this.fsm.go('drink');
+    else if (!attacking && this.interactBuffer > 0 && this.canInteract()) this.fsm.go('interact');
 
     // ---- dash (overrides the rest: a dash keeps whatever shape the body has) ----
     if (this.dashBuffer > 0 && this.canDash()) this.fsm.go('dash');
@@ -624,6 +634,36 @@ export class PlayerController {
     }
     this.drinkSlot = -1;
     this.drinkTicks = 0;
+  }
+
+  // -------------------------------------------------------------------------------------------- interact
+
+  /**
+   * Can the press be accepted now? Only while an object has the icon and the hero is on the ground. With nothing in reach the
+   * press does nothing (there is no refusal: the icon is the only cue); one made just before reaching it waits in the buffer.
+   */
+  private canInteract(): boolean {
+    return this.sim.interaction.current !== null && this.player.body.grounded;
+  }
+
+  /** Performs the object that has the icon (its actions run NOW) and holds the control for its lock; the hero turns to face it. */
+  private enterInteract(): void {
+    const p = this.player;
+    const def = this.sim.interaction.perform();
+    this.interactBuffer = 0;
+    this.interactTicks = def ? interactLock(def) : 0;
+    if (def && Math.abs(def.x - p.body.x) > 0.2) p.facing = def.x > p.body.x ? 1 : -1;
+    this.jumping = false;
+    this.animSerial++;
+  }
+
+  /** The pose: he stands still (the run speed bleeds off) until the lock runs out. A hit ends it at once (the actions already ran). */
+  private updateInteract(): void {
+    const b = this.player.body;
+    const t = this.tuning;
+    b.vx = approachValue(b.vx, 0, t.groundDecel * TICK_SECONDS);
+    b.vy = Math.max(b.vy - this.gravityNow() * TICK_SECONDS, -t.maxFallSpeed);
+    if (--this.interactTicks <= 0) this.fsm.go(this.postAttackState());
   }
 
   // ------------------------------------------------------------------------------------- hurt and death

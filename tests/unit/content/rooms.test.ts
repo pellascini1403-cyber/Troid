@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ENEMIES, PLAYER, ROOMS, START } from '@/content';
+import { BOTTLE_DEFINITIONS, CARDS } from '@/content/resources';
 import { CATALOGS } from '@/i18n';
 import { validateRoom } from '@/world/validateRoom';
 
@@ -7,7 +8,12 @@ import { validateRoom } from '@/world/validateRoom';
  * The integrity of the data the game ships (docs/ARCHITECTURE-2D.md §5.11: `validateContent()` at start-up and in tests).
  * A typo in a room is caught here, with the room and the thing named, not in the middle of a playthrough.
  */
-const refs = { enemies: ENEMIES, player: { halfWidth: PLAYER.body.halfWidth, height: PLAYER.body.height } };
+const refs = {
+  enemies: ENEMIES,
+  player: { halfWidth: PLAYER.body.halfWidth, height: PLAYER.body.height },
+  cards: new Set(Object.keys(CARDS)),
+  bottles: new Set(Object.keys(BOTTLE_DEFINITIONS)),
+};
 
 describe('shipped rooms', () => {
   for (const room of Object.values(ROOMS)) {

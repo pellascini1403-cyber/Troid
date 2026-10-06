@@ -1,5 +1,6 @@
 import type { Rect } from '@/core/math';
 import type { CameraConfig } from '@/camera/CameraRig';
+import type { InteractableDef } from '@/interaction/Interactable';
 
 /**
  * A room, as data. Grows phase by phase (enemies in F7, environment in F8, gates/secrets in F9…) but every
@@ -85,6 +86,8 @@ export interface RoomDefinition {
   gates?: GateDef[];
   /** Ways out of the room. */
   exits?: ExitDef[];
+  /** Things the player can interact with: pickups, levers… (docs/GAME-SPEC-2D.md §12). Rewards write world flags. */
+  interactables?: InteractableDef[];
   /** Provisional scenery behind and in front of the action (never collision): `render/backdrops` draws it. */
   art?: { backdrop: string; seed?: number };
 }

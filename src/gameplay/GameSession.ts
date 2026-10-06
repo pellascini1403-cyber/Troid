@@ -11,6 +11,7 @@ import { Rng } from '@/core/rng';
 import { Scheduler } from '@/core/scheduler';
 import { Enemy } from '@/enemies/Enemy';
 import type { EnemyDefinition } from '@/enemies/EnemyDefinition';
+import { InteractionSystem } from '@/interaction/InteractionSystem';
 import { createInputFrame, NEUTRAL_INPUT, type InputFrame } from '@/input/InputFrame';
 import { Player } from '@/player/Player';
 import type { PlayerDefinition } from '@/player/PlayerDefinition';
@@ -80,6 +81,8 @@ export class GameSession implements SimServices {
   readonly bottles: BottleSet;
   readonly loadout: CardLoadout;
   readonly skills: SkillRuntime;
+  /** What the player can interact with: the object in reach has the icon, Interact performs it (docs/GAME-SPEC-2D.md §12). */
+  readonly interaction: InteractionSystem;
   /** The defeat flow: dying → fade out → title → respawn → fade in (docs/GAME-SPEC-2D.md §9.2). */
   readonly death: DeathFlow;
   /** World memory that outlives room visits and deaths: defeated guardians, opened doors (docs/GAME-SPEC-2D.md §14.3). */
@@ -136,6 +139,20 @@ export class GameSession implements SimServices {
       const grants = change.type === 'acquired' && change.cardId ? opts.resources.cards[change.cardId]?.grantsAbility : undefined;
       if (grants) this.abilities.unlock(grants);
     });
+    this.interaction = new InteractionSystem(
+      {
+        hasFlag: (flag) => this.flags.has(flag),
+        setFlag: (flag) => void this.flags.set(flag),
+        clearFlag: (flag) => void this.flags.clear(flag),
+        acquireCard: (cardId) => this.loadout.acquire(cardId),
+        addBottleSlot: (bottleId) => this.bottles.addSlot(bottleId),
+      },
+      {
+        available: (e) => this.bus.emit('interaction:available', e),
+        lost: (e) => this.bus.emit('interaction:lost', e),
+        performed: (e) => this.bus.emit('interaction:performed', e),
+      },
+    );
     this.death = new DeathFlow(
       {
         scheduler: this.scheduler,
@@ -222,6 +239,13 @@ export class GameSession implements SimServices {
       b.fill01 = this.bottles.fill(i);
       b.iconId = this.bottles.definition(i)?.iconId ?? '';
     }
+    const notice = this.interaction.notice();
+    out.interaction.active = notice !== null;
+    out.interaction.id = notice?.id ?? '';
+    out.interaction.kind = notice?.kind ?? '';
+    out.interaction.verbKey = notice?.verbKey ?? '';
+    out.interaction.x = notice?.x ?? 0;
+    out.interaction.y = notice?.y ?? 0;
     const drink = this.player.controller.drinkProgress();
     out.drink.slot = drink.slot;
     out.drink.progress01 = drink.t;
@@ -245,6 +269,7 @@ export class GameSession implements SimServices {
     this.player.tick(this, frame); // 1
     for (const e of this.live) e.tick(this); // 2
     this.combat.resolve(); // 3
+    this.interaction.update(this.player.body.x, this.player.body.y, !this.player.health.dead); // 4 — who has the icon
     this.magic.tick(this.player.controller.casting); // 6 — resources: the magic regenerates (not while casting), the bottles recharge one at a time
     this.bottles.tick();
     this.skills.tick();
@@ -319,6 +344,7 @@ export class GameSession implements SimServices {
     this.defeatFlags.clear();
     this.gateStates.clear();
     this.exitsTouched.clear();
+    this.interaction.setRoom([]); // the icon of the old room goes away
     this.combat.clear();
     this.collision.clear();
     this.hitStopTicks = 0;
@@ -338,6 +364,7 @@ export class GameSession implements SimServices {
     this._respawnPoint = { room: room.id, entry: entry.id };
     this.placeSpawns(room);
     this.applyGates(false);
+    this.interaction.setRoom(room.interactables ?? []);
   }
 
   /**

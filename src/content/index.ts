@@ -4,6 +4,7 @@ import { ENEMIES } from './enemies';
 import { PLAYER } from './player';
 import { PROCEDURAL_LOOKS } from './proceduralActors';
 import { CROUCH_TEST_ROOM } from './rooms/crouchTest';
+import { INTERACTION_TEST_ROOM } from './rooms/interactionTest';
 import { MOVEMENT_TEST_ROOM } from './rooms/movementTest';
 import { R1_GATE_ROOM } from './rooms/r1Gate';
 import { PROCEDURAL_ATLASES, SPRITE_SETS } from './sprites';
@@ -13,6 +14,7 @@ export const ROOMS: Readonly<Record<string, RoomDefinition>> = {
   [R1_GATE_ROOM.id]: R1_GATE_ROOM,
   [MOVEMENT_TEST_ROOM.id]: MOVEMENT_TEST_ROOM,
   [CROUCH_TEST_ROOM.id]: CROUCH_TEST_ROOM,
+  [INTERACTION_TEST_ROOM.id]: INTERACTION_TEST_ROOM,
 };
 
 /**

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import type { Page } from 'playwright-core';
 import type { Scenario } from '../scenario';
+import { frames } from '../frames';
 import { centreOf, TouchScreen } from '../touch';
 
 /**
@@ -13,14 +14,6 @@ import { centreOf, TouchScreen } from '../touch';
 const sess = (page: Page, code: string): Promise<unknown> => page.evaluate(`(() => { const s = window.__troid.session; ${code} })()`);
 const attr = (page: Page, id: string, name: string): Promise<string | null> => page.locator(`[data-testid="${id}"]`).getAttribute(name);
 const spawned = async (page: Page): Promise<number> => ((await page.evaluate('window.__troid.state()')) as { vfx: { spawned: number } }).vfx.spawned;
-
-/**
- * Waits until the page is really drawing: `n` animation frames in a row. The first frames after a change can be very slow with
- * software GL (a long first draw), and the HUD plays its short transients in real time: an event that lands in the middle of
- * such a frame would be over before the next one.
- */
-const frames = (page: Page, n = 8): Promise<unknown> =>
-  page.evaluate(`new Promise((resolve) => { let k = 0; const f = () => (++k >= ${n} ? resolve(true) : requestAnimationFrame(f)); requestAnimationFrame(f); })`);
 
 /**
  * A shake lasts 0.28 s of REAL time and the HUD plays it frame by frame, so a poll can miss it when the browser has one slow

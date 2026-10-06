@@ -6,6 +6,7 @@ import {
   computeWorldTransform,
   createWorldTransform,
   parallaxOffset,
+  worldToScreen,
   type CameraCentre,
   type CameraShake,
   type WorldTransform,
@@ -127,6 +128,11 @@ export class Renderer2D {
     place(backdropMid, PARALLAX_FACTOR.backdropMid);
     place(backdropNear, PARALLAX_FACTOR.backdropNear);
     place(foreground, PARALLAX_FACTOR.foreground);
+  }
+
+  /** Where a point of the world is on screen, in CSS px, with the camera of the LAST `applyCamera` (DOM that follows an object). */
+  worldToScreen(x: number, y: number, out: { x: number; y: number } = { x: 0, y: 0 }): { x: number; y: number } {
+    return worldToScreen(this.transform, x, y, out);
   }
 
   /** One call per frame, from OUR loop. */

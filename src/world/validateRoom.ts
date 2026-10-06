@@ -1,4 +1,5 @@
 import { overlaps, type Rect } from '@/core/math';
+import { MAX_INTERACT_LOCK } from '@/interaction/Interactable';
 import type { RoomDefinition } from './RoomDefinition';
 
 /**
@@ -21,6 +22,9 @@ export interface RoomRefs {
   externalFlags?: ReadonlySet<string>;
   /** The player's standing body (default 0.35 × 1.7 m). */
   player?: { halfWidth: number; height: number };
+  /** The ids of the cards and of the bottles an interactable may hand out (when given, an unknown one is an issue). */
+  cards?: ReadonlySet<string>;
+  bottles?: ReadonlySet<string>;
 }
 
 const SUPPORT_TOLERANCE = 0.05;
@@ -48,6 +52,7 @@ export function validateRoom(room: RoomDefinition, refs: RoomRefs): RoomIssue[] 
   unique('spawn', (room.spawns ?? []).map((s) => s.id));
   unique('gate', (room.gates ?? []).map((g) => g.id));
   unique('exit', (room.exits ?? []).map((e) => e.id));
+  unique('interactable', (room.interactables ?? []).map((i) => i.id));
   for (const s of room.solids) if (!validRect(s.rect)) add('bad-solid', `solid "${s.id}" is not a valid rectangle`);
 
   const solids = room.solids.filter((s) => (s.kind ?? 'solid') === 'solid');
@@ -87,8 +92,32 @@ export function validateRoom(room: RoomDefinition, refs: RoomRefs): RoomIssue[] 
   for (const g of room.gates ?? []) {
     if (!solidIds.has(g.solid)) add('gate-solid', `gate "${g.id}" points at the solid "${g.solid}", which does not exist`);
     if (g.openWhen === '') add('empty-flag', `gate "${g.id}" opens with an empty flag`);
-    else if (!gateFlags.has(g.openWhen) && !refs.externalFlags?.has(g.openWhen)) {
-      add('gate-flag', `gate "${g.id}" opens with "${g.openWhen}", which nothing sets (no spawn of the room defeats into it)`);
+  }
+
+  for (const i of room.interactables ?? []) {
+    if (!Number.isFinite(i.x) || !Number.isFinite(i.y) || !inBounds(i.x, i.y)) add('interactable-outside', `interactable "${i.id}" is outside the room bounds`);
+    else if (!supported(i.x, i.y, 0.2)) add('interactable-floating', `interactable "${i.id}" has no floor under it`);
+    if (i.verbKey === '') add('interactable-verb', `interactable "${i.id}" has no verb key`);
+    if (i.reach && !(i.reach.x > 0 && i.reach.y > 0 && Number.isFinite(i.reach.x) && Number.isFinite(i.reach.y))) add('interactable-reach', `interactable "${i.id}" has a reach that is not positive`);
+    if (i.lock !== undefined && !(Number.isInteger(i.lock) && i.lock >= 0 && i.lock <= MAX_INTERACT_LOCK)) {
+      add('interactable-lock', `interactable "${i.id}" holds the control for ${i.lock} ticks (0 … ${MAX_INTERACT_LOCK})`);
+    }
+    for (const f of [i.whenSet, i.whenClear]) if (f === '') add('empty-flag', `interactable "${i.id}" has an empty flag`);
+    if (i.actions.length === 0) add('interactable-actions', `interactable "${i.id}" does nothing`);
+    for (const a of i.actions) {
+      if (a.type === 'acquireCard' && refs.cards && !refs.cards.has(a.cardId)) add('unknown-card', `interactable "${i.id}" gives the unknown card "${a.cardId}"`);
+      else if (a.type === 'addBottleSlot' && refs.bottles && !refs.bottles.has(a.bottleId)) add('unknown-bottle', `interactable "${i.id}" gives the unknown bottle "${a.bottleId}"`);
+      else if (a.type === 'setFlag' || a.type === 'clearFlag') {
+        if (a.flag === '') add('empty-flag', `interactable "${i.id}" has an action with an empty flag`);
+        else if (a.type === 'setFlag') gateFlags.add(a.flag); // a lever may open a door of the room
+      }
+    }
+  }
+
+  // a door may open with a flag that something in the room sets: a guardian's defeat, a lever
+  for (const g of room.gates ?? []) {
+    if (g.openWhen !== '' && !gateFlags.has(g.openWhen) && !refs.externalFlags?.has(g.openWhen)) {
+      add('gate-flag', `gate "${g.id}" opens with "${g.openWhen}", which nothing sets (no spawn of the room defeats into it, no lever sets it)`);
     }
   }
 

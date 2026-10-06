@@ -70,6 +70,20 @@ export function parallaxOffset(pivot: number, factor: number, devicePixelsPerMet
   return snapToPixel((1 - factor) * pivot, devicePixelsPerMetre);
 }
 
+/**
+ * Where a point of the world (metres, +Y up) is on screen, in CSS px: the same transform the `world` container applies (scale,
+ * pivot, roll and position), so a piece of DOM can follow something in the world. `out` is reused (no allocation per frame).
+ */
+export function worldToScreen(t: Readonly<WorldTransform>, x: number, y: number, out: { x: number; y: number } = { x: 0, y: 0 }): { x: number; y: number } {
+  const dx = (x - t.pivotX) * t.scale;
+  const dy = (viewY(y) - t.pivotY) * t.scale;
+  const c = Math.cos(t.rotation);
+  const s = Math.sin(t.rotation);
+  out.x = t.posX + dx * c - dy * s;
+  out.y = t.posY + dx * s + dy * c;
+  return out;
+}
+
 /** View-space Y for a simulation Y (the single place where the Y flip is defined). */
 export function viewY(simY: number): number {
   return -simY;

@@ -14,6 +14,8 @@ import type { RoomDefinition } from '@/world/RoomDefinition';
  * Every size comes from the MEASURED reach of the controller (tests/integration/movement.test.ts): a running jump clears
  * ≈ 6.75 m of gap and 3.1 m of height, the crouched body is 1.0 m tall, and the slime's lunge covers ≈ 1.5 m. The room is
  * proven completable by physics in tests/integration/r1.test.ts: a scripted player walks it from the entrance to the exit.
+ *
+ * A pickup (the Spirit Bolt card, provisional) waits at the end of the crawl tunnel: the first thing the player can INTERACT with.
  */
 export const R1_GATE_ROOM: RoomDefinition = {
   id: 'r1_gate',
@@ -51,5 +53,22 @@ export const R1_GATE_ROOM: RoomDefinition = {
   spawns: [{ id: 'slime_1', enemy: 'ink_slime', x: 96, y: 0, facing: -1, defeatFlag: 'defeated:r1_slime' }],
   gates: [{ id: 'exit_door', solid: 'gate_door', openWhen: 'defeated:r1_slime' }],
   exits: [{ id: 'east', rect: rect(107, 0, 111, 4) }],
+  // PROVISIONAL (Prompt 5): the Spirit Bolt card lies at the end of the crawl tunnel, so the first room already shows the whole
+  // loop — interact, equip, cast. docs/GAME-SPEC-2D.md §14.4 puts it in R3; Prompt 6 moves it there. It is optional: nothing on
+  // the way to the exit needs it, and once taken (flag) it never appears again, not even after a death.
+  interactables: [
+    {
+      id: 'card_spirit_bolt',
+      kind: 'pickup',
+      verbKey: 'interact.pickUp',
+      x: 74.5,
+      y: 0,
+      whenClear: 'taken:card_spirit_bolt',
+      actions: [
+        { type: 'acquireCard', cardId: 'card_spirit_bolt' },
+        { type: 'setFlag', flag: 'taken:card_spirit_bolt' },
+      ],
+    },
+  ],
   art: { backdrop: 'ruins', seed: 1 },
 };

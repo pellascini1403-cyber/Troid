@@ -15,5 +15,8 @@
   "hud.cardEmpty": "No ability equipped",
   "hud.bottleReady": "Bottle {number}: ready",
   "hud.bottleRecharging": "Bottle {number}: recharging",
-  "hud.bottleEmpty": "Bottle {number}: empty"
+  "hud.bottleEmpty": "Bottle {number}: empty",
+  "interact.pickUp": "Pick up",
+  "interact.activate": "Activate",
+  "interact.open": "Open"
 }

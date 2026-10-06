@@ -90,3 +90,48 @@ describe('validateRoom', () => {
     expect(codes(room({ solids: [{ id: 'x', rect: { x0: 3, y0: 0, x1: 1, y1: 2 } }, ground('g', 0, 60)] }))).toContain('bad-solid');
   });
 });
+
+describe('validateRoom: interactables', () => {
+  const pickup = (patch: Partial<NonNullable<RoomDefinition['interactables']>[number]> = {}): NonNullable<RoomDefinition['interactables']>[number] => ({
+    id: 'p', kind: 'pickup', verbKey: 'interact.pickUp', x: 10, y: 0, actions: [{ type: 'acquireCard', cardId: 'card_a' }, { type: 'setFlag', flag: 'taken:p' }], ...patch,
+  });
+  const withCards: Partial<RoomRefs> = { cards: new Set(['card_a']), bottles: new Set(['bottle_a']) };
+
+  it('a sound interactable has no issues', () => {
+    expect(codes(room({ interactables: [pickup()] }), withCards)).toEqual([]);
+  });
+
+  it('ids are unique, and the object stands inside the room on something', () => {
+    expect(codes(room({ interactables: [pickup(), pickup()] }), withCards)).toContain('duplicate-id');
+    expect(codes(room({ interactables: [pickup({ x: 500 })] }), withCards)).toContain('interactable-outside');
+    expect(codes(room({ interactables: [pickup({ y: 6 })] }), withCards)).toContain('interactable-floating');
+  });
+
+  it('a verb key, a positive reach, a lock of 0…12 ticks and at least one action are required', () => {
+    expect(codes(room({ interactables: [pickup({ verbKey: '' })] }), withCards)).toContain('interactable-verb');
+    expect(codes(room({ interactables: [pickup({ reach: { x: 0, y: 1 } })] }), withCards)).toContain('interactable-reach');
+    expect(codes(room({ interactables: [pickup({ lock: 13 })] }), withCards)).toContain('interactable-lock');
+    expect(codes(room({ interactables: [pickup({ lock: 3.5 })] }), withCards)).toContain('interactable-lock');
+    expect(codes(room({ interactables: [pickup({ lock: 12 })] }), withCards)).toEqual([]);
+    expect(codes(room({ interactables: [pickup({ actions: [] })] }), withCards)).toContain('interactable-actions');
+  });
+
+  it('a card or a bottle it hands out must exist (when the references are given)', () => {
+    expect(codes(room({ interactables: [pickup({ actions: [{ type: 'acquireCard', cardId: 'card_typo' }] })] }), withCards)).toContain('unknown-card');
+    expect(codes(room({ interactables: [pickup({ actions: [{ type: 'addBottleSlot', bottleId: 'bottle_typo' }] })] }), withCards)).toContain('unknown-bottle');
+    expect(codes(room({ interactables: [pickup({ actions: [{ type: 'acquireCard', cardId: 'anything' }] })] }))).toEqual([]); // no references given: not checked
+  });
+
+  it('flags may not be empty', () => {
+    expect(codes(room({ interactables: [pickup({ whenClear: '' })] }), withCards)).toContain('empty-flag');
+    expect(codes(room({ interactables: [pickup({ actions: [{ type: 'setFlag', flag: '' }] })] }), withCards)).toContain('empty-flag');
+  });
+
+  it('a lever may open a door of its room: the flag it sets counts as something that sets it', () => {
+    const door = { gates: [{ id: 'g1', solid: 'door', openWhen: 'lever:on' }] };
+    expect(codes(room({ ...door }))).toContain('gate-flag');
+    const lever = pickup({ id: 'lever', kind: 'activate', actions: [{ type: 'setFlag', flag: 'lever:on' }] });
+    expect(codes(room({ ...door, spawns: [], interactables: [lever] }), withCards)).toEqual([]);
+  });
+});
+

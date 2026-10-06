@@ -1,6 +1,8 @@
+// @vitest-environment happy-dom
+import { Container } from 'pixi.js';
 import { describe, expect, it } from 'vitest';
 import { computeViewport } from '@/presentation/viewport';
-import { computeWorldTransform, parallaxOffset, snapToPixel, viewY } from '@/presentation/worldTransform';
+import { computeWorldTransform, createWorldTransform, parallaxOffset, snapToPixel, viewY, worldToScreen } from '@/presentation/worldTransform';
 
 const layout = computeViewport({ cssWidth: 1920, cssHeight: 1080, dpr: 1, resolutionCap: 2, viewHeight: 13.5 });
 const calm = { x: 0, y: 0, rollRad: 0 };
@@ -73,3 +75,47 @@ describe('worldTransform: parallax', () => {
     expect(snapToPixel(-1.236, 100)).toBeCloseTo(-1.24, 9);
   });
 });
+
+describe('worldToScreen: a point of the world on the screen (DOM that follows an object)', () => {
+  it('agrees with the container the renderer builds from the same transform — scale, pivot, position AND roll', () => {
+    const cases = [
+      { centre: { x: 37.25, y: 4.5 }, shake: calm },
+      { centre: { x: 10, y: 2 }, shake: { x: 0.12, y: -0.08, rollRad: 0.03 } },
+      { centre: { x: 74.5, y: 1.2 }, shake: { x: 0, y: 0, rollRad: -0.05 } },
+    ];
+    for (const c of cases) {
+      const t = computeWorldTransform(c.centre, c.shake, layout, true);
+      const world = new Container();
+      world.scale.set(t.scale);
+      world.position.set(t.posX, t.posY);
+      world.pivot.set(t.pivotX, t.pivotY);
+      world.rotation = t.rotation;
+      for (const [x, y] of [[0, 0], [37, 3], [74.5, 1.4], [-5, -2]] as const) {
+        const child = new Container();
+        child.position.set(x, viewY(y));
+        world.addChild(child);
+        const expected = child.toGlobal({ x: 0, y: 0 });
+        const got = worldToScreen(t, x, y);
+        expect(got.x).toBeCloseTo(expected.x, 6);
+        expect(got.y).toBeCloseTo(expected.y, 6);
+      }
+    }
+  });
+
+  it('the camera centre is the centre of the game area, up is up, and one metre is `ppm` px', () => {
+    const t = computeWorldTransform({ x: 8, y: 2 }, calm, layout, false);
+    const mid = worldToScreen(t, 8, 2);
+    expect([mid.x, mid.y]).toEqual([layout.contentX + layout.contentWidth / 2, layout.contentY + layout.contentHeight / 2].map((v) => expect.closeTo(v, 6)));
+    const up = worldToScreen(t, 8, 3);
+    expect(up.y).toBeCloseTo(mid.y - layout.ppm, 6);
+    const right = worldToScreen(t, 9, 2);
+    expect(right.x).toBeCloseTo(mid.x + layout.ppm, 6);
+  });
+
+  it('reuses the output object it is given (no allocation per frame)', () => {
+    const out = { x: 0, y: 0 };
+    const r = worldToScreen(createWorldTransform(), 1, 1, out);
+    expect(r).toBe(out);
+  });
+});
+

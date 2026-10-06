@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { INTERACTION_TEST_ROOM } from '@/content/rooms/interactionTest';
 import { makeSession } from '../helpers/sim';
 import { TouchRig } from '../helpers/touch';
 import { DEFAULT_MOVEMENT } from '@/player/MovementTuning';
@@ -234,6 +235,80 @@ describe('buttons and the movement finger together', () => {
     s.rig.finger(1).down('ability', 640, 250).up();
     s.rig.step(20);
     expect([s.body.x, s.body.y, s.p.controller.state]).toEqual(before);
+  });
+});
+
+describe('the contextual controls: the interaction icon and the bottles', () => {
+  function inRoom() {
+    const session = makeSession({ room: INTERACTION_TEST_ROOM, unlocked: ['dash'] });
+    const rig = new TouchRig(session);
+    rig.step(20);
+    return { session, rig, p: session.player };
+  }
+  const standAt = (s: ReturnType<typeof inRoom>, x: number): void => {
+    s.session.player.respawn(x, 0, 1);
+    s.session.collision.probeGround(s.p.body);
+    s.rig.step(3);
+  };
+
+  it('a tap on the interaction icon performs the object that has it (the card is taken)', () => {
+    const s = inRoom();
+    standAt(s, 11);
+    expect(s.session.interaction.current?.id).toBe('card_spirit_bolt');
+    s.rig.finger(1).down('interact', 400, 200).up();
+    s.rig.step(2);
+    expect(s.p.controller.state).toBe('interact');
+    expect(s.session.loadout.equipped?.id).toBe('card_spirit_bolt');
+    expect(s.session.flags.has('taken:card_spirit_bolt')).toBe(true);
+  });
+
+  it('with nothing in reach the icon does not exist, and a tap that somehow lands on it does nothing', () => {
+    const s = inRoom();
+    standAt(s, 4);
+    expect(s.session.interaction.current).toBeNull();
+    s.rig.finger(1).down('interact', 400, 200).up();
+    s.rig.step(30);
+    expect(s.p.controller.state).toBe('free');
+    expect(s.session.loadout.equipped).toBeNull();
+  });
+
+  it('move + interact: the icon works while the other thumb is dragging, and neither disturbs the other', () => {
+    const s = inRoom();
+    standAt(s, 11);
+    const m = s.rig.finger(1).down('zone', ZONE.x, ZONE.y).drag(4, 0, 2); // a drag inside the dead zone: the hero stays
+    s.rig.finger(2).down('interact', 400, 200).up();
+    s.rig.step(2);
+    expect(s.p.controller.state).toBe('interact');
+    expect(s.rig.frame().move.x).toBe(0);
+    m.up();
+  });
+
+  it('the bottle chip drinks the next ready bottle and a HUD icon drinks its own, through the same touch source', () => {
+    const s = inRoom();
+    standAt(s, 4);
+    s.p.health.damage(3);
+    s.rig.finger(1).down('bottle', 760, 150).up();
+    s.rig.step(1);
+    expect(s.p.controller.state).toBe('drink');
+    s.rig.step(24);
+    expect(s.p.health.current).toBe(4);
+    expect(s.session.bottles.slots.map((b) => b.state)).toEqual(['recharging', 'ready', 'ready']);
+    s.p.health.damage(2);
+    s.rig.finger(2).down('bottle:2', 150, 70).up();
+    s.rig.step(25);
+    expect(s.session.bottles.slots.map((b) => b.state)).toEqual(['recharging', 'ready', 'empty']);
+    expect(s.p.health.current).toBe(4);
+  });
+
+  it('a second finger on the icon while one holds it is ignored: one press, one interaction', () => {
+    const s = inRoom();
+    standAt(s, 29);
+    const a = s.rig.finger(1).down('interact', 400, 200);
+    s.rig.finger(2).down('interact', 405, 205).up();
+    a.up();
+    s.rig.step(2);
+    expect(s.session.flags.has('lever:interaction_test')).toBe(true);
+    expect(s.session.entities.length).toBe(0);
   });
 });
 

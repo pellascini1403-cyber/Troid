@@ -6,6 +6,7 @@ import type { CombatSystem } from '@/combat/CombatSystem';
 import type { Health } from '@/combat/Health';
 import type { EventBus } from '@/core/events';
 import type { Rng } from '@/core/rng';
+import type { InteractionSystem } from '@/interaction/InteractionSystem';
 import type { Scheduler } from '@/core/scheduler';
 import type { AbilitySystem } from '@/progression/AbilitySystem';
 import type { CollisionWorld, KinematicBody } from '@/world/collision';
@@ -38,6 +39,8 @@ export interface SimServices {
   readonly loadout: CardLoadout;
   /** The active skills: their definitions and what they are waiting for (cooldowns). */
   readonly skills: SkillRuntime;
+  /** What the player can interact with right now (docs/GAME-SPEC-2D.md §12): the controller asks it, the interface listens to its events. */
+  readonly interaction: InteractionSystem;
   readonly player: PlayerTarget;
   /** Number of simulation ticks elapsed (frozen while hit-stop holds the world still). */
   readonly now: number;

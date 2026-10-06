@@ -12,6 +12,17 @@ export interface CardStatus {
   cooldown01: number;
 }
 
+/** The object that has the interaction icon right now (or none): its icon floats at `(x, y)`, world metres. */
+export interface InteractionStatus {
+  active: boolean;
+  id: string;
+  kind: string;
+  /** Text key of the verb, for the icon's accessible name. */
+  verbKey: string;
+  x: number;
+  y: number;
+}
+
 export interface BottleStatus {
   state: BottleState;
   /** 0 … 1: 1 when ready, the recharge progress while recharging. */
@@ -31,6 +42,7 @@ export interface PlayerStatus {
   bottles: BottleStatus[];
   /** The bottle being drunk right now (`slot` −1 = none) and how far through its channel the hero is, 0 … 1: that vial drains meanwhile. */
   drink: { slot: number; progress01: number };
+  interaction: InteractionStatus;
   /** A bottle is ready AND drinking it would help now (life below the maximum): the contextual chip of the touch controls shows. */
   bottleUseful: boolean;
 }
@@ -42,6 +54,7 @@ export function createPlayerStatus(): PlayerStatus {
     card: { equipped: false, id: '', nameKey: '', iconId: '', state: 'ready', cooldown01: 0 },
     bottles: [],
     drink: { slot: -1, progress01: 0 },
+    interaction: { active: false, id: '', kind: '', verbKey: '', x: 0, y: 0 },
     bottleUseful: false,
   };
 }
