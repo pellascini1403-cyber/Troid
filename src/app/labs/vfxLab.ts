@@ -5,6 +5,7 @@ import { createVfxAtlas } from '@/assets/vfxAtlas';
 import { PLAYER_ATTACKS } from '@/content/attacks';
 import { PLAYER_PLACEHOLDER } from '@/content/placeholders/playerPlaceholder';
 import { PROCEDURAL_ATLASES } from '@/content';
+import { SKILLS, SPIRIT_BOLT } from '@/content/skills';
 import { VFX, VFX_BINDINGS } from '@/content/vfx';
 import { EventBus } from '@/core/events';
 import { DrawCallCounter } from '@/debug/DrawCallCounter';
@@ -25,7 +26,7 @@ import { VfxSystem } from '@/vfx/VfxSystem';
  *
  *   ?vh=8 visible height in metres (smaller = zoom in) · ?manual=1  · ?cycle=0 (no auto-play) · ?accent=1 (the optional warm accent ON, to compare) · ?tier=low|medium|high
  */
-const TRIGGERS: readonly VfxTrigger[] = ['slash', 'slashFinisher', 'hitLanded', 'playerHurt', 'dashStart', 'enemyDied', 'enemyTelegraph', 'playerDied'];
+const TRIGGERS: readonly VfxTrigger[] = ['slash', 'slashFinisher', 'hitLanded', 'playerHurt', 'dashStart', 'enemyDied', 'enemyTelegraph', 'playerDied', 'boltCast', 'boltImpact', 'boltEnd'];
 
 export async function startVfxLab(host: HTMLElement, params: URLSearchParams): Promise<void> {
   const manual = params.get('manual') === '1';
@@ -67,7 +68,7 @@ export async function startVfxLab(host: HTMLElement, params: URLSearchParams): P
   vfx.prewarm();
   const bus = new EventBus<GameEvents>();
   const body = { x: -1.6, y: 0 };
-  const director = new VfxDirector(bus, vfx, VFX_BINDINGS, VFX, () => ({ x: body.x, y: body.y }));
+  const director = new VfxDirector(bus, vfx, VFX_BINDINGS, VFX, () => ({ x: body.x, y: body.y }), new Set(Object.keys(SKILLS)));
 
   const hitRect = { x0: -1.4, y0: 0.3, x1: 0.2, y1: 1.4 };
   const fire = (trigger: VfxTrigger): void => {
@@ -98,6 +99,15 @@ export async function startVfxLab(host: HTMLElement, params: URLSearchParams): P
         break;
       case 'playerDied':
         bus.emit('player:died', { x: -1.6, y: 0 });
+        break;
+      case 'boltCast':
+        bus.emit('skill:cast', { skillId: SPIRIT_BOLT.id, x: -1.6 + SPIRIT_BOLT.projectile.muzzle.x, y: SPIRIT_BOLT.projectile.muzzle.y, facing: 1, cost: SPIRIT_BOLT.cost });
+        break;
+      case 'boltImpact':
+        bus.emit('combat:hit', { attackId: SPIRIT_BOLT.id, attackerId: 'p', targetId: 'd', targetTeam: 'enemy', damage: SPIRIT_BOLT.projectile.damage, x: -0.2, y: 0.9, direction: 1, killed: false, hitStop: SPIRIT_BOLT.projectile.hitStop, shake: SPIRIT_BOLT.projectile.shake });
+        break;
+      case 'boltEnd':
+        bus.emit('projectile:ended', { id: 'lab_bolt', skillId: SPIRIT_BOLT.id, x: 0.3, y: 1, facing: 1, reason: 'range' });
         break;
       default:
         break;

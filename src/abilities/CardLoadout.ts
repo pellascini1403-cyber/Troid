@@ -8,6 +8,8 @@ export interface CardDefinition {
   iconId: string;
   /** The skill the Ability button runs while this card is equipped (`SkillDefinition.id`). */
   skillId: string;
+  /** The ability (`AbilitySystem` id) the player learns the moment the card is acquired, if any. */
+  grantsAbility?: string;
 }
 
 export interface CardChange {

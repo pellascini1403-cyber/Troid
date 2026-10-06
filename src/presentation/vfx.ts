@@ -127,7 +127,10 @@ export type VfxTrigger =
   | 'dashTrail'
   | 'enemyDied'
   | 'enemyTelegraph'
-  | 'playerDied';
+  | 'playerDied'
+  | 'boltCast'
+  | 'boltImpact'
+  | 'boltEnd';
 
 export type VfxBindings = Readonly<Record<VfxTrigger, readonly string[]>>;
 

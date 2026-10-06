@@ -45,6 +45,8 @@ export interface MovementTuning {
    * platform, so it is kept short: long enough to survive the gap between two ticks, too short to fire on the next platform.
    */
   dropBuffer: number;
+  /** Seconds an Ability press is remembered (a press during the cooldown of the last cast, or while attacking, still counts). */
+  abilityBuffer: number;
   /** Landing faster than this (m/s) plays the landing animation / emits an impact. */
   landImpactSpeed: number;
 
@@ -105,6 +107,7 @@ export const DEFAULT_MOVEMENT: MovementTuning = {
   coyoteTime: 0.1,
   jumpBuffer: 0.12,
   dropBuffer: 0.08,
+  abilityBuffer: 0.12,
   landImpactSpeed: 9,
 
   dash: {

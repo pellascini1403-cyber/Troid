@@ -1,6 +1,7 @@
 import type { BottleSet } from '@/abilities/BottleSet';
 import type { CardLoadout } from '@/abilities/CardLoadout';
 import type { Magic } from '@/abilities/Magic';
+import type { SkillRuntime } from '@/abilities/SkillRuntime';
 import type { CombatSystem } from '@/combat/CombatSystem';
 import type { Health } from '@/combat/Health';
 import type { EventBus } from '@/core/events';
@@ -35,11 +36,15 @@ export interface SimServices {
   readonly magic: Magic;
   readonly bottles: BottleSet;
   readonly loadout: CardLoadout;
+  /** The active skills: their definitions and what they are waiting for (cooldowns). */
+  readonly skills: SkillRuntime;
   readonly player: PlayerTarget;
   /** Number of simulation ticks elapsed (frozen while hit-stop holds the world still). */
   readonly now: number;
   /** Debug switch: the player cannot be damaged. */
   readonly godMode: boolean;
+  /** A fresh id for something the simulation creates (`bolt_3`): ids are unique and deterministic within a session. */
+  newId(prefix: string): string;
   /** Adds an entity to the world. It joins at the END of the current tick (nothing is added while others iterate). */
   spawn<T extends SimEntity>(entity: T): T;
   despawn(entity: SimEntity): void;

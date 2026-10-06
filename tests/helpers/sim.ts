@@ -3,6 +3,7 @@ import { GameSession, type SessionOptions } from '@/gameplay/GameSession';
 import { ABILITIES } from '@/content/abilities';
 import { ENEMIES } from '@/content/enemies';
 import { BOTTLE_DEFINITIONS, BOTTLES, CARDS, MAGIC } from '@/content/resources';
+import { SKILLS } from '@/content/skills';
 import { PLAYER } from '@/content/player';
 import { MOVEMENT_TEST_ROOM } from '@/content/rooms/movementTest';
 import type { RoomDefinition } from '@/world/RoomDefinition';
@@ -28,7 +29,7 @@ export function makeSession(opts: MakeOptions = {}): GameSession {
     rooms: { [room.id]: room },
     player: PLAYER,
     abilities: ABILITIES,
-    resources: { magic: MAGIC, bottles: { definitions: BOTTLE_DEFINITIONS, initial: BOTTLES.initial, rules: BOTTLES.rules }, cards: CARDS },
+    resources: { magic: MAGIC, bottles: { definitions: BOTTLE_DEFINITIONS, initial: BOTTLES.initial, rules: BOTTLES.rules }, cards: CARDS, skills: SKILLS },
     startRoom: room.id,
     startEntry: opts.entry,
     seed: opts.seed ?? 1,

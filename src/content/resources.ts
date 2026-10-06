@@ -18,5 +18,5 @@ export const BOTTLES: { initial: readonly string[]; rules: BottleRules } = {
 
 /** The cards of the first slice: one, which equips the Spirit Bolt. The hero starts WITHOUT any card (no initial ability). */
 export const CARDS: Readonly<Record<string, CardDefinition>> = {
-  card_spirit_bolt: { id: 'card_spirit_bolt', nameKey: 'card.spiritBolt.name', iconId: 'spirit_bolt', skillId: 'spirit_bolt' },
+  card_spirit_bolt: { id: 'card_spirit_bolt', nameKey: 'card.spiritBolt.name', iconId: 'spirit_bolt', skillId: 'spirit_bolt', grantsAbility: 'magic_attack' },
 };

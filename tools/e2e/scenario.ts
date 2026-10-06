@@ -52,6 +52,11 @@ export interface GameState {
   lang?: string;
   /** 2D view only: the device the player used last (keyboard / touch / gamepad). */
   device?: string;
+  /** 2D view only: the magic, the equipped card, the state of each bottle and the projectiles in flight. */
+  magic?: number;
+  card?: string | null;
+  bottles?: string[];
+  projectiles?: Array<{ id: string; x: number; y: number; facing: number }>;
   respawnPoint?: { room: string; entry: string };
   /** 2D view only: VFX counters. */
   vfx?: { particles: number; sprites: number; spawned: number; dropped: number; peakParticles: number; poolCreated: number };

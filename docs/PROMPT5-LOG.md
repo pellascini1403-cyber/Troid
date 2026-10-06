@@ -11,7 +11,7 @@
 | **S12** baseline y revisión del bundle | ✅ | (ver historial) |
 | **S13** input unificado (4 commits: contrato, gestos, gamepad, capa DOM + E2E) | ✅ | (ver historial) |
 | **S14** HUD (DOM) y los recursos que muestra (2 commits: recursos, HUD) | ✅ | (ver historial) |
-| **S15** magia y Spirit Bolt | ⏳ | |
+| **S15** magia y Spirit Bolt | ✅ | (ver historial) |
 | **S16** cartas y botellas | ⏳ | |
 | **S17** interacción contextual | ⏳ | |
 | **S18** idioma persistente | ⏳ | |
@@ -196,3 +196,60 @@ Nuevos: magia (17) · botellas (18) · cartas (9) · recursos en la sesión (18)
 ### 4. Bundle tras S14
 
 Arranque en frío de R1: **190.3 KB gz** (184.7 → 190.3, +5.6 KB: recursos, estado, modelo + vista + CSS del HUD, claves). Margen frente a 200 KB: **9.7 KB**, con S15–S18 por venir: si se agota, las opciones ya medidas siguen siendo cargar bajo demanda el panel de depuración (≈ 3–4 KB gz) y la pantalla de ajustes (nueva), sin recortar funcionalidad.
+
+
+---
+
+## S15 — Magia y Spirit Bolt ✅
+
+La magia (0–100, 6/s tras 1.0 s, gasto exacto) ya existía como recurso (S14a). S15 le da **su primer uso**: la habilidad activa **Spirit Bolt**, el estado de lanzamiento del jugador, su proyectil y su aspecto. Solo existe **esta** habilidad (no hay arsenal).
+
+### 1. La habilidad como dato y su memoria
+
+- **`abilities/SkillDefinition`** (`content/skills.ts`): coste **30** (tres lanzamientos seguidos desde la barra llena, 90 ≤ 100 < 120), enfriamiento **0.3 s** tras el lanzamiento, **6 ticks** de preparación y **8** de recuperación con **40 %** de control, proyectil a **16 m/s**, alcance **12 m**, daño **2**, sin perforar, empuje **(6, 2)**, *hit-stop* **3**. Todo de GAME-SPEC-2D §10.1, nada en el código.
+- **`abilities/SkillRuntime`** (puro): enfriamientos en ticks (los congela el *hit-stop*) y **la** pregunta «¿se puede lanzar ahora?» (`ok · noSkill · cooldown · noMagic`) que comparten el jugador, la carta del HUD (se apaga sin magia, barre el enfriamiento) y el botón de Habilidad.
+- **Carta → habilidad:** `CardDefinition.skillId` (la carta equipada decide qué ejecuta Habilidad, **nunca un id fijo**) y `grantsAbility`: al **adquirir** la carta, `AbilitySystem` concede `magic_attack` (la progresión sigue siendo de `AbilitySystem`; la carta es la forma de equiparla). **R25 corregido:** `magic_attack` estaba marcado `implemented: true` sin comportamiento; ahora es verdad.
+
+### 2. El lanzamiento (estado `cast` del jugador)
+
+`PlayerController` gana el estado `cast` (prioridad: muerto > herido > dash > ataque > **lanzar** > agacharse > libre; `free`, `crouch` y `dash` no cambian: los 40 tests de movimiento lo prueban). Reglas:
+
+- **Sin carta equipada, Ability no es una acción**: no hay estado, ni coste, ni evento de rechazo, ni botón (no se dibuja). Con carta y magia < 30: **rechazo** (`skill:denied`, una vez por pulsación, no una por tick del buffer) y la barra y la carta se **sacuden**; un enfriamiento **no** rechaza: la pulsación espera (buffer de 0.12 s).
+- **El coste se paga en la LIBERACIÓN**, no al pulsar: un golpe durante los 6 ticks de preparación cancela el lanzamiento **sin coste ni enfriamiento** (igual que una botella interrumpida no se consume). Un golpe durante la recuperación no «devuelve» el proyectil.
+- Preparación 6 ticks → **liberación** (gasta exactamente 30, empieza el enfriamiento, nace el proyectil, `skill:cast`) → recuperación 8 → libre: **14 ticks** en total. El *dash* puede cancelar la **recuperación** (nunca la preparación), como con el ataque. Se puede lanzar en el aire y agachado (el proyectil sale más bajo).
+- **La magia no se regenera mientras se lanza** (`magic.tick(casting)`) y el segundo de espera cuenta desde que termina el lanzamiento. Una derrota limpia el enfriamiento.
+- Animación: `cast` con fases (preparación · liberación · recuperación). **El *placeholder* no gana ningún fotograma**: su clip `cast` apunta a las poses de espada ya existentes (`attack2`), de modo que reproducirlo no cae en el *fallback* (que escribe un aviso en consola cada vez). El protagonista sigue siendo la cápsula abstracta.
+
+### 3. El proyectil (`gameplay/Projectile`, `SimEntity`)
+
+Vuela recto 16 m/s (`⅓·0.8 m/tick`) contando **ticks enteros** (45 ticks = 12 m, sin acumular decimales), envía su área de golpe al sistema de combate en cada tick y **termina** en lo primero que daña (**no perfora**), en una pared (barrido del área que cubre ese tick: no hay *tunneling*), o al final del alcance; atraviesa las plataformas *one-way* (son suelos, no paredes); golpea también a neutrales (muros rompibles, interruptores) y nunca al héroe. Anuncia cómo acabó (`projectile:ended`: `hit · wall · range`) — **un cambio de sala bajo un proyectil en vuelo lo retira sin anunciar nada**. Si el cañón nace dentro de una pared, el lanzamiento se paga y el proyectil se apaga al instante (es el error del jugador, no un lanzamiento gratis).
+
+### 4. Aspecto (cian con núcleo blanco)
+
+- **VFX como datos** (`content/vfx.ts`, paleta *energy*, sin acento cálido ni violeta): `bolt_muzzle_flash` + `bolt_muzzle_sparks` (al salir), `bolt_impact_burst` + `bolt_impact_flash` + `bolt_impact_ring` (al impactar), `bolt_fizzle` (al apagarse en pared o alcance). Tres disparadores nuevos (`boltCast`, `boltImpact`, `boltEnd`) que el `VfxDirector` levanta de eventos de la simulación; **un impacto del proyectil es `boltImpact` y no `hitLanded`** (sin efectos dobles). El director no sabe de habilidades: recibe el conjunto de ids de proyectil.
+- **`render/ProjectileView`**: cabeza cian + núcleo **blanco** + cola de dos estelas, todo aditivo (cuatro *sprites* del atlas de VFX: un único lote con la capa de luz, **sin dibujar nada más**). `EntityViews` enruta las vistas «de luz» (`additive`) a `layers.fxWorld`, no a la capa de actores.
+- **HUD:** `skill:denied` → sacudida de barra y carta; la carta muestra `ready · noMagic · cooldown` (barrido radial) desde `SkillRuntime`.
+
+### 5. Pruebas
+
+| | Antes | Después |
+|---|---|---|
+| Tests | 904 / 60 archivos | **958 / 64 archivos** (+54) |
+| E2E | 15 | **16** (`bolt`), desarrollo y producción 16/16 |
+| `tsc --noEmit` | 0 errores | 0 errores |
+
+Nuevos: `SkillRuntime` y datos (9) · Spirit Bolt en la simulación (28: sin carta no hace nada; con carta cuesta 30 **exactos en la liberación**; 6 + 8 ticks; tres seguidos y el cuarto rechazado; < 30 rechazado y exactamente 30 sí; sin regeneración mientras se lanza; enfriamiento de 0.3 s con buffer; golpe en preparación = sin coste; 40 % de control; aire y agachado; *dash* cancela la recuperación; derrota; 16 m/s y alcance 12 m; golpea por 2, empuja, *hit-stop* 3 y **no perfora**; neutrales; pared; plataformas *one-way*; cañón dentro de una pared; cambio de sala; carta del HUD; determinismo) · presentación (13: efectos como datos en la paleta del héroe, el director enruta, la vista) · placeholder (3). **Un test antiguo se amplió** (`vfxMath`: la lista fijada de disparadores gana los tres nuevos) y lo mismo el escenario `vfx` del E2E, que además comprueba que **cada** disparador nuevo produce algo, se ve y muere por completo.
+
+E2E `bolt` (teclado real, mando abstracto, toque CDP real): sin carta Ability no hace nada · con carta: preparación 6 ticks sin gastar, liberación = **70 exactos**, barra al 70 %, carta en `cooldown`, **más píxeles de luz cian en pantalla** · 16 m/s medidos (4 m en 15 ticks) y se apaga a los 12 m · 78 ticks después de lanzar la regeneración acaba de empezar y luego **+6.0 por segundo**; ni una décima durante el lanzamiento y el segundo siguiente · tres seguidos dejan 10; el cuarto **sacude barra y carta**, no gasta, y deja la carta apagada · golpea al primero por 2 y **no toca al segundo** · el mismo Ability desde un mando (Y) y con un toque en el botón (que además se atenúa sin magia) · quitar la carta oculta el botón y Ability deja de hacer algo.
+
+### 6. Hallazgos
+
+| Hallazgo | Solución |
+|---|---|
+| Ni un solo fotograma de `cast` en el *placeholder*: el *fallback* a `attack2` escribía un aviso de consola en cada lanzamiento | clip `cast` explícito que reutiliza las poses de `attack2` (sin fotogramas nuevos; el contrato de 62 fotogramas sigue intacto) |
+| Editar fuentes **mientras** corre el E2E de desarrollo reinicia la página (HMR de Vite) y hace fallar un escenario ajeno | regla de trabajo: nada en `src/` mientras corre una suite; el fallo de `death` de esa ejecución se repitió limpio |
+| El escenario `vfx` del E2E falló con «boltCast produced nothing»: el laboratorio de VFX solo sabía disparar los ocho disparadores de P4 | el laboratorio emite ahora, por el bus y con los mismos eventos que el juego (`skill:cast`, `combat:hit` de la habilidad, `projectile:ended`), los tres disparadores del proyectil y recibe el conjunto de ids de proyectil como el juego |
+
+### 7. Bundle tras S15
+
+Arranque en frío de R1: **192.8 KB gz** (190.3 → 192.8, +2.5 KB: habilidad, proyectil, estado de lanzamiento, vista y efectos). Margen frente a 200 KB: **7.2 KB** con S16–S18 por venir. Si se agota, las opciones ya medidas (cargar bajo demanda el panel de depuración ≈ 3–4 KB gz y la pantalla de ajustes) siguen disponibles sin recortar funcionalidad.

@@ -6,6 +6,8 @@ import type { SimEntity } from '@/gameplay/SimEntity';
 /** What the view layer draws for one simulation entity. It only READS the entity's `view` state. */
 export interface EntityView {
   readonly root: Container;
+  /** Drawn with light (additive blend): it goes to the light layer instead of the actors'. */
+  readonly additive?: boolean;
   /** Once per rendered frame. `alpha` is the interpolation between ticks, `dt` the animation time (frozen by hit-stop). */
   sync(alpha: number, dt: number): void;
   destroy(): void;
@@ -25,6 +27,8 @@ export class EntityViews {
   constructor(
     private readonly parent: Container,
     private readonly factories: Readonly<Record<string, EntityViewFactory>>,
+    /** Where the views that are made of light go (projectiles). Defaults to `parent`. */
+    private readonly additiveParent: Container = parent,
   ) {}
 
   /**
@@ -56,7 +60,7 @@ export class EntityViews {
     const view = this.factories[entity.kind]?.(entity) ?? null;
     if (!view) return;
     this.views.set(entity, view);
-    this.parent.addChild(view.root);
+    (view.additive ? this.additiveParent : this.parent).addChild(view.root);
   }
 
   private remove(entity: SimEntity): void {

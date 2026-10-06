@@ -287,6 +287,92 @@ const energyScatter: ParticleVfx = {
   radius: 0.5,
 };
 
+// ------------------------------------------------------------------------------------- the Spirit Bolt
+
+/**
+ * The Spirit Bolt (docs/GAME-SPEC-2D.md §10.1: "arco/estela cian con núcleo blanco"): a flash and a few sparks where it leaves
+ * the hero, a bigger cyan burst with a white core where it lands, and a soft puff where it fizzles out. The bolt itself, with
+ * its tail, is drawn by its view.
+ */
+const boltMuzzleFlash: FlashVfx = {
+  kind: 'flash', id: 'bolt_muzzle_flash', priority: 6, palette: 'energy', shape: 'glow', role: 'hot',
+  life: 0.13, size: [0.5, 1.5], alpha: [1, 0],
+};
+
+const boltMuzzleSparks: ParticleVfx = {
+  kind: 'particles',
+  id: 'bolt_muzzle_sparks',
+  priority: 5,
+  palette: 'energy',
+  blend: 'add',
+  shape: 'spark',
+  count: [6, 9],
+  speed: [3, 9],
+  life: [0.1, 0.26],
+  aim: 'along',
+  spread: 0.9,
+  size: [0.1, 0.18],
+  sizeEnd: 0.2,
+  gravity: 0,
+  drag: 5,
+  alpha: [1, 0],
+  colors: ['hot', 'core'],
+  radius: 0.1,
+};
+
+const boltImpactBurst: ParticleVfx = {
+  kind: 'particles',
+  id: 'bolt_impact_burst',
+  priority: 7,
+  palette: 'energy',
+  blend: 'add',
+  shape: 'spark',
+  count: [14, 18],
+  speed: [3.5, 10.5],
+  life: [0.2, 0.42],
+  aim: 'any',
+  spread: TAU,
+  size: [0.14, 0.28],
+  sizeEnd: 0.2,
+  gravity: -4,
+  drag: 3,
+  spin: [-8, 8],
+  alpha: [1, 0],
+  colors: ['hot', 'core', 'hot', 'deep'],
+  radius: 0.1,
+};
+
+const boltImpactFlash: FlashVfx = {
+  kind: 'flash', id: 'bolt_impact_flash', priority: 7, palette: 'energy', shape: 'glow', role: 'hot',
+  life: 0.15, size: [0.9, 2.3], alpha: [1, 0],
+};
+
+const boltImpactRing: FlashVfx = {
+  kind: 'flash', id: 'bolt_impact_ring', priority: 6, palette: 'energy', shape: 'ring', role: 'core',
+  life: 0.22, size: [0.4, 2.1], alpha: [0.9, 0],
+};
+
+const boltFizzle: ParticleVfx = {
+  kind: 'particles',
+  id: 'bolt_fizzle',
+  priority: 4,
+  palette: 'energy',
+  blend: 'add',
+  shape: 'glow',
+  count: [5, 8],
+  speed: [0.6, 2.2],
+  life: [0.25, 0.45],
+  aim: 'any',
+  spread: TAU,
+  size: [0.2, 0.36],
+  sizeEnd: 0.1,
+  gravity: 1.2,
+  drag: 2.4,
+  alpha: [0.9, 0],
+  colors: ['core', 'hot'],
+  radius: 0.15,
+};
+
 export const VFX: Readonly<Record<string, VfxDefinition>> = Object.fromEntries(
   [
     slashArc, slashArcFinisher,
@@ -295,6 +381,7 @@ export const VFX: Readonly<Record<string, VfxDefinition>> = Object.fromEntries(
     dashBurst, dashFlash, dashDust, dashTrail, dashTrailShards,
     deathInk, deathMotes, deathFlash, energyScatter,
     telegraphRing, telegraphMotes,
+    boltMuzzleFlash, boltMuzzleSparks, boltImpactBurst, boltImpactFlash, boltImpactRing, boltFizzle,
   ].map((d) => [d.id, d]),
 );
 
@@ -310,4 +397,7 @@ export const VFX_BINDINGS: VfxBindings = {
   enemyDied: ['death_ink', 'death_motes', 'death_flash'],
   enemyTelegraph: ['telegraph_ring', 'telegraph_motes'],
   playerDied: ['energy_scatter'],
+  boltCast: ['bolt_muzzle_flash', 'bolt_muzzle_sparks'],
+  boltImpact: ['bolt_impact_burst', 'bolt_impact_flash', 'bolt_impact_ring'],
+  boltEnd: ['bolt_fizzle'],
 };

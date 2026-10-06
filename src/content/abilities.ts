@@ -6,7 +6,8 @@ import type { AbilityDefinition } from '@/progression/AbilitySystem';
  */
 export const ABILITIES: readonly AbilityDefinition[] = [
   { id: 'dash', name: 'Dash', description: 'A fast burst forward with a brief window of invulnerability.', kind: 'movement', implemented: true },
-  { id: 'magic_attack', name: 'Spirit Bolt', description: 'Fires a bolt of spirit energy. Costs energy.', kind: 'active', implemented: true },
+  // `implemented` is true since Prompt 5: the skill exists (content/skills.ts), a card equips it and the Ability button casts it
+  { id: 'magic_attack', name: 'Spirit Bolt', description: 'Fires a bolt of spirit energy. Costs 30 magic.', kind: 'active', implemented: true },
   { id: 'double_jump', name: 'Double Jump', description: 'Jump once more in mid-air.', kind: 'movement', implemented: false },
   { id: 'wall_jump', name: 'Wall Jump', description: 'Kick off walls to climb them.', kind: 'movement', implemented: false },
   { id: 'grapple', name: 'Grapple', description: 'Swing from anchor points.', kind: 'movement', implemented: false },

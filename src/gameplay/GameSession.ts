@@ -1,6 +1,8 @@
 import { BottleSet, type BottleDefinition, type BottleRules } from '@/abilities/BottleSet';
 import { CardLoadout, type CardDefinition } from '@/abilities/CardLoadout';
 import { Magic, type MagicDefinition } from '@/abilities/Magic';
+import type { SkillDefinition } from '@/abilities/SkillDefinition';
+import { SkillRuntime } from '@/abilities/SkillRuntime';
 import { CombatSystem } from '@/combat/CombatSystem';
 import { EventBus } from '@/core/events';
 import { IdGenerator } from '@/core/ids';
@@ -27,6 +29,8 @@ export interface PlayerResources {
   magic: MagicDefinition;
   bottles: { definitions: Readonly<Record<string, BottleDefinition>>; initial: readonly string[]; rules: BottleRules };
   cards: Readonly<Record<string, CardDefinition>>;
+  /** The active skills the cards can equip. */
+  skills: Readonly<Record<string, SkillDefinition>>;
 }
 
 export interface SessionOptions {
@@ -75,6 +79,7 @@ export class GameSession implements SimServices {
   readonly magic: Magic;
   readonly bottles: BottleSet;
   readonly loadout: CardLoadout;
+  readonly skills: SkillRuntime;
   /** The defeat flow: dying → fade out → title → respawn → fade in (docs/GAME-SPEC-2D.md §9.2). */
   readonly death: DeathFlow;
   /** World memory that outlives room visits and deaths: defeated guardians, opened doors (docs/GAME-SPEC-2D.md §14.3). */
@@ -124,7 +129,13 @@ export class GameSession implements SimServices {
     this.bottles = new BottleSet(opts.resources.bottles.definitions, opts.resources.bottles.initial, opts.resources.bottles.rules, (change) =>
       this.bus.emit('bottle:changed', { ...change, states: this.bottles.slots.map((slot) => slot.state) }),
     );
-    this.loadout = new CardLoadout(opts.resources.cards, (change) => this.bus.emit('card:changed', change));
+    this.skills = new SkillRuntime(opts.resources.skills);
+    this.loadout = new CardLoadout(opts.resources.cards, (change) => {
+      this.bus.emit('card:changed', change);
+      // a card that teaches an ability gives it to the player the moment it is acquired (progression: `AbilitySystem` owns it)
+      const grants = change.type === 'acquired' && change.cardId ? opts.resources.cards[change.cardId]?.grantsAbility : undefined;
+      if (grants) this.abilities.unlock(grants);
+    });
     this.death = new DeathFlow(
       {
         scheduler: this.scheduler,
@@ -199,8 +210,9 @@ export class GameSession implements SimServices {
     out.card.id = card?.id ?? '';
     out.card.nameKey = card?.nameKey ?? '';
     out.card.iconId = card?.iconId ?? '';
-    out.card.state = 'ready';
-    out.card.cooldown01 = 0;
+    const skill = card ? this.skills.definition(card.skillId) : undefined;
+    out.card.cooldown01 = card ? this.skills.cooldown01(card.skillId) : 0;
+    out.card.state = !card || !skill ? 'ready' : out.card.cooldown01 > 0 ? 'cooldown' : this.magic.canSpend(skill.cost) ? 'ready' : 'noMagic';
     const slots = this.bottles.slots;
     out.bottles.length = slots.length;
     for (let i = 0; i < slots.length; i++) {
@@ -230,8 +242,9 @@ export class GameSession implements SimServices {
     this.player.tick(this, frame); // 1
     for (const e of this.live) e.tick(this); // 2
     this.combat.resolve(); // 3
-    this.magic.tick(false); // 6 — resources: the magic regenerates, the bottles recharge, one at a time
+    this.magic.tick(this.player.controller.casting); // 6 — resources: the magic regenerates (not while casting), the bottles recharge one at a time
     this.bottles.tick();
+    this.skills.tick();
     this.trackSafeGround(); // 7 (flows)
     this.rescueIfFallen();
     this.checkExits();
@@ -259,6 +272,10 @@ export class GameSession implements SimServices {
   }
 
   // ------------------------------------------------------------------------------------------- SimServices
+
+  newId(prefix: string): string {
+    return this.ids.next(prefix);
+  }
 
   spawn<T extends SimEntity>(entity: T): T {
     this.pendingSpawn.push(entity);
@@ -376,6 +393,7 @@ export class GameSession implements SimServices {
   private revivePlayer(): void {
     this.player.revive();
     this.magic.restore();
+    this.skills.reset();
   }
 
   /** End-of-tick entity bookkeeping: despawns first (explicit and `expired`), then spawns. */

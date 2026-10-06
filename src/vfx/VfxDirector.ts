@@ -21,6 +21,8 @@ export class VfxDirector {
     defs: Readonly<Record<string, VfxDefinition>>,
     /** Where the player is NOW (the trail is laid along the path, whatever the frame rate). */
     private readonly playerPosition: () => { x: number; y: number },
+    /** The ids of the skills that fly as projectiles: a hit by one of them is a bolt impact, not a sword hit. */
+    private readonly projectileSkills: ReadonlySet<string> = new Set(),
   ) {
     let spacing = 0.5;
     for (const id of bindings.dashTrail) {
@@ -36,7 +38,15 @@ export class VfxDirector {
       bus.on('combat:hit', (e) => {
         // the hero's own hurt effect comes from `player:hurt`; this is the blow that LANDS on something else
         if (e.targetTeam === 'player') return;
-        this.fire('hitLanded', { x: e.x, y: e.y, facing: e.direction, dirX: e.direction, dirY: 0.15, scale: e.killed ? 1.3 : 1 });
+        const trigger = this.projectileSkills.has(e.attackId) ? 'boltImpact' : 'hitLanded';
+        this.fire(trigger, { x: e.x, y: e.y, facing: e.direction, dirX: e.direction, dirY: 0.15, scale: e.killed ? 1.3 : 1 });
+      }),
+      bus.on('skill:cast', (e) => {
+        this.fire('boltCast', { x: e.x, y: e.y, facing: e.facing, dirX: e.facing, dirY: 0 });
+      }),
+      bus.on('projectile:ended', (e) => {
+        // when it hit something the impact effect already played; a bolt that ends on a wall or at the end of its range fizzles
+        if (e.reason !== 'hit') this.fire('boltEnd', { x: e.x, y: e.y, facing: e.facing });
       }),
       bus.on('player:hurt', (e) => {
         this.fire('playerHurt', { x: e.x, y: e.y, facing: e.direction, dirX: e.direction, dirY: 0.2 });

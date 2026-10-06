@@ -6,6 +6,7 @@ import { CAMERA_2D } from '@/camera/camera2d';
 import type { CameraTarget } from '@/camera/CameraRig';
 import { ABILITIES, ENEMIES, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, ROOMS, SPRITE_SETS, START } from '@/content';
 import { BOTTLE_DEFINITIONS, BOTTLES, CARDS, MAGIC } from '@/content/resources';
+import { SKILLS } from '@/content/skills';
 import { VFX, VFX_BINDINGS } from '@/content/vfx';
 import { DisposableStore } from '@/core/lifecycle';
 import type { Hurtbox } from '@/combat/Combatant';
@@ -21,6 +22,7 @@ import { Enemy } from '@/enemies/Enemy';
 import type { EnemyDefinition } from '@/enemies/EnemyDefinition';
 import { TrainingDummy } from '@/enemies/TrainingDummy';
 import { GameSession } from '@/gameplay/GameSession';
+import type { Projectile } from '@/gameplay/Projectile';
 import { createPlayerStatus } from '@/gameplay/PlayerStatus';
 import { DEFAULT_TOUCH } from '@/input/gestures/TouchConfig';
 import { DEFAULT_BINDINGS } from '@/input/bindings';
@@ -36,6 +38,7 @@ import { CameraAdapter2D } from '@/render/CameraAdapter2D';
 import { DummyView, type DummyLike } from '@/render/DummyView';
 import { EntityViews } from '@/render/EntityViews';
 import { ProceduralActor } from '@/render/ProceduralActor';
+import { ProjectileView, type ProjectileLike } from '@/render/ProjectileView';
 import { Renderer2D } from '@/render/Renderer2D';
 import { RoomView2D } from '@/render/RoomView2D';
 import { HudModel } from '@/ui/hud/HudModel';
@@ -117,7 +120,7 @@ export class Game2D {
       rooms: ROOMS,
       player: PLAYER,
       abilities: ABILITIES,
-      resources: { magic: MAGIC, bottles: { definitions: BOTTLE_DEFINITIONS, initial: BOTTLES.initial, rules: BOTTLES.rules }, cards: CARDS },
+      resources: { magic: MAGIC, bottles: { definitions: BOTTLE_DEFINITIONS, initial: BOTTLES.initial, rules: BOTTLES.rules }, cards: CARDS, skills: SKILLS },
       enemies: ENEMIES,
       startRoom,
       unlocked: options.room ? options.unlock : [...START.unlocked, ...options.unlock],
@@ -156,6 +159,8 @@ export class Game2D {
         if (e.type === 'used') this.hudModel.bottleUsed(e.slot);
       }),
     );
+    // a refused cast (not enough magic): the bar and the card shake
+    this.lifecycle.add(this.session.bus.on('skill:denied', () => this.hudModel.magicDenied()));
     // a desktop with a mouse and a keyboard never sees the touch layer; a touch screen (or ?touch=1) does, and so does the first touch
     this.touchControls.setVisible(options.touch || (typeof matchMedia === 'function' && matchMedia('(any-pointer: coarse)').matches));
     listen(this.lifecycle, window, 'pointerdown', (e) => {
@@ -179,7 +184,9 @@ export class Game2D {
         const look = 'proceduralId' in view ? PROCEDURAL_LOOKS[view.proceduralId] : undefined;
         return look ? new ProceduralActor(look, e as Enemy, { glow: vfxAtlas.frames.glow }) : null;
       },
-    });
+      // a skill's projectile (the Spirit Bolt) is light: it is drawn in the additive layer with the effects
+      projectile: (e) => new ProjectileView(e as unknown as ProjectileLike, vfxAtlas),
+    }, renderer.layers.fxWorld);
     this.entityViews.attach(this.session.bus, this.session.entities); // the first room's enemies already exist
     this.lifecycle.add(() => this.entityViews.destroy());
     // impact → camera shake (real time: the camera keeps moving through the hit-stop)
@@ -204,7 +211,7 @@ export class Game2D {
     this.vfx.prewarm();
     this.lifecycle.add(() => this.vfx.destroy());
     const body = this.session.player.body;
-    this.vfxDirector = new VfxDirector(this.session.bus, this.vfx, VFX_BINDINGS, VFX, () => ({ x: body.x, y: body.y }));
+    this.vfxDirector = new VfxDirector(this.session.bus, this.vfx, VFX_BINDINGS, VFX, () => ({ x: body.x, y: body.y }), new Set(Object.keys(SKILLS)));
     this.lifecycle.add(() => this.vfxDirector.dispose());
     this.buildRoomView();
     this.registerDebugActions();
@@ -440,6 +447,14 @@ export class Game2D {
       }),
     );
     this.lifecycle.add(a.register('combat', 'heal', () => s.player.health.restore()));
+    // the player's resources (magic, bottles, cards): the debug panel can put them in any state
+    this.lifecycle.add(a.register('resources', 'refill magic', () => s.magic.restore()));
+    this.lifecycle.add(a.register('resources', 'spend 30 magic', () => void s.magic.spend(30)));
+    this.lifecycle.add(a.register('resources', 'give the Spirit Bolt card', () => void s.loadout.acquire('card_spirit_bolt')));
+    this.lifecycle.add(a.register('resources', 'take the card off', () => void s.loadout.equip(null)));
+    this.lifecycle.add(a.register('resources', 'drink a bottle', () => void s.bottles.consume(s.bottles.resolve(-1))));
+    this.lifecycle.add(a.register('resources', 'refill bottles', () => s.bottles.refillAll()));
+    this.lifecycle.add(a.register('resources', 'add a bottle slot', () => void s.bottles.addSlot('energy_bottle')));
     this.lifecycle.add(
       a.register('combat', 'revive', () => {
         s.player.revive();
@@ -556,6 +571,14 @@ export class Game2D {
           vfx: this.vfx.stats,
           death: this.session.deathSnapshot, lang: this.translator.locale,
           device: this.input.device,
+          // the player's resources (the HUD shows them; the tests read the numbers)
+          magic: this.session.magic.current,
+          card: this.session.loadout.equipped?.id ?? null,
+          bottles: this.session.bottles.slots.map((b) => b.state),
+          projectiles: this.session.entities.filter((e) => e.kind === 'projectile').map((e) => {
+            const p = e as unknown as Projectile;
+            return { id: p.id, x: p.x, y: p.y, facing: p.facing };
+          }),
           respawnPoint: { ...this.session.respawnPoint },
           sprite: {
             set: ps.spriteSetId, frame: ps.frame, facing: ps.root.scale.x, visible: ps.root.visible,

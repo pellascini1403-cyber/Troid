@@ -42,6 +42,12 @@ export interface GameEvents extends CombatEvents {
   'gate:changed': { roomId: string; gateId: string; open: boolean };
   /** The player touched a way out of the room. Once per exit per room build. */
   'exit:reached': { roomId: string; exitId: string; to?: { room: string; entry: string } };
+  /** A skill was cast: the cost was paid and its effect released at `(x, y)`. */
+  'skill:cast': { skillId: string; x: number; y: number; facing: 1 | -1; cost: number };
+  /** A cast was refused. `noMagic` is the one the interface answers (the bar and the card shake, a "denied" sound). */
+  'skill:denied': { skillId: string; reason: 'noMagic' };
+  /** A projectile ended: on what it hit, on a wall, or at the end of its range. */
+  'projectile:ended': { id: string; skillId: string; x: number; y: number; facing: 1 | -1; reason: 'hit' | 'wall' | 'range' };
   /** The magic bar changed: spent (exactly), regained (about once per unit), refilled. */
   'magic:changed': MagicChange;
   /** A bottle was drunk, started or finished recharging, was added or refilled. `state` lists every slot afterwards. */

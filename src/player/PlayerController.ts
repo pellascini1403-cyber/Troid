@@ -1,13 +1,15 @@
 import { clamp, lerp, sign } from '@/core/math';
 import { StateMachine } from '@/core/stateMachine';
 import { TICK_SECONDS, secondsToTicks } from '@/core/time';
+import type { SkillDefinition } from '@/abilities/SkillDefinition';
 import type { HitInfo } from '@/combat/Combatant';
+import { Projectile } from '@/gameplay/Projectile';
 import { NEUTRAL_INPUT, type InputFrame } from '@/input/InputFrame';
 import type { SimServices } from '@/gameplay/SimServices';
 import type { MovementTuning } from './MovementTuning';
 import type { Player } from './Player';
 
-export type PlayerStateId = 'free' | 'crouch' | 'dash' | 'attack' | 'hurt' | 'dead';
+export type PlayerStateId = 'free' | 'crouch' | 'dash' | 'attack' | 'cast' | 'hurt' | 'dead';
 
 /** Ticks the white hit flash lasts. */
 const FLASH_TICKS = 6;
@@ -26,8 +28,9 @@ const FLASH_TICKS = 6;
  * dash slides under low passages) and it can only end when there is room to stand.
  *
  * Combat (docs/GAME-SPEC-2D.md §5.1, §7, §9): `attack` (ground / air / crouch variants, chain of two), `hurt` (stun,
- * knockback, i-frames) and `dead`. Priority: dead > hurt > dash > attack > crouch > free. `free`, `crouch` and `dash`
- * behave exactly as before (the 40 movement tests are the proof).
+ * knockback, i-frames) and `dead`. Magic (§10): `cast` runs the skill of the equipped card (6 ticks of preparation, the release
+ * that pays the cost and spawns the projectile, 8 of recovery). Priority: dead > hurt > dash > attack > cast > crouch > free.
+ * `free`, `crouch` and `dash` behave exactly as before (the 40 movement tests are the proof).
  */
 export class PlayerController {
   private readonly fsm: StateMachine<PlayerController, PlayerStateId>;
@@ -38,6 +41,7 @@ export class PlayerController {
   private coyote = 0;
   private jumpBuffer = 0;
   private dropBuffer = 0;
+  private abilityBuffer = 0;
   private dashBuffer = 0;
   private dashCooldown = 0;
   private dashTicksLeft = 0;
@@ -54,6 +58,10 @@ export class PlayerController {
   landTicks = 0;
   /** Bumped when an animation must restart (new jump, new dash). */
   animSerial = 0;
+  /** The skill being cast, the ticks since the cast began, and whether its release (cost + projectile) already happened. */
+  private castSkill: SkillDefinition | null = null;
+  private castTicks = 0;
+  private castReleased = false;
 
   private jumping = false;
   private jumpCut = false;
@@ -78,6 +86,7 @@ export class PlayerController {
         },
         dash: { enter: (c) => c.enterDash(), update: (c) => c.updateDash(), exit: (c) => c.exitDash() },
         attack: { enter: (c) => c.enterAttack(), update: (c) => c.updateAttack(), exit: (c) => c.player.combat.end() },
+        cast: { enter: (c) => c.enterCast(), update: (c) => c.updateCast(), exit: (c) => c.exitCast() },
         hurt: { update: (c) => c.updateHurt() },
         dead: { update: (c) => c.updateDead() },
       },
@@ -94,6 +103,19 @@ export class PlayerController {
   /** The body is the crouched size (also true while dashing out of a crouch, or when forced by a low ceiling). */
   get crouched(): boolean {
     return this.crouching;
+  }
+  /** A cast is in progress (preparation or recovery): the magic does not regenerate meanwhile. */
+  get casting(): boolean {
+    return this.fsm.current === 'cast';
+  }
+  /** Where the cast is, for the animation: its phase and how far through it. `startup` → the release tick is `active` → `recovery`. */
+  castProgress(): { phase: 'startup' | 'active' | 'recovery'; t: number } {
+    const s = this.castSkill;
+    if (!s) return { phase: 'recovery', t: 1 };
+    const n = Math.max(0, this.castTicks - 1); // `castTicks` already counts the tick being shown
+    if (n < s.startup) return { phase: 'startup', t: n / Math.max(1, s.startup) };
+    if (n === s.startup) return { phase: 'active', t: 0 };
+    return { phase: 'recovery', t: Math.min(1, (n - s.startup) / Math.max(1, s.recovery)) };
   }
   get isInvulnerable(): boolean {
     return this.invulnerable > 0;
@@ -126,10 +148,12 @@ export class PlayerController {
 
   /** Clears transient state (respawn, room change, debug teleport). Permanent progression is untouched. */
   reset(): void {
-    this.coyote = this.jumpBuffer = this.dropBuffer = this.dashBuffer = this.dashCooldown = this.dashTicksLeft = 0;
+    this.coyote = this.jumpBuffer = this.dropBuffer = this.abilityBuffer = this.dashBuffer = this.dashCooldown = this.dashTicksLeft = 0;
     this.dropThrough = this.jumpHeldTicks = this.airDashesUsed = this.invulnerable = this.landTicks = 0;
     this.hurtInvuln = this.flashTicks = this.hurtTicks = 0;
     this.jumping = this.jumpCut = false;
+    this.castSkill = null;
+    this.castReleased = false;
     this.player.combat.end();
     this.fsm.go('free');
     // Hard reset of the shape (respawn / room change): the spawn point is always free, so no room check.
@@ -145,6 +169,8 @@ export class PlayerController {
     else if (this.jumpBuffer > 0) this.jumpBuffer--;
     if (this.input.dropPressed) this.dropBuffer = secondsToTicks(t.dropBuffer);
     else if (this.dropBuffer > 0) this.dropBuffer--;
+    if (this.input.abilityPressed) this.abilityBuffer = secondsToTicks(t.abilityBuffer);
+    else if (this.abilityBuffer > 0) this.abilityBuffer--;
     if (this.input.dashPressed) this.dashBuffer = secondsToTicks(t.dash.buffer);
     else if (this.dashBuffer > 0) this.dashBuffer--;
     if (this.dashCooldown > 0) this.dashCooldown--;
@@ -234,6 +260,9 @@ export class PlayerController {
 
     // ---- attack: a buffered press starts it (ground / air / crouch variant); overrides the posture change ----
     if (this.player.combat.wantsAttack) this.fsm.go('attack');
+
+    // ---- ability: a buffered press casts the skill of the equipped card, unless an attack is starting this very tick ----
+    if (this.abilityBuffer > 0 && !this.player.combat.wantsAttack && this.canCast()) this.fsm.go('cast');
 
     // ---- dash (overrides the rest: a dash keeps whatever shape the body has) ----
     if (this.dashBuffer > 0 && this.canDash()) this.fsm.go('dash');
@@ -396,6 +425,95 @@ export class PlayerController {
       c.end();
       this.fsm.go(this.postAttackState());
     }
+  }
+
+  // ------------------------------------------------------------------------------------------------ cast
+
+  /**
+   * Can the Ability start now? Only with an equipped card whose skill is ready and affordable. With no card it does nothing
+   * (the button is not even drawn); too little magic is a refusal the interface answers; a cooldown keeps the press for the
+   * buffer, so a press just before the previous cast is over still goes off.
+   */
+  private canCast(): boolean {
+    const sim = this.sim;
+    const card = sim.loadout.equipped;
+    if (!card) return false;
+    const check = sim.skills.check(card.skillId, sim.magic);
+    if (check === 'ok') return true;
+    if (check === 'noMagic') {
+      this.abilityBuffer = 0; // refused once, not once per tick of the buffer
+      if (this.input.abilityPressed) sim.bus.emit('skill:denied', { skillId: card.skillId, reason: 'noMagic' });
+    }
+    return false;
+  }
+
+  private enterCast(): void {
+    const p = this.player;
+    const card = this.sim.loadout.equipped;
+    this.castSkill = card ? (this.sim.skills.definition(card.skillId) ?? null) : null;
+    this.castTicks = 0;
+    this.castReleased = false;
+    this.abilityBuffer = 0;
+    if (Math.abs(this.input.move.x) > 0.25) p.facing = this.input.move.x > 0 ? 1 : -1;
+    this.jumping = false; // a cast closes the variable-jump window, like an attack
+    this.animSerial++;
+  }
+
+  /**
+   * One tick of a cast: the dash may cancel the RECOVERY (never the preparation), the cost is paid and the projectile leaves
+   * on the first tick after the preparation, and the skill's own data says how much control the caster keeps meanwhile.
+   * A hit during the preparation ends the cast WITHOUT paying (the cost is taken at the release).
+   */
+  private updateCast(): void {
+    const skill = this.castSkill;
+    if (!skill) {
+      this.fsm.go(this.postAttackState());
+      return;
+    }
+    const p = this.player;
+    const b = p.body;
+    const t = this.tuning;
+    if (this.castReleased && this.dashBuffer > 0 && this.canDash()) {
+      this.fsm.go('dash');
+      return;
+    }
+    if (!this.castReleased && this.castTicks >= skill.startup) {
+      if (!this.releaseCast(skill)) {
+        this.fsm.go(this.postAttackState());
+        return;
+      }
+    }
+    const air = !b.grounded;
+    const mx = this.input.move.x;
+    const target = sign(mx) * speedForMagnitude(Math.abs(mx), t) * skill.moveControl;
+    const accel = air ? (target === 0 ? t.airDecel : t.airAccel) : target === 0 ? t.groundDecel : t.groundAccel;
+    b.vx = approachValue(b.vx, target, accel * TICK_SECONDS);
+    b.vy = Math.max(b.vy - this.gravityNow() * TICK_SECONDS, -t.maxFallSpeed);
+    this.castTicks++;
+    if (this.castTicks >= skill.startup + skill.recovery) this.fsm.go(this.postAttackState());
+  }
+
+  /** The release: pay the cost, start the cooldown, send the projectile and say so. False when the magic is no longer there. */
+  private releaseCast(skill: SkillDefinition): boolean {
+    const sim = this.sim;
+    const p = this.player;
+    if (!sim.magic.spend(skill.cost)) {
+      sim.bus.emit('skill:denied', { skillId: skill.id, reason: 'noMagic' });
+      return false;
+    }
+    this.castReleased = true;
+    sim.skills.startCooldown(skill.id);
+    const m = skill.projectile.muzzle;
+    const x = p.body.x + p.facing * m.x;
+    const y = p.body.y + (this.crouching ? m.yCrouched : m.y);
+    sim.spawn(new Projectile(sim.newId('bolt'), skill.id, skill.projectile, p.id, x, y, p.facing));
+    sim.bus.emit('skill:cast', { skillId: skill.id, x, y, facing: p.facing, cost: skill.cost });
+    return true;
+  }
+
+  private exitCast(): void {
+    this.castSkill = null;
+    this.castReleased = false;
   }
 
   // ------------------------------------------------------------------------------------- hurt and death

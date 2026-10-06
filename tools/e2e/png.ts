@@ -121,3 +121,9 @@ export function countPixels(img: Image, test: PixelTest, region?: { x0: number; 
  * are all outside it.
  */
 export const isVioletLight: PixelTest = (r, g, b) => b >= 120 && r >= 70 && b - g >= 40 && r - g >= 8 && r < 235;
+
+/**
+ * Bright cyan / white-hot LIGHT, the hero's energy (docs/GAME-SPEC-2D.md §3.2): blue and green both high, red a step lower
+ * (cyan) or all of them very high (the white core). The dark scene, the grey scenery and violet light are outside it.
+ */
+export const isCyanLight: PixelTest = (r, g, b) => b >= 190 && g >= 180 && (b - r >= 18 || (r >= 235 && g >= 235));
