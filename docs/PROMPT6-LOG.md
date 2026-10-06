@@ -12,8 +12,8 @@
 | **S22** grafo de mundo (`WorldDefinition`, R1–R4, validación) | ✅ | `99f0649` |
 | **S23** transiciones entre salas | ✅ | `ce5ab17` |
 | **S24** guardado de progreso y checkpoints | ✅ | `fc6acb8` |
-| **S25** peligros | ✅ | (ver historial) |
-| **S26** zonas de cámara | ⏳ | |
+| **S25** peligros | ✅ | `056c038` |
+| **S26** zonas de cámara | ✅ | (ver historial) |
 | **S27** cuarta botella | ⏳ | |
 | **S28** Spirit Bolt en R3 | ⏳ | |
 | **S29** jefe | ⏳ | |
@@ -344,3 +344,38 @@ S24 llevó el arranque en frío a **201.0 KB gz** (+1.9 KB sobre S23; presupuest
 | Tests | 1388 / 94 archivos | **1421 / 96 archivos** |
 | Arranque en frío de R1 | 191.7 KB gz | **192.2 KB gz** (+0.5 KB: `HazardSystem`, la vista y las reglas del validador que no entran) — margen 7.8 KB |
 | Toda la primera sesión | 202.2 KB gz | 202.7 KB gz |
+
+---
+
+## S26 — Zonas de cámara ✅
+
+**Qué es.** Cada sala declara **los límites de su cámara** (`camera.bounds`: el área que la vista puede mostrar — izquierda, derecha, arriba y abajo) y, opcionalmente, **zonas** (`camera.zones`): partes de la sala donde la vista se sujeta a **otros** límites y, si se quiere, a otra altura visible. Nada de cámara cinematográfica: una zona solo decide **dentro de qué límites** debe quedarse la vista mientras el héroe está en ella, y los límites **se funden** al entrar y al salir (la vista nunca salta). La zona que importa en el Prompt 6 es la **arena del jefe** (S29), pero el mecanismo es genérico (un pozo vertical, un pasaje).
+
+```ts
+interface CameraZoneDef { id; rect; bounds; viewHeight?; whenSet?; whenClear?; smoothTime? }
+```
+
+| Pieza | Qué hace |
+|---|---|
+| `roomLimits(room)` | los límites de la sala: `camera.bounds`, o su extensión si no declara ninguno (una sala escrita antes sigue igual) |
+| `resolveCameraView(room, flags, x, y, out)` | **función pura**: qué límites, qué altura y qué zona valen ahora. Gana **la primera zona**, en el orden en que la sala las lista, cuyo `rect` contiene **los pies** del héroe (bordes incluidos) y cuyas condiciones de bandera lo permiten (`whenSet` / `whenClear`: una arena que está cerrada mientras dura la pelea y libre cuando el guardián cae). Escribe en un objeto reutilizado (cero asignaciones por fotograma) y devuelve **el mismo objeto de límites** para la misma sala o zona, así que un cambio es una comparación de identidad |
+| `CameraAdapter2D.setView(view)` | solo actúa cuando **cambia la zona**: funde los límites en `smoothTime` de la zona (el de la cámara si no tiene) y la altura visible; un corte (teletransporte, cambio de sala) los toma de golpe. `setRoom` vuelve a los límites de la sala y a la altura normal |
+| Validador (`validateRoom`) | `bad-camera`, `camera-outside` (los límites no pueden salirse de la sala), `camera-entry` (los límites contienen **cada entrada con el héroe de pie**: nadie llega fuera de plano), `camera-exit`, `bad-camera-zone`, `camera-zone-bounds` (los límites de una zona **contienen la zona**: el héroe no puede salir de la imagen), `camera-zone-zoom` (4 … 30 m), `camera-zone-smooth` (≥ 0), `camera-zone-flag` (la bandera la pone algo) |
+
+**Los límites de cada sala** (metros): R1 −1 … 114 × −6 … 11 · R2 −1 … 92 × −6 … 11 · R3 −1 … 80 × −6 … **12** (la repisa está a 4.8 m y un salto sobre ella sube más) · R4 −1 … 100 × −6 … 11. **El pie del suelo es el fondo de la imagen**: el suelo tiene 6 m de profundidad y la vista nunca baja de ahí, de modo que la zanja de R2 se ve como una zanja y no como un vacío.
+
+**La arena de R4** (`arena`: `rect` 26.5 … 65.5 × −1 … 12, límites 25 … 67 × −6 … 10, altura visible 15 m en vez de 13.5, `smoothTime` 0.8 s). Mientras los pies del héroe están dentro la vista **queda sujeta a la arena** —con las puertas de los dos extremos, de modo que se ven— y se aleja un poco para ver lo que viene; en cuanto sale, los límites de la sala y la altura normal **vuelven fundiéndose**. Hoy no depende de ninguna bandera; en S29 llevará `whenClear: 'defeated:r4_boss'` y la cámara se soltará sola cuando el jefe caiga.
+
+### Pruebas y E2E
+
+- **Tests (+55, de 1421 a 1476):** `cameraZones` (17: sin cámara propia los límites son la extensión y no hay zoom; límites propios fuera de las zonas; dentro de una zona valen los suyos —límites, altura y tiempo de fundido—; **los pies** del héroe, bordes incluidos; las banderas `whenClear` y `whenSet`; **la primera zona gana**; el objeto de salida se reutiliza y los límites son el mismo objeto cada vez; en cinco tamaños de pantalla la vista nunca enseña más allá de la arena dentro de ella ni más allá de la sala fuera; entrar tira de la vista a 15 m y la sujeta, salir —o caer el guardián— la suelta a 13.5 m: **se funde, no salta**; el fundido es el de cada zona; un héroe puesto **dentro** de la arena —una reaparición, una partida cargada— la recibe de golpe, sin fundir desde la sala; una sala nueva olvida la zona de la anterior; `setView` no hace nada mientras la zona es la misma: no reinicia un fundido en curso), `roomCameras` (31: **cada sala del mundo** declara límites dentro de su extensión que contienen cada entrada, salida y superficie —con la cabeza— y no bajan del pie del suelo; y en **cada tamaño de pantalla de `SIZES`** el héroe está en pantalla de pie sobre **cada superficie** de la sala y la vista queda dentro de los límites que valen allí; la arena de R4: es una zona, es ancha para pelear, el vestíbulo y la cámara del tesoro quedan fuera) y 7 del validador (cada regla de arriba, y que una sala sin datos de cámara, con límites más justos o con una zona sana no levanta nada).
+- **E2E `camera` (ampliado, dev y producción):** en cada sala del mundo la vista queda sujeta **a los límites que la sala declara** (al inicio, en el centro y en el extremo) y nunca enseña nada bajo el pie del suelo; en R4, **caminando de verdad con el teclado** hacia la arena, la zona **se activa al cruzar su borde**, los límites **se funden** (≥ 3 muestras con el borde en camino, y ningún salto de más de la mitad del recorrido entre dos muestras) y la imagen queda dentro de los límites que valen en cada instante; ya dentro, los límites son los de la arena y la altura es de 15 m; en el extremo este la vista **para en la puerta**; **fuera de la arena** vuelven los límites de la sala y los 13.5 m; y en el 21:9 y el 4:3 la vista sigue dentro de la arena. `world` (adaptado): la cámara de cada sala se compara con **sus** límites (antes, con la extensión de la sala), en los cuatro lados.
+- **Gancho de pruebas nuevo:** `state().camera` ahora incluye `zone` y `limits` (los límites eficaces, ya fundidos), y `settleCamera(segundos)` deja correr el tiempo propio de la cámara sin esperar fotogramas lentos de GL por software (el escenario `camera` pasó de 100 s a 20 s sin perder cobertura: lo que se comprueba con tiempo real —el fundido al caminar— sigue usando fotogramas reales).
+
+### Medido ✅
+
+| | S25 | S26 |
+|---|---|---|
+| Tests | 1421 / 96 archivos | **1476 / 98 archivos** |
+| Arranque en frío de R1 | 192.2 KB gz | **192.6 KB gz** (+0.4 KB: `cameraZones` y las reglas del validador que no entran) — margen 7.4 KB |
+| Toda la primera sesión | 202.7 KB gz | 203.2 KB gz |

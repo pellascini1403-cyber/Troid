@@ -146,6 +146,10 @@ export class CameraRig {
   get currentTrauma(): number {
     return this.trauma;
   }
+  /** The limits the view is held to right now (the eased ones, not the goal), or `null` when it is not held at all. */
+  get limits(): Readonly<CameraBounds> | null {
+    return this.bounds;
+  }
 
   /**
    * Sets the area the view must stay inside. Without `smoothTime` the edges blend over

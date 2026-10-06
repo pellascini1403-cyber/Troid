@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { roomLimits } from '@/camera/cameraZones';
 import { ROOMS, WORLD } from '@/content';
 import { freshWorld, playWorld } from '../../../tests/helpers/journey';
 import { frames } from '../frames';
@@ -48,10 +49,14 @@ export const world: Scenario = {
           shot.add(st.room);
           await frames(ctx.page, 30); // the camera follows in real time while the replay runs ahead of it: let it catch up
           const seen = await ctx.state();
-          const room = ROOMS[st.room]!;
-          const half = (seen.view?.visibleWidth ?? 0) / 2;
+          // the view against the limits the room declares (S26: its width, the foot of its ground at the bottom — tighter than its extents)
+          const c = seen.camera!;
+          const limits = c.limits!;
+          const halfH = c.viewHeight / 2;
+          const halfW = (halfH * seen.view!.contentWidth) / seen.view!.contentHeight;
           camera.rooms.add(st.room);
-          const over = Math.max(room.bounds.x0 - (seen.camera!.x - half), seen.camera!.x + half - room.bounds.x1, 0);
+          assert.deepEqual(limits, roomLimits(ROOMS[st.room]!), `${st.room}: the view is held to the limits the room declares`);
+          const over = Math.max(limits.x0 - (c.x - halfW), c.x + halfW - limits.x1, limits.y0 - (c.y - halfH), c.y + halfH - limits.y1, 0);
           camera.worstOverrun = Math.max(camera.worstOverrun, over);
           await ctx.shot(`room-${st.room}`);
         }
@@ -80,7 +85,7 @@ export const world: Scenario = {
     assert.deepEqual(s.flags!.slice().sort(), ['defeated:r1_slime', 'defeated:r2_slime'], 'both guardians fell on the way');
     assert.deepEqual([...shot].sort(), [...WORLD.rooms].sort(), 'every room was seen with the hero in it');
     assert.deepEqual([...camera.rooms].sort(), [...WORLD.rooms].sort());
-    assert.ok(camera.worstOverrun < 0.6, `the camera never showed more than 0.6 m beyond a room (${camera.worstOverrun.toFixed(2)} m)`);
+    assert.ok(camera.worstOverrun < 0.6, `the camera never showed more than 0.6 m beyond the limits of a room (${camera.worstOverrun.toFixed(2)} m)`);
     assert.ok(worst <= 60, `draw calls peaked at ${worst}`);
     await ctx.shot('end-of-the-world');
     console.log(`  world: ${WORLD.rooms.length} rooms and ${transitions} transitions replayed bit for bit through the keyboard · ${worst} draw calls at the worst moment (budget 60) · camera overrun ${camera.worstOverrun.toFixed(2)} m`);

@@ -22,6 +22,12 @@ export const R4_SANCTUM_ROOM: RoomDefinition = {
   nameKey: 'room.r4.name',
   bounds: rect(-1, -12, 100, 18),
   killY: -20,
+  camera: {
+    bounds: rect(-1, -6, 100, 11),
+    // the arena (S26): while the hero is in it the view is held to the arena — the doors included, so they are seen — and pulled back a
+    // little (15 m instead of 13.5) to see what comes at them; it eases in and out, and lets go the moment the hero is out of it
+    zones: [{ id: 'arena', rect: rect(26.5, -1, 65.5, 12), bounds: rect(25, -6, 67, 10), viewHeight: 15, smoothTime: 0.8 }],
+  },
   entries: [
     // from R3
     { id: 'west', x: 4, y: 0, facing: 1 },

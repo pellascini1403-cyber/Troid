@@ -83,6 +83,27 @@ export interface ExitDef {
   requires?: string;
 }
 
+/**
+ * A part of a room where the camera is held to other limits and, optionally, zoomed (docs/PROMPT6-LOG.md S26): a boss arena that is shut
+ * for the fight and free again afterwards, a shaft. Nothing cinematic: the zone only decides which limits the view must stay inside
+ * while the hero is in it, and the limits ease in and out (the view never jumps).
+ */
+export interface CameraZoneDef {
+  /** Unique within the room. */
+  id: string;
+  /** The zone applies while the hero's FEET are inside this rectangle (world metres)… */
+  rect: Rect;
+  /** …and the view must stay inside THESE limits instead of the room's. */
+  bounds: Rect;
+  /** The visible height, in metres, while it applies; the room's own when omitted. */
+  viewHeight?: number;
+  /** It applies only while this world flag is set / clear (an arena that is shut for the fight and free after the guardian falls). */
+  whenSet?: string;
+  whenClear?: string;
+  /** Seconds the limits take to ease into and out of this zone (the rig's own default when omitted). */
+  smoothTime?: number;
+}
+
 /** What a hazard is. The interface draws it by kind; `spikes` is the one that exists today. */
 export type HazardKind = 'spikes';
 
@@ -115,7 +136,12 @@ export interface RoomDefinition {
   entries: EntryDef[];
   /** Below this Y the player has fallen out of the world (damage + respawn at the last safe ground). */
   killY?: number;
-  camera?: Partial<CameraConfig> & { bounds?: Rect };
+  /**
+   * The camera of this room: its limits (`bounds`: the area the view may show — the room's extents when omitted — so the left, right, top
+   * and bottom edges the view never crosses), the zones inside it that hold other limits (the first one the hero is in wins), and any
+   * tuning of the rig itself.
+   */
+  camera?: Partial<CameraConfig> & { bounds?: Rect; zones?: CameraZoneDef[] };
   /** Enemies placed when the room is built. */
   spawns?: SpawnDef[];
   /** Doors that open with world flags. */

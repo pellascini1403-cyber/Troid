@@ -1,5 +1,6 @@
 import { CAMERA_2D } from '@/camera/camera2d';
 import { CameraRig, type CameraBounds, type CameraConfig, type CameraTarget } from '@/camera/CameraRig';
+import { roomLimits, type CameraView } from '@/camera/cameraZones';
 import type { CameraCentre, CameraShake } from '@/presentation/worldTransform';
 import type { RoomDefinition } from '@/world/RoomDefinition';
 
@@ -21,6 +22,8 @@ export interface CameraSink {
 export class CameraAdapter2D {
   readonly rig: CameraRig;
   private snapPending = true;
+  /** The zone the limits were last set for (`null`: the room's own). */
+  private zone: string | null = null;
   private readonly shake: CameraShake = { x: 0, y: 0, rollRad: 0 };
 
   constructor(
@@ -34,10 +37,29 @@ export class CameraAdapter2D {
     return this.rig.center;
   }
 
-  /** Room change / respawn: hard-set the bounds and cut (no travel across the level). */
+  /** The id of the camera zone that holds the view now (`null`: the room's own limits). */
+  get activeZone(): string | null {
+    return this.zone;
+  }
+
+  /** Room change / respawn: hard-set the room's own limits and cut (no travel across the level). */
   setRoom(room: RoomDefinition): void {
-    this.rig.setBounds(room.camera?.bounds ?? room.bounds, 0);
+    this.rig.setBounds(roomLimits(room), 0);
+    this.rig.setZoom(null);
+    this.zone = null;
     this.snapPending = true;
+  }
+
+  /**
+   * The limits and the visible height that apply now (`resolveCameraView`): call it every frame, it only does something when the zone
+   * CHANGED — entering an arena holds the view to it, leaving it (or the flag that shuts it) lets the view go — and both ease over the
+   * zone's `smoothTime` (the rig's default when it has none). A cut (`snap`) pending at that moment takes them at once.
+   */
+  setView(view: Readonly<CameraView>): void {
+    if (view.zone === this.zone) return;
+    this.zone = view.zone;
+    this.rig.setBounds(view.bounds, view.smoothTime);
+    this.rig.setZoom(view.viewHeight);
   }
 
   /** Arena lock / release: the bounds ease over `seconds` (the view never jumps). */

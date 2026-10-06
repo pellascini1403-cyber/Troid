@@ -26,6 +26,8 @@ export const R2_HALL_ROOM: RoomDefinition = {
   nameKey: 'room.r2.name',
   bounds: rect(-1, -12, 92, 18),
   killY: -20,
+  // the camera never shows below the foot of the ground (6 m under the way in), so the ditch is seen as a ditch and not as a void
+  camera: { bounds: rect(-1, -6, 92, 11) },
   entries: [
     // from R1 (and the first place in this room)
     { id: 'west', x: 4, y: 0, facing: 1 },

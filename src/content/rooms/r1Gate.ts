@@ -24,6 +24,8 @@ export const R1_GATE_ROOM: RoomDefinition = {
   nameKey: 'room.r1.name',
   bounds: rect(-1, -12, 114, 18),
   killY: -20,
+  // what the camera may show: the room's width, from the floor's foot (the ground is 6 m deep) up to well above the highest platform
+  camera: { bounds: rect(-1, -6, 114, 11) },
   entries: [
     { id: 'start', x: 4, y: 0, facing: 1 },
     // where R2 brings the player back: past the door (open by then), facing the room

@@ -3,6 +3,7 @@ import { SpriteAssetManager, type LoadedSpriteSet } from '@/assets/SpriteAssetMa
 import { createPixiSpriteLoader } from '@/assets/spriteLoader';
 import { createVfxAtlas } from '@/assets/vfxAtlas';
 import { CAMERA_2D } from '@/camera/camera2d';
+import { resolveCameraView, type CameraView } from '@/camera/cameraZones';
 import type { CameraTarget } from '@/camera/CameraRig';
 import { ABILITIES, ENEMIES, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, ROOMS, SPRITE_SETS, START, WORLD } from '@/content';
 import { BOTTLE_DEFINITIONS, BOTTLES, CARDS, MAGIC } from '@/content/resources';
@@ -105,6 +106,8 @@ export class Game2D {
   readonly translator: Translator;
   /** A room was (re)built by the simulation (death respawn, debug reset): rebuild the scenery at the next frame. */
   private roomDirty = false;
+  /** Scratch for the camera zone resolution (one object, rewritten every frame). */
+  private readonly cameraView: CameraView = { bounds: { x0: 0, y0: 0, x1: 0, y1: 0 }, viewHeight: null, smoothTime: undefined, zone: null };
   /** Camera shakes triggered by impacts and the strength of the last one (the trauma itself decays in real time). */
   private shakes = { count: 0, last: 0 };
   /** What the player chose and the game saved (the language, the size and opacity of the touch controls): loaded before the game is built. */
@@ -172,7 +175,7 @@ export class Game2D {
     this.lifecycle.add(() => renderer.destroy());
 
     // ---- camera ----
-    const { bounds: _bounds, ...roomCamera } = this.session.room.camera ?? {};
+    const { bounds: _bounds, zones: _zones, ...roomCamera } = this.session.room.camera ?? {};
     this.camera = new CameraAdapter2D(renderer, { ...roomCamera, ...options.camera });
 
     // interface language: `?lang=` (a one-off, never saved) > what the player chose > the device's > English; the interface only ever asks for keys
@@ -426,6 +429,8 @@ export class Game2D {
     this.transitionOverlay.update(this.session.transitionSnapshot);
     this.updateHud(realDt);
 
+    // which limits hold now: the room's, or those of the camera zone the hero's feet are in (an arena; it eases, it never jumps)
+    this.camera.setView(resolveCameraView(this.session.room, this.session.flags, p.body.x, p.body.y, this.cameraView));
     // The camera follows the INTERPOLATED position — exactly what is drawn — so camera and player never jitter apart.
     const target: CameraTarget = { x, y, vx: p.body.vx, vy: p.body.vy, facing: p.facing, grounded: p.body.grounded };
     this.camera.update(realDt, target);
@@ -629,6 +634,16 @@ export class Game2D {
         this.camera.snap();
         this.refreshPresented();
       },
+      /** Lets the camera run `seconds` of its own time at 60 Hz right now: a test need not wait on slow software-GL frames to see where it settles. */
+      settleCamera: (seconds = 4) => {
+        const p = this.session.player;
+        const v = p.view;
+        const target: CameraTarget = { x: v.x, y: v.y, vx: p.body.vx, vy: p.body.vy, facing: p.facing, grounded: p.body.grounded };
+        for (let i = 0, n = Math.round(seconds * 60); i < n; i++) {
+          this.camera.setView(resolveCameraView(this.session.room, this.session.flags, p.body.x, p.body.y, this.cameraView));
+          this.camera.update(1 / 60, target);
+        }
+      },
       state: () => {
         const b = this.session.player.body;
         const vp = this.renderer.viewport;
@@ -685,7 +700,10 @@ export class Game2D {
           // `calls` keeps the field the 3D scenes used; `draws` is the same number under its real name
           calls: this.counter.median, triangles: 0,
           draws: this.counter.median, drawsMax: this.counter.max,
-          camera: { x: this.camera.centre.x, y: this.camera.centre.y, viewHeight: this.camera.rig.pose.viewHeight },
+          camera: {
+            x: this.camera.centre.x, y: this.camera.centre.y, viewHeight: this.camera.rig.pose.viewHeight,
+            zone: this.camera.activeZone, limits: this.camera.rig.limits ? { ...this.camera.rig.limits } : null,
+          },
           view: { contentWidth: vp.contentWidth, contentHeight: vp.contentHeight, ppm: vp.ppm, resolution: vp.resolution, visibleWidth: vp.visibleWidth, barX: vp.barX, barY: vp.barY, rotateDevice: vp.rotateDevice },
           canvas: { cssWidth: this.renderer.app.canvas.clientWidth, cssHeight: this.renderer.app.canvas.clientHeight, width: this.renderer.app.canvas.width, height: this.renderer.app.canvas.height },
         };

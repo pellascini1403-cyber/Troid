@@ -78,8 +78,8 @@ export interface GameState {
     grip: { x: number; y: number };
     tip: { x: number; y: number };
   };
-  /** 2D view only: camera centre (world metres) and the visible height. */
-  camera?: { x: number; y: number; viewHeight: number };
+  /** 2D view only: camera centre (world metres), the visible height, the zone that holds the view (`null`: the room's own limits) and the limits it is held to now. */
+  camera?: { x: number; y: number; viewHeight: number; zone: string | null; limits: { x0: number; y0: number; x1: number; y1: number } | null };
 }
 
 export interface Scenario {

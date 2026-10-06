@@ -154,6 +154,33 @@ export function validateRoom(room: RoomDefinition, refs: RoomRefs): RoomIssue[] 
     }
   }
 
+  // the camera: limits that exist, are inside the room and hold everything the hero can be at; zones that hold the hero in view
+  const holds = (outer: Rect, inner: Rect): boolean => outer.x0 <= inner.x0 && outer.y0 <= inner.y0 && outer.x1 >= inner.x1 && outer.y1 >= inner.y1;
+  const limits = room.camera?.bounds;
+  if (limits) {
+    if (!validRect(limits)) add('bad-camera', 'the camera limits are not a valid rectangle');
+    else {
+      if (!holds(room.bounds, limits)) add('camera-outside', 'the camera limits go beyond the room: they can only be as wide as the room or tighter');
+      for (const e of room.entries) if (!holds(limits, { x0: e.x, x1: e.x, y0: e.y, y1: e.y + player.height })) add('camera-entry', `the camera limits do not hold the entrance "${e.id}": the hero would arrive out of view`);
+      for (const x of room.exits ?? []) if (validRect(x.rect) && !holds(limits, x.rect)) add('camera-exit', `the camera limits do not hold the exit "${x.id}"`);
+    }
+  }
+  const zones = room.camera?.zones ?? [];
+  unique('camera zone', zones.map((z) => z.id));
+  for (const z of zones) {
+    if (!validRect(z.rect) || !validRect(z.bounds)) {
+      add('bad-camera-zone', `camera zone "${z.id}" has a rectangle that is not valid`);
+      continue;
+    }
+    if (z.bounds.x0 > z.rect.x0 || z.bounds.x1 < z.rect.x1 || z.bounds.y0 > z.rect.y0) add('camera-zone-bounds', `camera zone "${z.id}" holds the view to limits that do not contain the zone itself: the hero would leave the picture`);
+    if (z.viewHeight !== undefined && !(Number.isFinite(z.viewHeight) && z.viewHeight >= 4 && z.viewHeight <= 30)) add('camera-zone-zoom', `camera zone "${z.id}" asks for a visible height of ${z.viewHeight} m (4 … 30)`);
+    if (z.smoothTime !== undefined && !(Number.isFinite(z.smoothTime) && z.smoothTime >= 0)) add('camera-zone-smooth', `camera zone "${z.id}" eases over ${z.smoothTime} s (0 or more)`);
+    for (const f of [z.whenSet, z.whenClear]) {
+      if (f === '') add('empty-flag', `camera zone "${z.id}" has an empty flag`);
+      else if (f !== undefined && !gateFlags.has(f) && !refs.externalFlags?.has(f)) add('camera-zone-flag', `camera zone "${z.id}" reads "${f}", which nothing sets`);
+    }
+  }
+
   if (room.killY !== undefined && room.killY >= room.bounds.y1) add('bad-killy', 'killY is above the top of the room');
   return issues;
 }

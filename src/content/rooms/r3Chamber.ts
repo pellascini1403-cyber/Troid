@@ -22,6 +22,8 @@ export const R3_CHAMBER_ROOM: RoomDefinition = {
   nameKey: 'room.r3.name',
   bounds: rect(-1, -12, 80, 18),
   killY: -20,
+  // taller than the others: the ledge is 4.8 m up and a jump onto it goes higher still
+  camera: { bounds: rect(-1, -6, 80, 12) },
   entries: [
     // from R2
     { id: 'west', x: 4, y: 0, facing: 1 },
