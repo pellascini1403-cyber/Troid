@@ -56,14 +56,31 @@ export interface GateDef {
   openWhen: string;
 }
 
-/** A way out: touching its zone raises `exit:reached`. The room transition itself (fade, load) is Prompt 6. */
+/** Where a way out leads: a room and one of ITS entries (a spawn point). */
+export interface Destination {
+  room: string;
+  entry: string;
+}
+
+/**
+ * A way out: touching its zone raises `exit:reached` and, when it has a destination, starts the room transition (fade out,
+ * load the destination, put the player at the entry it names, fade in: docs/PROMPT6-LOG.md S23). An exit without `to` only
+ * raises the event (the test rooms, and `end`).
+ */
 export interface ExitDef {
   /** Unique within the room. */
   id: string;
   /** The trigger zone. */
   rect: Rect;
-  /** Where it leads, once rooms are connected. */
-  to?: { room: string; entry: string };
+  /** Where it leads: the room and the entry the player appears at (never assumed to be the middle of anything). */
+  to?: Destination;
+  /** The way out of the WORLD as it stands (the end of the slice): it leads nowhere, so a room of the world may have one exit like this without `to`. */
+  end?: boolean;
+  /**
+   * The way is shut while this world flag is NOT set: the zone does nothing (a door of the world that something has to open).
+   * It mirrors the physical gate in the room; the world validator uses it to prove the whole world can be finished.
+   */
+  requires?: string;
 }
 
 export interface RoomDefinition {

@@ -7,7 +7,7 @@ import type { RoomDefinition } from '@/world/RoomDefinition';
  * guards it is defeated. A BLOCKOUT: flat shapes and numbers, the art comes later.
  *
  *   x:   0 ─────── 32 ░░░░ 37 ─────────── 62 ━━━━━━━━━━━ 76 ─────────── 104 ▌105.5 ── 113
- *        A  MOVE         B  PLATFORMS        C  CROUCH        D  THE SLIME        E  GATE → EXIT
+ *        A  MOVE         B  PLATFORMS        C  CROUCH        D  THE SLIME        E  GATE → EXIT → R2
  *        hurdle, steps   5 m pit,            1.2 m × 12 m     arena, one-way      the door opens with
  *                        one-way stairs      crawl tunnel     platform, slime     defeated:r1_slime
  *
@@ -24,7 +24,11 @@ export const R1_GATE_ROOM: RoomDefinition = {
   nameKey: 'room.r1.name',
   bounds: rect(-1, -12, 114, 18),
   killY: -20,
-  entries: [{ id: 'start', x: 4, y: 0, facing: 1 }],
+  entries: [
+    { id: 'start', x: 4, y: 0, facing: 1 },
+    // where R2 brings the player back: past the door (open by then), facing the room
+    { id: 'east', x: 106.6, y: 0, facing: -1 },
+  ],
   solids: [
     // boundary walls
     block('wall_left', -2, -12, 0, 18, 'stone'),
@@ -52,7 +56,8 @@ export const R1_GATE_ROOM: RoomDefinition = {
   ],
   spawns: [{ id: 'slime_1', enemy: 'ink_slime', x: 96, y: 0, facing: -1, defeatFlag: 'defeated:r1_slime' }],
   gates: [{ id: 'exit_door', solid: 'gate_door', openWhen: 'defeated:r1_slime' }],
-  exits: [{ id: 'east', rect: rect(107, 0, 111, 4) }],
+  // the way on: R2 (west entry). It is beyond the door, so it can only be reached once the slime is beaten; `requires` says the same to the world validator
+  exits: [{ id: 'east', rect: rect(109, 0, 112.5, 4), to: { room: 'r2_hall', entry: 'west' }, requires: 'defeated:r1_slime' }],
   // PROVISIONAL (Prompt 5): the Spirit Bolt card lies at the end of the crawl tunnel, so the first room already shows the whole
   // loop — interact, equip, cast. docs/GAME-SPEC-2D.md §14.4 puts it in R3; Prompt 6 moves it there. It is optional: nothing on
   // the way to the exit needs it, and once taken (flag) it never appears again, not even after a death.

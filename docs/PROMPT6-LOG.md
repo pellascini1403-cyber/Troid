@@ -8,8 +8,8 @@
 
 | Paso | Estado | Commit |
 |---|---|---|
-| **S21** baseline | ✅ | (ver historial) |
-| **S22** grafo de mundo (`WorldDefinition`, R1–R4, validación) | ⏳ | |
+| **S21** baseline | ✅ | `1b4756a` |
+| **S22** grafo de mundo (`WorldDefinition`, R1–R4, validación) | ✅ | (ver historial) |
 | **S23** transiciones entre salas | ⏳ | |
 | **S24** guardado de progreso y checkpoints | ⏳ | |
 | **S25** peligros | ⏳ | |
@@ -75,3 +75,70 @@ Nada estaba roto antes de S21: se continúa sin correcciones previas.
 8. **El Spirit Bolt abre algo de verdad**: en R3 la salida hacia el jefe está tras un **sello de energía** que solo abre un Spirit Bolt (un objetivo neutral que ignora todo lo que no sea esa habilidad). Es la progresión «el mundo tiene rutas que aún no se pueden abrir» de GAME-SPEC-2D §13, sin árbol de habilidades.
 9. **El jefe es un `Enemy` con un arquetipo propio**, varios ataques en datos, azar del `Rng` de la sesión y una arena que cierra y abre puertas por banderas.
 10. **Medir el bundle después de cada bloque.** El margen es de 2.1 KB: lo que no haga falta al arrancar (menú ampliado, y si hace falta el jefe y las salas posteriores) se carga bajo demanda.
+
+---
+
+## S22 — Grafo de mundo ✅
+
+**Qué es.** El mundo pasa a ser **datos + validación pura**: `world/WorldDefinition` (tipos), `world/worldGraph` (construir el grafo, validarlo y «jugarlo sobre el papel») y `content/world.ts` (los datos del mini-mundo). Nada de `Game2D` ni de la simulación sabe qué sala va detrás de cuál: lo dicen **las salidas** de cada sala (`exit.to = { room, entry }`).
+
+```
+WORLD ancient_forest ──▶ ROOMS ──▶ EXITS ──▶ DESTINATION { room, entry } ──▶ SPAWN POINT (el `entry` de la sala de destino)
+```
+
+### El grafo final (S22)
+
+```
+ R1 «Puerta de las Ruinas»      R2 «Galería de Raíces»       R3 «Cámara del Sello»        R4 «Santuario»
+ r1_gate                        r2_hall                      r3_chamber                   r4_sanctum
+ ┌─ entries: start, east        ┌─ entries: west, east       ┌─ entries: west, east       ┌─ entries: west
+ └─ exit east ─────────────────▶ west                        │                            │
+    (requires defeated:r1_slime) exit east ─────────────────▶ west                        │
+ ◀──────────────── exit west ── ◀─ entry east                exit east ─────────────────▶ west
+                                 ◀──────────── exit west ──  ◀─ entry east                exit east → FIN (`end`)
+                                                             ◀──────────── exit west ──
+```
+
+| Conexión | Salida (zona) | Destino (sala : spawn) | Requisito |
+|---|---|---|---|
+| R1 → R2 | `r1_gate/east` x 109–112.5 | `r2_hall:west` (4, 0, →) | `defeated:r1_slime` (además de la puerta física) |
+| R2 → R1 | `r2_hall/west` x 0–2.4 | `r1_gate:east` (106.6, 0, ←) | — |
+| R2 → R3 | `r2_hall/east` x 88–91 | `r3_chamber:west` (4, 0, →) | — |
+| R3 → R2 | `r3_chamber/west` x 0–2.4 | `r2_hall:east` (84.5, 0, ←) | — |
+| R3 → R4 | `r3_chamber/east` x 76–79 | `r4_sanctum:west` (4, 0, →) | — (S28 añade el sello) |
+| R4 → R3 | `r4_sanctum/west` x 0–2.4 | `r3_chamber:east` (72.5, 0, ←) | — |
+| R4 → fin | `r4_sanctum/east` x 95–98 | fuera del mundo (`end: true`) | — (S29 exige `defeated:r4_boss`) |
+
+Cada sala declara lo que pide la especificación: `id`, dimensiones (`bounds`), puntos de aparición (`entries`), salidas (`exits`), puertas (`gates`), enemigos (`spawns`), recogibles (`interactables`), cámara (`camera`), **banderas requeridas** (`requiredFlags(room)`: `requires` de las salidas, `openWhen` de las puertas, `whenSet` de los interactuables) y **banderas concedidas** (`grantedFlags(room)`: `defeatFlag` de los enemigos y `setFlag` de los interactuables). Los peligros y las zonas de cámara se añaden a la sala en S25 y S26.
+
+### Las salas (bloque de geometría; los extras llegan en su paso)
+
+| Sala | Tamaño | Qué tiene en S22 |
+|---|---|---|
+| **R1** (la de siempre) | 115 × 30 m | movimiento, foso de 5 m, escaleras *one-way*, pasaje bajo, arena, Ink Slime y puerta; **ahora su salida lleva a R2** y tiene una entrada `east` para el regreso. La carta provisional sigue aquí hasta S28 |
+| **R2** «Galería de Raíces» | 93 × 30 m | entrada llana; **bifurcación** sobre una zanja de 3.2 m: *camino bajo* (bajar por dos escalones, recorrer el suelo de la zanja, subir) y *camino alto* (cuatro plataformas *one-way* a 2.4 m con 3 m entre ellas); una cornisa a 4.8 m sobre el final de la tercera (la futura 4.ª botella); un Ink Slime opcional (`defeated:r2_slime`) en el tramo final; salida a R3 |
+| **R3** «Cámara del Sello» | 81 × 30 m | entrada, **ascenso** a una cornisa de 4.8 m en dos saltos (2.4 + 2.4 m) y un pasillo llano de 40 m hacia R4 (donde irá el sello) |
+| **R4** «Santuario» | 101 × 30 m | vestíbulo, arena de 40 m y cámara de recompensa en línea recta; salida del mundo (`end`). Puertas, jefe y checkpoint llegan en S29 |
+
+### Reglas del validador (`validateWorld`)
+
+`world-empty`, `world-room-duplicate`, `world-room-unknown`, `start-room`, `start-entry`, `exit-both` / `exit-no-destination` (cada salida va a algún sitio o es el fin del mundo, nunca ambas ni ninguna), `exit-room`, `exit-entry`, `empty-flag`, `entry-in-exit` (llegar no debe dejar al jugador **dentro** de una salida: rebotaría de vuelta), `room-unreachable`, `flag-ungranted` (algo espera una bandera que nada alcanzable concede) y `room-trapped` (una sala sin camino de vuelta al inicio). El análisis de progresión (`analyzeProgression`) recorre el mundo sobre el papel: desde la primera sala concede las banderas de los guardianes y recogibles de las salas alcanzadas y abre las salidas cuyo `requires` ya se tiene, hasta que no cambia nada (el orden de los datos no importa); un círculo («la palanca que abre la puerta está detrás de la puerta») deja la sala cerrada y se detecta.
+
+### Decisiones y desvíos
+
+- **`ExitDef` gana `requires` y `end`.** `requires` refleja la puerta física para que el validador pueda **demostrar que el mundo se acaba** (una puerta cuya bandera nada concede es un error de datos, no un soft-lock en medio de una partida). `end` marca la única salida sin destino (el fin de la rebanada): una sala del mundo no puede tener una salida que no lleve a ninguna parte por descuido.
+- **Las salidas siguen inertes en S22**: solo registran `exit:reached`. La transición real es S23.
+- **La cornisa de R2 se movió tras medirla.** Con la cornisa (4.8 m) justo encima de la zona donde cae un salto corrido desde la plataforma anterior, un salto completo aterrizaba en ella **sin querer** (lo descubrió el *test* de física: el bot acababa en la cornisa, no en la plataforma). Ahora la tercera plataforma mide 7 m y la cornisa cubre solo sus últimos 3: llegar a ella es una decisión (salto vertical desde el final de la plataforma).
+- **R3 y R4 son bloques sin sus extras**: no llevan puertas ni *flags* hasta S28/S29, porque el validador (con razón) rechazaría una puerta cuya bandera nada concede todavía. En cada paso el *test* del mundo crece con lo que se añade.
+- **Sala alcanzable por física, no por coordenadas.** `tests/integration/worldRooms.test.ts` recorre cada sala con las mismas entradas que un jugador (el bot de R1 para el camino bajo, y *hops* guionizados —`tests/helpers/hops.ts`— para el alto y la cornisa) y comprueba que **no hay atajos** (un salto desde el suelo no llega a la cornisa de R3) ni sitios sin salida.
+
+### Medido ✅
+
+| | Antes (S21) | S22 |
+|---|---|---|
+| Tests | 1180 / 82 archivos | **1249 / 85 archivos** (+69: 29 del grafo sintético, 14 del mundo real, 26 de física de R2–R4 y entradas) |
+| `tsc` | 0 | 0 |
+| Build | OK | OK |
+| Bundle de arranque en frío de R1 | 197.9 KB gz | **198.5 KB gz** (+0.6 KB: tres salas, sus nombres y el mundo; el grafo y el validador solo se usan en tests y no entran) — **margen 1.5 KB** |
+
+> ⚠ El margen del bundle ya es de 1.5 KB y faltan transiciones, guardado, peligros, jefe y ajustes. El plan es el de las decisiones 10: medir tras cada bloque y, si hace falta, cargar bajo demanda lo que no se necesita para empezar R1 (las salas R2–R4 y el jefe son candidatas naturales). Se documentará con las dos cifras: «arranque en frío de R1» y «toda la rebanada».
