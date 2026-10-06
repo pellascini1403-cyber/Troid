@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defaultSettings, parseSettings, repairSettings, serializeSettings } from '@/save/SettingsData';
 import { SettingsStore } from '@/save/SettingsStore';
-import { MemoryStorage, type StorageAdapter } from '@/save/StorageAdapter';
+import { ChaosStorage, lcg } from '../helpers/chaosStorage';
 
 /**
  * SOAK of the settings' persistence (docs/PROMPT5-LOG.md S20): hundreds of changes and COLD STARTS against a storage that misbehaves the
@@ -14,80 +14,6 @@ const SEEDS = Array.from({ length: Math.max(8, Number(process.env['SOAK_SEEDS'] 
 const OPS = Math.max(300, Number(process.env['SOAK_TICKS'] ?? 600));
 const LANGS = [null, 'es', 'en', 'fr', 'ES', 'xx9', 'pt'];
 
-function lcg(seed: number): () => number {
-  let s = seed >>> 0;
-  return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296;
-}
-
-/** A store whose writes go wrong at random, and that can be told that the process was killed. */
-class ChaosStorage {
-  readonly inner = new MemoryStorage();
-  faults = false;
-  /** The last storage calls and what became of them: a violation says how it came about. */
-  readonly history: string[] = [];
-  note(what: string): void {
-    this.history.push(what);
-    if (this.history.length > 16) this.history.shift();
-  }
-  stats = { threw: 0, storedThenThrew: 0, partial: 0, lost: 0, removeFailed: 0, killed: 0 };
-  constructor(private readonly rnd: () => number) {}
-
-  /** The view one process has of the store: once `kill()`ed, nothing it does reaches the storage (it is gone). */
-  handle(): StorageAdapter & { kill(): void } {
-    let dead = false;
-    const gone = (): never => {
-      this.stats.killed++;
-      throw new Error('the process is gone');
-    };
-    return {
-      kill: () => void (dead = true),
-      get: async (key) => (dead ? gone() : this.inner.get(key)),
-      set: async (key, value) => {
-        if (dead) gone();
-        const name = key.replace('troid.settings', 'main');
-        if (this.faults) {
-          const r = this.rnd();
-          if (r < 0.07) {
-            this.stats.threw++;
-            this.note(`set ${name}: THREW before storing`);
-            throw new Error('quota exceeded');
-          }
-          if (r < 0.1) {
-            await this.inner.set(key, value);
-            this.stats.storedThenThrew++;
-            this.note(`set ${name}: stored, then THREW`);
-            throw new Error('the write was stored, but the call failed');
-          }
-          if (r < 0.13) {
-            await this.inner.set(key, value.slice(0, Math.floor(this.rnd() * value.length)));
-            this.stats.partial++;
-            this.note(`set ${name}: PARTIAL`);
-            return;
-          }
-          if (r < 0.16) {
-            this.stats.lost++;
-            this.note(`set ${name}: LOST`);
-            return;
-          }
-        }
-        this.note(`set ${name}`);
-        await this.inner.set(key, value);
-      },
-      remove: async (key) => {
-        if (dead) gone();
-        const name = key.replace('troid.settings', 'main');
-        if (this.faults && this.rnd() < 0.1) {
-          this.stats.removeFailed++;
-          this.note(`remove ${name}: FAILED`);
-          throw new Error('remove blocked');
-        }
-        this.note(`remove ${name}`);
-        await this.inner.remove(key);
-      },
-    };
-  }
-}
-
 async function run(seed: number): Promise<{ violations: string[]; stats: ChaosStorage['stats']; coldStarts: number; committed: number }> {
   const rnd = lcg(seed);
   const pick = <T>(xs: readonly T[]): T => xs[Math.floor(rnd() * xs.length)] as T;
@@ -95,7 +21,7 @@ async function run(seed: number): Promise<{ violations: string[]; stats: ChaosSt
   const bad = (what: string): void => {
     if (violations.length < 8) violations.push(`seed ${seed}: ${what}`);
   };
-  const storage = new ChaosStorage(lcg(seed ^ 0x5bd1e995));
+  const storage = new ChaosStorage(lcg(seed ^ 0x5bd1e995), 'troid.settings');
   let handle = storage.handle();
   let store = new SettingsStore(handle);
   let coldStarts = 0;

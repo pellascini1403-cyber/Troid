@@ -25,6 +25,8 @@ export const R4_SANCTUM_ROOM: RoomDefinition = {
   entries: [
     // from R3
     { id: 'west', x: 4, y: 0, facing: 1 },
+    // where the shrine brings the hero back: the last place to rest before the arena
+    { id: 'rest', x: 14.8, y: 0, facing: 1 },
   ],
   solids: [
     // boundary walls
@@ -38,5 +40,7 @@ export const R4_SANCTUM_ROOM: RoomDefinition = {
     // the end of the slice: it leads out of the world as it stands
     { id: 'east', rect: rect(95, 0, 98, 4), end: true },
   ],
+  // the checkpoint before the arena: a defeat in the fight brings the hero back here, with the boss as it was
+  interactables: [{ id: 'shrine', kind: 'rest', verbKey: 'interact.rest', x: 14, y: 0, actions: [{ type: 'checkpoint', entry: 'rest' }] }],
   art: { backdrop: 'ruins', seed: 4 },
 };

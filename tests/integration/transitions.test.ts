@@ -136,13 +136,16 @@ describe('a transition: from touching an exit to having control again', () => {
     expect(d.session.bottles.slots.map((b) => b.state)).toEqual(bottles);
   });
 
-  it('the arrival becomes the respawn point of the new room', () => {
+  it('the arrival is where a game saved now picks up; the checkpoint (where a defeat brings the hero back) does NOT move with a transition', () => {
     const d = world();
-    expect(d.session.respawnPoint).toEqual({ room: 'r1_gate', entry: 'start' });
+    expect(d.session.arrival).toEqual({ room: 'r1_gate', entry: 'start' });
+    expect(d.session.checkpoint).toEqual({ room: 'r1_gate', entry: 'start' });
     through(d, 'east');
-    expect(d.session.respawnPoint).toEqual({ room: 'r2_hall', entry: 'west' });
+    expect(d.session.arrival).toEqual({ room: 'r2_hall', entry: 'west' });
+    expect(d.session.checkpoint).toEqual({ room: 'r1_gate', entry: 'start' });
     through(d, 'west');
-    expect(d.session.respawnPoint).toEqual({ room: 'r1_gate', entry: 'east' });
+    expect(d.session.arrival).toEqual({ room: 'r1_gate', entry: 'east' });
+    expect(d.session.checkpoint).toEqual({ room: 'r1_gate', entry: 'start' });
   });
 
   it('phases last what the definition says: fade out 12, black 6, fade in 14 (measured on the ticks of the events)', () => {
@@ -366,7 +369,7 @@ describe('a defeat is never a dead end', () => {
     expect(d.session.scheduler.pending).toBe(0);
   });
 
-  it('dying right after the swap (in the black or the fade in) brings the player back at the entry they arrived by', () => {
+  it('dying right after the swap (in the black or the fade in) brings the player back at the LAST CHECKPOINT, which a transition did not move', () => {
     const d = world('r1_gate', 'start', quick);
     const log = watch(d);
     through(d, 'east'); // a first full transition to have arrived somewhere
@@ -381,7 +384,7 @@ describe('a defeat is never a dead end', () => {
     d.until(() => !d.session.death.active, 300);
     d.step(30);
     expect(d.p.health.dead).toBe(false);
-    expect(d.session.room.id).toBe('r3_chamber');
+    expect(d.session.room.id, 'the checkpoint is where the game began: R1 (a transition does not move it)').toBe('r1_gate');
     expect(d.body.x).toBeCloseTo(4, 0);
     expect(d.session.flags.has('defeated:r1_slime')).toBe(true); // what was won stays won
     expect(count(log, 'transition:cancelled')).toBe(1);

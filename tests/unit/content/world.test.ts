@@ -123,3 +123,28 @@ describe('what the first room asks of the player', () => {
     expect(validateWorld(WORLD, shut as typeof ROOMS, { player }).map((i) => i.code)).toEqual(expect.arrayContaining(['flag-ungranted', 'room-unreachable']));
   });
 });
+
+describe('the shrines (checkpoints)', () => {
+  const shrines = WORLD.rooms.flatMap((id) => (ROOMS[id]!.interactables ?? []).filter((i) => i.kind === 'rest').map((i) => ({ room: id, shrine: i })));
+
+  it('R2 has one (the first place to rest after R1) and R4 has one (the last place before the arena); R1 and R3 have none', () => {
+    expect(shrines.map((s) => s.room)).toEqual(['r2_hall', 'r4_sanctum']);
+  });
+
+  it('each one rests at an entry of its own room that is beside it, and that is not inside an exit', () => {
+    for (const { room, shrine } of shrines) {
+      const action = shrine.actions.find((a) => a.type === 'checkpoint');
+      expect(action?.type).toBe('checkpoint');
+      const entry = ROOMS[room]!.entries.find((e) => e.id === (action as { entry: string }).entry);
+      expect(entry, `${room}/${shrine.id}`).toBeDefined();
+      expect(Math.abs(entry!.x - shrine.x), `${room}: the entry is beside the shrine`).toBeLessThanOrEqual(3);
+    }
+    expect(validateWorld(WORLD, ROOMS, { player })).toEqual([]);
+  });
+
+  it('every verb an interactable of the world shows exists in every language', () => {
+    for (const id of WORLD.rooms) {
+      for (const i of ROOMS[id]!.interactables ?? []) for (const [lang, catalog] of Object.entries(CATALOGS)) expect(catalog[i.verbKey], `${lang}: ${i.verbKey}`).toBeTruthy();
+    }
+  });
+});

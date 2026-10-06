@@ -260,7 +260,7 @@ describe('defeat flow: respawn costs nothing', () => {
     expect(d.session.combat.pendingHitboxes).toHaveLength(0);
   });
 
-  it('the respawn point is the entrance the room was entered by (a later room transition will move it)', () => {
+  it('a session with no checkpoint of its own comes back at the entrance it began at, and at the one a room was last put in place by hand', () => {
     const d = fighter();
     expect(d.session.respawnPoint).toEqual({ room: 'arena', entry: 's' });
     d.session.loadRoom('arena', 'b');

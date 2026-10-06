@@ -10,8 +10,8 @@
 |---|---|---|
 | **S21** baseline | ✅ | `1b4756a` |
 | **S22** grafo de mundo (`WorldDefinition`, R1–R4, validación) | ✅ | `99f0649` |
-| **S23** transiciones entre salas | ✅ | (ver historial) |
-| **S24** guardado de progreso y checkpoints | ⏳ | |
+| **S23** transiciones entre salas | ✅ | `ce5ab17` |
+| **S24** guardado de progreso y checkpoints | ✅ | (ver historial) |
 | **S25** peligros | ⏳ | |
 | **S26** zonas de cámara | ⏳ | |
 | **S27** cuarta botella | ⏳ | |
@@ -201,3 +201,105 @@ Dura **32 ticks simulados** (≈ 0.53 s) contando el tick que vio la salida. El 
 | Bundle de arranque en frío de R1 | 198.5 KB gz | **199.1 KB gz** (+0.6 KB: `RoomTransition`, overlay y cambios en la sesión) — **margen 0.9 KB** |
 
 > ⚠ **El margen del bundle es ya de 0.9 KB** y faltan guardado, peligros, jefe y ajustes. Hasta aquí todo está en el arranque en frío. La decisión sobre **qué cargar bajo demanda** se toma con datos tras S24 (que sí es del arranque) y se diseña **desde el principio** en S29 (el jefe, su arena y su sala son lo único que no hace falta para empezar R1).
+
+---
+
+## S24 — Guardado de progreso, checkpoints y regla de muerte ✅
+
+### El modelo: PROGRESO ≠ AJUSTES
+
+Dos modelos, dos claves de almacenamiento, un único almacén seguro debajo. Quien reinicia una cosa no pierde la otra.
+
+| | Ajustes | **Progreso** |
+|---|---|---|
+| Clave | `troid.settings` | **`troid.progress`** (+ `.bak`, `.corrupt`) |
+| Versión | `version` | **`saveVersion`** (v1) |
+| Qué guarda | idioma, tamaño y opacidad del control táctil | **dónde está el héroe (`at`), dónde vuelve tras una derrota (`checkpoint`), las banderas del mundo, las habilidades, las cartas (y la equipada) y los huecos de botella** |
+| Módulo | `save/SettingsData` + `SettingsStore` | `save/ProgressData` + `ProgressStore` |
+
+**`ProgressData` v1** (`save/ProgressData.ts`, puro):
+
+```jsonc
+{ "saveVersion": 1,
+  "at":         { "room": "r3_chamber", "entry": "west" },   // donde se continúa: la última sala en la que se entró (o el santuario donde se descansó)
+  "checkpoint": { "room": "r2_hall",    "entry": "rest" },   // donde se vuelve tras una derrota
+  "flags":      ["defeated:r1_slime", "defeated:r2_slime"], // la memoria del mundo: guardianes derrotados, puertas, recogibles, el jefe
+  "abilities":  ["dash", "magic_attack"],
+  "cards":      { "owned": ["card_spirit_bolt"], "equipped": "card_spirit_bolt" },
+  "bottleSlots": 4 }                                        // 3 al empezar, 4 con la cuarta botella (S27)
+```
+
+- **Las banderas son el progreso.** «Enemigo único derrotado», «carta recogida», «jefe derrotado» son banderas: una partida cargada construye cada sala **igual que una reaparición**, leyéndolas. Las banderas volátiles (`~…`, una puerta que se cerró para un combate) **nunca** se guardan.
+- **No se guarda** lo que se rehace solo: vida y magia (se restauran), el estado de recarga de cada botella (al cargar están llenas) ni la posición exacta (se continúa en la **entrada** de la sala).
+- **Reparación y validación** (`repairProgress`, usada al **leer y al escribir**): tipos erróneos → el valor por defecto *de ese campo*; listas con solo nombres válidos (`[A-Za-z0-9_.:-]{1,64}`), sin repetidos, ordenadas y acotadas (256 banderas, 64 habilidades, 16 cartas, 8 huecos); la carta equipada debe estar entre las que se tienen; claves desconocidas, fuera. Un lugar no válido cae al otro lugar, y al lugar vacío si ninguno vale (la sesión lo convierte en el inicio del mundo).
+- **Versión y migraciones** (`parseProgress`): JSON → migrado de `v` a `v+1` → reparado. `null` si no es JSON, no es un objeto, no tiene versión entera, **o es de una versión más nueva** (pertenece a un juego posterior: se aparta, nunca se sobrescribe). Un fichero de ajustes no es un guardado (no tiene `saveVersion`). Hay un **fichero dorado** por versión (`tests/unit/save/golden/progress.v1.json`) que fija byte a byte que un cambio de formato no puede dejar ilegible el guardado de un jugador.
+
+### Robustez: la misma que los ajustes, porque es el mismo código
+
+`SafeStore<T>` (`save/SafeStore.ts`) se extrajo de `SettingsStore` **sin cambiar su comportamiento** (los 37 tests de ajustes y su sondeo caótico pasan intactos) y es lo que usan ahora los dos:
+
+| Promesa | Cómo |
+|---|---|
+| **Un guardado válido no se pierde por escribir uno corrupto** | `.bak` ← la copia anterior **si es buena** (una dañada no sustituye nunca a la copia buena) · la principal ← la nueva · se **lee de vuelta** y se comprueba · solo entonces se borra el `.bak`. Lo que se interrumpa a medias deja siempre una copia buena |
+| **Un guardado corrupto se conserva** | si la principal no se puede leer, se guarda como `.corrupt` (no se pisa) y se prueba el `.bak`; si tampoco, **partida nueva** |
+| **Lo de una versión posterior no se toca** | se aparta como `.corrupt` |
+| **Escrituras en orden** | cola serie: dos guardados rápidos llegan en orden, gana el último; escribir exactamente lo que ya hay no escribe nada |
+| **Nunca lanza** | un almacenamiento lleno o bloqueado = el juego sigue en memoria y avisa **una vez** |
+| **Borrar es a propósito** | `erase()` (`?new=1`) olvida el guardado, su `.bak` y su `.corrupt`, **después** de las escrituras ya pedidas |
+
+**Sondeo de almacenamiento** (`tests/integration/progressSoak.test.ts`, mismo `ChaosStorage` compartido con el de ajustes): cientos de guardados y arranques en frío contra un almacén que lanza antes de escribir, escribe y luego lanza, guarda solo el principio del texto, pierde la escritura sin avisar, falla al borrar, y un proceso al que se mata a mitad de un guardado. Tras **cualquier** secuencia, una carga limpia da un guardado válido **que nunca es más antiguo que el último que informó éxito**. Pasa con 8 semillas × 600 operaciones y con **40 semillas × 4000** (una caza más profunda: `SOAK_SEEDS=40 SOAK_TICKS=4000`).
+
+### Cuándo se guarda (`app/progressRecorder.ts`)
+
+Al cambiar algo que pertenece al progreso: una bandera (puesta o quitada), una carta, una habilidad, un hueco de botella nuevo, una sala a la que se entra por una conexión (`room:entered`), un descanso (`checkpoint:set`) y una derrota que trae al héroe a otro sitio (`death:respawned`: lo descubrió el E2E `save`, ver abajo). Las ráfagas (coger una carta pone una bandera, la equipa y enseña una habilidad en el mismo tick) son **un solo guardado**, justo después del tick (`queueMicrotask`). No se guarda nada mientras no cambie nada: una partida nueva no deja rastro. **Los *playgrounds* (`?room=`) nunca leen ni escriben el progreso**; `?new=1` empieza de cero.
+
+### Checkpoints (santuarios)
+
+Un santuario es un **interactuable** de tipo `rest` con la acción `{ type: 'checkpoint', entry }`: reutiliza el icono, el verbo localizado («Descansar» / «Rest»), la pose `interact` de 12 ticks y el *buffer* del Prompt 5. **Descansar:**
+
+| Qué | Regla |
+|---|---|
+| **El punto de reaparición** | la entrada `entry` de la sala pasa a ser el *checkpoint*; también donde continúa una partida guardada ahora |
+| **Vida y magia** | **llenas** (la regla de vida: descansar cura del todo) |
+| **Botellas** | **todas llenas** — es el único sitio donde se salta la recarga lenta (que sigue siendo a propósito tras una derrota) |
+| **Efecto** | la luz cálida de beber, donde está el héroe; el cristal del santuario brilla mientras es **el** *checkpoint* y se apaga si es otro |
+| **Guardado** | sí (`checkpoint:set`) |
+| **Reutilizable** | siempre: un santuario no se gasta |
+
+Hay uno en **R2** (el primer sitio donde descansar tras R1) y uno en **R4** (el último antes de la arena; el del jefe llega en S29). R1 empieza en su `start` (el *checkpoint* por defecto es el inicio del mundo) y R3 no tiene.
+
+### La regla de muerte
+
+| Caso | Qué pasa |
+|---|---|
+| **Morir** | sigue siendo **5 de vida, el mismo flujo** (muriendo → fundido → título → reaparición → fundido); vida y magia llenas; **las botellas no se rellenan**; flags, cartas, habilidades y *checkpoint* intactos |
+| **Dónde se vuelve** | **al último *checkpoint***, en **cualquier sala** (se cayó en R3, se vuelve a R2: la sala se descarga y se construye la del santuario, con sus enemigos de vuelta). **Una transición no mueve el *checkpoint***; sin descanso previo es el inicio del mundo |
+| **Muerte durante una transición** | cancela la transición (S23); el flujo de derrota trae al héroe al *checkpoint*; nada queda a medias |
+| **Muerte fuera del mundo** | caer por debajo de `killY` sigue siendo daño + rescate en el último suelo seguro; si la caída mata, la reaparición va al *checkpoint* |
+| **Una reaparición siempre tiene dónde ir** | un *checkpoint* que nombra una sala o una entrada que la sesión no tiene se **ignora al empezar** y, si deja de existir después, se vuelve al **lugar donde empezó la sesión** (con un aviso), nunca a ninguna parte |
+| **Sesiones sin mundo** (los tests de una sola sala) | el *checkpoint* inicial es la entrada con la que se empezó, y una sala puesta a mano (`loadRoom`) es donde se vuelve: el comportamiento de siempre |
+
+**Cobertura de los defectos del sondeo del Prompt 5:** los cinco que encontró `S20` (la derrota que reinicia durante su fundido de entrada, el `rescuePlayer` de un héroe caído, las teclas dobles…) siguen cubiertos por sus tests; el sondeo aleatorio de la sesión (`soak.test.ts`) corre ahora sobre **el mundo entero con santuarios** y lo único que hubo que ajustar fue su *premisa*: «la vida solo sube por una botella o una reaparición» ahora también admite **un descanso** (cambio de premisa del invariante, no un defecto del juego).
+
+### Bundle: diagnóstico, optimización y cifras (el margen se agotó aquí)
+
+S24 llevó el arranque en frío a **201.0 KB gz** (+1.9 KB sobre S23; presupuesto 200 KB). Diagnóstico por módulo (mapa de fuentes del *chunk* principal): `SafeStore` 0.74 KB (pero `SettingsStore` bajó de 0.79 a 0.33), `ProgressData` 0.70, `progress.ts` 0.36, `ProgressStore` 0.26, `progressRecorder` 0.25, `GameSession` +0.3, `InteractableViews` (el santuario) +0.2. **No hay nada grande que quitar:** la distribución es plana y lo que pesa es PixiJS (≈ 125 KB de los 201).
+
+**Optimización aplicada: los efectos (VFX) se cargan DESPUÉS del primer fotograma.** Son cosméticos, nada del primer minuto de R1 los necesita (el primer enemigo está a 90 m) y, con el `ParticleContainer` de Pixi, eran una décima parte de la descarga. `app/effects.ts` es **un módulo aparte** (`VfxSystem` + `VfxDirector` + las tablas de VFX) que `Game2D` pide cuando la página está ociosa (2 s después y en el siguiente momento ocioso, o **de inmediato con `?hooks=1`** para que un test no dependa de la suerte). Hasta que llega, el juego simplemente no tiene efectos: ninguna regla depende de ellos.
+
+> **Un detalle de Pixi que merece quedar escrito.** Pixi construye las *render pipes* de un renderer **cuando se crea**, a partir de las extensiones que existen entonces; la de partículas (`GlParticleContainerPipe`) vive en el módulo diferido, así que el renderer no la tiene y la primera partícula lo rompía (`Cannot read properties of undefined (reading 'updateRenderable')`, lo vio el E2E a la primera). `installParticlePipe` la añade al renderer vivo (`renderPipes.particle` + la cola de destrucción), como lo habría hecho `_addPipes`. Es una dependencia de un detalle interno de `pixi.js` **fijado en 8.22.0** (lockfile); los escenarios E2E `vfx`, `combat` y `soak` dibujan partículas por ahí, así que un Pixi que lo cambiara se vería en ellos.
+
+| Medida (`npm run bench:bundle`, ahora **sin** `?hooks=1`: es la página de un jugador) | S23 | S24 |
+|---|---|---|
+| **Arranque en frío de R1** (lo que bloquea poder jugar) | 199.1 KB gz | **191.7 KB gz** (28 scripts) — **margen 8.3 KB** |
+| Descargado después, cuando la página está ociosa (efectos: `VfxSystem` 5.2 + `ParticleContainer` 4.9 + `effects` 0.4) | — | 10.6 KB gz |
+| **La primera sesión completa** | 199.1 KB gz | **202.2 KB gz** (31 scripts) |
+
+> Las dos cifras son verdad y se publican las dos: el **arranque en frío** cumple el presupuesto de 200 KB con 8.3 KB de margen; **toda la primera sesión** lo supera en 2.2 KB porque los efectos y su *chunk* compartido pesan 10.6 + 1.2 KB. No se ha quitado nada para conseguirlo: se ha cambiado **cuándo** se descarga lo cosmético.
+
+### Pruebas y E2E
+
+- **Tests (+86, de 1302 a 1388):** `progressData` (18, con fichero dorado), `progressStore` (19), `safeStore` (6), sondeo caótico de progreso (2), `checkpoints` (24: descansar, la derrota que cruza salas, nunca descansó, el último descanso cuenta, repetidas derrotas sin fugas, regreso siempre válido, caer fuera del mundo, captura y restauración, un cargado no recoge lo recogido, lugares fantasma), `progressRecorder` (9), más reglas del validador (`checkpoint-entry`, `checkpoint-far`), de la interacción y del contenido (santuarios en R2 y R4, todos los verbos en todos los idiomas).
+- **E2E (nuevos):** `checkpoint` (descansar con el teclado real → la derrota en R2 y en R3 vuelven al santuario; vida, magia y botellas solo las da el descanso; el icono sobre el santuario) y `save` (guardado al ocurrir, **una sola clave**, recarga que devuelve sala, banderas, carta, habilidades, botellas y *checkpoint*, y **un Spirit Bolt lanzado tras la recarga**; copia dañada → partida nueva con el texto conservado; dañada con `.bak` → el `.bak`; versión futura → apartada; sala fantasma → inicio del mundo con lo ganado; un *playground* no toca el guardado; `?new=1`).
+- **Lo que el E2E encontró:** (1) la reaparición no guardaba `at` (volver tras una derrota a otro sitio dejaba el guardado apuntando a la sala donde se cayó): ahora `death:respawned` guarda; (2) la pipe de partículas diferida (arriba); (3) una carrera de un solo toque en `vertical` (el icono sigue a la cámara fotograma a fotograma: se vuelve a medir justo antes de tocar).
+- **Adaptado (misma intención):** el escenario `transition` (el *checkpoint* ya no se mueve con una transición), tres tests de S23 que fijaban «la llegada es el punto de reaparición» (ahora fijan que **no lo es**: la llegada es donde continúa un guardado) y la premisa de vida del sondeo (arriba). Ninguno se borró ni se debilitó.

@@ -44,6 +44,8 @@ export interface GameEvents extends CombatEvents {
   'transition:cancelled': { reason: 'death' | 'reload' };
   /** The room is about to be unloaded because the player walked out of it (the last moment to save what belongs to it). */
   'room:exiting': { roomId: string; exitId: string; to: { room: string; entry: string } };
+  /** The hero rested at a checkpoint: it is where they come back after a defeat now. `x, y` is where they stand (the effect plays there). */
+  'checkpoint:set': { room: string; entry: string; x: number; y: number };
   /** The player walked into a room through a connection (`room:loaded` also fires for a respawn or a debug load; this one does not). */
   'room:entered': { roomId: string; entryId: string; from: string };
   /** An enemy noticed the player (audio cue, camera nudge…). */

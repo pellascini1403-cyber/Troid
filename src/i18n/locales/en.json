@@ -22,6 +22,7 @@
   "interact.pickUp": "Pick up",
   "interact.activate": "Activate",
   "interact.open": "Open",
+  "interact.rest": "Rest",
   "settings.open": "Pause and settings",
   "settings.title": "Paused",
   "settings.language": "Language",

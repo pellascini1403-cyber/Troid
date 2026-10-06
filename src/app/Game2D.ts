@@ -4,10 +4,9 @@ import { createPixiSpriteLoader } from '@/assets/spriteLoader';
 import { createVfxAtlas } from '@/assets/vfxAtlas';
 import { CAMERA_2D } from '@/camera/camera2d';
 import type { CameraTarget } from '@/camera/CameraRig';
-import { ABILITIES, ENEMIES, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, ROOMS, SPRITE_SETS, START } from '@/content';
+import { ABILITIES, ENEMIES, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, ROOMS, SPRITE_SETS, START, WORLD } from '@/content';
 import { BOTTLE_DEFINITIONS, BOTTLES, CARDS, MAGIC } from '@/content/resources';
 import { SKILLS } from '@/content/skills';
-import { VFX, VFX_BINDINGS } from '@/content/vfx';
 import { DisposableStore } from '@/core/lifecycle';
 import { DebugActions } from '@/debug/DebugActions';
 import { DebugState } from '@/debug/DebugState';
@@ -17,6 +16,7 @@ import { CATALOGS, chooseLocale, createTranslator, FALLBACK_LOCALE, SUPPORTED_LO
 import { Enemy } from '@/enemies/Enemy';
 import type { EnemyDefinition } from '@/enemies/EnemyDefinition';
 import { TrainingDummy } from '@/enemies/TrainingDummy';
+import { restoreFromProgress } from '@/gameplay/progress';
 import { GameSession } from '@/gameplay/GameSession';
 import type { Projectile } from '@/gameplay/Projectile';
 import { createPlayerStatus } from '@/gameplay/PlayerStatus';
@@ -30,9 +30,9 @@ import { attachKeyboardMouse } from '@/input/sources/KeyboardMouseSource';
 import { TouchSource } from '@/input/sources/TouchSource';
 import { VirtualPad } from '@/input/sources/VirtualPad';
 import type { AnchorId } from '@/presentation/vocabulary';
+import { ProgressStore } from '@/save/ProgressStore';
 import { SettingsStore } from '@/save/SettingsStore';
 import type { TouchSettings } from '@/save/SettingsData';
-import { PARTICLE_BUDGET, SPRITE_FX_BUDGET } from '@/presentation/vfx';
 import { ActorSprite } from '@/render/ActorSprite';
 import { CameraAdapter2D } from '@/render/CameraAdapter2D';
 import { DummyView, type DummyLike } from '@/render/DummyView';
@@ -51,13 +51,19 @@ import type { SettingsMenu } from '@/ui/settings/SettingsMenu';
 import { PauseButton } from '@/ui/settings/PauseButton';
 import { applySafeOverride, SafeArea } from '@/ui/safeArea';
 import { TouchControls } from '@/ui/touch/TouchControls';
-import { VfxDirector } from '@/vfx/VfxDirector';
-import { VfxSystem } from '@/vfx/VfxSystem';
 import { listen } from './dom';
 import { createStorage } from './storage';
 import type { DevTools } from './devTools';
 import { GameLoop } from './GameLoop';
+import { afterIdle } from './dom';
+import type { Effects } from './effects';
+import { attachProgressRecorder } from './progressRecorder';
 import { optionsFromQuery, type GameOptions } from './options';
+
+/** How long after the first frame the page waits before it fetches the effects (it still waits for an idle moment after that). */
+const EFFECTS_DELAY_MS = 2000;
+/** What the effects report while they have not arrived. */
+const NO_EFFECTS = { particles: 0, sprites: 0, spawned: 0, dropped: 0, peakParticles: 0, poolCreated: 0 };
 
 /**
  * Composition root of the 2D game (`?view=2d`): wires the deterministic simulation to PixiJS. Nothing here decides
@@ -82,8 +88,9 @@ export class Game2D {
   private readonly bindings = structuredClone(DEFAULT_BINDINGS);
   private readonly playerSprite: ActorSprite;
   private readonly entityViews: EntityViews;
-  private readonly vfx: VfxSystem;
-  private readonly vfxDirector: VfxDirector;
+  /** The effects: a separate chunk, fetched when the page is idle (or at once under `?hooks=1`). `null` until it arrives: the game needs none of them. */
+  private effects: Effects | null = null;
+  private effectsRequest: Promise<void> | null = null;
   private readonly deathOverlay: DeathOverlay;
   private readonly transitionOverlay: TransitionOverlay;
   private readonly safeArea: SafeArea;
@@ -127,7 +134,10 @@ export class Game2D {
     // what the player chose last time (the language, the touch controls): read before anything is drawn, so the first frame is already right
     const settings = new SettingsStore(createStorage(), { warn: (message) => log.scope('save').warn(message) });
     await settings.load();
-    return new Game2D(renderer, counter, options, sprites, playerSet, settings);
+    // the progress of the game: continued, or erased with `?new=1`. A playground (`?room=`) never reads or writes it
+    const progress = options.room ? null : new ProgressStore(createStorage(), { warn: (message) => log.scope('save').warn(message) });
+    if (progress) await (options.newGame ? progress.erase() : progress.load());
+    return new Game2D(renderer, counter, options, sprites, playerSet, settings, progress);
   }
 
   private constructor(
@@ -137,20 +147,26 @@ export class Game2D {
     sprites: SpriteAssetManager<Texture>,
     playerSet: LoadedSpriteSet<Texture>,
     settings: SettingsStore,
+    progress: ProgressStore | null,
   ) {
     this.settings = settings;
     // A new game starts the vertical slice (room R1, with the starting abilities). `?room=` opens a playground instead and
     // then the abilities are exactly `?unlock=` says: the test rooms never depended on what the hero starts with.
     const startRoom = options.room && ROOMS[options.room] ? options.room : START.room;
+    // a saved game continues where the hero last came into a room, with what they had won (and a defeat brings them back at the last
+    // checkpoint); a place the world no longer has is never trusted (docs/PROMPT6-LOG.md S24)
+    const saved = progress?.value ? restoreFromProgress(progress.value, ROOMS, WORLD.start) : null;
     this.session = new GameSession({
       rooms: ROOMS,
       player: PLAYER,
       abilities: ABILITIES,
       resources: { magic: MAGIC, bottles: { definitions: BOTTLE_DEFINITIONS, initial: BOTTLES.initial, rules: BOTTLES.rules }, cards: CARDS, skills: SKILLS },
       enemies: ENEMIES,
-      startRoom,
-      unlocked: options.room ? options.unlock : [...START.unlocked, ...options.unlock],
+      startRoom: saved?.startRoom ?? startRoom,
+      ...(saved ? { startEntry: saved.startEntry, checkpoint: saved.checkpoint, flags: saved.flags, restore: saved.restore } : options.room ? {} : { startEntry: START.entry }),
+      unlocked: saved ? [...saved.unlocked, ...options.unlock] : options.room ? options.unlock : [...START.unlocked, ...options.unlock],
     });
+    if (progress) this.lifecycle.add(attachProgressRecorder(this.session, progress));
     this.lifecycle.add(() => this.session.dispose());
     this.lifecycle.add(() => sprites.dispose());
     this.lifecycle.add(() => renderer.destroy());
@@ -249,17 +265,25 @@ export class Game2D {
     this.lifecycle.add(this.session.bus.on('room:loaded', () => (this.roomDirty = true)));
     // a door dissolves when the flag that opens it is set (the simulation already switched its collider off)
     this.lifecycle.add(this.session.bus.on('gate:changed', ({ gateId, open }) => this.roomView.setGateOpen(gateId, open)));
-    // VFX: pooled, budgeted, driven by simulation events and running in REAL time (a hit-stop does not freeze the sparks)
-    const tier = renderer.qualityTier;
-    this.vfx = new VfxSystem({ add: renderer.layers.fxWorld, normal: renderer.layers.fxNormal }, vfxAtlas, VFX, {
-      particleBudget: PARTICLE_BUDGET[tier],
-      spriteBudget: SPRITE_FX_BUDGET[tier],
-    });
-    this.vfx.prewarm();
-    this.lifecycle.add(() => this.vfx.destroy());
+    // The effects (pooled, budgeted, event-driven, real time) are cosmetic and a tenth of the first download: the page fetches them once the
+    // first frame is up and it has a moment, 2 s after it at the latest idle — or at once under `?hooks=1`, so a test never waits for them by luck.
     const body = this.session.player.body;
-    this.vfxDirector = new VfxDirector(this.session.bus, this.vfx, VFX_BINDINGS, VFX, () => ({ x: body.x, y: body.y }), new Set(Object.keys(SKILLS)));
-    this.lifecycle.add(() => this.vfxDirector.dispose());
+    const loadEffects = (): Promise<void> =>
+      (this.effectsRequest ??= import('./effects').then(({ createEffects }) => {
+        if (this.closed) return;
+        this.effects = createEffects({
+          renderer: renderer.app.renderer,
+          layers: renderer.layers,
+          atlas: vfxAtlas,
+          bus: this.session.bus,
+          tier: renderer.qualityTier,
+          playerPosition: () => ({ x: body.x, y: body.y }),
+          projectileSkills: new Set(Object.keys(SKILLS)),
+        });
+      }));
+    this.lifecycle.add(() => this.effects?.dispose());
+    if (options.hooks) void loadEffects();
+    else this.lifecycle.add(afterIdle(() => void loadEffects(), EFFECTS_DELAY_MS));
     this.buildRoomView();
     this.setupDebug();
 
@@ -357,10 +381,18 @@ export class Game2D {
 
   // ---------------------------------------------------------------------------------------------------- views
 
+  /** Is this interactable of the current room the shrine the hero last rested at? */
+  private isCheckpoint(id: string): boolean {
+    const room = this.session.room;
+    const rest = room.interactables?.find((i) => i.id === id)?.actions.find((a) => a.type === 'checkpoint');
+    const cp = this.session.checkpoint;
+    return rest?.type === 'checkpoint' && cp.room === room.id && cp.entry === rest.entry;
+  }
+
   private buildRoomView(): void {
     const room = this.session.room;
     this.roomView.build(room, (gateId) => this.session.gateOpen(gateId));
-    this.interactableViews.build(room.interactables ?? [], (id) => this.session.interaction.isAvailable(id));
+    this.interactableViews.build(room.interactables ?? [], (id) => this.session.interaction.isAvailable(id), (id) => this.isCheckpoint(id));
     this.tools?.setRoom();
     this.camera.setRoom(room);
   }
@@ -371,7 +403,7 @@ export class Game2D {
       this.roomDirty = false;
       this.buildRoomView();
       this.camera.snap();
-      this.vfx.clear();
+      this.effects?.system.clear();
     }
     const p = this.session.player;
     // While paused (debug / E2E) show the exact simulated state, not an interpolation of stale ticks.
@@ -386,10 +418,10 @@ export class Game2D {
     this.entityViews.sync(a, animDt);
     // VFX run in real time: only the pause (debug / tests) and the debug time scale affect them, never a hit-stop
     const vfxDt = this.debug.get('paused') ? 0 : realDt * this.debug.get('timeScale');
-    this.vfxDirector.update();
-    this.vfx.update(vfxDt);
+    this.effects?.director.update();
+    this.effects?.system.update(vfxDt);
     this.roomView.update(realDt);
-    this.interactableViews.update(realDt, (id) => this.session.interaction.isAvailable(id));
+    this.interactableViews.update(realDt, (id) => this.session.interaction.isAvailable(id), (id) => this.isCheckpoint(id));
     this.deathOverlay.update(this.session.deathSnapshot);
     this.transitionOverlay.update(this.session.transitionSnapshot);
     this.updateHud(realDt);
@@ -520,7 +552,7 @@ export class Game2D {
       this.roomDirty = false;
       this.buildRoomView();
       this.camera.snap();
-      this.vfx.clear();
+      this.effects?.system.clear();
     }
     this.playerSprite.sync(this.session.player.view, 1, 0);
     this.deathOverlay.update(this.session.deathSnapshot);
@@ -537,6 +569,8 @@ export class Game2D {
       input: this.input,
       /** The 2D view is ready as soon as `Game2D.create` resolved (the sprite sets are loaded before it is built). */
       ready: () => true,
+      /** The effects have arrived (they load after the first frame): a test that looks at them waits for this. */
+      effectsReady: () => this.effects !== null,
       /** Freezes real-time simulation so tests can advance it tick by tick. */
       pause: () => this.debug.set('paused', true),
       resume: () => this.debug.set('paused', false),
@@ -631,7 +665,7 @@ export class Game2D {
           gates: Object.fromEntries((this.session.room.gates ?? []).map((g) => [g.id, { open: this.session.gateOpen(g.id), alpha: this.roomView.gateAlpha(g.id) ?? null }])),
           exits: [...this.session.exitsReached],
           views: this.entityViews.count,
-          vfx: this.vfx.stats,
+          vfx: this.effects?.system.stats ?? NO_EFFECTS,
           death: this.session.deathSnapshot, transition: this.session.transitionSnapshot, lang: this.translator.locale,
           device: this.input.device,
           // the player's resources (the HUD shows them; the tests read the numbers)

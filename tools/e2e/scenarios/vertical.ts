@@ -182,7 +182,8 @@ export const vertical: Scenario = {
     const icon = await centreOf(page, 'prompt-hit');
     assert.ok(icon.w >= 44, `a finger-sized target (${icon.w})`);
     await ctx.shot('t-01-icon');
-    await screen.tap(2, icon.x, icon.y);
+    const under = await centreOf(page, 'prompt-hit'); // the icon follows the camera frame by frame: measure it again right before the finger lands
+    await screen.tap(2, under.x, under.y);
     await ctx.step(1);
     s = await ctx.state();
     assert.equal(s.state, 'interact');

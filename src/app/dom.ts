@@ -38,3 +38,21 @@ export function listen(
   target.addEventListener(type, handler as EventListener, { ...options, signal: controller.signal });
   store.add(() => controller.abort());
 }
+
+/**
+ * Runs `run` once, `delayMs` from now and then at the next idle moment of the page (it does not wait for one longer than 2 s; where the
+ * platform has no idle callback it runs at once). Returns what cancels it: a disposed owner never runs it.
+ */
+export function afterIdle(run: () => void, delayMs: number): () => void {
+  let cancelIdle: (() => void) | null = null;
+  const timer = setTimeout(() => {
+    if (typeof requestIdleCallback === 'function') {
+      const id = requestIdleCallback(run, { timeout: 2000 });
+      cancelIdle = () => cancelIdleCallback(id);
+    } else run();
+  }, delayMs);
+  return () => {
+    clearTimeout(timer);
+    cancelIdle?.();
+  };
+}

@@ -54,13 +54,14 @@ export interface SessionOptions {
   enemies?: Readonly<Record<string, EnemyDefinition>>;
   /** World flags set from the start (tests, loading a save). */
   flags?: readonly string[];
+  /** Where the hero comes back after a defeat (a loaded game's last checkpoint). Without it: the entry the session starts at. A place the session does not have is ignored. */
+  checkpoint?: Place;
+  /** What a loaded game gives back besides the flags and the abilities (`gameplay/progress.ts` builds it from the saved progress). */
+  restore?: { cards?: { owned: readonly string[]; equipped: string | null }; bottleSlots?: number };
 }
 
-/** Where the player comes back after dying: the entrance of the room (Prompt 4); the last save node later (Prompt 6). */
-export interface RespawnPoint {
-  room: string;
-  entry: string;
-}
+/** A room and one of its entries: where the hero comes back after a defeat (the last checkpoint), and where they last came into a room. */
+export type Place = Destination;
 
 /**
  * Root of the simulation. Deterministic: the same options + the same sequence of `InputFrame`s always produce
@@ -102,7 +103,12 @@ export class GameSession implements SimServices {
   /** Owner token for everything scheduled on behalf of the current room (cancelled when it unloads). */
   private roomOwner: object = {};
   private lastSafe = { x: 0, y: 0 };
-  private _respawnPoint: RespawnPoint = { room: '', entry: '' };
+  /** Where the hero comes back after a defeat: the last place they rested at (the start of the session until then). */
+  private _checkpoint: Place = { room: '', entry: '' };
+  /** The entry the current room was last built at (a connection, a respawn, a rest): where a loaded game puts the hero. */
+  private _arrival: Place = { room: '', entry: '' };
+  /** Where the session began: the last resort when a checkpoint turns out to name a room it does not have. */
+  private readonly origin: Place;
   private disposed = false;
 
   // ---- what the current room asked for: enemies that leave a flag when they fall, doors, ways out ----
@@ -153,6 +159,7 @@ export class GameSession implements SimServices {
         clearFlag: (flag) => void this.flags.clear(flag),
         acquireCard: (cardId) => this.loadout.acquire(cardId),
         addBottleSlot: (bottleId) => this.bottles.addSlot(bottleId),
+        checkpoint: (entry) => this.rest(entry),
       },
       {
         available: (e) => this.bus.emit('interaction:available', e),
@@ -166,7 +173,7 @@ export class GameSession implements SimServices {
         respawn: () => this.respawnAfterDeath(),
         emitStarted: () => this.bus.emit('death:started', { x: this.player.x, y: this.player.y }),
         emitFadeOut: (ticks) => this.bus.emit('death:fadeOut', { ticks }),
-        emitRespawned: () => this.bus.emit('death:respawned', { roomId: this._respawnPoint.room, entryId: this._respawnPoint.entry }),
+        emitRespawned: () => this.bus.emit('death:respawned', { roomId: this._arrival.room, entryId: this._arrival.entry }),
         emitFadeIn: (ticks) => this.bus.emit('death:fadeIn', { ticks }),
       },
       opts.death ?? DEFAULT_DEATH_FLOW,
@@ -196,8 +203,14 @@ export class GameSession implements SimServices {
     });
     this.bus.on('flag:set', () => this.applyGates(true));
     this.bus.on('flag:cleared', () => this.applyGates(true));
+    // a loaded game: the cards and the bottle slots the hero had (the flags and the abilities come through their own options)
+    if (opts.restore?.cards) this.loadout.restore(opts.restore.cards);
+    const wanted = opts.restore?.bottleSlots ?? 0;
+    for (let i = this.bottles.slots.length; i < wanted; i++) if (!this.bottles.addSlot(opts.resources.bottles.initial[0] ?? '')) break;
     this.current = this.requireRoom(opts.startRoom);
     this.buildRoom(this.current, opts.startEntry);
+    this.origin = { ...this._arrival };
+    this._checkpoint = opts.checkpoint && this.canEnter(opts.checkpoint) ? { ...opts.checkpoint } : { ...this._arrival };
   }
 
   /** Simulation ticks elapsed; frozen while hit-stop holds the world still. */
@@ -214,8 +227,17 @@ export class GameSession implements SimServices {
   get hitStopLeft(): number {
     return this.hitStopTicks;
   }
-  get respawnPoint(): Readonly<RespawnPoint> {
-    return this._respawnPoint;
+  /** Where the hero comes back after a defeat: the last place they rested at, and the start of the session until then. */
+  get checkpoint(): Readonly<Place> {
+    return this._checkpoint;
+  }
+  /** Same thing, under the name the defeat flow and the tests use. */
+  get respawnPoint(): Readonly<Place> {
+    return this._checkpoint;
+  }
+  /** The entry the current room was last built at: where a game saved now puts the hero when it is loaded. */
+  get arrival(): Readonly<Place> {
+    return this._arrival;
   }
   /** One frame of the defeat flow for the overlay. */
   get deathSnapshot(): DeathSnapshot {
@@ -319,8 +341,29 @@ export class GameSession implements SimServices {
     this.unloadRoom();
     this.current = this.requireRoom(roomId);
     this.buildRoom(this.current, entryId);
+    this._checkpoint = { ...this._arrival }; // a room put in place by hand (a playground, the debug panel) is where a defeat brings the hero back
     if (this.player.health.dead) this.revivePlayer();
-    this.bus.emit('room:loaded', { roomId: this.current.id, entryId: this._respawnPoint.entry });
+    this.bus.emit('room:loaded', { roomId: this.current.id, entryId: this._arrival.entry });
+  }
+
+  /**
+   * The hero rests at the entry `entryId` of this room (an interactable's `checkpoint` action): it is where they come back after a
+   * defeat from now on, and where a game saved now puts them. Life, magic and every bottle are restored — resting is the one
+   * place the slow recharge of the bottles is skipped — and the effect plays where they stand. An entry the room does not have does nothing.
+   */
+  rest(entryId: string): void {
+    const entry = this.current.entries.find((e) => e.id === entryId);
+    if (!entry) {
+      log.scope('world').warn(`room "${this.current.id}" has no entry "${entryId}" to rest at`);
+      return;
+    }
+    this._checkpoint = { room: this.current.id, entry: entry.id };
+    this._arrival = { ...this._checkpoint };
+    this.player.health.restore();
+    this.magic.restore();
+    this.skills.reset();
+    this.bottles.refillAll();
+    this.bus.emit('checkpoint:set', { ...this._checkpoint, x: this.player.body.x, y: this.player.body.y });
   }
 
   /**
@@ -396,7 +439,7 @@ export class GameSession implements SimServices {
     this.player.respawn(entry.x, entry.y, entry.facing ?? 1);
     this.collision.probeGround(this.player.body);
     this.lastSafe = { x: entry.x, y: entry.y };
-    this._respawnPoint = { room: room.id, entry: entry.id };
+    this._arrival = { room: room.id, entry: entry.id };
     this.placeSpawns(room);
     this.applyGates(false);
     this.interaction.setRoom(room.interactables ?? []);
@@ -476,16 +519,24 @@ export class GameSession implements SimServices {
   }
 
   /**
-   * The defeat flow's respawn: reload the room at the respawn point (enemies and entities come back, collision is
-   * rebuilt without leaks) and give the player full health. Abilities and items are untouched: dying costs nothing.
+   * The defeat flow's respawn: load the room of the last checkpoint — which may not be the room the hero fell in — with its enemies
+   * and entities back, the collision rebuilt without leaks, and give the player full health. Abilities, items and flags are untouched:
+   * dying costs nothing but the way back.
    */
   private respawnAfterDeath(): void {
-    const { room, entry } = this._respawnPoint;
+    // the last checkpoint — and if it names a room or an entry this session does not have (a damaged or outdated save), the place the
+    // session began at, so there is ALWAYS somewhere valid to come back to
+    let { room, entry } = this._checkpoint;
+    if (!this.canEnter(this._checkpoint)) {
+      log.scope('world').warn(`the checkpoint "${room}:${entry}" does not exist: back to the start`);
+      ({ room, entry } = this.origin);
+      this._checkpoint = { ...this.origin };
+    }
     this.unloadRoom();
     this.current = this.requireRoom(room);
     this.buildRoom(this.current, entry);
     this.revivePlayer();
-    this.bus.emit('room:loaded', { roomId: this.current.id, entryId: entry });
+    this.bus.emit('room:loaded', { roomId: this.current.id, entryId: this._arrival.entry });
   }
 
   /** Coming back from a defeat: life AND magic full (GAME-SPEC-2D §9.2). The bottles are NOT refilled: their recharge is slow on purpose. */

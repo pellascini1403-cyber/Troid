@@ -44,8 +44,10 @@ interface Tally {
   performed: number;
   respawned: boolean;
   loaded: boolean;
+  /** The hero rested at a shrine: life, magic and bottles are given back (docs/PROMPT6-LOG.md S24). */
+  rested: boolean;
 }
-const fresh = (): Tally => ({ hurt: 0, died: 0, healed: 0, used: 0, recharged: 0, added: 0, refilled: 0, spent: 0, magicReset: false, casts: 0, denied: 0, drunk: 0, performed: 0, respawned: false, loaded: false });
+const fresh = (): Tally => ({ hurt: 0, died: 0, healed: 0, used: 0, recharged: 0, added: 0, refilled: 0, spent: 0, magicReset: false, casts: 0, denied: 0, drunk: 0, performed: 0, respawned: false, loaded: false, rested: false });
 
 export interface Totals {
   ticks: number;
@@ -115,6 +117,7 @@ export function soak(seed: number, ticks: number, hook?: SoakHook): Result {
   s.bus.on('skill:denied', () => void (t.denied++, totals.denied++));
   s.bus.on('interaction:performed', () => void (t.performed++, totals.performed++));
   s.bus.on('death:respawned', () => void (t.respawned = true));
+  s.bus.on('checkpoint:set', () => void (t.rested = true));
   s.bus.on('room:loaded', () => void (t.loaded = true, totals.loads++));
   s.bus.on('player:hurt', (e) => note(`hurt ${e.damage}`));
   s.bus.on('player:died', () => note('DIED'));
@@ -217,7 +220,7 @@ export function soak(seed: number, ticks: number, hook?: SoakHook): Result {
     // the life: inside its bar, and it only changes for a reason (a hit, a bottle, or a respawn that gives it back)
     const h = p.health.current;
     if (!(Number.isInteger(h) && h >= 0 && h <= p.health.max)) bad(`life ${h} is outside 0…${p.health.max}`);
-    if (!t.respawned && !t.loaded) {
+    if (!t.respawned && !t.loaded && !t.rested) {
       const expected = t.died > 0 ? 0 : Math.max(0, Math.min(p.health.max, prevHealth - t.hurt + t.healed));
       if (h !== expected) bad(`life went ${prevHealth} → ${h} (hurt ${t.hurt}, healed ${t.healed}, died ${t.died})`);
     }

@@ -15,6 +15,8 @@ export interface InteractionHost {
   clearFlag(flag: string): void;
   acquireCard(cardId: string): boolean;
   addBottleSlot(bottleId: string): boolean;
+  /** The hero rests at the entry `entry` of the current room (it becomes their checkpoint). */
+  checkpoint(entry: string): void;
 }
 
 /** What is announced about an interactable: the point its ICON is anchored to — the top of the object, world metres — and the key of its verb. */
@@ -160,6 +162,9 @@ export class InteractionSystem {
         break;
       case 'clearFlag':
         this.host.clearFlag(a.flag);
+        break;
+      case 'checkpoint':
+        this.host.checkpoint(a.entry);
         break;
       default: {
         const never: never = a;

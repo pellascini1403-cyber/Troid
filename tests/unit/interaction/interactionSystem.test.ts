@@ -17,6 +17,7 @@ function make(defs: InteractableDef[] = []) {
     clearFlag: (f) => (calls.push(`clear:${f}`), void flags.delete(f)),
     acquireCard: (id) => (calls.push(`card:${id}`), true),
     addBottleSlot: (id) => (calls.push(`bottle:${id}`), true),
+    checkpoint: (entry) => void calls.push(`rest:${entry}`),
   };
   const sys = new InteractionSystem(host, {
     available: (e) => void log.push(['available', e]),
@@ -276,5 +277,25 @@ describe('determinism', () => {
       return JSON.stringify(log);
     };
     expect(run()).toBe(run());
+  });
+});
+
+describe('resting (the `checkpoint` action)', () => {
+  it('performing a shrine asks the host to rest at the entry it names, once, and announces it like any other interaction', () => {
+    const { sys, calls, names } = make([{ id: 'shrine', kind: 'rest', verbKey: 'interact.rest', x: 5, y: 0, actions: [{ type: 'checkpoint', entry: 'rest' }] }]);
+    sys.update(5, 0, true);
+    expect(sys.current?.id).toBe('shrine');
+    expect(sys.perform()?.id).toBe('shrine');
+    expect(calls).toEqual(['rest:rest']);
+    expect(names()).toEqual(['available', 'performed']);
+  });
+
+  it('a shrine can be used again and again: it is never spent', () => {
+    const { sys, calls } = make([{ id: 'shrine', kind: 'rest', verbKey: 'interact.rest', x: 5, y: 0, actions: [{ type: 'checkpoint', entry: 'rest' }] }]);
+    sys.update(5, 0, true);
+    sys.perform();
+    sys.perform();
+    expect(calls).toEqual(['rest:rest', 'rest:rest']);
+    expect(sys.current?.id).toBe('shrine');
   });
 });

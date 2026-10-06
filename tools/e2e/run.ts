@@ -11,6 +11,7 @@ import type { Ctx, GameState, Scenario } from './scenario';
 import { bolt } from './scenarios/bolt';
 import { bottles } from './scenarios/bottles';
 import { camera } from './scenarios/camera';
+import { checkpoint } from './scenarios/checkpoint';
 import { combat } from './scenarios/combat';
 import { crouch } from './scenarios/crouch';
 import { gamepad } from './scenarios/gamepad';
@@ -23,6 +24,7 @@ import { devtools } from './scenarios/devtools';
 import { movement } from './scenarios/movement';
 import { r1 } from './scenarios/r1';
 import { room } from './scenarios/room';
+import { save } from './scenarios/save';
 import { render } from './scenarios/render';
 import { slime } from './scenarios/slime';
 import { soak } from './scenarios/soak';
@@ -34,7 +36,7 @@ import { vertical } from './scenarios/vertical';
 import { vfx } from './scenarios/vfx';
 import { world } from './scenarios/world';
 
-const ALL: Scenario[] = [movement, crouch, combat, slime, r1, room, death, render, camera, sprites, vfx, stress, touch, gamepad, hud, magic, bolt, bottles, interaction, devtools, language, vertical, transition, world, soak];
+const ALL: Scenario[] = [movement, crouch, combat, slime, r1, room, death, render, camera, sprites, vfx, stress, touch, gamepad, hud, magic, bolt, bottles, interaction, devtools, language, vertical, transition, world, checkpoint, save, soak];
 const filter = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const prod = process.argv.includes('--prod');
 const selected = ALL.filter((s) => !filter || s.name.includes(filter));
@@ -66,6 +68,8 @@ for (const scenario of selected) {
       const o = await openPage(browser, `${server.url}/?hooks=1&${query}`, size);
       opened.current = o;
       await o.page.waitForFunction('window.__troid && window.__troid.ready()', undefined, { timeout: 30000 });
+      // the effects load after the first frame (a separate chunk): a scenario starts with them in place
+      await o.page.waitForFunction('!window.__troid.effectsReady || window.__troid.effectsReady()', undefined, { timeout: 30000 });
       await o.page.evaluate('window.__troid.pause()');
       await o.page.waitForTimeout(150);
     },

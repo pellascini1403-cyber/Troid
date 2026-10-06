@@ -28,6 +28,8 @@ export interface RoomRefs {
 }
 
 const SUPPORT_TOLERANCE = 0.05;
+/** How far, in metres, the entry a shrine rests at may be from the shrine itself. */
+const MAX_CHECKPOINT_DISTANCE = 3;
 
 export function validateRoom(room: RoomDefinition, refs: RoomRefs): RoomIssue[] {
   const issues: RoomIssue[] = [];
@@ -110,6 +112,11 @@ export function validateRoom(room: RoomDefinition, refs: RoomRefs): RoomIssue[] 
       else if (a.type === 'setFlag' || a.type === 'clearFlag') {
         if (a.flag === '') add('empty-flag', `interactable "${i.id}" has an action with an empty flag`);
         else if (a.type === 'setFlag') gateFlags.add(a.flag); // a lever may open a door of the room
+      } else if (a.type === 'checkpoint') {
+        // a shrine puts the hero back at one of the room's entries: it must exist, and be at the shrine (not across the room)
+        const entry = room.entries.find((n) => n.id === a.entry);
+        if (!entry) add('checkpoint-entry', `interactable "${i.id}" rests at the entry "${a.entry}", which the room does not have`);
+        else if (Math.abs(entry.x - i.x) > MAX_CHECKPOINT_DISTANCE) add('checkpoint-far', `interactable "${i.id}" rests at the entry "${a.entry}", ${Math.abs(entry.x - i.x).toFixed(1)} m away from it (at most ${MAX_CHECKPOINT_DISTANCE})`);
       }
     }
   }

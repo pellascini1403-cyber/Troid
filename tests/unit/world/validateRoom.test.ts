@@ -133,5 +133,13 @@ describe('validateRoom: interactables', () => {
     const lever = pickup({ id: 'lever', kind: 'activate', actions: [{ type: 'setFlag', flag: 'lever:on' }] });
     expect(codes(room({ ...door, spawns: [], interactables: [lever] }), withCards)).toEqual([]);
   });
-});
 
+  it('a shrine must rest at an entry its room has, and one that is at the shrine (not across the room)', () => {
+    const shrine = (entry: string, x = 10): RoomDefinition['interactables'] => [{ id: 'shrine', kind: 'rest', verbKey: 'interact.rest', x, y: 0, actions: [{ type: 'checkpoint', entry }] }];
+    const entries = [{ id: 'start', x: 4, y: 0, facing: 1 as const }, { id: 'rest', x: 11, y: 0, facing: 1 as const }];
+    expect(codes(room({ entries, interactables: shrine('rest') }))).toEqual([]);
+    expect(codes(room({ entries, interactables: shrine('nowhere') }))).toContain('checkpoint-entry');
+    expect(codes(room({ entries, interactables: shrine('start') }))).toContain('checkpoint-far'); // 6 m away
+    expect(codes(room({ entries, interactables: shrine('rest', 18) }))).toContain('checkpoint-far');
+  });
+});

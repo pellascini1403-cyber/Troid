@@ -7,7 +7,7 @@
  */
 
 /** What kind of thing it is: the interface picks the icon from it, and the world its marker. */
-export type InteractionKind = 'open' | 'talk' | 'pickup' | 'activate' | 'enter' | 'use';
+export type InteractionKind = 'open' | 'talk' | 'pickup' | 'activate' | 'enter' | 'use' | 'rest';
 
 /**
  * One effect of performing an interactable. A small CLOSED set the session knows how to apply (the host in
@@ -20,7 +20,9 @@ export type InteractAction =
   /** The player gets one more bottle slot (the fourth is a reward). */
   | { type: 'addBottleSlot'; bottleId: string }
   | { type: 'setFlag'; flag: string }
-  | { type: 'clearFlag'; flag: string };
+  | { type: 'clearFlag'; flag: string }
+  /** Rest here: this room's entry `entry` becomes where the hero comes back after a defeat; life, magic and bottles are restored and the game is saved. */
+  | { type: 'checkpoint'; entry: string };
 
 /** How far from the object the player may be, in metres: horizontal and vertical distance of the feet (§12: 1.6 m / 1.2 m). */
 export interface InteractReach {

@@ -31,6 +31,8 @@ export const R2_HALL_ROOM: RoomDefinition = {
     { id: 'west', x: 4, y: 0, facing: 1 },
     // from R3
     { id: 'east', x: 84.5, y: 0, facing: -1 },
+    // where the shrine brings the hero back (S24)
+    { id: 'rest', x: 12.8, y: 0, facing: 1 },
   ],
   solids: [
     // boundary walls
@@ -63,5 +65,7 @@ export const R2_HALL_ROOM: RoomDefinition = {
     { id: 'west', rect: rect(0, 0, 2.4, 4), to: { room: 'r1_gate', entry: 'east' } },
     { id: 'east', rect: rect(88, 0, 91, 4), to: { room: 'r3_chamber', entry: 'west' } },
   ],
+  // the first place to rest after R1: a defeat in this room (or the next) brings the hero back here, not to the Ruins Gate
+  interactables: [{ id: 'shrine', kind: 'rest', verbKey: 'interact.rest', x: 12, y: 0, actions: [{ type: 'checkpoint', entry: 'rest' }] }],
   art: { backdrop: 'ruins', seed: 2 },
 };

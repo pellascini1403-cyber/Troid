@@ -139,7 +139,7 @@ export const transition: Scenario = {
     assert.deepEqual(entered, ['r2_hall:west', 'r3_chamber:west', 'r4_sanctum:west', 'r3_chamber:east', 'r2_hall:east', 'r1_gate:east']);
     s = await state();
     assert.equal(s.gates?.exit_door?.open, true, 'R1\'s door is still open: the guardian stays beaten');
-    assert.deepEqual(s.respawnPoint, { room: 'r1_gate', entry: 'east' }, 'the entry the hero came in by is where they come back after a defeat');
+    assert.deepEqual(s.respawnPoint, { room: 'r1_gate', entry: 'start' }, 'a transition does not move the checkpoint: the start of the world, until the hero rests somewhere');
 
     // ================================================================================================ C · nothing left behind
     const domBefore = (await ctx.page.evaluate('document.querySelectorAll("*").length')) as number;
@@ -205,18 +205,19 @@ export const transition: Scenario = {
     await ctx.step(10);
     s = await state();
     assert.equal(s.death?.phase, 'none');
-    assert.equal(s.room, 'r3_chamber', 'no swap under a hero who was down: the defeat flow brought them back in the room they were leaving');
-    assert.ok(Math.abs(s.x - 4) < 0.3, `at the entry they came in by (x = ${s.x})`);
+    // (the last checkpoint is the one `loadRoom` put in section C: R1's east entry — a room placed by hand is where a defeat brings the hero back)
+    assert.equal(s.room, 'r1_gate', 'no swap under a hero who was down: the defeat flow brought them back at the last checkpoint');
+    assert.ok(Math.abs(s.x - 106.6) < 0.3, `at it (x = ${s.x})`);
     assert.equal(s.health, s.maxHealth, 'with full life');
     assert.equal(s.transition?.phase, 'none');
     assert.equal((await overlay(ctx)).display, 'none', 'no black screen is left over the game');
     assert.equal(await count('room:entered'), 6 + 16 + 2, 'and no room was entered after the defeat began');
     assert.equal(await sess('return s.scheduler.pending'), 0);
     // and the world still works afterwards
-    await ctx.teleport(77.5, 0);
+    await ctx.teleport(110, 0);
     await ctx.step(40);
     s = await state();
-    assert.equal(s.room, 'r4_sanctum', 'the next transition goes through');
+    assert.equal(s.room, 'r2_hall', 'the next transition goes through');
     await ctx.shot('d-after-the-defeat');
     const total = await count('transition:started');
     assert.equal(await count('transition:finished'), total - 1, 'every transition finished except the one the defeat called off');

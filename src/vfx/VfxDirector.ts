@@ -54,6 +54,10 @@ export class VfxDirector {
       bus.on('bottle:drunk', (e) => {
         this.fire('drinkHeal', { x: e.x, y: e.y + 0.9, facing: 1 });
       }),
+      // resting at a shrine restores the hero the way a bottle does: the same warm light, where they stand
+      bus.on('checkpoint:set', (e) => {
+        this.fire('drinkHeal', { x: e.x, y: e.y + 0.9, facing: 1 });
+      }),
       bus.on('player:hurt', (e) => {
         this.fire('playerHurt', { x: e.x, y: e.y, facing: e.direction, dirX: e.direction, dirY: 0.2 });
       }),

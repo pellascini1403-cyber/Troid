@@ -6,6 +6,8 @@ export interface GameOptions {
   room?: string;
   /** `?unlock=dash,magic_attack` abilities owned from the start (in addition to the starting ones of a new game). */
   unlock: string[];
+  /** `?new=1` starts over: the saved progress (if any) is erased instead of continued. Playgrounds (`?room=`) never read or write the progress. */
+  newGame: boolean;
   /** `?debug=1` makes the debug tools available and opens the panel. */
   debug: boolean;
   /** `?hooks=1` exposes `window.__troid` (always on in dev builds) for E2E tests. */
@@ -33,6 +35,7 @@ export function optionsFromQuery(q: URLSearchParams): GameOptions {
   return {
     room: q.get('room') ?? undefined,
     unlock: (q.get('unlock') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
+    newGame: q.get('new') === '1',
     debug: q.get('debug') === '1',
     hooks: q.get('hooks') === '1',
     paused: q.get('paused') === '1',
