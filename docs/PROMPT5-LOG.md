@@ -14,7 +14,7 @@
 | **S15** magia y Spirit Bolt | ✅ | (ver historial) |
 | **S16** cartas y botellas | ✅ | (ver historial) |
 | **S17** interacción contextual | ✅ | (ver historial) |
-| **S18** idioma persistente | ⏳ | |
+| **S18** idioma persistente y ajustes | ✅ | (ver historial) |
 | **S19** integración en R1 y E2E | ⏳ | |
 | **S20** validación final y documentación | ⏳ | |
 
@@ -355,5 +355,55 @@ E2E `interaction` (teclado real, toque real): sin nada al alcance **no hay icono
 
 ### 7. Bundle tras S17 (y el panel de depuración bajo demanda)
 
-Sumar interacción (sistema, estado, icono, marcas, glifos, contenido, claves) llevó el arranque en frío de R1 a **197.0 KB gz** (+3.4 KB sobre S16). Con solo **3.0 KB** de margen y S18 por venir, se aplicó la opción ya medida desde S12: **el panel de depuración, la rejilla de colisiones y las acciones de depuración pasan a un módulo propio (`app/devTools.ts`) que solo se descarga con `?debug=1` (o la tecla ` en desarrollo)**. Resultado: **196.2 KB gz** (28 *scripts*; −0.8 KB neto por el reparto en *chunks* de arriba), margen **3.8 KB**. Un jugador no descarga herramientas de desarrollo; su comportamiento no cambia (`devtools` E2E lo prueba).
+Sumar interacción (sistema, estado, icono, marcas, glifos, contenido, claves) llevó el arranque en frío de R1 a **197.0 KB gz** (+3.4 KB sobre S16). Con solo **3.0 KB** de margen y S18 por venir, se aplicó la opción ya medida desde S12: **el panel de depuración, la rejilla de colisiones y las acciones de depuración pasan a un módulo propio (`app/devTools.ts`) que solo se descarga con `?debug=1` (o la tecla ` en desarrollo)**. Resultado: **196.3 KB gz** (28 *scripts*; −0.7 KB neto por el reparto en *chunks* de arriba), margen **3.7 KB**. Un jugador no descarga herramientas de desarrollo; su comportamiento no cambia (`devtools` E2E lo prueba).
+
+
+---
+
+## S18 — Idioma persistente y ajustes ✅ (`S18a` guardado puro · `S18b` cableado · `S18c` menú de pausa)
+
+El idioma que elige el jugador **sobrevive** a un cambio de escena, a recargar y a abrir el navegador de nuevo; `?lang=` sigue siendo un atajo de **una sola visita** que no pisa lo guardado. Con él llega el único menú del Prompt 5: pausa + idioma + tamaño y opacidad de los controles táctiles (GAME-SPEC-2D §17 «menú de pausa mínimo»).
+
+### 1. `save/` (puro; el almacenamiento se inyecta)
+
+- **`StorageAdapter`** (`get/set/remove`, asíncrono como exige ARCHITECTURE-2D §11) y **`MemoryStorage`**. `app/storage.ts` aporta **`LocalStorageAdapter`**: cada acceso va protegido (la propia propiedad `localStorage` lanza con los datos del sitio bloqueados): una lectura imposible es «nada guardado», una escritura imposible lanza para que el *store* lo cuente **una vez** y el juego siga con lo que tiene en memoria. Sin almacenamiento alguno cae en memoria.
+- **`SettingsData` v1** = `{ version, language: string | null, touch: { scale, opacity } }`. ⚠ **Desviación menor documentada:** ARCHITECTURE-2D §11 dibuja una v1 con volumen, *bindings*, calidad y accesibilidad; hoy **no existe nada de eso**, así que la v1 guardada lleva solo lo que existe y el resto se añade **por migración** el día que exista (cadena `SETTINGS_MIGRATIONS` ya montada, con un archivo dorado de la v1 en `tests/unit/save/golden/`). `language: null` = «no ha elegido nada: sigue al dispositivo». **`repairSettings`** arregla cualquier valor dañado campo a campo (tipos, rangos 80–140 % de tamaño y 30–100 % de opacidad, códigos de idioma, claves desconocidas fuera) y se aplica **tanto a lo leído como a lo que se va a escribir**: un valor malo no entra ni sale.
+- **`SettingsStore`** (nunca lanza): **carga** `clave` → si no se puede leer **se conserva** como `clave.corrupt` y se prueba `clave.bak` (y se vuelve a poner en su sitio) → si tampoco, los valores por defecto; un valor de una **versión posterior** (de un juego más nuevo) se trata igual: se aparta, no se pisa en silencio. **Escribe** `clave.bak` ← anterior · `clave` ← nuevo · se **lee de vuelta** y se compara · solo entonces se borra el `.bak`: lo que se interrumpa a medias deja una copia buena. Las escrituras están **serializadas** (dos cambios seguidos llegan en orden, gana el último) y `update()` aplica el cambio **al instante** (la interfaz no espera al disco) y devuelve si llegó al almacenamiento.
+- **`i18n/chooseLocale`**: `?lang=` > lo elegido y guardado > los idiomas del dispositivo > inglés; un idioma sin catálogo se **salta**, nunca es un error.
+
+### 2. El juego
+
+`Game2D.create` carga los ajustes **antes** de construir nada (el primer fotograma ya sale bien), elige el idioma con `chooseLocale`, pone `document.documentElement.lang` (y lo sigue en caliente) y arranca los controles táctiles con el tamaño y la opacidad guardados. Elegir un idioma o mover un deslizador **se aplica al instante y se guarda**; `?lang=` no se guarda nunca.
+
+### 3. El menú (la entrada es un icono; el menú, un *chunk* aparte)
+
+- **`ui/settings/PauseButton`** — un solo icono pequeño **arriba al centro** (no a la derecha, donde viven Ataque, Dash y Habilidad; no es un control de juego), dentro de la zona segura, objetivo de ≥ 44 px, **nunca toma el foco del teclado** (un Espacio que salta no debe «pulsarlo») y un clic en él nunca es un ataque. Es la única adición visible nueva de la interfaz táctil y **se documenta como decisión**: la lista cerrada «solo Ataque, Dash y Habilidad a la derecha» sigue intacta, y sin una entrada así el idioma sería inalcanzable en un móvil.
+- **`ui/settings/SettingsMenu`** (cargado **bajo demanda**: una carga normal ni lo pide) — título, idioma (cada uno **en su propio nombre**, `Intl.DisplayNames`: los nombres de idioma no se traducen, así que no son literales ni claves), y —solo si hay capa táctil— tamaño y opacidad; **Continuar**. Sin texto propio (7 claves `settings.*`), sin estado propio (el *host* guarda los ajustes y el menú los relee cada vez que se abre), modal (recoge todo el puntero), foco en *Continuar* al abrir.
+- **Pausa real:** abrir el menú **pausa la simulación** (también ante un *hook* de test que pida *ticks*), suelta todos los dedos y teclas, y la tecla de pausa (Esc / P / Start) lo abre y lo cierra: con el juego parado ningún *tick* muestrea la entrada, así que el menú vigila él mismo la pulsación por fotograma.
+- **Teclas dentro de la interfaz propia:** una tecla escrita en un elemento `data-ui-block` (el menú, el panel de depuración) **ya no es entrada de juego**, salvo la de pausa (que lo cierra): antes las flechas movían al héroe en vez del deslizador.
+
+### 4. Pruebas
+
+| | Antes | Después |
+|---|---|---|
+| Tests | 1082 / 71 archivos | **1144 / 76 archivos** (+62) |
+| E2E | 19 | **20** (`language`), desarrollo y producción 20/20 |
+| `tsc --noEmit` | 0 errores | 0 errores |
+
+Nuevos: `settingsData` (14: por defecto, reparación, rangos, tipos, códigos, versiones, JSON dañado, **archivo dorado v1**, cadena de migraciones, hueco en la cadena) · `settingsStore` (20: carga, copia `.corrupt`, respaldo, versión posterior, almacenamiento que lanza, escritura `.bak` → nuevo → releer → borrar, primera escritura, escrituras en cola, **escritura perdida en silencio**, **corte entre la copia y la escritura**, `remove` que falla) · `chooseLocale` (5) · `PauseButton` (9: **arriba al centro a cualquier relación de aspecto de 4:3 a 21:9**, zona segura, sin foco, recoge dedos) · `SettingsMenu` (13: cerrado/abierto, modal, ES/EN, idiomas en su nombre, deslizadores, relee al abrir, la sección táctil solo con capa táctil, *Continuar*, foco) · `keyboardSource` (+1).
+
+E2E `language` (navegador real, teclado y almacenamiento reales): un visitante nuevo recibe el idioma del dispositivo (inglés), **no se guarda nada** y **el menú no está construido ni su código pedido** · el icono: centrado (±2 px) arriba, ≥ 44 px, sin foco · abierto, **el juego se detiene** (los *ticks* no avanzan, ni siquiera pidiéndolos) y el menú muestra «Español» / «English» · elegir español lo aplica **al instante** (HUD «Vida», `<html lang>`, el propio menú) y lo guarda · **Continuar** reanuda; **Esc** abre y cierra · **sobrevive** a recargar, a una segunda pestaña, a **un contexto de navegador nuevo con el almacenamiento guardado** y a un cambio de sala · `?lang=en` gana esa visita y **no pisa** lo guardado; la siguiente visita sigue en español · un valor guardado **dañado** no impide arrancar (idioma del dispositivo, el texto dañado se conserva en `.corrupt`, y una elección nueva se guarda bien); uno de una **versión posterior** se aparta sin pisarlo · táctil: tamaño ×1.3 y opacidad 0.5 **se aplican al instante**, se guardan y siguen ahí tras recargar.
+
+### 5. Hallazgos
+
+| Hallazgo | Solución |
+|---|---|
+| El E2E detectó que ni el icono de pausa ni el menú recibían el puntero: `#ui` es transparente al puntero **salvo lo que lo pide**, y mis dos elementos no lo pedían (en `happy-dom` no existe ese *hit-testing*, así que las pruebas unitarias pasaban) | `pointer-events:auto` en ambos, con una aserción unitaria cada uno; **el E2E es lo que lo comprobó de verdad** |
+| Un icono de pausa de 44 px a la escala mínima de la interfaz (0.9) medía 40 px: por debajo del objetivo táctil | 50 px a escala 1 (≥ 44 px siempre) |
+| Las flechas movían al héroe mientras el foco estaba en un deslizador del menú | `data-ui-block` filtra el teclado como ya filtraba el ratón (salvo la tecla de pausa) |
+| Hacer perezoso el menú creó *chunks* compartidos nuevos (el menú comparte módulos con el juego) y el arranque en frío subió a **199.2 KB gz** | el panel de depuración ya no importa los enemigos (los pide al juego por *callbacks*): su *chunk* compartido (4.8 KB gz) desaparece y el módulo vuelve al juego → **197.8 KB** |
+
+### 6. Bundle tras S18
+
+Arranque en frío de R1: **197.8 KB gz** (196.3 → 197.8, +1.5 KB: guardado, selección de idioma, icono de pausa y 7 claves; el menú, 2.1 KB gz, es un *chunk* aparte). Margen frente a 200 KB: **2.2 KB**. **S19 y S20 no deben añadir código de ejecución**: son integración, E2E y documentación.
 

@@ -121,3 +121,23 @@ export function detectLocale(preferred: readonly string[], supported: readonly s
   }
   return fallback;
 }
+
+/** Where a language preference can come from, strongest first. */
+export interface LocaleSources {
+  /** `?lang=`: a one-off override for this session (a test, a shared link); it is never saved. */
+  url?: string | null;
+  /** The language the player chose in the settings and the game saved. */
+  saved?: string | null;
+  /** The device's preferred languages, in order. */
+  device: readonly string[];
+}
+
+/**
+ * The language to start in: the URL's, else the one the player chose, else the device's, else the fallback — the first of them that
+ * we have a catalog for (docs/GAME-SPEC-2D.md §18). A saved language that is no longer supported (a catalog was removed) is simply
+ * skipped, never an error.
+ */
+export function chooseLocale(sources: LocaleSources, supported: readonly string[], fallback = 'en'): string {
+  const preferred = [...(sources.url ? [sources.url] : []), ...(sources.saved ? [sources.saved] : []), ...sources.device];
+  return detectLocale(preferred, supported, fallback);
+}

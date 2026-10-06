@@ -18,5 +18,12 @@
   "hud.bottleEmpty": "Botella {number}: vacía",
   "interact.pickUp": "Recoger",
   "interact.activate": "Activar",
-  "interact.open": "Abrir"
+  "interact.open": "Abrir",
+  "settings.open": "Pausa y ajustes",
+  "settings.title": "Pausa",
+  "settings.language": "Idioma",
+  "settings.touch": "Controles táctiles",
+  "settings.touchSize": "Tamaño",
+  "settings.touchOpacity": "Opacidad",
+  "settings.resume": "Continuar"
 }

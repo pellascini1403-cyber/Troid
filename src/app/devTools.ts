@@ -1,4 +1,3 @@
-import { ENEMIES } from '@/content';
 import type { Hurtbox } from '@/combat/Combatant';
 import { DisposableStore } from '@/core/lifecycle';
 import type { Rect } from '@/core/math';
@@ -8,9 +7,6 @@ import { DebugPanel } from '@/debug/DebugPanel';
 import type { DebugState } from '@/debug/DebugState';
 import type { DrawCallCounter } from '@/debug/DrawCallCounter';
 import type { FpsMeter } from '@/debug/FpsMeter';
-import { Enemy } from '@/enemies/Enemy';
-import type { EnemyDefinition } from '@/enemies/EnemyDefinition';
-import { TrainingDummy } from '@/enemies/TrainingDummy';
 import type { GameSession } from '@/gameplay/GameSession';
 import type { InputManager } from '@/input/InputManager';
 import type { Renderer2D } from '@/render/Renderer2D';
@@ -26,6 +22,8 @@ export interface DevToolsHost {
   renderer: Renderer2D;
   /** Runs one simulation tick (the panel's "step" button while paused). */
   step(): void;
+  /** Puts a training dummy / an Ink Slime in the world (the game builds them: the tools do not import the enemies, which keeps their chunk small). */
+  spawn: { dummy(x: number, y: number, facing: 1 | -1): void; slime(x: number, y: number, facing: 1 | -1): void };
 }
 
 /**
@@ -133,11 +131,11 @@ export class DevTools {
     add('player', 'rescue', () => s.rescuePlayer());
     add('combat', 'spawn dummy', () => {
       const p = s.player;
-      s.spawn(new TrainingDummy(s.ids.next('dummy'), { x: p.x + p.facing * 3, y: p.y, facing: -p.facing as 1 | -1 }));
+      this.host.spawn.dummy(p.x + p.facing * 3, p.y, -p.facing as 1 | -1);
     });
     add('combat', 'spawn ink slime', () => {
       const p = s.player;
-      s.spawn(new Enemy(s.ids.next('ink_slime'), ENEMIES.ink_slime as EnemyDefinition, { x: p.x + p.facing * 6, y: p.y, facing: -p.facing as 1 | -1 }));
+      this.host.spawn.slime(p.x + p.facing * 6, p.y, -p.facing as 1 | -1);
     });
     add('combat', 'heal', () => s.player.health.restore());
     // the player's resources (magic, bottles, cards): the panel can put them in any state

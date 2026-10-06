@@ -13,13 +13,14 @@ import { DebugActions } from '@/debug/DebugActions';
 import { DebugState } from '@/debug/DebugState';
 import { DrawCallCounter } from '@/debug/DrawCallCounter';
 import { FpsMeter } from '@/debug/FpsMeter';
-import { CATALOGS, createTranslator, detectLocale, FALLBACK_LOCALE, SUPPORTED_LOCALES, type Translator } from '@/i18n';
+import { CATALOGS, chooseLocale, createTranslator, FALLBACK_LOCALE, SUPPORTED_LOCALES, type Translator } from '@/i18n';
 import { Enemy } from '@/enemies/Enemy';
 import type { EnemyDefinition } from '@/enemies/EnemyDefinition';
 import { TrainingDummy } from '@/enemies/TrainingDummy';
 import { GameSession } from '@/gameplay/GameSession';
 import type { Projectile } from '@/gameplay/Projectile';
 import { createPlayerStatus } from '@/gameplay/PlayerStatus';
+import { log } from '@/core/log';
 import { DEFAULT_TOUCH } from '@/input/gestures/TouchConfig';
 import { DEFAULT_BINDINGS } from '@/input/bindings';
 import { InputManager } from '@/input/InputManager';
@@ -29,6 +30,8 @@ import { attachKeyboardMouse } from '@/input/sources/KeyboardMouseSource';
 import { TouchSource } from '@/input/sources/TouchSource';
 import { VirtualPad } from '@/input/sources/VirtualPad';
 import type { AnchorId } from '@/presentation/vocabulary';
+import { SettingsStore } from '@/save/SettingsStore';
+import type { TouchSettings } from '@/save/SettingsData';
 import { PARTICLE_BUDGET, SPRITE_FX_BUDGET } from '@/presentation/vfx';
 import { ActorSprite } from '@/render/ActorSprite';
 import { CameraAdapter2D } from '@/render/CameraAdapter2D';
@@ -43,11 +46,14 @@ import { HudModel } from '@/ui/hud/HudModel';
 import { HudView } from '@/ui/hud/HudView';
 import { DeathOverlay } from '@/ui/overlays/DeathOverlay';
 import { InteractionPrompt } from '@/ui/prompt/InteractionPrompt';
+import type { SettingsMenu } from '@/ui/settings/SettingsMenu';
+import { PauseButton } from '@/ui/settings/PauseButton';
 import { applySafeOverride, SafeArea } from '@/ui/safeArea';
 import { TouchControls } from '@/ui/touch/TouchControls';
 import { VfxDirector } from '@/vfx/VfxDirector';
 import { VfxSystem } from '@/vfx/VfxSystem';
 import { listen } from './dom';
+import { createStorage } from './storage';
 import type { DevTools } from './devTools';
 import { GameLoop } from './GameLoop';
 import { optionsFromQuery, type GameOptions } from './options';
@@ -92,6 +98,13 @@ export class Game2D {
   private roomDirty = false;
   /** Camera shakes triggered by impacts and the strength of the last one (the trauma itself decays in real time). */
   private shakes = { count: 0, last: 0 };
+  /** What the player chose and the game saved (the language, the size and opacity of the touch controls): loaded before the game is built. */
+  private readonly settings: SettingsStore;
+  private readonly pauseButton: PauseButton;
+  /** The pause / settings menu: a separate chunk, fetched the first time it is asked for. While it is open the simulation is paused. */
+  private menu: SettingsMenu | null = null;
+  private menuRequest: Promise<void> | null = null;
+  private menuOpen = false;
   /** The developer tools (panel, collision overlay, debug actions): a separate chunk, fetched the first time they are asked for. */
   private tools: DevTools | null = null;
   private toolsRequest: Promise<void> | null = null;
@@ -109,7 +122,10 @@ export class Game2D {
     const playerDef = SPRITE_SETS[PLAYER.spriteSetId];
     if (!playerDef) throw new Error(`player sprite set "${PLAYER.spriteSetId}" is not in the content registry`);
     const playerSet = await sprites.acquire(playerDef);
-    return new Game2D(renderer, counter, options, sprites, playerSet);
+    // what the player chose last time (the language, the touch controls): read before anything is drawn, so the first frame is already right
+    const settings = new SettingsStore(createStorage(), { warn: (message) => log.scope('save').warn(message) });
+    await settings.load();
+    return new Game2D(renderer, counter, options, sprites, playerSet, settings);
   }
 
   private constructor(
@@ -118,7 +134,9 @@ export class Game2D {
     private readonly options: GameOptions,
     sprites: SpriteAssetManager<Texture>,
     playerSet: LoadedSpriteSet<Texture>,
+    settings: SettingsStore,
   ) {
+    this.settings = settings;
     // A new game starts the vertical slice (room R1, with the starting abilities). `?room=` opens a playground instead and
     // then the abilities are exactly `?unlock=` says: the test rooms never depended on what the hero starts with.
     const startRoom = options.room && ROOMS[options.room] ? options.room : START.room;
@@ -139,9 +157,14 @@ export class Game2D {
     const { bounds: _bounds, ...roomCamera } = this.session.room.camera ?? {};
     this.camera = new CameraAdapter2D(renderer, { ...roomCamera, ...options.camera });
 
-    // interface language: ?lang=, else the device's, else English; the interface only ever asks for keys
-    const preferred = options.lang ? [options.lang] : [...navigator.languages];
-    this.translator = createTranslator(CATALOGS, detectLocale(preferred, SUPPORTED_LOCALES, FALLBACK_LOCALE), FALLBACK_LOCALE);
+    // interface language: `?lang=` (a one-off, never saved) > what the player chose > the device's > English; the interface only ever asks for keys
+    this.translator = createTranslator(
+      CATALOGS,
+      chooseLocale({ url: options.lang, saved: settings.value.language, device: navigator.languages }, SUPPORTED_LOCALES, FALLBACK_LOCALE),
+      FALLBACK_LOCALE,
+    );
+    document.documentElement.lang = this.translator.locale; // screen readers and the browser's own UI follow the game's language
+    this.lifecycle.add(this.translator.changed.subscribe((lang) => (document.documentElement.lang = lang)));
 
     // ---- input: three devices, one abstraction (docs/PROMPT5-LOG.md S13) ----
     attachKeyboardMouse(this.lifecycle, this.input, () => this.bindings);
@@ -152,7 +175,7 @@ export class Game2D {
     this.safeArea = new SafeArea(ui);
     this.lifecycle.add(() => this.safeArea.dispose());
     this.touchSource = new TouchSource(this.input, DEFAULT_TOUCH, () => this.touchControls.gestureScale);
-    this.touchControls = new TouchControls(ui, this.touchSource, this.translator);
+    this.touchControls = new TouchControls(ui, this.touchSource, this.translator, { size: settings.value.touch.scale, opacity: settings.value.touch.opacity });
     this.lifecycle.add(() => this.touchControls.dispose());
     // the HUD sits in the top-left; a finger on one of its bottle icons goes through the same single-owner touch source
     this.hud = new HudView(ui, this.translator, {
@@ -166,6 +189,9 @@ export class Game2D {
       up: (id) => this.touchSource.up(id),
     });
     this.lifecycle.add(() => this.prompt.dispose());
+    // the entry to the pause / settings menu: one small icon at the top centre (the right side belongs to Attack, Dash and Ability)
+    this.pauseButton = new PauseButton(ui, this.translator, () => this.toggleMenu());
+    this.lifecycle.add(() => this.pauseButton.dispose());
     this.lifecycle.add(
       this.session.bus.on('bottle:changed', (e) => {
         if (e.type === 'used') this.hudModel.bottleUsed(e.slot);
@@ -268,6 +294,7 @@ export class Game2D {
 
   dispose(): void {
     this.closed = true;
+    this.menu?.dispose();
     this.tools?.dispose();
     this.lifecycle.dispose();
   }
@@ -275,7 +302,13 @@ export class Game2D {
   // ------------------------------------------------------------------------------------------------ simulation
 
   private tick(): void {
-    this.session.tick(this.input.sample());
+    const frame = this.input.sample();
+    if (frame.pausePressed) {
+      this.toggleMenu(); // Escape / P / Start: that press is spent here, it does not also act in the game
+      return;
+    }
+    if (this.menuOpen) return; // a paused game does not advance, whoever asks (the game loop, a test hook)
+    this.session.tick(frame);
   }
 
   /** Runs exactly one tick with the current input (debug "step" and E2E tests). */
@@ -292,6 +325,7 @@ export class Game2D {
     this.touchControls.place(width, height, insets);
     this.hud.place(width, height, insets);
     this.prompt.place(width, height, insets, this.touchControls.gestureScale);
+    this.pauseButton.place(width, height, insets, this.touchControls.gestureScale);
   }
 
   /** The HUD and the contextual touch controls follow the simulation's status (read through one snapshot; nothing else is touched). */
@@ -361,13 +395,74 @@ export class Game2D {
     this.updatePrompt(); // after the camera: the icon follows the object with THIS frame's transform
 
     this.loop.timeScale = this.debug.get('timeScale');
-    this.loop.paused = this.debug.get('paused');
+    this.loop.paused = this.debug.get('paused') || this.menuOpen;
+    // the game is paused, so no tick samples the input: the menu watches for the pause key / button itself
+    if (this.menuOpen && this.input.sample().pausePressed) this.closeMenu();
     this.session.godMode = this.debug.get('godMode');
     this.tools?.frame(performance.now());
 
     this.counter.beginFrame();
     this.renderer.render();
     this.counter.endFrame();
+  }
+
+  // ----------------------------------------------------------------------------------------------------- settings
+
+  /** Escape / P / Start / the pause button: opens the menu (and pauses the game), or closes it. */
+  private toggleMenu(): void {
+    if (this.menuOpen) this.closeMenu();
+    else this.openMenu();
+  }
+
+  private openMenu(): void {
+    if (this.menuOpen) return;
+    this.menuOpen = true;
+    this.loop.paused = true;
+    // nothing may stay pressed while the game waits: no finger, no key, no button keeps acting behind the menu
+    this.input.releaseAll();
+    this.touchControls.releaseAll();
+    this.pauseButton.setHidden(true);
+    void this.loadMenu().then(() => {
+      if (this.menuOpen) this.menu?.open();
+    });
+  }
+
+  private closeMenu(): void {
+    if (!this.menuOpen) return;
+    this.menuOpen = false;
+    this.menu?.close();
+    this.pauseButton.setHidden(false);
+    this.input.releaseAll();
+  }
+
+  /** Fetches the settings menu the first time it is asked for (a player's first load never carries it). */
+  private loadMenu(): Promise<void> {
+    this.menuRequest ??= import('@/ui/settings/SettingsMenu').then(({ SettingsMenu }) => {
+      if (this.closed) return;
+      this.menu = new SettingsMenu(document.getElementById('ui') ?? document.body, this.translator, {
+        languages: SUPPORTED_LOCALES,
+        touchAvailable: () => this.touchControls.isVisible,
+        current: () => ({ language: this.translator.locale, touch: { ...this.settings.value.touch } }),
+        setLanguage: (language) => this.setLanguage(language),
+        setTouch: (patch) => this.setTouch(patch),
+        close: () => this.closeMenu(),
+      });
+    });
+    return this.menuRequest;
+  }
+
+  /** The player chose a language: it is applied at once (the interface re-reads every text) and saved — a `?lang=` override is not. */
+  private setLanguage(language: string): void {
+    this.translator.setLocale(language);
+    void this.settings.update({ language: this.translator.locale });
+  }
+
+  /** The player moved a slider: the touch controls follow at once and the choice is saved. */
+  private setTouch(patch: Partial<TouchSettings>): void {
+    const next = { ...this.settings.value.touch, ...patch };
+    this.touchControls.setSize(next.scale);
+    this.touchControls.setOpacity(next.opacity);
+    void this.settings.update({ touch: patch });
   }
 
   // ------------------------------------------------------------------------------------------------------ debug
@@ -391,7 +486,20 @@ export class Game2D {
     this.toolsRequest ??= import('./devTools').then(({ DevTools }) => {
       if (this.closed) return;
       this.tools = new DevTools(
-        { session: this.session, debug: this.debug, actions: this.debugActions, fps: this.fps, counter: this.counter, input: this.input, renderer: this.renderer, step: () => this.stepOnce() },
+        {
+          session: this.session,
+          debug: this.debug,
+          actions: this.debugActions,
+          fps: this.fps,
+          counter: this.counter,
+          input: this.input,
+          renderer: this.renderer,
+          step: () => this.stepOnce(),
+          spawn: {
+            dummy: (x, y, facing) => void this.session.spawn(new TrainingDummy(this.session.ids.next('dummy'), { x, y, facing })),
+            slime: (x, y, facing) => void this.session.spawn(new Enemy(this.session.ids.next('ink_slime'), ENEMIES.ink_slime as EnemyDefinition, { x, y, facing })),
+          },
+        },
         document.getElementById('ui') ?? document.body,
       );
     });

@@ -74,6 +74,26 @@ describe('keyboard + mouse source', () => {
     btn.remove();
   });
 
+  it('keys typed into UI with its own keyboard handling (the settings menu, the debug panel) are not game input — except the pause key, which closes it', () => {
+    const slider = document.createElement('div');
+    slider.dataset['uiBlock'] = '';
+    document.body.appendChild(slider);
+    const typed = (type: 'keydown' | 'keyup', code: string): KeyboardEvent => {
+      const e = new KeyboardEvent(type, { code, bubbles: true, cancelable: true });
+      slider.dispatchEvent(e); // bubbles up to the window the game listens on
+      return e;
+    };
+    const arrow = typed('keydown', 'ArrowRight');
+    expect(arrow.defaultPrevented).toBe(false); // the slider keeps its own arrow keys
+    typed('keydown', 'Space');
+    typed('keydown', 'KeyD');
+    const f = input.sample();
+    expect([f.move.x, f.jumpPressed]).toEqual([0, false]);
+    typed('keydown', 'Escape'); // the pause key still reaches the game: it closes the menu
+    expect(input.sample().pausePressed).toBe(true);
+    slider.remove();
+  });
+
   it('losing focus releases every key (no stuck movement after alt-tab)', () => {
     key('keydown', 'KeyD');
     key('keydown', 'KeyJ');
