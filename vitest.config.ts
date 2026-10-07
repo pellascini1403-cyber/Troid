@@ -2,6 +2,8 @@ import { defineConfig } from 'vitest/config';
 import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
+  // the tests never read the art the build found: what they load, they are given
+  define: { __TROID_ART_INDEX__: JSON.stringify('') },
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },

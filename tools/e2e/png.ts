@@ -1,99 +1,14 @@
-import { inflateSync } from 'node:zlib';
+import { decodePng as decode, type RgbaImage } from '../assets/png';
 
 /**
- * A minimal PNG decoder for E2E screenshots (8-bit grey / RGB / RGBA, non-interlaced: what Chromium produces). It lets
- * a scenario look at the PIXELS of what the player sees — "is there violet on screen while the slime winds up?" —
- * without a dependency. Not a general-purpose decoder: anything else throws.
+ * What the E2E needs to look at the PIXELS of what the player sees — "is there violet on screen while the slime winds up?" — without a dependency. The
+ * decoding itself is the art pipeline's (`tools/assets/png.ts`: every PNG a screenshot or an artist can produce); only the checksums are not verified here,
+ * a screenshot is read straight from the browser's own memory.
  */
-export interface Image {
-  width: number;
-  height: number;
-  /** RGBA, 4 bytes per pixel, row-major from the top-left. */
-  data: Uint8Array;
-}
-
-const SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+export type Image = RgbaImage;
 
 export function decodePng(buf: Uint8Array): Image {
-  for (let i = 0; i < 8; i++) if (buf[i] !== SIGNATURE[i]) throw new Error('not a PNG');
-  const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-  let width = 0;
-  let height = 0;
-  let colorType = 0;
-  const idat: Uint8Array[] = [];
-  for (let pos = 8; pos < buf.length; ) {
-    const len = view.getUint32(pos);
-    const type = String.fromCharCode(buf[pos + 4]!, buf[pos + 5]!, buf[pos + 6]!, buf[pos + 7]!);
-    const body = buf.subarray(pos + 8, pos + 8 + len);
-    if (type === 'IHDR') {
-      width = view.getUint32(pos + 8);
-      height = view.getUint32(pos + 12);
-      const depth = buf[pos + 16];
-      colorType = buf[pos + 17] ?? -1;
-      const interlace = buf[pos + 20];
-      if (depth !== 8) throw new Error(`unsupported PNG bit depth ${depth}`);
-      if (interlace !== 0) throw new Error('interlaced PNGs are not supported');
-      if (![0, 2, 6].includes(colorType)) throw new Error(`unsupported PNG colour type ${colorType}`);
-    } else if (type === 'IDAT') {
-      idat.push(body);
-    } else if (type === 'IEND') {
-      break;
-    }
-    pos += 12 + len;
-  }
-  const channels = colorType === 6 ? 4 : colorType === 2 ? 3 : 1;
-  const raw = inflateSync(Buffer.concat(idat));
-  const stride = width * channels;
-  const out = new Uint8Array(width * height * 4);
-  let prev = new Uint8Array(stride);
-  let cur = new Uint8Array(stride);
-  for (let y = 0; y < height; y++) {
-    const filter = raw[y * (stride + 1)]!;
-    const line = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1));
-    for (let i = 0; i < stride; i++) {
-      const a = i >= channels ? cur[i - channels]! : 0;
-      const b = prev[i]!;
-      const c = i >= channels ? prev[i - channels]! : 0;
-      const x = line[i]!;
-      let v: number;
-      switch (filter) {
-        case 0: v = x; break;
-        case 1: v = x + a; break;
-        case 2: v = x + b; break;
-        case 3: v = x + ((a + b) >> 1); break;
-        case 4: v = x + paeth(a, b, c); break;
-        default: throw new Error(`bad PNG filter ${filter}`);
-      }
-      cur[i] = v & 255;
-    }
-    for (let px = 0; px < width; px++) {
-      const o = (y * width + px) * 4;
-      if (channels === 4) {
-        out[o] = cur[px * 4]!;
-        out[o + 1] = cur[px * 4 + 1]!;
-        out[o + 2] = cur[px * 4 + 2]!;
-        out[o + 3] = cur[px * 4 + 3]!;
-      } else if (channels === 3) {
-        out[o] = cur[px * 3]!;
-        out[o + 1] = cur[px * 3 + 1]!;
-        out[o + 2] = cur[px * 3 + 2]!;
-        out[o + 3] = 255;
-      } else {
-        out[o] = out[o + 1] = out[o + 2] = cur[px]!;
-        out[o + 3] = 255;
-      }
-    }
-    [prev, cur] = [cur, prev];
-  }
-  return { width, height, data: out };
-}
-
-function paeth(a: number, b: number, c: number): number {
-  const p = a + b - c;
-  const pa = Math.abs(p - a);
-  const pb = Math.abs(p - b);
-  const pc = Math.abs(p - c);
-  return pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+  return decode(buf, { verifyCrc: false });
 }
 
 export type PixelTest = (r: number, g: number, b: number, a: number) => boolean;

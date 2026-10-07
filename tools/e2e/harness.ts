@@ -1,4 +1,4 @@
-import { chromium, type Browser, type Page, type ConsoleMessage } from 'playwright-core';
+import { chromium, type Browser, type BrowserContext, type Page, type ConsoleMessage } from 'playwright-core';
 import { createServer, preview, type PreviewServer, type ViteDevServer } from 'vite';
 
 /** Chromium preinstalled in the cloud container (override with TROID_CHROMIUM). */
@@ -51,6 +51,8 @@ export interface OpenOptions {
   height?: number;
   dpr?: number;
   touch?: boolean;
+  /** Runs on the new context BEFORE the page is navigated: where a scenario installs what the page's very first requests must find (served files, listeners). */
+  prepare?: (context: BrowserContext) => Promise<void>;
 }
 
 export interface OpenedPage {
@@ -68,6 +70,7 @@ export async function openPage(browser: Browser, url: string, opts: OpenOptions 
     hasTouch: opts.touch ?? false,
     isMobile: opts.touch ?? false,
   });
+  await opts.prepare?.(context);
   const page = await context.newPage();
   const errors: string[] = [];
   const warnings: string[] = [];

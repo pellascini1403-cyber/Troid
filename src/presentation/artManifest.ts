@@ -66,7 +66,7 @@ export interface ArtAtlas {
   id: string;
   /** The image, relative to the pack manifest (`player_2x.png`). */
   source: string;
-  /** The atlas packer's JSON (frame rectangles, trim) next to the image; optional when the manifest is complete on its own. */
+  /** The atlas packer's JSON (frame rectangles, trim) next to the image: where the frames are. Required while the pack carries art. */
   data?: string;
   /** Declared size of the image in pixels: the checker compares it with the file's real header. */
   width: number;
@@ -88,7 +88,10 @@ export interface ArtClip {
 
 export interface ArtSprite {
   id: string;
-  /** Atlas ids that hold THESE frames at different resolutions, the master (highest `resolution`) first. */
+  /**
+   * Atlas ids that hold THESE frames, the master (highest `resolution`) first. Atlases of DIFFERENT resolution are variants of the same frames
+   * (a phone takes the small one); atlases of the SAME resolution are the PAGES of one variant — the frames that do not fit in one image.
+   */
   atlases: string[];
   /** Pixels per metre of the pack's master image: the ONLY link between the art's pixels and the world's metres. */
   artPxPerMeter: number;
@@ -146,7 +149,7 @@ export interface Parsed<T> {
 const ID = /^[a-z0-9][a-z0-9_.:-]{0,63}$/;
 const TAG = /^[a-z0-9][a-z0-9_.:-]{0,31}$/;
 const FRAME_PREFIX = /^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$/;
-const FRAME_NAME = /^[A-Za-z0-9_-]{1,40}$/;
+export const FRAME_NAME = /^[A-Za-z0-9_-]{1,40}$/;
 const IMAGE_EXT = /\.(png|webp)$/i;
 const JSON_EXT = /\.json$/i;
 /** A mobile GPU is comfortable with ≤ 2048 px per side; larger atlases are allowed, with a warning. */
@@ -163,7 +166,8 @@ export function isSafeRelativePath(p: string): boolean {
   return p.split('/').every((seg) => seg.length > 0 && seg !== '.' && seg !== '..');
 }
 
-class Reader {
+/** Collects the issues of one file while it is read (shared with the atlas reader, `artAtlas.ts`). */
+export class Reader {
   readonly issues: ArtIssue[] = [];
   error(path: string, message: string): void {
     this.issues.push({ level: 'error', path, message });
@@ -255,7 +259,7 @@ const PACK_KEYS = ['manifestVersion', 'id', 'category', 'status', 'tags', 'atlas
 const STATE_SET: ReadonlySet<string> = new Set(ANIM_STATES);
 const ANCHOR_SET: ReadonlySet<string> = new Set(ANCHOR_IDS);
 
-function readAnchors(r: Reader, v: unknown, path: string): Partial<Record<AnchorId, AnchorPoint>> | undefined {
+export function readAnchors(r: Reader, v: unknown, path: string): Partial<Record<AnchorId, AnchorPoint>> | undefined {
   if (v === undefined) return undefined;
   const o = r.object(v, path);
   if (!o) return undefined;
@@ -319,6 +323,32 @@ function readClip(r: Reader, v: unknown, path: string): ArtClip | null {
   return clip;
 }
 
+/** The per-frame data (`heightPx`, `anchors`) by frame name: written in the pack manifest, or exported by the artist's tool next to the atlas (`meta.troid`). */
+export function readFrameMetaMap(r: Reader, v: unknown, path: string): Record<string, FrameMeta> | undefined {
+  const fo = r.object(v, path);
+  if (!fo) return undefined;
+  const frames: Record<string, FrameMeta> = {};
+  for (const [name, raw] of Object.entries(fo)) {
+    const fp = `${path}.${name}`;
+    if (!FRAME_NAME.test(name)) {
+      r.error(fp, `"${name}" is not a valid frame name`);
+      continue;
+    }
+    const m = r.object(raw, fp);
+    if (!m) continue;
+    r.known(m, fp, ['heightPx', 'anchors']);
+    const meta: FrameMeta = {};
+    if (m['heightPx'] !== undefined) {
+      const h = r.number(m['heightPx'], `${fp}.heightPx`, { min: 0, exclusiveMin: true, max: 8192 });
+      if (h !== null) meta.heightPx = h;
+    }
+    const a = readAnchors(r, m['anchors'], `${fp}.anchors`);
+    if (a) meta.anchors = a;
+    frames[name] = meta;
+  }
+  return frames;
+}
+
 function readSprite(r: Reader, v: unknown, path: string, atlasIds: ReadonlyMap<string, ArtAtlas>, awaitingArt: boolean): ArtSprite | null {
   const o = r.object(v, path);
   if (!o) return null;
@@ -333,8 +363,6 @@ function readSprite(r: Reader, v: unknown, path: string, atlasIds: ReadonlyMap<s
   } else {
     atlases = [...new Set(rawAtlases as string[])];
     for (const a of atlases) if (!atlasIds.has(a)) r.error(`${path}.atlases`, `unknown atlas "${a}" (declared: ${[...atlasIds.keys()].join(', ') || 'none'})`);
-    const resolutions = atlases.map((a) => atlasIds.get(a)?.resolution).filter((x): x is number => x !== undefined);
-    if (new Set(resolutions).size !== resolutions.length) r.error(`${path}.atlases`, 'two variants have the same resolution');
     atlases.sort((a, b) => (atlasIds.get(b)?.resolution ?? 0) - (atlasIds.get(a)?.resolution ?? 0));
   }
 
@@ -387,31 +415,7 @@ function readSprite(r: Reader, v: unknown, path: string, atlasIds: ReadonlyMap<s
   }
 
   const anchors = readAnchors(r, o['anchors'], `${path}.anchors`);
-  let frames: Record<string, FrameMeta> | undefined;
-  if (o['frames'] !== undefined) {
-    const fo = r.object(o['frames'], `${path}.frames`);
-    if (fo) {
-      frames = {};
-      for (const [name, raw] of Object.entries(fo)) {
-        const fp = `${path}.frames.${name}`;
-        if (!FRAME_NAME.test(name)) {
-          r.error(fp, `"${name}" is not a valid frame name`);
-          continue;
-        }
-        const m = r.object(raw, fp);
-        if (!m) continue;
-        r.known(m, fp, ['heightPx', 'anchors']);
-        const meta: FrameMeta = {};
-        if (m['heightPx'] !== undefined) {
-          const h = r.number(m['heightPx'], `${fp}.heightPx`, { min: 0, exclusiveMin: true, max: 8192 });
-          if (h !== null) meta.heightPx = h;
-        }
-        const a = readAnchors(r, m['anchors'], `${fp}.anchors`);
-        if (a) meta.anchors = a;
-        frames[name] = meta;
-      }
-    }
-  }
+  const frames = o['frames'] === undefined ? undefined : readFrameMetaMap(r, o['frames'], `${path}.frames`);
 
   if (id === null || artPxPerMeter === null || scale === null || height === null || pivot === null) return null;
   const sprite: ArtSprite = { id, atlases, artPxPerMeter, scale, pivot, height, missingClips, clips, tags: r.tags(o['tags'], `${path}.tags`) };
@@ -498,6 +502,10 @@ export function parseArtPack(raw: unknown): Parsed<ArtPack> {
       if (!s.clips.idle) r.error(`sprites[${i}].clips`, 'no "idle" clip: it is the last resort of every state');
     });
   }
+  // an image alone says nothing about where its frames are: the packer's JSON is what the loader reads them from
+  if (status !== 'awaiting-art') {
+    for (const [i, a] of [...atlases.values()].entries()) if (a.data === undefined) r.error(`atlases[${i}].data`, `atlas "${a.id}" needs its "data": the JSON the packer exported next to the image (frame rectangles, trim)`);
+  }
   // every atlas should be used by someone
   const used = new Set(sprites.flatMap((s) => s.atlases));
   for (const a of atlases.values()) if (!used.has(a.id)) r.warn(`atlases`, `atlas "${a.id}" is not used by any sprite set`);
@@ -554,25 +562,64 @@ export function parseArtIndex(raw: unknown): Parsed<ArtIndex> {
 
 // ------------------------------------------------------------------------------------------------ the bridge to the engine
 
+/** The images that hold the frames of a sprite set at ONE resolution: usually one atlas; several (pages) when the frames do not fit in one. */
+export interface ArtVariant {
+  /** Pixel density of these images relative to the pack's master (`1`). */
+  resolution: number;
+  pages: ArtAtlas[];
+}
+
+/** The variants of a sprite set, the master (highest resolution) first. Atlases of the same resolution are the pages of one variant. */
+export function atlasVariants(sprite: Pick<ArtSprite, 'atlases'>, atlases: ReadonlyMap<string, ArtAtlas>): ArtVariant[] {
+  const byResolution = new Map<number, ArtAtlas[]>();
+  for (const id of sprite.atlases) {
+    const atlas = atlases.get(id);
+    if (!atlas) continue;
+    const pages = byResolution.get(atlas.resolution) ?? [];
+    pages.push(atlas);
+    byResolution.set(atlas.resolution, pages);
+  }
+  return [...byResolution.entries()].sort((a, b) => b[0] - a[0]).map(([resolution, pages]) => ({ resolution, pages }));
+}
+
 /** Effective metres per art pixel of a sprite at one of its atlas variants, INCLUDING the visual scale: what `ActorSprite` multiplies by. */
 export function metresPerPixel(sprite: Pick<ArtSprite, 'artPxPerMeter' | 'scale'>, atlas: Pick<ArtAtlas, 'resolution'>): number {
   return sprite.scale / (sprite.artPxPerMeter * atlas.resolution);
 }
 
 /**
- * The engine's runtime form of a sprite set drawn from one atlas variant. `artPxPerMeter` becomes the density OF THAT IMAGE (master density ×
+ * The reference a runtime definition keeps to the images it was made from: `art:<pack>/<sprite>@<resolution>`. The art library turns it back into
+ * the pages to fetch (`parseArtAtlasRef`); nothing else reads it.
+ */
+export function artAtlasRef(packId: string, spriteId: string, resolution: number): string {
+  return `art:${packId}/${spriteId}@${resolution}`;
+}
+
+export function parseArtAtlasRef(ref: string): { packId: string; spriteId: string; resolution: number } | null {
+  const m = /^art:([^/@]+)\/([^/@]+)@([0-9.]+)$/.exec(ref);
+  const resolution = m ? Number(m[3]) : NaN;
+  return m && m[1] && m[2] && Number.isFinite(resolution) && resolution > 0 ? { packId: m[1], spriteId: m[2], resolution } : null;
+}
+
+/** The id of the runtime definition of a sprite set (what the asset manager caches by): the pack disambiguates equal sprite ids of two packs. */
+export function artSetId(packId: string, spriteId: string): string {
+  return `${packId}/${spriteId}`;
+}
+
+/**
+ * The engine's runtime form of a sprite set drawn from one variant. `artPxPerMeter` becomes the density OF THAT IMAGE (master density ×
  * the variant's resolution) so that a half-size variant is simply scaled up by two: the same frames, the same metres, the same pivot, the same anchors
  * — nothing that gameplay reads changes with the resolution of the art.
  */
-export function toSpriteSetDefinition(packId: string, sprite: ArtSprite, atlas: ArtAtlas): SpriteSetDefinition {
+export function toSpriteSetDefinition(packId: string, sprite: ArtSprite, variant: Pick<ArtVariant, 'resolution'>): SpriteSetDefinition {
   const clips: SpriteSetDefinition['clips'] = {};
   for (const [state, c] of Object.entries(sprite.clips) as Array<[AnimState, ArtClip]>) {
     clips[state] = { frames: c.frames, count: c.count, ...(c.fps !== undefined ? { fps: c.fps } : {}), ...(c.loop !== undefined ? { loop: c.loop } : {}), ...(c.phases ? { phases: c.phases } : {}) };
   }
   const def: SpriteSetDefinition = {
-    id: sprite.id,
-    atlas: `art:${packId}/${atlas.id}`,
-    artPxPerMeter: sprite.artPxPerMeter * atlas.resolution,
+    id: artSetId(packId, sprite.id),
+    atlas: artAtlasRef(packId, sprite.id, variant.resolution),
+    artPxPerMeter: sprite.artPxPerMeter * variant.resolution,
     pivot: sprite.pivot,
     height: sprite.height,
     clips,
@@ -583,17 +630,16 @@ export function toSpriteSetDefinition(packId: string, sprite: ArtSprite, atlas: 
 }
 
 /**
- * Which variant of a sprite set to load for a screen: the SMALLEST image that still has at least `tolerance` of the pixels the screen will draw
+ * Which variant of a sprite set to load for a screen: the SMALLEST one that still has at least `tolerance` of the pixels the screen will draw
  * (a phone gets the half-size atlas, a 4K monitor the master), or the largest there is. `drawnPxPerMetre` is `ppm × resolution` of the viewport.
  */
-export function chooseAtlasVariant(sprite: Pick<ArtSprite, 'artPxPerMeter' | 'scale' | 'atlases'>, atlases: ReadonlyMap<string, ArtAtlas>, drawnPxPerMetre: number, tolerance = 0.85): ArtAtlas | null {
-  const variants = sprite.atlases.map((id) => atlases.get(id)).filter((a): a is ArtAtlas => a !== undefined);
+export function chooseAtlasVariant(sprite: Pick<ArtSprite, 'artPxPerMeter' | 'scale' | 'atlases'>, atlases: ReadonlyMap<string, ArtAtlas>, drawnPxPerMetre: number, tolerance = 0.85): ArtVariant | null {
+  const variants = atlasVariants(sprite, atlases);
   if (variants.length === 0) return null;
   // what the screen draws per art pixel's worth of metres: an image is "enough" when its density × the wanted tolerance covers it
   const needed = drawnPxPerMetre * sprite.scale * tolerance;
-  const enough = variants.filter((a) => sprite.artPxPerMeter * a.resolution >= needed).sort((a, b) => a.resolution - b.resolution);
-  if (enough.length > 0) return enough[0] ?? null;
-  return variants.reduce((best, a) => (a.resolution > best.resolution ? a : best));
+  const enough = variants.filter((v) => sprite.artPxPerMeter * v.resolution >= needed).sort((a, b) => a.resolution - b.resolution);
+  return enough[0] ?? variants[0] ?? null;
 }
 
 /** The states a sprite set does not have a clip for, out of the ones the game wants: what is still to be drawn. */

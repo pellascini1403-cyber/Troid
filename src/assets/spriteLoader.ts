@@ -1,35 +1,11 @@
-import { Assets, Rectangle, Texture, type TextureSource } from 'pixi.js';
+import { Rectangle, Texture, type TextureSource } from 'pixi.js';
+import type { AtlasFrameJson } from '@/presentation/artAtlas';
 import type { BuiltPlaceholder } from '@/presentation/placeholder';
 import type { AtlasMeta } from '@/presentation/SpriteSetDefinition';
 import { drawPlaceholderAtlas } from './placeholderAtlas';
 import type { LoadedSpriteSet, SpriteSetLoader } from './SpriteAssetManager';
 
-/** A rectangle inside an atlas image, in pixels. */
-export interface AtlasRect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-/** One frame of an atlas JSON in the TexturePacker "hash" layout (what every common packer exports). */
-export interface AtlasFrameJson {
-  frame: AtlasRect;
-  /** Where the trimmed pixels sit inside the original (untrimmed) frame. */
-  spriteSourceSize?: AtlasRect;
-  /** Size of the original (untrimmed) frame. */
-  sourceSize?: { w: number; h: number };
-  trimmed?: boolean;
-}
-
-/**
- * Atlas file contract (`public/<atlas>.json` next to its image): `frames` as the packers export them, plus
- * `meta.image` (file name of the image) and the engine's own `meta.troid` (per-frame anchors and height).
- */
-export interface AtlasJson {
-  frames: Record<string, AtlasFrameJson>;
-  meta?: { image?: string; troid?: AtlasMeta };
-}
+export type { AtlasFrameJson, AtlasRect } from '@/presentation/artAtlas';
 
 /** One texture per frame, all sharing the atlas' GPU source. Honours trimming: pivots stay relative to the ORIGINAL frame. */
 export function texturesFromFrames(source: TextureSource, frames: Readonly<Record<string, AtlasFrameJson>>): Map<string, Texture> {
@@ -44,40 +20,34 @@ export function texturesFromFrames(source: TextureSource, frames: Readonly<Recor
 }
 
 export interface PixiSpriteLoaderOptions {
-  /** URL prefix of file-based atlases (the app's base URL). */
-  base?: string;
   /** Generators for `procedural:<id>` atlases (placeholders). */
   procedural: Readonly<Record<string, BuiltPlaceholder>>;
 }
 
 /**
- * Turns a `SpriteSetDefinition` into Pixi textures. Two kinds of atlas, selected by `def.atlas`:
- *  - `procedural:<id>` — a placeholder drawn at start-up with a canvas (no files, no art dependency);
- *  - anything else — a file-based atlas: `<base><atlas>.json` (+ its image), the path final art will use.
+ * Turns a `SpriteSetDefinition` of the PLACEHOLDER kind into Pixi textures: its atlas is `procedural:<id>`, a figure drawn at start-up with a canvas
+ * (no files, no art dependency). It is the only loader the game's first frame needs, which is why it is the only one in the cold start.
+ *
+ * Sets drawn from FILES (packs of real art) never come through here: they are fetched, validated and turned into textures by the art library
+ * (`assets/artLibrary.ts`, a chunk of its own that a page without art never downloads — docs/ART-PIPELINE-2D.md part C).
  */
 export function createPixiSpriteLoader(options: PixiSpriteLoaderOptions): SpriteSetLoader<Texture> {
-  const base = options.base ?? import.meta.env.BASE_URL ?? '/';
   return async (def) => {
-    if (def.atlas.startsWith('procedural:')) {
-      const id = def.atlas.slice('procedural:'.length);
-      const built = options.procedural[id];
-      if (!built) throw new Error(`sprite set "${def.id}": no procedural atlas "${id}"`);
-      const atlas = Texture.from(drawPlaceholderAtlas(built));
-      const frames: Record<string, AtlasFrameJson> = {};
-      for (const f of built.frames) frames[f.name] = { frame: { x: f.x, y: f.y, w: f.w, h: f.h } };
-      return fromSource(atlas, frames, built.meta);
+    if (!def.atlas.startsWith('procedural:')) {
+      throw new Error(`sprite set "${def.id}": "${def.atlas}" is not a procedural atlas — sets drawn from files are loaded by the art library (docs/ART-PIPELINE-2D.md)`);
     }
-    const jsonUrl = `${base}${def.atlas}.json`;
-    const response = await fetch(jsonUrl);
-    if (!response.ok) throw new Error(`sprite set "${def.id}": ${jsonUrl} → HTTP ${response.status}`);
-    const json = (await response.json()) as AtlasJson;
-    const imageUrl = new URL(json.meta?.image ?? `${def.atlas.split('/').pop()}.png`, new URL(jsonUrl, location.href)).href;
-    const atlas = await Assets.load<Texture>(imageUrl);
-    return fromSource(atlas, json.frames, json.meta?.troid ?? { frames: {} });
+    const id = def.atlas.slice('procedural:'.length);
+    const built = options.procedural[id];
+    if (!built) throw new Error(`sprite set "${def.id}": no procedural atlas "${id}"`);
+    const atlas = Texture.from(drawPlaceholderAtlas(built));
+    const frames: Record<string, AtlasFrameJson> = {};
+    for (const f of built.frames) frames[f.name] = { frame: { x: f.x, y: f.y, w: f.w, h: f.h } };
+    return fromSource(atlas, frames, built.meta);
   };
 }
 
-function fromSource(atlas: Texture, frames: Record<string, AtlasFrameJson>, meta: AtlasMeta): Omit<LoadedSpriteSet<Texture>, 'def'> {
+/** Wraps an atlas image and its frames as a loaded set: the textures share ONE source, and disposing frees both. */
+export function fromSource(atlas: Texture, frames: Record<string, AtlasFrameJson>, meta: AtlasMeta): Omit<LoadedSpriteSet<Texture>, 'def'> {
   const textures = texturesFromFrames(atlas.source, frames);
   return {
     meta,

@@ -22,6 +22,7 @@ import type { SettingsStore } from '@/save/SettingsStore';
 import type { HudModel } from '@/ui/hud/HudModel';
 import type { HudView } from '@/ui/hud/HudView';
 import type { TouchControls } from '@/ui/touch/TouchControls';
+import type { Art } from './art';
 import type { Effects } from './effects';
 
 /**
@@ -56,6 +57,8 @@ export interface HookHost {
   effects(): Effects | null;
   /** Every cosmetic chunk (the effects, the looks of the boss) has arrived. */
   cosmeticsReady(): boolean;
+  /** The art library, once its chunk has arrived (`null` for a page with no art, which never fetches it). */
+  art(): Art | null;
   menuOpen(): boolean;
   /** The abstract gamepad of the E2E, made on first use (`null` when there is none). */
   virtualPad(): VirtualPad | null;
@@ -109,6 +112,15 @@ export function createTestHooks(h: HookHost) {
       gesture: h.touchSource.gesture,
       layout: h.touchControls.current,
     }),
+    /**
+     * Test hook (S35): asks the art library for a sprite set by name and keeps it until `artRelease` — what a lab or a lazy pack does. Answers with a summary of what
+     * came (`null` when it cannot be had): the set itself never leaves the page.
+     */
+    artAcquire: async (packId: string, spriteId: string) => {
+      const set = await h.art()?.acquire(packId, spriteId);
+      return set ? { id: set.def.id, atlas: set.def.atlas, artPxPerMeter: set.def.artPxPerMeter, frames: set.textures.size, clips: Object.keys(set.def.clips) } : null;
+    },
+    artRelease: (setId: string) => void h.art()?.release({ id: setId }),
     /** Test hook: where a point of the world is on screen (CSS px), with the camera of the last frame. */
     worldToScreen: (x: number, y: number) => h.renderer.worldToScreen(x, y),
     /** Test hook: the HUD as the model computed it and as laid out (px). */
@@ -211,6 +223,7 @@ export function createTestHooks(h: HookHost) {
         },
         keys: h.keys(),
         menuOpen: h.menuOpen(),
+        art: h.art()?.snapshot() ?? null,
         sprite: {
           set: ps.spriteSetId, frame: ps.frame, facing: ps.root.scale.x, visible: ps.root.visible,
           hand: anchor('hand_r'), grip: anchor('weapon_grip'), tip: anchor('weapon_tip'),

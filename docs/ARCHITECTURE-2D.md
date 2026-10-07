@@ -372,6 +372,7 @@ Este *benchmark* es una **referencia técnica**: el juego no pinta 800 sprites d
 | `render/ScreenFx.ts` | viñeta, fundidos, destello, barras laterales (capa de pantalla) | sí |
 | `assets/SpriteAssetManager.ts` | carga y caché de atlas, descarga única, **ref-count** | sí |
 | `assets/validateSpriteSet.ts` | contrato de un *sprite set* (§7.5) | no* |
+| `assets/artLibrary.ts` · `assets/artIO.ts` · `app/art.ts` | **arte de archivos** (S35): índice, manifiestos, páginas de atlas, política por zona; `artLibrary` no importa Pixi (se prueba en Node), `artIO` pone `fetch` + `createImageBitmap` + Pixi; `app/art.ts` es el *chunk* perezoso | sí (`artLibrary`: genérica) |
 | `vfx/VfxSystem.ts` · `VfxDirector.ts` | efectos con *pooling* dirigidos por eventos (§7.7) | sí |
 | `debug/ColliderOverlay.ts` | colliders, hitboxes, hurtboxes, límites de cámara (`Graphics`) | sí |
 
@@ -478,6 +479,8 @@ interface SpriteSetDefinition {                  // presentation/SpriteSetDefini
 | Carga | *bundles*: `boot` (héroe, VFX, UI, texturas procedurales) y `region:<id>`; la sala siguiente se precarga durante el fundido; pantalla de carga mínima |
 | Desarrollo | texturas **procedurales** (canvas) para pruebas: ✅ el *benchmark* ya genera su atlas así; ningún test depende de arte real |
 | Caché | `SpriteAssetManager`: **una sola descarga** por atlas aunque se pida varias veces a la vez, **ref-count** de instancias, liberación al llegar a cero, una carga fallida no envenena la caché (mismas garantías que el `AssetManager` actual ✅, que se portan con sus tests) |
+
+> **Implementado (Prompt 7, S35):** el camino de **archivos** existe y está probado — [ART-PIPELINE-2D.md](ART-PIPELINE-2D.md) partes B y C: contrato declarativo (`presentation/artManifest.ts`, `presentation/artAtlas.ts`: puros), empaquetador sin pérdida (`tools/assets/`: `npm run assets:pack` / `assets:check`), y la **biblioteca de arte** (`assets/artLibrary.ts` + `assets/artIO.ts` + `app/art.ts`) con política `boot` / `zone` / `lazy`, páginas cacheadas por URL con cuenta de referencias, y *chunk* aparte que **una página sin arte no descarga**. Dos matices respecto a la tabla de arriba: (1) **la variante 1× ya no se «deriva en la construcción»**: el empaquetador **no remuestrea** (tocaría los píxeles del arte del usuario); las variantes de resolución las exporta el artista y el motor **elige** entre ellas; (2) **no se usa `Assets` de Pixi** (§7.12): la carga de PNG es `fetch` + `createImageBitmap` + `ImageSource` (bajó el arranque en frío de 198.4 a 188.2 KB gzip).
 
 ### 7.7 VFX
 

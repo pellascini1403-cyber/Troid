@@ -18,6 +18,8 @@
     "test:e2e": "tsx tools/e2e/run.ts",
     "shot": "tsx tools/e2e/shot.ts",
     "bench:bundle": "tsx tools/bench/bundle.ts",
+    "assets:pack": "tsx tools/assets/cli.ts",
+    "assets:check": "tsx tools/assets/cli.ts --check",
     "check": "npm run typecheck && npm test"
   },
   "dependencies": {

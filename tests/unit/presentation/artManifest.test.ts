@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+  artAtlasRef,
   artClipFrames,
+  artSetId,
   ART_CATEGORIES,
+  atlasVariants,
   chooseAtlasVariant,
   CLIP_ALIASES,
   isSafeRelativePath,
   metresPerPixel,
   missingClips,
+  parseArtAtlasRef,
   parseArtIndex,
   parseArtPack,
   toSpriteSetDefinition,
@@ -156,13 +160,28 @@ describe('parseArtPack: what the reader refuses, with the path of the field', ()
     }
   });
 
-  it('refuses two atlases with the same id, and two variants with the same resolution', () => {
+  it('refuses two atlases with the same id; two atlases of the same resolution are not an error: they are the pages of one variant', () => {
     const dup = valid() as { atlases: Array<Record<string, unknown>> };
     dup.atlases[1]!['id'] = 'hero_2x';
     expect(errors(dup).join('\n')).toMatch(/declared twice/);
-    const same = valid() as { atlases: Array<Record<string, unknown>> };
-    same.atlases[1]!['resolution'] = 1;
-    expect(errors(same).join('\n')).toMatch(/same resolution/);
+    const pages = valid() as { atlases: Array<Record<string, unknown>> };
+    pages.atlases[1]!['resolution'] = 1;
+    expect(errors(pages)).toEqual([]);
+    const { value } = parseArtPack(pages);
+    const hero = value!.sprites[0]!;
+    const variants = atlasVariants(hero, new Map(value!.atlases.map((a) => [a.id, a])));
+    expect(variants.map((v) => ({ resolution: v.resolution, pages: v.pages.map((a) => a.id) }))).toEqual([{ resolution: 1, pages: ['hero_1x', 'hero_2x'] }]); // the pages keep the order the sprite set lists them in
+  });
+
+  it('an atlas of a pack that carries art needs its JSON: an image alone does not say where the frames are — a pack that awaits its art needs nothing', () => {
+    const raw = valid() as { atlases: Array<Record<string, unknown>> };
+    delete raw.atlases[0]!['data'];
+    expect(errors(raw).join('\n')).toMatch(/atlases\[0\]\.data: atlas "hero_2x" needs its "data"/);
+    const awaiting = valid() as { status: string; atlases: unknown[]; sprites: Array<Record<string, unknown>> };
+    awaiting.status = 'awaiting-art';
+    awaiting.atlases = [];
+    awaiting.sprites[0]!['atlases'] = [];
+    expect(errors(awaiting)).toEqual([]);
   });
 
   it('refuses a sprite set that names an atlas the pack does not declare (a broken reference)', () => {
@@ -346,8 +365,13 @@ describe('the bridge to the engine: the resolution of the art never reaches game
   const pack = parseArtPack(valid()).value!;
   const hero = pack.sprites[0]!;
   const atlases = new Map<string, ArtAtlas>(pack.atlases.map((a) => [a.id, a]));
-  const master = atlases.get('hero_2x')!;
-  const half = atlases.get('hero_1x')!;
+  const variants = atlasVariants(hero, atlases);
+  const master = variants[0]!;
+  const half = variants[1]!;
+
+  it('groups the atlases into variants, the master first', () => {
+    expect(variants.map((v) => [v.resolution, v.pages.map((a) => a.id)])).toEqual([[1, ['hero_2x']], [0.5, ['hero_1x']]]);
+  });
 
   it('the two variants are the SAME set measured in metres: only the density of the image differs', () => {
     const a = toSpriteSetDefinition(pack.id, hero, master);
@@ -376,16 +400,27 @@ describe('the bridge to the engine: the resolution of the art never reaches game
     expect(def.clips.attack1).toEqual({ frames: 'atk1_', count: 6, fps: 12.5, phases: { startup: [0, 1], active: [2, 3], recovery: [4, 5] } });
     expect(def.clips.attackAir).toEqual({ frames: 'air_', count: 6, fps: 12 });
     expect(def.clips.attackCrouch).toEqual({ frames: 'cat_', count: 4 });
-    expect(def.atlas).toBe('art:hero/hero_2x');
+  });
+
+  it('names the set by pack and sprite, and points at its images with a reference the library can read back', () => {
+    const def = toSpriteSetDefinition(pack.id, hero, half);
+    expect(def.id, 'two packs may each have a "hero": the manager caches by this').toBe(artSetId('hero', 'hero'));
+    expect(def.atlas).toBe('art:hero/hero@0.5');
+    expect(parseArtAtlasRef(def.atlas)).toEqual({ packId: 'hero', spriteId: 'hero', resolution: 0.5 });
+    expect(parseArtAtlasRef(artAtlasRef('enemies', 'slime', 1))).toEqual({ packId: 'enemies', spriteId: 'slime', resolution: 1 });
+    for (const junk of ['', 'procedural:player', 'art:hero', 'art:hero/hero', 'art:hero/hero@', 'art:hero/hero@0', 'art:hero/hero@x', 'art:/hero@1', 'art:a/b/c@1', 'sprites/hero']) {
+      expect(parseArtAtlasRef(junk), JSON.stringify(junk)).toBeNull();
+    }
   });
 
   it('chooses the smallest image that still has the pixels the screen will draw — and the largest when none does', () => {
     // render pixels per metre = css px per metre × resolution (docs/ART-PIPELINE-2D.md §A.4)
-    expect(chooseAtlasVariant(hero, atlases, 28.9 * 1.75)?.id, 'a phone: 51 px/m → the half-size image (80 px/m) is enough').toBe('hero_1x');
-    expect(chooseAtlasVariant(hero, atlases, 60.7 * 1.75)?.id, 'a tablet: 106 px/m → the master').toBe('hero_2x');
-    expect(chooseAtlasVariant(hero, atlases, 160)?.id, 'a 4K monitor: 160 px/m → the master').toBe('hero_2x');
-    expect(chooseAtlasVariant(hero, atlases, 400)?.id, 'more than any image has: the largest there is').toBe('hero_2x');
-    expect(chooseAtlasVariant({ ...hero, scale: 2 }, atlases, 28.9 * 1.75)?.id, 'drawn twice as big it needs twice the pixels').toBe('hero_2x');
+    const pick = (sprite: typeof hero, drawn: number): number | undefined => chooseAtlasVariant(sprite, atlases, drawn)?.resolution;
+    expect(pick(hero, 28.9 * 1.75), 'a phone: 51 px/m → the half-size image (80 px/m) is enough').toBe(0.5);
+    expect(pick(hero, 60.7 * 1.75), 'a tablet: 106 px/m → the master').toBe(1);
+    expect(pick(hero, 160), 'a 4K monitor: 160 px/m → the master').toBe(1);
+    expect(pick(hero, 400), 'more than any image has: the largest there is').toBe(1);
+    expect(pick({ ...hero, scale: 2 }, 28.9 * 1.75), 'drawn twice as big it needs twice the pixels').toBe(1);
     expect(chooseAtlasVariant({ ...hero, atlases: [] }, atlases, 50)).toBeNull();
   });
 

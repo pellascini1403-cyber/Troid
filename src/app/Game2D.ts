@@ -64,12 +64,13 @@ import { createStorage } from './storage';
 import type { DevTools } from './devTools';
 import { GameLoop } from './GameLoop';
 import { afterIdle } from './dom';
+import type { Art } from './art';
 import type { Effects } from './effects';
 import type { HookHost } from './testHooks';
 
 type BossViews = typeof import('./bossViews');
 import { attachProgressRecorder } from './progressRecorder';
-import { optionsFromQuery, type GameOptions } from './options';
+import { artIndexUrl, optionsFromQuery, type GameOptions } from './options';
 
 /** How long after the first frame the page waits before it fetches the effects (it still waits for an idle moment after that). */
 const EFFECTS_DELAY_MS = 2000;
@@ -105,6 +106,9 @@ export class Game2D {
   private effectsRequest: Promise<void> | null = null;
   /** Builds the effects again with the budgets of the profile in force (set once their chunk has arrived). */
   private rebuildEffects: (() => void) | null = null;
+  /** The art that comes from files (docs/ART-PIPELINE-2D.md, part C): a separate chunk, fetched after the first frame and ONLY when there is an index to read. `null` otherwise. */
+  private art: Art | null = null;
+  private artRequest: Promise<void> | null = null;
   private readonly deathOverlay: DeathOverlay;
   private readonly transitionOverlay: TransitionOverlay;
   private readonly safeArea: SafeArea;
@@ -381,9 +385,28 @@ export class Game2D {
         build();
       }));
     this.lifecycle.add(() => this.effects?.dispose());
+    // The art that comes from files: its code is fetched with the effects, once the first frame is up, and only when there is an index to read — a page with
+    // no art never downloads it, asks for no file and can fail on none. The zone follows the hero: a room's art is fetched while the fade hides the change.
+    const artUrl = artIndexUrl(options.art, __TROID_ART_INDEX__, document.baseURI);
+    const startArt = (): void => {
+      if (!artUrl || this.artRequest) return;
+      this.artRequest = import('./art')
+        .then(async ({ createArt }) => {
+          if (this.closed) return;
+          const art = createArt({ indexUrl: artUrl, drawnPxPerMetre: () => renderer.viewport.ppm * renderer.viewport.resolution, dev: import.meta.env.DEV || options.hooks });
+          this.art = art;
+          await art.start();
+          await art.enterZone(this.session.room.id);
+        })
+        .catch((err: unknown) => log.scope('art').debug(`the art could not start: ${String(err)}`));
+    };
+    this.lifecycle.add(() => this.art?.dispose());
+    this.lifecycle.add(this.session.bus.on('transition:started', (e) => void this.art?.enterZone(e.to.room)));
+    this.lifecycle.add(this.session.bus.on('room:loaded', (e) => void this.art?.enterZone(e.roomId)));
     const loadCosmetics = (): void => {
       void loadEffects();
       loadBossViews().catch(() => undefined);
+      startArt();
     };
     if (options.hooks) loadCosmetics();
     else this.lifecycle.add(afterIdle(loadCosmetics, EFFECTS_DELAY_MS));
@@ -735,6 +758,7 @@ export class Game2D {
       shakes: this.shakes,
       effects: () => this.effects,
       cosmeticsReady: () => this.effects !== null && this.bossViews !== null,
+      art: () => this.art,
       menuOpen: () => this.menuOpen,
       virtualPad: () => this.virtualPad,
       setVirtualPad: (pad) => void (this.virtualPad = pad),

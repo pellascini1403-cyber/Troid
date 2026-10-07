@@ -20,6 +20,8 @@ export interface GameOptions {
   touch: boolean;
   /** `?safe=44,47,21,47` (top, right, bottom, left, px) imitates the safe-area insets of a phone with a notch. */
   safe?: string;
+  /** `?art=<folder>` reads the art from `<folder>/index.json` (a folder next to the page) instead of the one the build found. */
+  art?: string;
   camera: Partial<CameraConfig>;
 }
 
@@ -42,6 +44,22 @@ export function optionsFromQuery(q: URLSearchParams): GameOptions {
     lang: q.get('lang') ?? undefined,
     touch: q.get('touch') === '1',
     safe: q.get('safe') ?? undefined,
+    art: q.get('art') ?? undefined,
     camera: cameraConfigFromQuery(q),
   };
+}
+
+/** A folder name as a person writes it in a URL: segments of letters, digits, `.`, `_` and `-` — never `..`, a scheme or another site. */
+const ART_FOLDER = /^(?!.*\.\.)[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*\/?$/;
+
+/**
+ * Where the art index is (docs/ART-PIPELINE-2D.md, part C): the `?art=<folder>` of the URL, else the one the build found in `public/art` (`built`, empty when
+ * it found none), else NOWHERE — `null`, and a page that has no art never loads the art code, asks for no file and can fail on none. `base` is the page's URL.
+ */
+export function artIndexUrl(param: string | undefined, built: string, base: string): string | null {
+  if (param !== undefined) {
+    if (!ART_FOLDER.test(param)) return null;
+    return new URL(`${param.replace(/\/$/, '')}/index.json`, base).href;
+  }
+  return built === '' ? null : new URL(built, base).href;
 }

@@ -1,10 +1,11 @@
-import type { Page } from 'playwright-core';
+import type { BrowserContext, Page } from 'playwright-core';
+import type { ArtSnapshot } from '@/assets/artLibrary';
 
 /** What every E2E scenario receives. */
 export interface Ctx {
   page: Page;
   /** Fresh load of the game at `?<query>` (hooks on). Resolves when the player model has loaded. */
-  open(query?: string, size?: { width: number; height: number; dpr?: number; touch?: boolean }): Promise<void>;
+  open(query?: string, size?: { width: number; height: number; dpr?: number; touch?: boolean; prepare?: (context: BrowserContext) => Promise<void> }): Promise<void>;
   shot(name: string): Promise<void>;
   /** Advances the simulation by `n` ticks with the CURRENT keyboard/mouse state. */
   step(n: number): Promise<void>;
@@ -67,6 +68,8 @@ export interface GameState {
   quality?: { setting: string; tier: string; resolution: number; particleBudget: number | null; spriteBudget: number | null };
   keys?: Record<string, string>;
   menuOpen?: boolean;
+  /** 2D view only (S35): the art library — what it holds, what it has fetched; `null` for a page with no art (it never loads the library). */
+  art?: ArtSnapshot | null;
   /** 2D view only: VFX counters. */
   vfx?: { particles: number; sprites: number; spawned: number; dropped: number; peakParticles: number; poolCreated: number };
   /** 2D view only: median / worst GL draw calls per frame over the last 120 frames. */

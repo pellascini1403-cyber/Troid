@@ -1,6 +1,6 @@
 # Pipeline de arte 2D — cómo entra el arte al juego
 
-> **Estado:** Prompt 7. Este documento se amplía **paso a paso** (S33 → S44). La **Parte A** es la **auditoría de S33**: cómo funciona el pipeline **hoy**, medido y leído en el código, **antes de tocar nada**. Las partes siguientes (contrato, atlas, adaptador, validación, laboratorio, VFX, escenarios, rendimiento) se añaden con cada paso.
+> **Estado:** Prompt 7. Este documento se amplía **paso a paso** (S33 → S44). La **Parte A** es la **auditoría de S33**: cómo funcionaba el pipeline **antes de tocar nada** (es una foto histórica: lo que S35 cambió está marcado en ella y explicado en la **Parte C**). La **Parte B** es el contrato (S34) y la **Parte C** los atlas, la carga diferida y el presupuesto (S35). Las partes siguientes (adaptador, validación, laboratorio, VFX, escenarios, rendimiento) se añaden con cada paso.
 >
 > **Aviso, sin letra pequeña:** **en el repositorio no hay arte real del protagonista** (ni de nada). Todo lo que se dibuja hoy sale de generadores procedurales (un atlas de *canvas*). Este pipeline existe para que, cuando llegue el arte real **del usuario**, entre **sin tocar el gameplay**. **No se ha generado, redibujado ni imitado el protagonista**, y nada de este documento lo hace (§A.12).
 
@@ -20,7 +20,7 @@
 | `presentation/validateSpriteSet.ts` | pura | el **validador** del contrato: pivote, `idle`, fotogramas que existen, fases, contrato de la espada, escala |
 | `presentation/placeholder.ts` + `content/placeholders/playerPlaceholder.ts` | pura | la **tabla de poses** del *placeholder* abstracto del héroe y los generadores de su `SpriteSetDefinition`, sus anclas por fotograma y su disposición de atlas |
 | `assets/SpriteAssetManager.ts` | vista (genérica) | carga y **cachea** sets por `def.id`: una sola carga por set, **cuenta de referencias**, libera al llegar a 0, una carga fallida no envenena la caché, **valida** al cargar |
-| `assets/spriteLoader.ts` | vista (Pixi) | `SpriteSetDefinition` → texturas: atlas **`procedural:<id>`** (canvas) o atlas **de archivo** (`<base><atlas>.json` + imagen) |
+| `assets/spriteLoader.ts` | vista (Pixi) | `SpriteSetDefinition` → texturas: atlas **`procedural:<id>`** (canvas) o atlas **de archivo** (`<base><atlas>.json` + imagen). **(S35: la rama de archivo salió de aquí — era el único uso de `Assets` de Pixi en el arranque —; hoy es solo el atlas procedural y `texturesFromFrames`; los atlas de archivo los carga `assets/artLibrary.ts`, §C.5.)** |
 | `assets/placeholderAtlas.ts`, `assets/proceduralTextures.ts` | vista | pintan el atlas del *placeholder* y las texturas generadas (brillos, degradados) con un *canvas* |
 | `assets/vfxAtlas.ts` | vista | **un** atlas procedural de formas blancas para todos los VFX (`glow`, `spark`, `shard`, `ring`, `dust`, `ink`, `streak`, `arc`); el color sale de la paleta en tiempo de ejecución |
 | `render/ActorSprite.ts` | vista (Pixi) | aplica un `SpritePose` a **dos** sprites (cuerpo + destello aditivo); pivote = `def.pivot`, escala = `1 / artPxPerMeter`, giro = `scale.x` |
@@ -51,6 +51,8 @@ CARGA          spriteLoader: def.atlas empieza por 'procedural:'  →  canvas (h
                   ▼
 VALIDACIÓN     SpriteAssetManager.report: validateSpriteSet(def, meta, nombres de fotogramas) → log.error / log.warn (una vez por conjunto)
                   ▼
+               ⚠ (S35) la rama «si no» de CARGA (archivo, `Assets.load`) YA NO EXISTE en `spriteLoader`: el camino de archivo es hoy
+                 art/ → `npm run assets:pack` → public/art/ → `ArtLibrary` (§C.2, §C.5), y la carga de PNG no usa `Assets` de Pixi (§C.7)
 VISTA          new ActorSprite(set)  →  body: Sprite + flash: Sprite(add) ; anchor = def.pivot ; scale = 1 / artPxPerMeter
                   ▼  cada fotograma del juego
 ANIMACIÓN      Player.view (ActorViewState: anim, animSpeed, animSerial, phase, phaseT, prevX…, facing, flash, blink, opacity)
@@ -222,7 +224,7 @@ El *benchmark* de *bundle* cuenta **solo JavaScript**: ni imágenes ni JSON. S35
 | Campo (sprite) | Significado | Regla |
 |---|---|---|
 | `id` | el id del conjunto (`SpriteSetDefinition.id`) | `[a-z0-9_.:-]`, único en el paquete |
-| `atlases` | **las variantes de resolución de los MISMOS fotogramas** | ids declarados arriba; resoluciones distintas; se ordenan **de mayor a menor** |
+| `atlases` | las imágenes que tienen **los fotogramas de este set**: atlas de **distinta** resolución son **variantes** (el móvil toma la pequeña); atlas de la **misma** resolución son las **páginas** de una variante (los fotogramas que no caben en una imagen) | ids declarados arriba; se ordenan **de mayor a menor resolución** y, dentro de una, en el orden en que se listan |
 | `artPxPerMeter` | píxeles de arte por metro **de la imagen maestra** (`resolution: 1`) | > 0. **Es el único vínculo entre los píxeles del arte y los metros del mundo** |
 | `scale` | multiplicador **visual** sobre el pie (dirección de arte); por defecto 1 | 0.25–4. **No toca colisión, velocidad ni ningún hitbox** (§A.7) |
 | `pivot` / `pivotPx` | el pivote de los pies, normalizado al fotograma **sin recortar** (`[0.5, 0.95]`), o en píxeles (necesita `frameSize`) | dentro del fotograma; uno de los dos, no ambos |
@@ -238,7 +240,7 @@ El *benchmark* de *bundle* cuenta **solo JavaScript**: ni imágenes ni JSON. S35
 | Campo (atlas) | Significado |
 |---|---|
 | `source` | la imagen (`.png` o `.webp`), **relativa a la carpeta del paquete** |
-| `data` | el JSON que exporta el empaquetador (rectángulos, recortes): formato «hash» de TexturePacker |
+| `data` | el JSON que exporta el empaquetador (rectángulos, recortes): formato «hash» de TexturePacker. **Obligatorio** mientras el paquete lleve arte: una imagen sola no dice dónde están sus fotogramas |
 | `width`, `height` | tamaño **declarado** de la imagen; el *checker* (S37) lo compara con la cabecera real del archivo. > 2048 en un lado: **aviso** (un móvil puede no aceptarlo); > 4096: error |
 | `resolution` | densidad de **esta** imagen respecto a la maestra: `1` = la maestra, `0.5` = una variante a la mitad |
 
@@ -255,11 +257,160 @@ El *benchmark* de *bundle* cuenta **solo JavaScript**: ni imágenes ni JSON. S35
 | Función (`presentation/artManifest.ts`) | Para qué |
 |---|---|
 | `parseArtIndex(json)` · `parseArtPack(json)` | leen y comprueban **sin lanzar nunca**: devuelven `{ value, issues }` con la **ruta del campo** (`sprites[0].clips.idle.count`), **todos los problemas de una vez**, y `value = null` si hay algún error. Las claves desconocidas son **avisos** (un typo no pasa en silencio; una herramienta más nueva puede escribir más) |
-| `toSpriteSetDefinition(pack, sprite, atlas)` | el **único puente** al `SpriteSetDefinition` que ya entienden `ActorSprite`, el animador y el validador: la densidad pasa a ser la **de esa imagen** (maestra × resolución) |
-| `chooseAtlasVariant(sprite, atlases, pxPorMetroDibujados)` | la variante de resolución para una pantalla |
+| `atlasVariants(sprite, atlases)` · `chooseAtlasVariant(sprite, atlases, pxPorMetroDibujados)` | las **variantes** de un set (cada una con sus páginas) y la que conviene a una pantalla |
+| `toSpriteSetDefinition(pack, sprite, variante)` | el **único puente** al `SpriteSetDefinition` que ya entienden `ActorSprite`, el animador y el validador: la densidad pasa a ser la **de esa imagen** (maestra × resolución); el id es `<paquete>/<set>` y `atlas` es la referencia `art:<paquete>/<set>@<resolución>` (`parseArtAtlasRef` la lee de vuelta) |
 | `missingClips(sprite, queridos)` | qué estados faltan por dibujar |
 | `CLIP_ALIASES`, `isSafeRelativePath` | los nombres que un artista puede usar y la regla de rutas |
 
 **Un manifiesto no puede salirse de su carpeta, ni apuntar a una URL, ni nombrar un estado que el motor no conozca.** Un paquete con `status: "awaiting-art"` **declara lo que tendrá** (clips, cuentas, fases, pivote, escala) **sin imágenes**: es lo que S38 usa para decir exactamente qué falta.
 
-*(Las partes siguientes se añaden con cada paso: **C** atlas, carga diferida y presupuesto (S35) · **D** el visual del protagonista y el *fallback* (S36) · **E** validación y qué assets reales faltan (S37, S38) · **F** el laboratorio y R1 (S39, S40) · **G** VFX, audio, entorno y rendimiento (S41–S43).)*
+---
+
+# Parte C — Atlas, carga diferida y presupuesto (S35)
+
+> **Qué es:** las **reglas** con las que el arte se empaqueta en atlas y se carga en memoria, y el código que las cumple. Piezas: `presentation/artAtlas.ts` (puro: lee el JSON del empaquetador y comprueba un set contra sus páginas), `tools/assets/*` (el empaquetador y el *build* del arte: Node), `assets/artLibrary.ts` + `assets/artIO.ts` + `app/art.ts` (la biblioteca que lo carga en el navegador: un *chunk* aparte).
+> **Lo que NO hace:** no hay arte real en el repositorio, así que **nada de esto se ha ejercitado con arte del usuario**; se ha probado con **arte sintético** (ruido sobre un lienzo transparente, generado en Node, nunca guardado en el repositorio). Ninguna pieza dibuja, rediseña, recolorea ni «mejora» nada: las operaciones del empaquetador son **técnicas y sin pérdida** (§C.3).
+
+## C.1 Reglas de atlas
+
+| Regla | Por qué |
+|---|---|
+| **Un paquete = una categoría** (`player`, `enemies`, `environment`, `vfx`, `ui`) y **un atlas nunca mezcla categorías** | lo que se necesita a la vez se carga a la vez; el jugador no paga la memoria de lo que no ve |
+| **Un set de sprites = sus propias páginas** (`<set>_0.png`, `<set>_1.png`…) | carga **por personaje**: el héroe no arrastra a un enemigo, ni un enemigo a otro. Dos sets comparten una página solo si el artista la empaqueta con su herramienta y la declara en ambos (la biblioteca la carga una vez) |
+| **Páginas ≤ 2048 × 2048** (el empaquetador no hace una mayor; el manifiesto avisa por encima de 2048 y rechaza más de 4096) | es lo que toda GPU de móvil acepta. **Nada de atlas gigante**: si no cabe, abre otra página |
+| **Cada página, tan pequeña como pueda**: el menor cuadrado que lo contiene todo, recortado a lo que usa y redondeado a múltiplos de 4 | un héroe de 12 fotogramas no cuesta una página de 2048 |
+| **Recorte transparente exacto (*trim*)**: solo filas y columnas con **alfa 0** en todos sus píxeles; se anota dónde estaban los píxeles (`spriteSourceSize`, `sourceSize`) | el pivote es una fracción del fotograma **original**: recortar no lo mueve. **Un solo píxel visible** (alfa 1) conserva su fila y su columna. No es un «auto-recorte» creativo |
+| **Relleno de 2 px y extrusión de 1 px** (el borde del propio fotograma repetido hacia fuera, **fuera** de su rectángulo) | un sprite en posición fraccionaria no enseña a su vecino. El fotograma en sí no cambia ni un bit |
+| **Fotogramas idénticos, una sola vez** (mismos píxeles recortados, mismo desplazamiento, mismo tamaño original) | una pose mantenida (`idle_00` = `idle_02`) no ocupa dos veces. Los píxeles *desplazados* **no** son idénticos: moverían el pivote |
+| **Sin rotación, sin remuestreo, sin filtros, sin cambios de color ni de alfa** | el arte del usuario es la fuente de verdad (§A.12). `unpackFrame` reconstruye cada fotograma original **bit a bit** desde las páginas (lo prueba `pack.test.ts` para cada fotograma que empaqueta, y `buildArt.test.ts` a través de la biblioteca del juego) |
+| **Un tamaño original por set**: todos los fotogramas de un set se dibujan en el **mismo lienzo** | el pivote (`[0.5, 0.95]`) es una fracción de ese lienzo; con lienzos distintos los pies saltarían |
+| **Nombres:** `<prefijo>NN` (`idle_00`), prefijos **únicos dentro del paquete** | el atlas nombra cada fotograma una sola vez |
+| **PNG RGBA 8 bits** (alfa recto; Pixi lo premultiplica al subirlo, como el resto del juego) | un PNG de 16 bits se redondea a 8 (la GPU tiene 8) y **se avisa**; un perfil de color incrustado (`iCCP`) **no se arrastra** y se avisa: exporta en sRGB para que nada cambie |
+| **Variantes de resolución las pone el artista** (`resolution: 0.5` = la mitad) | el motor **no remuestrea** nada por su cuenta: elegir la variante es cosa del motor (§B.3), fabricarla es del artista |
+
+### Memoria: la cuenta
+
+`memoria de una página = ancho × alto × 4 bytes` (RGBA8). La imagen vive **dos veces**: en la GPU y, mientras el navegador la guarda, decodificada en el lado de la CPU; el presupuesto de abajo cuenta **una** (la biblioteca informa de esa: `bytes`); súmale otra tanto de margen.
+
+| Presupuesto **propuesto** (decodificado) | Objetivo |
+|---|---|
+| paquete que arranca con el juego (`boot`: el protagonista) | ≤ 24 MiB |
+| un paquete de zona (`zone`) | ≤ 32 MiB |
+| todo el arte residente a la vez | ≤ 96 MiB |
+
+Son **objetivos de diseño**, no mediciones: S43 los contrasta con la escena de estrés **en Chromium de escritorio**; **no hay mediciones en iOS ni Android**.
+
+## C.2 De la carpeta del artista a lo que descarga el juego
+
+```
+art/                                  ← lo que entrega el artista (en el repositorio; NUNCA se sirve tal cual)
+  index.json                          el índice AUTORADO (§B.1): paquetes, categoría, cuándo se cargan, zonas
+  <paquete>/<id>.pack.json            el manifiesto (§B.2) SIN `atlases`: los escribe el empaquetador
+  <paquete>/<set>/<fotograma>.png     un PNG por fotograma, con el nombre que dicen los clips (idle_00.png…)
+        │   npm run assets:pack        (tools/assets/cli.ts → build.ts → pack.ts → maxrects.ts + png.ts)
+        ▼
+public/art/                           ← lo que descarga el juego (GENERADO: lleva un README.txt que lo dice; no se edita)
+  index.json, README.txt
+  <paquete>/<id>.pack.json            el manifiesto con `atlases` y los `atlases` de cada set rellenos
+  <paquete>/<set>_<n>.png + .json     las páginas y su JSON «hash» de TexturePacker
+```
+
+- **Un paquete que ya trae sus atlas** (`atlases` no vacío: el artista los empaquetó con TexturePacker, Aseprite o Free-Tex-Packer) **se copia tal cual, byte a byte**, tras las mismas comprobaciones.
+- **Un paquete `awaiting-art`** (el contrato de arte que **aún no se ha entregado**) se **comprueba y se informa, pero no se publica**: sin arte, el juego no pide nada.
+- **Todo o nada:** el *build* calcula todo en memoria y escribe solo si **no hay ningún error**. Un *build* fallido deja `public/art/` como estaba. **Nunca escribe** en una carpeta de salida que no generó él (sin su `README.txt`): se niega, con el motivo.
+- **Determinista:** mismos PNG de entrada, **mismos bytes** de salida (orden de fotogramas, algoritmo de empaquetado, filtros y compresión fijos): reconstruir no ensucia el control de versiones.
+- **Sin arte → sin cero:** si no existe `art/index.json` (hoy, el caso), no hace nada y no toca `public/`.
+
+## C.3 El empaquetador (`npm run assets:pack` · `npm run assets:check`)
+
+| Operación | Detalle |
+|---|---|
+| **Leer PNG** | `tools/assets/png.ts`: gris, gris + alfa, RGB, RGBA y paleta, de 1 a 16 bits, con `tRNS`; **comprueba los CRC** (un archivo dañado se rechaza con el nombre del archivo); rechaza entrelazado (Adam7) con un mensaje que dice qué hacer |
+| **Recortar** | solo alfa 0 (§C.1); un fotograma **sin ningún píxel visible** (un parpadeo) se queda como **un píxel transparente** en su sitio |
+| **Deduplicar** | por hash de píxeles recortados + desplazamiento + tamaño original |
+| **Empaquetar** | MaxRects *best short side fit*, de mayor a menor; el menor cuadrado que lo contiene todo, o páginas de `maxSide` llenas y otra detrás |
+| **Escribir** | PNG RGBA8 con el filtro de fila que menos pesa (regla de suma de diferencias de libpng) y zlib al nivel 9; el JSON «hash» con `trimmed`, `spriteSourceSize` y `sourceSize` |
+| **Comprobar** | el manifiesto resultante con `parseArtPack`; el JSON de cada página con `parseAtlasData`; cada set contra sus páginas con `checkSpriteFrames` (§C.4) |
+| **Informar** | por paquete y set: fotogramas, almacenados, repetidos, páginas, memoria decodificada; y todos los avisos y errores con la **ruta** del archivo |
+
+Opciones: `--check` (no escribe; sale con 1 si hay un error), `--no-trim`, `--max-side <n>`, `--src`, `--out`. **No hay opción para remuestrear, recolorear ni filtrar**: no existen.
+
+## C.4 Lo que se comprueba de un set contra sus páginas (`checkSpriteFrames`)
+
+| Comprobación | Nivel |
+|---|---|
+| el JSON del atlas es válido: rectángulos enteros dentro de la imagen, recorte coherente con el tamaño original, nombres válidos, **sin rotación** | error |
+| el tamaño que dice el JSON (`meta.size`) y el que declara el manifiesto, iguales; los fotogramas caben en la imagen declarada | error |
+| **cada fotograma de cada clip está en alguna página** (y se nombra la falta: clip, nombres y cuántos) | error **del clip** |
+| un fotograma no está en **dos** páginas | error |
+| **todos los fotogramas comparten un tamaño original** (y es el `frameSize` declarado, si lo hay) | error |
+| datos (`heightPx`, anclas) de fotogramas que no existen · una página que ningún set usa · el JSON se escribió para otra imagen | aviso |
+| fotogramas del atlas que ningún clip usa | nota |
+
+## C.5 La biblioteca de arte (`assets/artLibrary.ts`)
+
+Genérica sobre el tipo de textura y con **dos interfaces** hacia fuera (`ArtIO`: `json(url)`, `image(url)`; `ArtTextures`: crear y destruir), de modo que **toda su lógica se prueba en Node** con un mundo de archivos falso (`tests/helpers/artWorld.ts`) y el navegador pone `fetch` + `createImageBitmap` + texturas de Pixi (`artIO.ts`). Deliberadamente **no usa `Assets` de Pixi** (§C.7).
+
+| Método | Qué hace |
+|---|---|
+| `init()` · `start()` | lee el índice una vez; `start()` además carga los paquetes `boot` (después del primer fotograma) |
+| `pack(id)` | el manifiesto de un paquete, leído y comprobado una vez (`null` si no está, no se puede traer o no es válido: se vuelve a intentar la próxima vez) |
+| `acquire(paquete, set)` | un set **cargado y contado**, o `null` (el motivo, en el registro). **Nunca lanza.** `set.def` es la definición **podada** (ver abajo): dibuja con ella, no con la pedida |
+| `acquireLoaded(paquete, set)` · `release(def)` | la versión síncrona (para código que no puede esperar) y la devolución; el último `release` libera las texturas y devuelve las páginas |
+| `enterZone(zona)` | la **política de zonas** (abajo) |
+| `stats()` · `snapshot()` | páginas residentes, **memoria**, pico, peticiones, fallos, tiempo de carga, zona; y el detalle por paquete (los *hooks* de las pruebas lo exponen como `state().art`) |
+
+- **Una imagen, una subida:** las páginas se cachean por URL y se cuentan por los sets que las usan; dos sets de un mismo atlas comparten su memoria y la página se libera con el último.
+- **Variante por pantalla:** se elige **una vez por set** con `chooseAtlasVariant(…, ppm × resolución)`; la que no se necesita **no se descarga**. Un cambio de tamaño de pantalla a media sesión no cambia la variante cargada (se decide al cargar; si hiciera falta, se libera y se vuelve a pedir).
+- **Política de zonas:** los paquetes `boot` están siempre; al **empezar una transición** (`transition:started`) y al **cargar una sala** (`room:loaded`) el juego llama `enterZone(sala)`: se **traen primero** los paquetes `zone` de la sala nueva y **solo entonces** se sueltan los de la anterior (un paquete que comparten las dos salas **no se vuelve a pedir**); una llamada adelantada por otra más nueva le deja la limpieza. Un paquete `lazy` solo carga cuando algo lo pide **por nombre**. Quien tiene un set contado (una vista) **lo conserva** aunque la zona suelte su paquete.
+- **Nada que haga el arte puede fallar el juego:** un 404, un JSON corrupto, una imagen que no es una imagen, una petición cortada, un fotograma que falta, una imagen de otro tamaño que el declarado → `null` para ese set, una nota en el registro y **ni una imagen ni una textura residente**. Quien lo pidió **se queda con su placeholder**. En una *build* de desarrollo (o con `?hooks=1`) la nota es un **aviso** de consola (`[art] …`); en la de un jugador, un `debug` silencioso: **nunca un `error`**.
+- **Un clip que rompe el contrato se deja fuera, no el set:** un fotograma que falta en la página, fases incoherentes, **una espada que no está en la mano** (`weapon_grip` a más de 4 cm de `hand_r`) o sin anclas de espada en un clip de ataque → **ese clip** no se usa (su estado cae por la cadena de *fallbacks* o al *placeholder*), se anota **por qué** (`dropped()`, `snapshot().packList[].dropped`) y el resto del set sigue siendo arte real. Solo se rechaza el set entero si `idle` está roto (es el último recurso de todo estado) o si falla algo del set entero (tamaños originales distintos, un JSON de página inválido).
+- **`heightPx` va en píxeles de la maestra** (donde se escriba); la biblioteca lo escala por la resolución de la variante para que el validador compare con la densidad de la imagen **que de verdad se dibuja**. Las anclas, en metros, no dependen de la resolución.
+
+## C.6 Carga diferida: lo que cuesta, medido
+
+El arte **nunca está en el arranque**:
+
+1. `vite.config.ts` busca `public/art/index.json` al arrancar y fija `__TROID_ART_INDEX__` (`'art/index.json'` o `''`). **Sin arte: la cadena vacía, y `Game2D` nunca importa el *chunk* ni pide un archivo** (no hay petición, no hay aviso, no hay 404).
+2. `?art=<carpeta>` (una carpeta junto a la página: letras, dígitos, `.`, `_`, `-` y `/`; **jamás** `..`, un esquema ni otro sitio) lee `<carpeta>/index.json` en su lugar: lo que usan las pruebas y las demos.
+3. Si hay índice, el *chunk* `art-*.js` se pide **después del primer fotograma**, junto a los efectos (a los 2 s en reposo, o de inmediato con `?hooks=1`).
+4. Las imágenes son **PNG**, nunca módulos de JS; los JSON son datos.
+
+| Medición (`npm run build && npm run bench:bundle`, Chromium sin GPU) | Antes de S35 | Después de S35 |
+|---|---|---|
+| **arranque en frío de R1** (JS, gzip; presupuesto 200 KB) | 198.4 KB (27 scripts) | **188.2 KB** (30 scripts) |
+| toda la primera sesión | 212.9 KB | 202.7 KB |
+| *chunk* del arte (**solo con arte**), gzip / bruto | — | 10.3 KB / 29.7 KB |
+| archivos que no son JS en el arranque | — | 2 archivos, 1.6 KB (la página y un icono) |
+
+La bajada de ~10 KB sale de **quitar el cargador `Assets` de Pixi del arranque** (el viejo `spriteLoader` lo importaba para la rama de archivo, que el juego nunca ejercitó): el arranque solo necesita el atlas procedural del *placeholder*. El pequeño aumento posterior (+1.3 KB) es el reparto en *chunks* compartidos (el *chunk* del arte comparte módulos con el juego) y el *stub* que lo importa.
+
+**Probado en el navegador** (`tools/e2e/scenarios/assets.ts`, en desarrollo y en producción, con arte sintético servido por `context.route`): una página sin arte **no pide** ni un archivo de arte ni su código; con arte se cargan **solo** el paquete de `boot` y el de la sala actual (los de otras salas y el *lazy*, **cero** peticiones); la memoria que informa la biblioteca es **exactamente** la de las páginas servidas; al pasar de R1 a R2 el paquete nuevo llega **durante el fundido**, el viejo se suelta y el de `boot` **no se vuelve a pedir**; un paquete `lazy` carga al pedirlo y libera al soltarlo; y con una imagen corrupta y una petición cortada el juego sigue, sin errores de consola, con el *placeholder*.
+
+## C.7 Decisiones
+
+| Decisión | Motivo |
+|---|---|
+| **No usar `Assets` de Pixi** | pesa ~11 KB gzip en el arranque y el juego no necesita sus resolutores, cachés ni *parsers*: una URL, una imagen, una subida. `createImageBitmap` decodifica fuera del hilo principal; premultiplicación en la subida, como todo lo demás |
+| **Un set, sus páginas** (no un atlas por paquete) | carga por personaje y por zona; compartir lo decide el artista |
+| **El empaquetador no remuestrea** | resamplear es tocar el arte. Las variantes de resolución las exporta el artista; el motor las elige |
+| **`awaiting-art` no se publica** | un juego sin arte no pide nada; el contrato de lo que falta vive en `art/` y en este documento (S38) |
+| **La biblioteca sabe de contrato, no de gameplay** | nada de lo que hace toca la simulación: el E2E comprueba que los *ticks* siguen igual con arte, sin él y con arte roto |
+
+## C.8 Los hallazgos de la auditoría (§A.13) que S35 cierra
+
+| Hallazgo | Estado tras S35 |
+|---|---|
+| **H2** · solo una resolución por set, sin regla de elección | **Cerrado:** variantes en el manifiesto (S34) y `chooseAtlasVariant` en la biblioteca (la variante que no se necesita **no se descarga**: lo prueba `artLibrary.test.ts`) |
+| **H3** · el cargador de archivos nunca se ejercitó; la caché de `Assets` podía devolver una textura destruida | **Cerrado:** ya no se usa `Assets`; el camino de archivo se ejercita en los tests unitarios (`artLibrary`, `buildArt`) y en el E2E `assets`; «cargar, soltar y volver a cargar» da texturas **nuevas** y una subida **nueva** (test explícito) |
+| **H4** · sin atlas por categoría ni por zona; `spriteLoader` y `Assets` en el *chunk* principal | **Cerrado:** un paquete por categoría, páginas por set, política `boot`/`zone`/`lazy`, y el arranque en frío **baja** de 198.4 a 188.2 KB gzip. *(Queda como estaba, a propósito: el set del jugador **procedural** se espera antes del primer fotograma — no hace red; el arte real llega **después** del primero.)* |
+| El *benchmark* de *bundle* solo cuenta JS | **Cerrado:** `bench:bundle` informa también de lo que **no** es JS (imágenes, JSON, página) |
+
+## C.9 Límites honestos
+
+- **No hay arte real**: todo se ha probado con arte **sintético**. Con arte real quedan por medir los tamaños, los tiempos de carga y la memoria (S43 lo hace en Chromium de escritorio; **iOS y Android no se han medido**).
+- Un PNG con perfil de color (`iCCP`) se usa con sus números tal cual; el navegador **no** aplicará la conversión del perfil, porque el empaquetador no lo arrastra: exporta en sRGB.
+- Sin *mipmaps* (Pixi no los genera por defecto): un sprite dibujado a mucho menos de la mitad de su tamaño puede brillar; la variante a la mitad (la pone el artista) es la solución.
+- La imagen decodificada ocupa memoria de CPU **además** de la de GPU mientras el navegador la guarda (Pixi no cierra el `ImageBitmap` por sí solo; `artIO.ts` lo cierra al soltar la página).
+
+*(Las partes siguientes se añaden con cada paso: **D** el visual del protagonista y el *fallback* (S36) · **E** validación y qué assets reales faltan (S37, S38) · **F** el laboratorio y R1 (S39, S40) · **G** VFX, audio, entorno y rendimiento (S41–S43).)*

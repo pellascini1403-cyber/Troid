@@ -3,9 +3,9 @@ import type { SpriteSetDefinition } from '@/presentation/SpriteSetDefinition';
 import { PLAYER_PLACEHOLDER } from './placeholders/playerPlaceholder';
 
 /**
- * Sprite sets: the only place that knows atlas ids and frame names. To use final art, add a definition that points
- * at the artist's atlas (`atlas: 'sprites/hero'` → `public/sprites/hero.json` + `.png`) and keep the logical `clips`
- * keys: gameplay is unchanged (docs/ARCHITECTURE-2D.md §7.5).
+ * Sprite sets of the PLACEHOLDER: abstract figures drawn at start-up with a canvas (`atlas: 'procedural:<id>'`). Real art is not declared here: it comes from
+ * packs under `art/` (a manifest with the scale, the pivot, the clips and the anchors), packed by `npm run assets:pack` and loaded after the first frame by the
+ * art library (`assets/artLibrary.ts`) — gameplay is unchanged either way (docs/ART-PIPELINE-2D.md, docs/ARCHITECTURE-2D.md §7.5).
  */
 export const SPRITE_SETS: Readonly<Record<string, SpriteSetDefinition>> = {
   [PLAYER_PLACEHOLDER.def.id]: PLAYER_PLACEHOLDER.def,
