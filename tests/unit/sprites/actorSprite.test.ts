@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { Container, type Sprite } from 'pixi.js';
+import { Container, Rectangle, Texture, type Sprite } from 'pixi.js';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { PLAYER_PLACEHOLDER } from '@/content/placeholders/playerPlaceholder';
 import { log } from '@/core/log';
@@ -8,7 +8,7 @@ import { createActorViewState } from '@/presentation/actorViewState';
 import type { SpriteSetDefinition } from '@/presentation/SpriteSetDefinition';
 import { ANCHOR_IDS } from '@/presentation/vocabulary';
 import { ActorSprite } from '@/render/ActorSprite';
-import { fakeSet } from '../../helpers/sprites';
+import { fakeSet, type FakeSet } from '../../helpers/sprites';
 
 beforeAll(() => log.setSink(() => {}));
 
@@ -245,5 +245,93 @@ describe('ActorSprite (port of CharacterModel + ActorVisual)', () => {
     expect(body(a).scale.x).toBeCloseTo(0.01, 8);
     expect(a.anchor('weapon_tip')).toMatchObject({ x: 1.5, y: 1, fallback: false });
     expect(JSON.stringify(view)).toBe(snapshot); // gameplay state untouched by the swap
+  });
+});
+
+describe('bounds: the rectangle the picture covers — what is SEEN, and nothing the simulation reads', () => {
+  /** 60 px per metre, feet at the bottom centre: a 120 × 144 px canvas is 2 × 2.4 m. */
+  const DEF: SpriteSetDefinition = { id: 'bounds', atlas: 'x', artPxPerMeter: 60, pivot: [0.5, 1], height: 1.7, clips: { idle: { frames: 'idle_', count: 2 } } };
+  const view = (over: Partial<ReturnType<typeof createActorViewState>> = {}) => Object.assign(createActorViewState(), { x: 4, prevX: 4, y: 1, prevY: 1, facing: 1, anim: 'idle' }, over);
+  /** A set whose frames are 120 × 144 canvases, each of which kept only the pixels `trim` says (as the packer does). Without a trim, the whole canvas. */
+  const trimmed = (def: SpriteSetDefinition, trim: [number, number, number, number] | null): FakeSet => {
+    const set = fakeSet(def, { frames: {} }, [120, 144]);
+    const textures = set.textures as Map<string, Texture>; // the fixture's own map: a test may rewrite its frames
+    for (const [name, t] of textures) {
+      const orig = new Rectangle(0, 0, 120, 144);
+      textures.set(name, new Texture({ source: t.source, frame: trim ? new Rectangle(0, 0, trim[2], trim[3]) : t.frame, orig, trim: trim ? new Rectangle(...trim) : undefined }));
+    }
+    return set;
+  };
+  const close = (a: { x0: number; y0: number; x1: number; y1: number }, e: { x0: number; y0: number; x1: number; y1: number }): void => {
+    for (const k of ['x0', 'y0', 'x1', 'y1'] as const) expect(a[k], k).toBeCloseTo(e[k], 9);
+  };
+
+  it('a frame that was not trimmed covers its whole canvas, from the feet', () => {
+    const a = new ActorSprite(trimmed(DEF, null));
+    a.sync(view(), 0, 0);
+    close(a.bounds(), { x0: 3, x1: 5, y0: 1, y1: 3.4 });
+  });
+
+  it('a trimmed frame covers where its pixels are in the canvas — and facing left mirrors it about the feet, as the sprite itself is mirrored', () => {
+    const a = new ActorSprite(trimmed(DEF, [10, 20, 60, 100]));
+    a.sync(view({ facing: 1 }), 0, 0);
+    close(a.bounds(), { x0: 4 - 5 / 6, x1: 4 + 1 / 6, y0: 1 + 0.4, y1: 1 + 2.4 - 1 / 3 });
+    a.sync(view({ facing: -1 }), 0, 0);
+    close(a.bounds(), { x0: 4 - 1 / 6, x1: 4 + 5 / 6, y0: 1 + 0.4, y1: 1 + 2.4 - 1 / 3 });
+  });
+
+  it('follows the actor through the world without changing size (the position is the simulation\'s, the size is the picture\'s)', () => {
+    const a = new ActorSprite(trimmed(DEF, [10, 20, 60, 100]));
+    a.sync(view({ x: 4, prevX: 4 }), 0, 0);
+    const there = a.bounds();
+    const w = there.x1 - there.x0;
+    const h = there.y1 - there.y0;
+    a.sync(view({ x: 20, prevX: 20, y: 5, prevY: 5 }), 0, 0);
+    const here = a.bounds();
+    expect(here.x1 - here.x0).toBeCloseTo(w, 9);
+    expect(here.y1 - here.y0).toBeCloseTo(h, 9);
+    expect(here.x0 - there.x0).toBeCloseTo(16, 9);
+    expect(here.y0 - there.y0).toBeCloseTo(4, 9);
+  });
+
+  it('a visual scale is the size of the picture about the feet and moves nothing else', () => {
+    const plain = new ActorSprite(trimmed(DEF, [10, 20, 60, 100]));
+    const big = new ActorSprite(trimmed({ ...DEF, visualScale: 1.25 }, [10, 20, 60, 100]));
+    plain.sync(view(), 0, 0);
+    big.sync(view(), 0, 0);
+    const a = plain.bounds();
+    const b = big.bounds();
+    expect(b.x0 - 4).toBeCloseTo(1.25 * (a.x0 - 4), 9);
+    expect(b.x1 - 4).toBeCloseTo(1.25 * (a.x1 - 4), 9);
+    expect(b.y0 - 1).toBeCloseTo(1.25 * (a.y0 - 1), 9);
+    expect(b.y1 - 1).toBeCloseTo(1.25 * (a.y1 - 1), 9);
+  });
+
+  it('the same art at two resolutions covers the same metres (the picture is measured in metres, never in pixels)', () => {
+    const lo = new ActorSprite(fakeSet({ ...DEF, artPxPerMeter: 30 }, { frames: {} }, [60, 72]));
+    const hi = new ActorSprite(fakeSet({ ...DEF, artPxPerMeter: 120 }, { frames: {} }, [240, 288]));
+    lo.sync(view(), 0, 0);
+    hi.sync(view(), 0, 0);
+    close(lo.bounds(), hi.bounds());
+  });
+
+  it('fills the rectangle it is given instead of making one; a frame the atlas does not have is a point at the feet, never an error', () => {
+    const a = new ActorSprite(trimmed(DEF, null));
+    a.sync(view(), 0, 0);
+    const out = { x0: 0, y0: 0, x1: 0, y1: 0 };
+    expect(a.bounds(out)).toBe(out);
+    const empty = fakeSet(DEF, { frames: {} }, [120, 144]);
+    (empty.textures as Map<string, Texture>).clear();
+    const lost = new ActorSprite(empty);
+    lost.sync(view(), 0, 0);
+    expect(lost.bounds()).toEqual({ x0: 4, x1: 4, y0: 1, y1: 1 });
+  });
+
+  it('is measured off the picture and the pose alone: the same picture is the same rectangle whoever owns it', () => {
+    const a = new ActorSprite(trimmed(DEF, [10, 20, 60, 100]));
+    const b = new ActorSprite(trimmed(DEF, [10, 20, 60, 100]));
+    a.sync(view({ anim: 'idle', flash: 0.8, blink: true }), 0, 0);
+    b.sync(view({ anim: 'idle' }), 0, 0);
+    expect(a.bounds()).toEqual(b.bounds());
   });
 });

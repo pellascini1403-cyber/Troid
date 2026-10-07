@@ -16,6 +16,11 @@ export interface Ctx {
   warnings: string[];
 }
 
+/** A rectangle in world metres, +y up. */
+export interface Box {
+  x0: number; y0: number; x1: number; y1: number;
+}
+
 export interface GameState {
   x: number; y: number; vx: number; vy: number; grounded: boolean; anim: string; state: string;
   tick: number; fps: number; calls: number; triangles: number;
@@ -70,6 +75,8 @@ export interface GameState {
   menuOpen?: boolean;
   /** 2D view only (S36): which look draws the protagonist — the mode, the look on screen, the id of the art's set (null until it is attached), the clips it provides and the required ones it still lacks. */
   visual?: { mode: string; shows: string; art: string | null; provides: string[]; lacks: string[] };
+  /** 2D view only (S40): the four boxes of the hero in world metres — the picture that is SEEN, the body that COLLIDES, the hurtbox that is HURT and the hitbox that HITS (`null` when no blow is out). */
+  boxes?: { visual: Box; body: Box; hurtbox: Box; hitbox: Box | null };
   /** 2D view only (S35): the art library — what it holds, what it has fetched; `null` for a page with no art (it never loads the library). */
   art?: ArtSnapshot | null;
   /** 2D view only: VFX counters. */

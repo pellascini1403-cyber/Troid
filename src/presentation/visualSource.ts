@@ -26,7 +26,10 @@ export type VisualSet = Pick<SpriteSetDefinition, 'clips' | 'missingClips'>;
  *  - the gaits stand for each other (`walk`, `run`, `move`) and so do the two halves of a jump (`jump`, `fall`);
  *  - the first blow is `attack` or `attack1` (a content name and an artist's name for the same swing), and the second blow may repeat it;
  *  - a landing is a held pose of a few ticks and an alert a still one: the art's `idle` is a fair stand-in, and showing the placeholder for a few frames between
- *    two frames of the art would be a flicker, not a fallback.
+ *    two frames of the art would be a flicker, not a fallback;
+ *  - the crawl (and the slide of a crouched dash under a low passage) is the crouch in motion: with no crawl of its own the art's `crouch` is held while the hero
+ *    moves — the same stance, the same height as the body and the hurtbox that follow it — instead of the capsule crossing a tunnel of a hero drawn by hand. It is the
+ *    animator's own first choice for the state (`ANIM_FALLBACKS`), and the art's walk, which is NOT a crouch, is not one.
  * Every other state (crouch, hurt, dash, the air and crouch blows, the cast, the drink…) says something no other clip says: without its own clip, the
  * placeholder draws it.
  */
@@ -41,6 +44,7 @@ const STAND_INS: Readonly<Partial<Record<AnimState, readonly AnimState[]>>> = {
   attack2: ['attack1', 'attack'],
   land: ['idle'],
   alert: ['idle'],
+  crouchWalk: ['crouch'],
 };
 
 /** The state whose clip draws `state` in this set: `state` itself when it has the clip, else the first stand-in it has, else `null`. */

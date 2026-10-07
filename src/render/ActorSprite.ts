@@ -1,9 +1,11 @@
 import { Container, Sprite, type Texture } from 'pixi.js';
 import type { LoadedSpriteSet } from '@/assets/SpriteAssetManager';
 import { log } from '@/core/log';
+import type { Rect } from '@/core/math';
 import type { ResolvedAnchor } from '@/presentation/anchors';
 import type { ActorViewState } from '@/presentation/actorViewState';
 import { ActorPresenter } from '@/presentation/ActorPresenter';
+import { visibleRect, worldRect } from '@/presentation/pictureBounds';
 import type { AnchorId } from '@/presentation/vocabulary';
 import { viewY } from '@/presentation/worldTransform';
 
@@ -106,6 +108,28 @@ export class ActorSprite {
     out.x = this._presenter.pose.x + a.x;
     out.y = this._presenter.pose.y + a.y;
     return out;
+  }
+
+  /**
+   * The rectangle the PICTURE covers in the world (metres, +y up): the pixels of the frame on screen — the part the packer kept when it trimmed the frame, the whole
+   * canvas when it did not — put at the actor's feet and mirrored by the way it faces. It is what the player SEES and nothing else: the collision body, the hurtbox
+   * and the hitbox of the actor are data of its simulation and never come from here (docs/ART-PIPELINE-2D.md §A.7).
+   */
+  bounds(out: Rect = { x0: 0, y0: 0, x1: 0, y1: 0 }): Rect {
+    const pose = this._presenter.pose;
+    const texture = this.shown === null ? null : this.set.textures.get(this.shown);
+    if (!texture) {
+      out.x0 = out.x1 = pose.x;
+      out.y0 = out.y1 = pose.y;
+      return out;
+    }
+    const trim = texture.trim;
+    const local = visibleRect(
+      this.set.def,
+      { width: texture.orig.width, height: texture.orig.height },
+      trim ? { x: trim.x, y: trim.y, width: trim.width, height: trim.height } : null,
+    );
+    return worldRect(local, pose.x, pose.y, pose.facing, out);
   }
 
   /** Idempotent. Never destroys the shared textures. */

@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { PLAYER_PLACEHOLDER } from '@/content/placeholders/playerPlaceholder';
 import { log, type LogEntry } from '@/core/log';
 import { createActorViewState, type ActorViewState } from '@/presentation/actorViewState';
+import { canvasRect, worldRect } from '@/presentation/pictureBounds';
 import type { SpriteSetDefinition } from '@/presentation/SpriteSetDefinition';
 import type { AnimState } from '@/presentation/vocabulary';
 import { ActorSprite } from '@/render/ActorSprite';
@@ -185,5 +186,22 @@ describe('PlayerVisualSwitch', () => {
     visual.sync(viewOf({ anim: 'dash' }), 0, 0);
     expect(visual.shows).toBe('placeholder');
     expect(Number.isFinite(visual.anchorWorld('weapon_tip').x)).toBe(true);
+  });
+
+  it('bounds are the picture of the look on screen: the art\'s where the art draws, the placeholder\'s where it does not — the same feet either way', () => {
+    const { visual, attach, placeholder } = setup(['idle', 'walk', 'attack1']);
+    const big = fakeSet(artDef(['idle', 'walk', 'attack1']), PLAYER_PLACEHOLDER.meta, [64, 96]); // a picture much larger than the placeholder's 16 × 16
+    attach(big);
+    visual.sync(viewOf({ anim: 'idle', x: 8, prevX: 8, y: 2, prevY: 2 }), 0, 0);
+    expect(visual.shows).toBe('art');
+    const art = visual.bounds();
+    const want = worldRect(canvasRect(big.def, 64, 96), 8, 2, 1);
+    for (const k of ['x0', 'x1', 'y0', 'y1'] as const) expect(art[k], k).toBeCloseTo(want[k], 9);
+    visual.sync(viewOf({ anim: 'dash', x: 8, prevX: 8, y: 2, prevY: 2 }), 0, 0);
+    expect(visual.shows).toBe('placeholder');
+    const ph = visual.bounds();
+    expect(ph).toEqual(placeholder.bounds());
+    expect(ph.x1 - ph.x0, 'the picture changed with the look…').not.toBeCloseTo(art.x1 - art.x0, 3);
+    for (const r of [ph, art]) expect(r.x0 <= 8 && 8 <= r.x1 && r.y0 <= 2 && 2 <= r.y1, '…and the feet did not (they are inside both pictures)').toBe(true);
   });
 });

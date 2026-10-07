@@ -1,5 +1,6 @@
 import { Container, type Texture } from 'pixi.js';
 import type { LoadedSpriteSet } from '@/assets/SpriteAssetManager';
+import type { Rect } from '@/core/math';
 import type { ResolvedAnchor } from '@/presentation/anchors';
 import type { ActorViewState } from '@/presentation/actorViewState';
 import { chooseSource, type VisualMode, type VisualSource } from '@/presentation/visualSource';
@@ -31,6 +32,8 @@ export interface PlayerVisual {
   sync(view: ActorViewState, alpha: number, dt: number): void;
   anchor(id: AnchorId, out?: ResolvedAnchor): ResolvedAnchor;
   anchorWorld(id: AnchorId, out?: { x: number; y: number }): { x: number; y: number };
+  /** The rectangle the picture on screen covers, in the world: what is SEEN — never the body, the hurtbox or the hitbox (those are the simulation's). */
+  bounds(out?: Rect): Rect;
   dispose(): void;
 }
 
@@ -154,6 +157,10 @@ export class PlayerVisualSwitch implements PlayerVisual {
 
   anchorWorld(id: AnchorId, out?: { x: number; y: number }): { x: number; y: number } {
     return this.current.anchorWorld(id, out);
+  }
+
+  bounds(out?: Rect): Rect {
+    return this.current.bounds(out);
   }
 
   dispose(): void {

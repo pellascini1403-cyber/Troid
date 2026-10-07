@@ -1,9 +1,6 @@
-import type { SpriteSetDefinition } from './SpriteSetDefinition';
-
 /**
- * THE MATHS OF THE PLAYER LAB (`?lab=player`, docs/ART-PIPELINE-2D.md part G): which frame of a clip is on screen, and where the picture sits in metres. PURE — no
- * Pixi, no DOM — so that what the lab shows is tested without a GPU, and so that the numbers it shows (the canvas, the visible part, the frame) are the same ones
- * anything else would compute.
+ * THE TIME OF THE PLAYER LAB (`?lab=player`, docs/ART-PIPELINE-2D.md part G): which frame of a clip is on screen. PURE — no Pixi, no DOM — so that what the lab shows
+ * is tested without a GPU. Where the picture sits in metres is `pictureBounds`, which the game itself uses.
  */
 
 /**
@@ -65,35 +62,3 @@ export class ClipTimeline {
     return !this.loops && this.count > 0 && this.index >= this.count - 1 && this.fps > 0 && this.t >= (this.count - 1) / this.fps;
   }
 }
-
-/** A rectangle in METRES from the feet, +x forward, +y UP. */
-export interface MetreRect {
-  x0: number;
-  y0: number;
-  x1: number;
-  y1: number;
-}
-
-/** What drawing a picture of `w × h` art pixels does to the world: the metres each pixel covers, with the visual scale, about the feet pivot. */
-export function metresPerArtPixel(def: Pick<SpriteSetDefinition, 'artPxPerMeter' | 'visualScale'>): number {
-  return (def.visualScale ?? 1) / def.artPxPerMeter;
-}
-
-/** The whole (untrimmed) canvas of a frame, in metres from the feet: the rectangle the pivot is a fraction of. */
-export function canvasRect(def: Pick<SpriteSetDefinition, 'pivot' | 'artPxPerMeter' | 'visualScale'>, width: number, height: number): MetreRect {
-  const m = metresPerArtPixel(def);
-  return { x0: -def.pivot[0] * width * m, x1: (1 - def.pivot[0]) * width * m, y0: -(1 - def.pivot[1]) * height * m, y1: def.pivot[1] * height * m };
-}
-
-/** The part of the canvas that was kept when the frame was trimmed (`trim`: where those pixels sit in the original), in metres from the feet. Without a trim, the canvas. */
-export function visibleRect(def: Pick<SpriteSetDefinition, 'pivot' | 'artPxPerMeter' | 'visualScale'>, orig: { width: number; height: number }, trim: { x: number; y: number; width: number; height: number } | null): MetreRect {
-  const canvas = canvasRect(def, orig.width, orig.height);
-  if (!trim) return canvas;
-  const m = metresPerArtPixel(def);
-  const x0 = canvas.x0 + trim.x * m;
-  const y1 = canvas.y1 - trim.y * m;
-  return { x0, x1: x0 + trim.width * m, y1, y0: y1 - trim.height * m };
-}
-
-export const rectWidth = (r: MetreRect): number => r.x1 - r.x0;
-export const rectHeight = (r: MetreRect): number => r.y1 - r.y0;

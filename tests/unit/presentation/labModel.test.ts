@@ -1,12 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { canvasRect, ClipTimeline, metresPerArtPixel, rectHeight, rectWidth, visibleRect, type MetreRect } from '@/presentation/labModel';
-
-const same = (actual: MetreRect, expected: MetreRect): void => {
-  for (const k of ['x0', 'x1', 'y0', 'y1'] as const) expect(actual[k], k).toBeCloseTo(expected[k], 12);
-};
+import { ClipTimeline } from '@/presentation/labModel';
 
 /**
- * THE MATHS OF THE PLAYER LAB (docs/ART-PIPELINE-2D.md, part G): which frame is on screen and where the picture sits in metres.
+ * THE TIME OF THE PLAYER LAB (docs/ART-PIPELINE-2D.md, part G): which frame of a clip is on screen.
  */
 describe('ClipTimeline', () => {
   it('plays a loop at its rate and wraps', () => {
@@ -100,32 +96,5 @@ describe('ClipTimeline', () => {
       expect(c.index).toBeGreaterThanOrEqual(0);
     }
     expect(new ClipTimeline(1, 8, true).index).toBe(0);
-  });
-});
-
-describe('where a picture sits, in metres', () => {
-  const def = { pivot: [0.5, 0.9] as const, artPxPerMeter: 100 };
-
-  it('the canvas is a rectangle around the feet pivot: the pivot is a FRACTION of it', () => {
-    const r = canvasRect(def, 200, 300);
-    same(r, { x0: -1, x1: 1, y0: -0.3, y1: 2.7 });
-    expect(rectWidth(r)).toBeCloseTo(2, 12);
-    expect(rectHeight(r)).toBeCloseTo(3, 12);
-    same(canvasRect({ ...def, pivot: [0.5, 1] }, 200, 300), { x0: -1, x1: 1, y0: 0, y1: 3 });
-  });
-
-  it('the visual scale scales the picture about the feet; a denser image covers the same metres with more pixels', () => {
-    expect(metresPerArtPixel({ artPxPerMeter: 100, visualScale: 2 })).toBe(0.02);
-    same(canvasRect({ ...def, visualScale: 2 }, 200, 300), { x0: -2, x1: 2, y0: -0.6, y1: 5.4 });
-    same(canvasRect({ ...def, artPxPerMeter: 50 }, 100, 150), canvasRect(def, 200, 300)); // the half-size image of the same frame covers the same metres
-  });
-
-  it('the visible part of a trimmed frame is where its pixels sit in the original', () => {
-    const v = visibleRect({ pivot: [0.5, 1], artPxPerMeter: 100 }, { width: 200, height: 300 }, { x: 40, y: 30, width: 100, height: 240 });
-    expect(v.x0).toBeCloseTo(-0.6, 12);
-    expect(v.x1).toBeCloseTo(0.4, 12);
-    expect(v.y1).toBeCloseTo(2.7, 12);
-    expect(v.y0).toBeCloseTo(0.3, 12);
-    same(visibleRect({ pivot: [0.5, 1], artPxPerMeter: 100 }, { width: 200, height: 300 }, null), canvasRect({ pivot: [0.5, 1], artPxPerMeter: 100 }, 200, 300));
   });
 });

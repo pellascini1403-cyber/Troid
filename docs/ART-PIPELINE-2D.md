@@ -119,6 +119,8 @@ Consecuencias que el contrato (S34) y los atlas (S35) tienen que respetar:
 
 **Ninguno de los cuatro primeros se lee del sprite.** Cambiar el tamaño visual cambia `artPxPerMeter` / `height` y nada más.
 
+**Desde S40 se pueden *ver* las cuatro a la vez en el juego** (`state().boxes` de los ganchos de prueba, §G.3): `visual` —el rectángulo de **lo que se ve**: los píxeles del fotograma en pantalla, recortados, en metros de mundo (`ActorSprite.bounds()`, `presentation/pictureBounds.ts`)—, `body`, `hurtbox` y `hitbox` (el del golpe del héroe en el último tick, o `null`). La primera es **del dibujo**; las otras tres, **de la simulación**, y **`architecture.test.ts` impide que la simulación mire el dibujo**: `player/`, `combat/`, `gameplay/`, `world/`, `enemies/`, `abilities/`, `interaction/` y `progression/` solo pueden importar de `presentation/` el **vocabulario** (`vocabulary`, `actorViewState`), y nada de `render/`, `assets/`, `vfx/` ni de los datos de sprites.
+
 ## A.8 Carga y ciclo de vida
 
 - **Hoy se carga un solo set (el del jugador), `await`-ado antes del primer fotograma** (`Game2D.create`). Con el atlas procedural cuesta ≈ 0; con un PNG real sería **ruta crítica** (red + decodificación). Los enemigos (procedurales), el atlas de VFX (procedural) y el entorno (procedural) no se cargan: se **dibujan**.
@@ -455,7 +457,8 @@ Game2D ──────────────►  PlayerVisualSwitch   (impl
 | `attack` · `attack1` | cualquiera de los dos (`attack` es el nombre del contenido; `attack1`, el del artista: el mismo tajo) |
 | `attack2` | `attack2`, o `attack1`/`attack` (el combo puede repetir el tajo) |
 | `land` · `alert` | su clip, **o el `idle`** (son poses mantenidas de unos ticks: pasar al *placeholder* para 4 fotogramas sería un parpadeo, no un *fallback*) |
-| **todo lo demás** (`crouch`, `crouchWalk`, `dash`, `attackAir`, `attackCrouch`, `hurt`, `death`, `cast`, `special`, `drink`, `interact`…) | **solo su propio clip**: dice algo que ningún otro clip dice |
+| `crouchWalk` | su clip, **o el `crouch`** (S40): la reptación —y el deslizamiento de un *dash* agachado bajo el pasaje de R1— es **el agachado en movimiento**: la misma postura y la misma altura del cuerpo y de la *hurtbox*. Con el `walk` en pie sería otra postura, y con la cápsula, otro personaje; es además la primera opción de la cadena del animador |
+| **todo lo demás** (`crouch`, `dash`, `attackAir`, `attackCrouch`, `hurt`, `death`, `cast`, `special`, `drink`, `interact`…) | **solo su propio clip**: dice algo que ningún otro clip dice |
 
 Consecuencia visible para el usuario: con un set que solo trae `idle`, `walk` y `attack1`, el juego dibuja **al héroe real** de pie, caminando, corriendo y dando el primer tajo (y el segundo, repitiéndolo), y **la cápsula** al saltar, al hacer *dash*, al agacharse, al ser herido, al morir, al lanzar o al beber. El arte entra **clip a clip** sin que nada más cambie.
 
@@ -474,9 +477,10 @@ Consecuencia visible para el usuario: con un set que solo trae `idle`, `walk` y 
 
 | Qué | Dónde |
 |---|---|
-| la política `chooseSource` / `providesState` / `lackedClips`: sustitutos, sin préstamos, modos, `chain`, los 15 clips | `visualSource.test.ts` (13) |
-| el conmutador: un aspecto visible a la vez, el corte no mueve al héroe (posición, giro, escala), el camino de vuelta y de ida, el modo `art`, la pose invisible, el estado de vista **intacto**, quitar/cambiar/liberar el arte **una sola vez**, anclas del aspecto visible, silencio con sets parciales | `playerVisual.test.ts` (12) |
+| la política `chooseSource` / `providesState` / `lackedClips`: sustitutos (la reptación incluida), sin préstamos, modos, `chain`, los 15 clips | `visualSource.test.ts` (15) |
+| el conmutador: un aspecto visible a la vez, el corte no mueve al héroe (posición, giro, escala), el camino de vuelta y de ida, el modo `art`, la pose invisible, el estado de vista **intacto**, quitar/cambiar/liberar el arte **una sola vez**, anclas del aspecto visible, silencio con sets parciales, `bounds` del aspecto visible | `playerVisual.test.ts` (13) |
 | **navegador** (arte sintético): sin arte → *placeholder* y 15 clips por dibujar; con arte, **en cada tick** de una jugada el aspecto es el que dice la política; el tajo sigue las **fases de la simulación** (`startup`/`active`/`recovery` → fotogramas 0-1/2/3) con **la espada en la mano** (`|grip − hand| < 5 cm`, punta 0.9 m delante) y **conecta** (el *hitbox* es de la simulación); muerte y hechizo → *placeholder*; camino de vuelta e ida; arte roto o sin paquete → *placeholder* sin errores | E2E `player-art` (A–C) |
+| **los estados del héroe tal como los muestra la simulación** (S40): una jugada con guion en la simulación sin cabeza —todos los movimientos, y la sala de interacción— recoge **los 18 estados** que el héroe publica; un set con **exactamente los 15 clips de la entrega** los dibuja **todos** con arte y con el clip que debe; **cada uno de los 15 lo pide algún estado** (la lista de lo que el arte debe ni sobra ni falta); sin uno cualquiera, el *placeholder* dibuja justo los estados que lo necesitan | `heroStates.test.ts` (5) |
 | **la simulación no sabe nada:** el mismo guion de teclas (andar, saltar, tajo, *dash*) con **sin arte**, **arte `auto`**, **camino de vuelta** y **solo arte** da la **misma traza**, tick a tick (posición, velocidad, vida, magia, combate, *hit-stop*, golpes al muñeco) | E2E `player-art` (D) |
 
 ---
@@ -602,9 +606,9 @@ Si el arte llega como **una hoja por clip** en vez de un archivo por fotograma, 
 
 ---
 
-# Parte G — El laboratorio del protagonista (S39) y R1 (S40)
+# Parte G — El laboratorio del protagonista (S39) y R1 con el arte completo (S40)
 
-> **Qué es:** `?lab=player`, una herramienta para **mirar el arte del héroe sin jugar**: un clip cada vez, fotograma a fotograma, con las anclas dibujadas encima, la espada donde el arte dice que está, los límites del propio dibujo y —**aparte del dibujo, a propósito**— el cuerpo de colisión, la *hurtbox* y la *hitbox* que el juego usa de verdad, para **ver** qué toca el arte y qué no. Código: `app/labs/playerLab.ts` (el laboratorio), `presentation/labModel.ts` (las cuentas, **puras**: qué fotograma toca y dónde cae el dibujo en metros). E2E: `player-lab`.
+> **Qué es:** `?lab=player`, una herramienta para **mirar el arte del héroe sin jugar**: un clip cada vez, fotograma a fotograma, con las anclas dibujadas encima, la espada donde el arte dice que está, los límites del propio dibujo y —**aparte del dibujo, a propósito**— el cuerpo de colisión, la *hurtbox* y la *hitbox* que el juego usa de verdad, para **ver** qué toca el arte y qué no. Código: `app/labs/playerLab.ts` (el laboratorio), `presentation/labModel.ts` (el tiempo de un clip: qué fotograma toca) y `presentation/pictureBounds.ts` (dónde cae el dibujo en metros: lo comparten el laboratorio y el juego), ambos **puros**. E2E: `player-lab`.
 > **Lo que NO es:** parte del juego. Es un *chunk* aparte que **ninguna página del juego pide** (lo prueba el E2E `assets`), no escribe estado de simulación alguno y no cambia nada de lo que el juego hace.
 
 ## G.1 Qué hace (S39)
@@ -625,13 +629,58 @@ Si el arte llega como **una hoja por clip** en vez de un archivo por fotograma, 
 
 | Qué | Dónde |
 |---|---|
-| `ClipTimeline` (bucle, una vez, pausa, paso con vuelta, velocidad, *play* sobre un clip terminado, clips de 0/1 fotogramas y sin ritmo) y las cuentas en metros (el lienzo es una **fracción** del pivote; la escala visual; la misma imagen a media resolución cubre los mismos metros; la parte recortada) | `labModel.test.ts` (11) |
+| `ClipTimeline` (bucle, una vez, pausa, paso con vuelta, velocidad, *play* sobre un clip terminado, clips de 0/1 fotogramas y sin ritmo) | `labModel.test.ts` (8) |
+| las cuentas en metros (el lienzo es una **fracción** del pivote; la escala visual; la misma imagen a media resolución cubre los mismos metros; la parte recortada; el rectángulo **en el mundo**, espejado al mirar a la izquierda) | `pictureBounds.test.ts` (8) |
 | `standInFor`: el clip que dibuja un estado en un set (el propio, o el sustituto) | `visualSource.test.ts` |
 | **navegador**, con el *placeholder* y con **arte sintético**: el panel y los 15 clips; un golpe fotograma a fotograma con la espada en la mano en cada uno y sus tres fases en orden; pausa que se queda y *play* que sigue; casillas; el cuerpo y la *hurtbox* son los del juego (`0.35 × 1.7`, `0.3 × 1.55`) **antes y después de escalar el dibujo**; límites de la escala; con arte: ambos aspectos, cada uno solo, el lienzo del arte en metros (`64 px / 60 px/m`) y su recorte, un clip que falta dicho, las fases de **su** golpe y `attack ← attack1` | E2E `player-lab` |
 | ninguna página del juego pide el laboratorio | E2E `assets` (A) |
 
 **Coste:** el *chunk* del laboratorio pesa 6.5 KB gzip y **solo se descarga con `?lab=player`**. Como comparte módulos con el juego, el *bundler* los reparte en más trozos pequeños y el arranque en frío del jugador sube **0.8 KB** (189.2 → 190.0 KB gzip; presupuesto 200) y tres archivos; es el precio de tener herramientas que miran lo mismo que el juego.
 
-*(Siguiente: **G** el laboratorio `?lab=player` y R1 (S39, S40) · **H** VFX y audio (S41) · **I** entorno (S42) · **J** rendimiento (S43).)*
+## G.3 R1 con el arte completo (S40)
 
+> **Qué se comprobó:** que **el día que lleguen los 15 clips reales, la primera sala se juega con ellos** —todos los estados que el héroe muestra, la reptación y el deslizamiento bajo el pasaje incluidos, dibujados con arte— y que **las cuatro cajas del héroe son las que eran**. Con arte **sintético** de 15 clips (ruido sobre lienzo transparente: ni personaje ni escena) en la **R1 real** (`r1_gate`, partida nueva) y con teclado real. **No** hay arte real del protagonista en el repositorio y **nada de esto lo finge**.
 
+**Hallazgo y corrección.** El héroe publica **18 estados**, no 15: además de los 15 clips de la entrega aparecen `run` (la carrera), `land` (el aterrizaje) y `crouchWalk` (la reptación **y** el deslizamiento de un *dash* agachado, que es como se cruza el pasaje de R1). Los dos primeros ya se resolvían (`run ← walk`, `land ← idle`); **`crouchWalk` no**: con la entrega completa, el pasaje de R1 se habría cruzado **como cápsula** dentro de un juego dibujado a mano. Corrección (§D.3): `crouchWalk ← crouch`. Lo encontró **contar los estados que la simulación publica de verdad** (`heroStates.test.ts`) en vez de fiarse de la lista de clips de la entrega; y sin la corrección el E2E `player-r1` falla en el pasaje (la jugada de R1 con arte dibuja la cápsula allí).
+
+| Estado que publica el héroe | Clip del arte que lo dibuja |
+|---|---|
+| `idle` · `land` | `idle` |
+| `walk` · `run` | `walk` |
+| `jump` · `fall` · `dash` · `hurt` · `death` · `cast` · `drink` · `interact` | el suyo |
+| `crouch` · `crouchWalk` | `crouch` |
+| `attack` · `attack2` · `attackAir` · `attackCrouch` | `attack1` · `attack2` · `attackAir` · `attackCrouch` |
+
+**Las cuatro cajas, a la vista.** `state().boxes` (ganchos de prueba) las da en metros de mundo, por tick:
+
+| Caja | Qué es | De quién es | Cómo se comprueba |
+|---|---|---|---|
+| `visual` | los píxeles del fotograma en pantalla (recortados), en el mundo | **del dibujo** (`ActorSprite.bounds()` → `PlayerVisual.bounds()`) | cambia con el aspecto, y **nunca sale del lienzo** del arte ni coincide con las otras |
+| `body` | el cuerpo de colisión | de la simulación (`PLAYER.body`, la postura) | `0.7 m` de ancho; alto `1.7` de pie / `1.0` agachado, **con cualquier aspecto** |
+| `hurtbox` | lo que puede ser herido | de la simulación (`Player.hurtbox()`) | `0.6 m` de ancho; `1.55` de pie / `0.9` agachado (pierde la cabeza) |
+| `hitbox` | el golpe del héroe en el último tick (`null` fuera de un golpe; el *Spirit Bolt* en vuelo no cuenta: es del proyectil) | de la simulación (`AttackDefinition.hitbox`) | **su tamaño es el del ataque** (`1.4 × 1.1` el primero…), no el del lienzo del dibujo (`1.6 × 2.1` m) |
+
+**Qué hace el E2E `player-r1`** (unas 340 muestras por jugada):
+
+| Parte | Qué prueba |
+|---|---|
+| **A** · R1 con el arte | el arte está en el héroe, **no falta ningún clip**, la sala se construye entera (babosa, puerta), la biblioteca **no dice nada** y el camino de vuelta no cambia ni un objeto de la escena |
+| **B** · una jugada, tres aspectos | el mismo guion de teclas —quieto, andar y correr, saltar y aterrizar, *dash*, primer y segundo tajo, tajo en el aire, tajo agachado, hechizo, botella, ser herido, el pasaje de R1 agachado y con *dash*, la muerte y la reaparición— **sin arte**, **con arte** y **con arte y camino de vuelta** da **la misma simulación y las mismas tres cajas, tick a tick** (solo `visual` cambia: en el 80 % de las muestras o más) |
+| **C** · cada estado, con arte | en **cada** muestra el aspecto es el arte y el fotograma en pantalla es **del clip que toca** (tabla de arriba); la jugada pasó por los **17 estados** que R1 puede mostrar; los **cuatro** `hitbox` (`slash_1`, `slash_2`, `air_slash`, `crouch_slash`) salieron con **su** tamaño; en cada fotograma de cada golpe la espada está en la mano (`< 5 cm`); la reptación usa el `crouch` con el cuerpo de `1.0 m`; las llamadas de dibujo siguen bajo el presupuesto (≤ 60) |
+| **D** · la interacción | en la sala de interacción, coger la carta es el `interact` del arte; el **camino de vuelta a media pose** pone la cápsula al instante con **el mismo cuerpo, la misma *hurtbox* y el mismo sitio** (solo el dibujo cambia) y la vuelta a `auto` es igual de rápida |
+
+**Lo que NO se ha podido comprobar (no hay arte real):** que la **escala** del dibujo, su **pivote** y la **sensación** de cada pose cuadren con el cuerpo de `0.7 × 1.7 m` y con el alcance de los golpes. Eso se mira con el arte del usuario en `?lab=player` (§G.1: la silueta junto al cuerpo, la *hurtbox* y la *hitbox*, con la guía de altura) **antes** de jugar con él; la palanca para afinarlo es `visualScale`, que no toca nada del juego (§A.7).
+
+## G.4 Probado y coste (S40)
+
+| Qué | Dónde |
+|---|---|
+| `ActorSprite.bounds()`: lienzo entero, recorte, espejo al mirar a la izquierda, sigue al actor sin cambiar de tamaño, escala visual, misma imagen a dos resoluciones, rectángulo reutilizado, fotograma ausente = punto en los pies, no depende de nada de la simulación | `actorSprite.test.ts` (+7) |
+| `PlayerVisual.bounds()` es el dibujo del aspecto visible, con **los mismos pies** en los dos | `playerVisual.test.ts` (+1) |
+| **la simulación no mira el dibujo**: `presentation/` solo aporta vocabulario a `player/`, `combat/`, `gameplay/`… y nada de `render/`/`assets/`/`vfx/` | `architecture.test.ts` (+3) |
+| los 18 estados del héroe, todos con arte con la entrega de 15 clips | `heroStates.test.ts` (5) |
+| **navegador**: A–D de arriba, en desarrollo y en producción | E2E `player-r1` |
+
+**Coste:** `bounds()` y el espejo añaden **0.4 KB gzip** al arranque en frío (190.0 → 190.4 KB; presupuesto 200); no hay arte, no hay petición, no hay *chunk* nuevo.
+
+*(Siguiente: **H** VFX y audio (S41) · **I** entorno (S42) · **J** rendimiento (S43).)*

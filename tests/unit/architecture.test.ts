@@ -148,6 +148,40 @@ describe('architecture: layering', () => {
   });
 });
 
+describe('architecture: the picture never reaches the simulation (docs/ART-PIPELINE-2D.md §A.7)', () => {
+  /**
+   * The hero has four boxes — what is SEEN, what COLLIDES, what is HURT, what HITS — and only the first is the picture's. The simulation takes from `presentation/` its
+   * VOCABULARY (the states, the anchor names, the view state it writes) and nothing that knows a picture: no anchors resolved from frames, no sprite set, no manifest,
+   * no rectangle of a frame. So a picture can be bigger, smaller, wider in one frame than in the next or replaced altogether, and nothing the hero collides with, is hurt by or hits
+   * changes by a hair.
+   */
+  const SIMULATION = new Set(['player', 'combat', 'gameplay', 'world', 'enemies', 'abilities', 'interaction', 'progression']);
+  const VOCABULARY = new Set(['vocabulary', 'actorViewState']);
+
+  it('the simulation imports from presentation/ only its vocabulary (states, anchor names, the view state it writes)', () => {
+    const offenders = pure
+      .filter((f) => SIMULATION.has(f.module))
+      .flatMap((f) => f.imports.filter((i) => i.startsWith('presentation/') && !VOCABULARY.has(i.slice('presentation/'.length))).map((i) => `${f.rel} → ${i}`));
+    expect(offenders).toEqual([]);
+  });
+
+  it('nor does it import anything of the picture\'s own: the renderer, the asset loaders, the art library, the sprite sets', () => {
+    const PICTURE = ['render/', 'assets/', 'vfx/', 'content/sprites', 'content/placeholders', 'content/visuals'];
+    const offenders = files
+      .filter((f) => SIMULATION.has(f.module))
+      .flatMap((f) => f.imports.filter((i) => PICTURE.some((p) => i.startsWith(p))).map((i) => `${f.rel} → ${i}`));
+    expect(offenders).toEqual([]);
+  });
+
+  it('the guard has teeth: the modules that DO know a picture exist, and the simulation list names real folders', () => {
+    const modules = new Set(files.map((f) => f.module));
+    for (const m of SIMULATION) expect(modules.has(m), m).toBe(true);
+    for (const picture of ['presentation/pictureBounds.ts', 'presentation/anchors.ts', 'presentation/SpriteSetDefinition.ts', 'render/ActorSprite.ts']) {
+      expect(files.some((f) => f.rel === picture), picture).toBe(true);
+    }
+  });
+});
+
 describe('architecture: localization (GAME-SPEC-2D §18: no interface text in the code)', () => {
   /** A non-empty string literal assigned to something the player reads. Clearing (`= ''`) is fine. */
   const LITERAL_TEXT = [

@@ -35,6 +35,13 @@ describe('providesState: what the art can stand for', () => {
     expect(providesState(art(['idle']), 'alert')).toBe(true);
   });
 
+  it('the crawl (and the slide of a crouched dash) is the crouch in motion: the art\'s crouch held stands for it — its walk, which is not a crouch, does not', () => {
+    expect(providesState(art(['crouch']), 'crouchWalk')).toBe(true);
+    expect(standInFor(art(['crouch', 'crouchWalk']), 'crouchWalk'), 'a crawl of its own is drawn first').toBe('crouchWalk');
+    expect(providesState(art(['idle', 'walk']), 'crouchWalk')).toBe(false);
+    expect(providesState(art(['crouchWalk']), 'crouch'), 'and a crawl is not a stand-in for a still crouch').toBe(false);
+  });
+
   it('nothing else is borrowed: a swing is not a cast, an idle is not a dash, a standing pose is not a crouch', () => {
     const swing = art(['idle', 'walk', 'attack1']);
     for (const s of ['cast', 'special', 'dash', 'crouch', 'crouchWalk', 'hurt', 'death', 'drink', 'interact', 'attackAir', 'attackCrouch', 'jump', 'fall'] as const) {

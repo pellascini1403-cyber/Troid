@@ -1,4 +1,5 @@
 import type { CameraRig } from '@/camera/CameraRig';
+import type { Rect } from '@/core/math';
 import type { DebugState } from '@/debug/DebugState';
 import type { DrawCallCounter } from '@/debug/DrawCallCounter';
 import type { FpsMeter } from '@/debug/FpsMeter';
@@ -236,6 +237,22 @@ export function createTestHooks(h: HookHost) {
           set: ps.spriteSetId, frame: ps.frame, facing: ps.facing, visible: ps.visible,
           hand: anchor('hand_r'), grip: anchor('weapon_grip'), tip: anchor('weapon_tip'),
         },
+        // the FOUR boxes of the hero (docs/ART-PIPELINE-2D.md §A.7 and part G.3), in world metres: what is SEEN (the picture on screen, whichever look draws it), what
+        // COLLIDES (the body that moves through the world), what is HURT (the hurtbox, which loses the head when crouched) and what HITS (the blow's hitbox of the last tick, or
+        // null). The first is the picture's; the other three are the simulation's and no look changes them
+        boxes: (() => {
+          const p = session.player;
+          const copy = (r: Rect): Rect => ({ x0: r.x0, y0: r.y0, x1: r.x1, y1: r.y1 });
+          // the hero's BLOW: what a Spirit Bolt in flight submits each tick belongs to the bolt, not to the hero's body
+          const attack = p.combat.attack?.id;
+          const blow = attack ? session.combat.activeHitboxes.find((hb) => hb.ownerId === p.id && hb.attackId === attack) : undefined;
+          return {
+            visual: copy(ps.bounds()),
+            body: { x0: b.x - b.halfW, y0: b.y, x1: b.x + b.halfW, y1: b.y + b.height },
+            hurtbox: copy(p.hurtbox()),
+            hitbox: blow ? copy(blow.rect) : null,
+          };
+        })(),
         // which look draws the protagonist (docs/ART-PIPELINE-2D.md part D): the mode, the look on screen, and what the art has
         visual: {
           mode: ps.mode, shows: ps.shows, art: ps.artSet?.def.id ?? null,
