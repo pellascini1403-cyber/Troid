@@ -683,4 +683,92 @@ Si el arte llega como **una hoja por clip** en vez de un archivo por fotograma, 
 
 **Coste:** `bounds()` y el espejo añaden **0.4 KB gzip** al arranque en frío (190.0 → 190.4 KB; presupuesto 200); no hay arte, no hay petición, no hay *chunk* nuevo.
 
-*(Siguiente: **H** VFX y audio (S41) · **I** entorno (S42) · **J** rendimiento (S43).)*
+---
+
+# Parte H — Contrato visual de los VFX y señales de audio (S41)
+
+> **Qué es:** lo que **cualquier** sustituto de un efecto debe conservar mientras cambia su **aspecto** (cuándo nace, dónde, cuánto vive, cuánto cuesta, de qué colores es), escrito como **datos** y comprobado por **una función pura**; y, aparte, la lista de **momentos para los que se hará un sonido**, cada uno atado al evento de la simulación que lo levanta. Código: `presentation/vfxContract.ts` y `presentation/audioCues.ts` (**puros**), `audio/AudioDirector.ts` (la vista que escucha el bus y entrega las señales a un *sumidero*).
+> **Lo que NO es:** no hay VFX finales (los efectos de hoy —cian y blanco para el héroe, violeta para el enemigo— **se conservan tal cual**) y **no hay sonido**: ni archivos, ni WebAudio, ni música. Se deja la **costura** y se prueba.
+
+## H.1 Los efectos que hay (y se conservan)
+
+Veintiún disparadores (`VfxTrigger`), de siete familias que conoce un jugador y cuatro más:
+
+| Familia | Disparadores → efectos | Evento de la simulación | Nace… |
+|---|---|---|---|
+| **tajo** | `slash` · `slashFinisher` → arco de la espada (3 capas) | `player:attackActive` (el tick en que el *hitbox* existe) | 0.8 m sobre los pies, **ajustado al *hitbox*** |
+| **impacto** | `hitLanded` → chispas + destello + anillo | `combat:hit` (contra algo que no es el héroe) | en el punto de contacto |
+| **daño** | `playerHurt` → esquirlas + destello | `player:hurt` | en el torso |
+| ***dash*** | `dashStart` · `dashDust` · `dashTrail` → ráfaga, polvo y estela **a lo largo de la distancia recorrida** | `player:dashed` / `player:dashEnded` | pecho · pies · 0.85 m |
+| **muerte** | `enemyDied` (tinta + motas + destello, **violeta/negro**) · `playerDied` (la energía se dispersa) | `actor:died` · `player:died` | 0.7 m · 0.9 m |
+| **aviso** | `enemyTelegraph` → anillo + motas **violeta** | `enemy:telegraph` | 0.45 m |
+| ***Spirit Bolt*** | `boltCast` · `boltImpact` · `boltEnd` | `skill:cast` · `combat:hit` de un proyectil · `projectile:ended` | la mano · el contacto · donde se acaba |
+| botella · objeto · sello · jefe | `drinkStart/Heal` · `pickup` · `sealRejected` · `bossWake/Strike/Phase/Defeated` | `bottle:*` · `interaction:performed` · `seal:rejected` · `boss:*` | según el contrato |
+
+Todo corre en **tiempo real** (un *hit-stop* congela el mundo, no las chispas), sale de **pools** (después del calentamiento no se crea ni un objeto: `stats.poolCreated` deja de crecer) y respeta el presupuesto por perfil (**150 / 300 / 400 partículas** y **24 / 40 / 64 efectos de *sprite***).
+
+## H.2 El contrato
+
+`VFX_CONTRACT` tiene una entrada por disparador. **Los topes son para los sustitutos, no los valores en uso** (los efectos de hoy están por debajo con margen): retocar dentro de un tope no pide nada; pasarse es una decisión que alguien toma a propósito, con el rendimiento delante.
+
+| Qué se conserva | Cómo se dice | Cómo se comprueba |
+|---|---|---|
+| **CUÁNDO** nace | `events`: los eventos de la simulación que lo levantan. **El arte nunca decide el cuándo** | `vfxContract.test.ts`: cada disparador, levantado por su evento, arranca **exactamente** sus efectos y ninguno ajeno; el director escucha **los eventos del contrato y ninguno más** (se lee el catálogo de `GameEvents`) |
+| **DÓNDE** nace | `originY`: metros sobre el punto del evento. Es el punto **alrededor del cual se dibuja** un efecto | la misma prueba mide la altura de cada efecto (`y + originY`) |
+| **CUÁNTO vive** | `maxLife` (s): un tajo que sobrevive a su golpe se lee como retraso | `checkVfxContract` |
+| **CUÁNTO cuesta** | `maxParticles` y `maxSprites` **por disparo**, contando la partícula al mayor `scale` que se usa (×1.3, el golpe que mata) | `checkVfxContract` + los **peores momentos** (`WORST_MOMENTS`: un golpe que mata estando herido y haciendo *dash*; la lluvia de cuatro marcas del jefe enfurecido; la caída del jefe) **suman por debajo del presupuesto del perfil bajo**, con los topes y no solo con los valores de hoy |
+| **DE QUÉ COLORES** | `palettes`: el héroe, `energy` (cian y blanco); enemigos y avisos, `enemy` (violeta); el polvo, `neutral`; el acento cálido, **solo** el remate del combo y apagado por defecto | `checkVfxContract` |
+| **BIEN FORMADO** | números que son números, rangos ordenados, `alpha` en 0–1, vidas > 0 | `checkVfxContract` (un sustituto llega como **datos**: esto detiene una errata antes de la pantalla) |
+
+`checkVfxContract(defs, bindings)` dice, **con el disparador y el efecto**, qué regla se rompe; sobre lo que se publica da una lista vacía, y la prueba lo demuestra con **ocho pruebas de mutación** (vida de más, partículas de más, capas de más, paleta ajena, un disparador sin efecto o con uno que no existe, números rotos, topes que no caben en el presupuesto, un momento que desborda el perfil bajo).
+
+## H.3 Cómo se sustituirá un efecto (tres niveles, de menos a más arte)
+
+1. **Datos (hoy, sin código).** Un `VfxDefinition` de `content/vfx.ts`: tamaños, cuentas, vidas, colores, gravedad. `checkVfxContract` dice si sigue valiendo.
+2. **La forma (cuando haya arte).** `VfxSystem` solo dibuja con **ocho formas** del `VfxAtlas` —`glow`, `spark`, `shard`, `ring`, `dust`, `ink`, `streak`, `arc`—, **máscaras blancas** que la paleta tiñe al dibujar (así el cian y el violeta siguen siendo **la identidad**, pongan lo que pongan en la imagen). Sustituirlas es dar otro `VfxAtlas` con el mismo contrato de formas: los mismos nombres, la orientación (`arc` se curva hacia +x, `shard` se dibuja a lo largo de +x, `streak` es horizontal) y **una sola página** (el `ParticleContainer` de Pixi comparte la fuente de la textura: una llamada de dibujo por modo de mezcla). Enganche: `createEffects({ atlas })`. **No está construido:** hoy el atlas se dibuja con código y cambiar su origen antes de tener el arte sería diseñar contra nada.
+3. **Animación por fotogramas.** Un efecto que no es una máscara teñida sino una secuencia dibujada (un tajo de cinco fotogramas). Reglas ya fijadas: su **tiempo es el del dato** (se reparte en `life`, no en los fps del arte), nace en el **origen del contrato**, cuenta **como un *sprite*** del presupuesto y vive en un *pool*. **No está construido:** sin arte no hay cuántos fotogramas, ni si se tiñe, ni dónde está su pivote; cuando lo haya, se añade `kind: 'flipbook'` a `VfxDefinition` y `checkVfxContract` ya sabe medirlo.
+
+**En ningún nivel cambia:** el evento, el origen, la vida, el presupuesto, los colores ni el *pool*. Y **nada del juego se entera**: el director es de la vista y la simulación no sabe que existe.
+
+## H.4 Las señales de audio
+
+El juego **no tiene sonido**. Lo que tiene es la lista de **momentos para los que se hará uno**, atada al evento que lo levanta, con lo que un sonido necesita saber. Un motor de audio futuro se enchufa como un `AudioSink` y **no lee nada más**: no mira dentro de la simulación, no consulta, y la simulación no sabe que existe.
+
+| Señal | Evento | Posición | Intensidad (0–1; 1 si no hay magnitud) | Variante |
+|---|---|---|---|---|
+| `attack` | `player:attackActive` | sí | 0.7 el primer golpe · 1 el remate | `slash_1` · `slash_2` · `air_slash` · `crouch_slash` |
+| `hit` | `combat:hit` | sí (el contacto) | daño / 2 · 1 si mata | el ataque |
+| `dash` | `player:dashed` | sí | 1 | `ground` · `air` |
+| `hurt` | `player:hurt` | sí | daño / 2 | — |
+| `death` | `player:died` | sí | 1 | — |
+| `boltCast` · `boltImpact` | `skill:cast` · `combat:hit` de un proyectil | sí | 1 · daño / 2 | `spirit_bolt` |
+| `bottleStart` · `bottleDrunk` | `bottle:drinkStarted` · `bottle:drunk` | sí | 1 · vida devuelta / 2 | — |
+| `interact` | `interaction:performed` | sí | 1 | el tipo de objeto (`pickup`…) |
+| `bossAttack` | `boss:strike` | sí | 1 | `warden_charge` · `warden_rain` |
+| `bossDeath` | `boss:defeated` | sí | 1 | `ink_warden` |
+| `roomTransition` | `transition:started` | **no** | 1 | la sala a la que lleva |
+| `jump` · `land` | `player:jumped` · `player:landed` | sí | 1 · velocidad / 20 | `ground` · `air` |
+| `enemyTelegraph` · `enemyDeath` | `enemy:telegraph` · `actor:died` (no del héroe) | sí | 1 | el enemigo (`ink_slime`, `ink_warden`) |
+
+**Los once momentos que pidió la tarea** —golpe, impacto, *dash*, daño, muerte, *Spirit Bolt*, botella, interacción, ataque del jefe, caída del jefe y cambio de sala— son las trece primeras señales (el *Spirit Bolt* y la botella tienen dos cada uno); `jump`, `land`, `enemyTelegraph` y `enemyDeath` se añaden porque salen del mismo catálogo y cualquier diseño de sonido las pide en cuanto empieza. Reglas:
+
+- **El *cuándo* es el del evento:** la señal de un golpe es el tick en que **existe su *hitbox***, no el de la pulsación (el golpe tiene 4 ticks de preparación); la de un `hit`, el tick en que **se hace el daño**; la de la bebida, cuando **cae** (24 ticks después de empezar). Cada señal lleva ese tick (`session.now`).
+- **Una señal por cosa:** el golpe que hiere al héroe es `hurt`, **no** además `hit`; el proyectil es `boltImpact`, **no** `hit`; la lluvia del jefe levanta **una `bossAttack` por marca, hasta cuatro en el mismo tick** (el motor limita las voces, el juego no); al caer el jefe se levantan `bossDeath` **y** `enemyDeath` en el mismo tick (lo que suena una muerte, más lo que suena **esta**).
+- **Determinista:** la misma partida desde la misma semilla levanta las mismas señales, en el mismo orden y en los mismos ticks (lo prueba el recorrido del mundo entero).
+- **El sumidero:** `AudioSink.cue(evento)`. En una compilación de jugador **no se crea nada** (ni oyentes): el juego no tiene sonido. En desarrollo y con `?hooks=1` se crea un `CueLog` (cuenta cada señal y guarda las últimas 64) que `state().cues` muestra: **lo que un motor habría recibido**. Para enchufar el motor: pasar `audioSink` a `createEffects`; el volumen que ha de leer ya existe (`MasterVolume.gain`, S30).
+- **Cómo encaja con ARCHITECTURE-2D §10:** el evento se vuelve **señal** (esto) y la señal se vuelve **sonido** con el manifiesto de audio (`sfx.hero.slash`…, variaciones, ganancia, voces): el manifiesto y el motor son lo que falta, y cambiar un sonido será cambiar el manifiesto, sin tocar quien lo dispara.
+- **Eventos que existen y no se incluyen** (candidatos cuando el diseño de sonido los pida): `checkpoint:set`, `skill:denied` y `bottle:denied` (el «denegado»), `enemy:alerted`, `hazard:hit`, `gate:changed`, `boss:started` y `boss:phase`, `death:*`, `transition:fadeOut/fadeIn/finished`.
+
+## H.5 Probado (S41)
+
+| Qué | Dónde |
+|---|---|
+| el contrato cubre los 21 disparadores; los efectos que se publican **lo cumplen** (y con margen); el coste cuenta al ×1.3; **ocho mutaciones** rompen la regla correcta (con su mensaje); cada disparador arranca **sus** efectos, con **su** evento, a **su** altura; el director escucha los eventos del contrato y ninguno más | `vfxContract.test.ts` (39) |
+| las señales: las 17, con lugar, intensidad y variante; el golpe al héroe no es `hit`; el proyectil es `boltImpact`; el jefe, el cambio de sala (sin lugar), el tick; el director se desengancha del todo; `CueLog` acotado y que da **copias** | `audioCues.test.ts` (20) |
+| **en la simulación real:** el mundo entero (R1 → R4, el jefe incluido) con un director escuchando: todas las señales del recorrido, el jefe **avisa antes de golpear** y **cae una vez**, la lluvia levanta varias en el mismo tick, **determinista**; y lo que el recorrido no hace (dash, salto y aterrizaje, herido y muerte, la botella); el golpe es el tick de su *hitbox* y el `hit`, el del daño | `audioCueContract.test.ts` (11) |
+| **navegador**, con teclado real: dash, salto y aterrizaje, **golpe (el tick de su *hitbox*) y daño (el tick del daño)**, herido, muerte, *Spirit Bolt* y su impacto, botella, el aviso y la caída de una babosa, el cambio de sala (sin lugar, con la sala), coger un objeto, el aviso y el golpe **del jefe** y su caída (en el mismo tick que `enemyDeath`) | E2E `audio-cues` |
+| los efectos siguen sanos: *pools* estables, presupuesto por perfil | E2E `vfx` · `combat` · `settings` |
+
+**Coste:** el *chunk* de efectos (tardío: se descarga con la página ociosa) pasa de 0.4 a **1.2 KB gzip**; el **arranque en frío no cambia (190.4 KB)**. Ni `vfxContract` ni la tabla `AUDIO_CONTRACT` viajan en ningún *chunk*: solo las pruebas las leen.
+
+*(Siguiente: **I** entorno (S42) · **J** rendimiento (S43).)*

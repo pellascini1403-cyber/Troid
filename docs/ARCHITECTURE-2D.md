@@ -633,6 +633,8 @@ No se produce audio definitivo en los Prompts 3 ni 4. La arquitectura prevé:
 
 Cada sonido debe poder reemplazarse cambiando el manifiesto, sin tocar quien lo dispara.
 
+> **Estado tras el Prompt 7 (S41).** Hay **la costura, no el motor:** `presentation/audioCues.ts` fija las **17 señales** (`attack`, `hit`, `dash`, `hurt`, `death`, `boltCast`, `boltImpact`, `bottleStart`, `bottleDrunk`, `interact`, `bossAttack`, `bossDeath`, `roomTransition`, `jump`, `land`, `enemyTelegraph`, `enemyDeath`) con su evento, lugar, intensidad y variante; `audio/AudioDirector.ts` escucha el bus y las entrega a un `AudioSink` (en desarrollo, un `CueLog` que `state().cues` muestra; en una compilación de jugador, **nada**). El `AudioDirector` de arriba (id lógico → archivo) será **lo que convierta una señal en un sonido** con el manifiesto. Detalle y pruebas: [ART-PIPELINE-2D](ART-PIPELINE-2D.md) parte H.
+
 ---
 
 ## 11. Persistencia (arquitectura)

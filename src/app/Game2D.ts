@@ -68,6 +68,7 @@ import type { DevTools } from './devTools';
 import { GameLoop } from './GameLoop';
 import { afterIdle } from './dom';
 import type { Art } from './art';
+import type { CueLog } from '@/audio/AudioDirector';
 import type { Effects } from './effects';
 import type { HookHost } from './testHooks';
 
@@ -108,6 +109,8 @@ export class Game2D {
   /** The effects: a separate chunk, fetched when the page is idle (or at once under `?hooks=1`). `null` until it arrives: the game needs none of them. */
   private effects: Effects | null = null;
   private effectsRequest: Promise<void> | null = null;
+  /** What the sound of a later version would be told (docs/ART-PIPELINE-2D.md part H): written down in a development build and under `?hooks=1`, nowhere else. It outlives a rebuild of the effects. */
+  private cueLog: CueLog | null = null;
   /** Builds the effects again with the budgets of the profile in force (set once their chunk has arrived). */
   private rebuildEffects: (() => void) | null = null;
   /** The art that comes from files (docs/ART-PIPELINE-2D.md, part C): a separate chunk, fetched after the first frame and ONLY when there is an index to read. `null` otherwise. */
@@ -370,8 +373,9 @@ export class Game2D {
     // first frame is up and it has a moment, 2 s after it at the latest idle — or at once under `?hooks=1`, so a test never waits for them by luck.
     const body = this.session.player.body;
     const loadEffects = (): Promise<void> =>
-      (this.effectsRequest ??= import('./effects').then(({ createEffects }) => {
+      (this.effectsRequest ??= import('./effects').then(({ createEffects, createCueLog }) => {
         if (this.closed) return;
+        if (options.hooks || import.meta.env.DEV) this.cueLog ??= createCueLog();
         // built from the profile in force NOW — and again whenever the player chooses another one (its budgets are those of the profile)
         const build = (): void => {
           this.effects?.dispose();
@@ -383,6 +387,8 @@ export class Game2D {
             tier: renderer.qualityTier,
             playerPosition: () => ({ x: body.x, y: body.y }),
             projectileSkills: new Set(Object.keys(SKILLS)),
+            audioSink: this.cueLog,
+            now: () => this.session.now,
           });
         };
         this.rebuildEffects = build;
@@ -778,6 +784,7 @@ export class Game2D {
       counter: this.counter,
       shakes: this.shakes,
       effects: () => this.effects,
+      cueLog: () => this.cueLog,
       cosmeticsReady: () => this.effects !== null && this.bossViews !== null,
       art: () => this.art,
       visualLacks: () => (this.playerVisual.artSet ? lackedClips(this.playerVisual.artSet.def, PLAYER_VISUAL.required) : [...PLAYER_VISUAL.required]),

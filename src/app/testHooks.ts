@@ -9,6 +9,7 @@ import type { TrainingDummy } from '@/enemies/TrainingDummy';
 import type { GameSession } from '@/gameplay/GameSession';
 import type { Projectile } from '@/gameplay/Projectile';
 import type { Translator } from '@/i18n';
+import type { CueLog } from '@/audio/AudioDirector';
 import type { MasterVolume } from '@/audio/volume';
 import type { InputManager } from '@/input/InputManager';
 import { VirtualPad } from '@/input/sources/VirtualPad';
@@ -57,6 +58,8 @@ export interface HookHost {
   readonly shakes: { count: number; last: number };
   /** The effects, once their chunk has arrived. */
   effects(): Effects | null;
+  /** What the sound of a later version would be told, once the effects' chunk has arrived (`null` before). */
+  cueLog(): CueLog | null;
   /** Every cosmetic chunk (the effects, the looks of the boss) has arrived. */
   cosmeticsReady(): boolean;
   /** The art library, once its chunk has arrived (`null` for a page with no art, which never fetches it). */
@@ -116,6 +119,8 @@ export function createTestHooks(h: HookHost) {
       gesture: h.touchSource.gesture,
       layout: h.touchControls.current,
     }),
+    /** Test hook (S41): forgets the cues written down so far (a test looks at what ONE thing raises). */
+    clearCues: () => void h.cueLog()?.clear(),
     /**
      * Test hook (S35): asks the art library for a sprite set by name and keeps it until `artRelease` — what a lab or a lazy pack does. Answers with a summary of what
      * came (`null` when it cannot be had): the set itself never leaves the page.
@@ -232,6 +237,8 @@ export function createTestHooks(h: HookHost) {
         },
         keys: h.keys(),
         menuOpen: h.menuOpen(),
+        // the cues of the sound to come (S41): how many of each, and the last ones — what an audio engine would have been told
+        cues: h.cueLog()?.snapshot() ?? null,
         art: h.art()?.snapshot() ?? null,
         sprite: {
           set: ps.spriteSetId, frame: ps.frame, facing: ps.facing, visible: ps.visible,

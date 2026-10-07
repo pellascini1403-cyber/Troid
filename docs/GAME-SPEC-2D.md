@@ -727,7 +727,7 @@ Idiomas iniciales: **español** e **inglés**. Preparado para añadir francés, 
 
 ## 19. Audio (solo arquitectura ahora)
 
-Debe prever SFX de ataque, impactos, dash, magia, daño, muerte, interacción, ambiente y música. **No se produce audio definitivo en el Prompt 3 ni en el 4.** Los sonidos se piden por **id lógico** desde los eventos (`sfx.hero.slash`, `sfx.hit`, `sfx.dash`, `sfx.cast`, `sfx.hurt`, `sfx.die`, `sfx.interact`, `sfx.bottle.drink`, `ui.tap`) y un manifiesto de datos decide el archivo, variaciones, ganancia, bus y límite de voces. Detalle en ARCHITECTURE-2D §10.
+Debe prever SFX de ataque, impactos, dash, magia, daño, muerte, interacción, ambiente y música. **No se produce audio definitivo en el Prompt 3 ni en el 4.** Los sonidos se piden por **id lógico** desde los eventos (`sfx.hero.slash`, `sfx.hit`, `sfx.dash`, `sfx.cast`, `sfx.hurt`, `sfx.die`, `sfx.interact`, `sfx.bottle.drink`, `ui.tap`) y un manifiesto de datos decide el archivo, variaciones, ganancia, bus y límite de voces. Detalle en ARCHITECTURE-2D §10. *(Prompt 7, S41: el juego levanta ya **las señales** de cada uno de esos momentos —golpe, impacto, *dash*, daño, muerte, *Spirit Bolt*, botella, interacción, ataque y caída del jefe, cambio de sala—, con su lugar e intensidad, hacia un sumidero que hoy no oye nadie: [ART-PIPELINE-2D](ART-PIPELINE-2D.md) parte H.)*
 
 ## 20. Persistencia (solo arquitectura ahora)
 
