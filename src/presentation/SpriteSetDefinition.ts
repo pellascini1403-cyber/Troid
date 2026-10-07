@@ -49,6 +49,11 @@ export interface SpriteSetDefinition {
   clips: Partial<Record<AnimState, ClipDefinition>>;
   /** Fixed anchors, used when a frame carries no data of its own. */
   anchors?: Partial<Record<AnchorId, AnchorPoint>>;
+  /**
+   * What to draw for a state the set has no clip for (real art only): `placeholder` (the default: the placeholder's own clip for that state) or `chain` (this
+   * set's own fallback chain, ending at its `idle`). Read by the player's visual, never by the animator (docs/ART-PIPELINE-2D.md part D).
+   */
+  missingClips?: 'placeholder' | 'chain';
   /** Marks a provisional set: the validator reports what the final art still has to provide. */
   placeholder?: boolean;
 }

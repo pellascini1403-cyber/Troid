@@ -82,7 +82,14 @@ export class SpriteAnimator {
   private frame = 0;
   private readonly warn = log.scope('anim');
 
-  constructor(private readonly def: SpriteSetDefinition) {
+  /**
+   * `quiet` silences the note that a state has no clip of its own and falls back: a PARTIAL set of real art (a few clips, the placeholder drawing the rest —
+   * `PlayerVisualSwitch`) lacks states by design, and a note per missing state in a player's console would be noise.
+   */
+  constructor(
+    private readonly def: SpriteSetDefinition,
+    private readonly quiet = false,
+  ) {
     this.play('idle', { restart: true });
   }
 
@@ -127,7 +134,7 @@ export class SpriteAnimator {
     this._requested = state;
     const target = resolveClip(this.def, state);
     if (!target) return;
-    if (target.state !== state) {
+    if (target.state !== state && !this.quiet) {
       this.warn.warnOnce(`${this.def.id}:${state}`, `[${this.def.id}] no clip for "${state}": using "${target.state}"`);
     }
     const same = this.current !== null && this.current.state === target.state;

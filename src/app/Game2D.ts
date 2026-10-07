@@ -7,6 +7,7 @@ import { resolveCameraView, type CameraView } from '@/camera/cameraZones';
 import type { CameraTarget } from '@/camera/CameraRig';
 import { ABILITIES, BOSSES, ENEMIES, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, ROOMS, SPRITE_SETS, START, WORLD } from '@/content';
 import { BOTTLE_DEFINITIONS, BOTTLES, CARDS, MAGIC } from '@/content/resources';
+import { PLAYER_VISUAL } from '@/content/visuals';
 import { SKILLS } from '@/content/skills';
 import { DisposableStore } from '@/core/lifecycle';
 import { DebugActions } from '@/debug/DebugActions';
@@ -35,7 +36,9 @@ import { ProgressStore } from '@/save/ProgressStore';
 import { SettingsStore } from '@/save/SettingsStore';
 import type { TouchSettings } from '@/save/SettingsData';
 import type { QualitySetting } from '@/presentation/viewport';
+import { lackedClips } from '@/presentation/visualSource';
 import { ActorSprite } from '@/render/ActorSprite';
+import { PlayerVisualSwitch } from '@/render/PlayerVisual';
 import { CameraAdapter2D } from '@/render/CameraAdapter2D';
 import { DummyView, type DummyLike } from '@/render/DummyView';
 import { EntityViews, type EntityView } from '@/render/EntityViews';
@@ -99,7 +102,8 @@ export class Game2D {
   private bindings: Bindings = structuredClone(DEFAULT_BINDINGS);
   /** The master volume (S30, prepared): the level the player chose; the sound of a later version reads its gain from here. */
   private readonly volume: MasterVolume;
-  private readonly playerSprite: ActorSprite;
+  /** The protagonist: the placeholder, and the real art on top when the art library has it (docs/ART-PIPELINE-2D.md part D). */
+  private readonly playerVisual: PlayerVisualSwitch;
   private readonly entityViews: EntityViews;
   /** The effects: a separate chunk, fetched when the page is idle (or at once under `?hooks=1`). `null` until it arrives: the game needs none of them. */
   private effects: Effects | null = null;
@@ -300,9 +304,9 @@ export class Game2D {
     this.lifecycle.add(() => this.roomView.destroy());
     this.interactableViews = new InteractableViews(renderer.layers);
     this.lifecycle.add(() => this.interactableViews.clear());
-    this.playerSprite = new ActorSprite(playerSet, { zIndex: 10 });
-    renderer.layers.actors.addChild(this.playerSprite.root);
-    this.lifecycle.add(() => this.playerSprite.dispose());
+    this.playerVisual = new PlayerVisualSwitch(new ActorSprite(playerSet), (set, o) => new ActorSprite(set, o), options.visual, { zIndex: 10 });
+    renderer.layers.actors.addChild(this.playerVisual.root);
+    this.lifecycle.add(() => this.playerVisual.dispose());
     const vfxAtlas = createVfxAtlas();
     this.lifecycle.add(() => vfxAtlas.destroy());
     // What is SEEN of a boss is a chunk of its own (the first room has none): the page fetches it with the effects, or at once when a boss is
@@ -397,6 +401,7 @@ export class Game2D {
           this.art = art;
           await art.start();
           await art.enterZone(this.session.room.id);
+          await this.attachPlayerArt(art, options.hooks || import.meta.env.DEV);
         })
         .catch((err: unknown) => log.scope('art').debug(`the art could not start: ${String(err)}`));
     };
@@ -444,6 +449,22 @@ export class Game2D {
 
   start(): void {
     this.loop.start();
+  }
+
+  /**
+   * The protagonist's real art, when the library has it: the visual shows it for every state it can stand for and keeps the placeholder for the rest, and
+   * `?visual=placeholder` (or the hook) goes back at any time. No art, a missing pack or a broken set leave the placeholder as it is (the library says why).
+   */
+  private async attachPlayerArt(art: Art, dev: boolean): Promise<void> {
+    const set = await art.acquire(PLAYER_VISUAL.art.pack, PLAYER_VISUAL.art.sprite);
+    if (!set) return;
+    if (this.closed) {
+      art.release(set.def);
+      return;
+    }
+    this.playerVisual.attachArt(set, () => art.release(set.def));
+    const lacking = lackedClips(set.def, PLAYER_VISUAL.required);
+    if (dev && lacking.length > 0) log.scope('visual').info(`the protagonist's art has no clip for ${lacking.join(', ')}: the placeholder draws those states`);
   }
 
   dispose(): void {
@@ -548,7 +569,7 @@ export class Game2D {
     // Animation time follows the simulation clock: frozen while paused or in a hit-stop, slowed by timeScale (stable E2E
     // and screenshots). Phase-driven attack frames freeze by themselves; this freezes the time-driven ones.
     const animDt = this.debug.get('paused') || this.session.frozen ? 0 : realDt * this.debug.get('timeScale');
-    this.playerSprite.sync(v, a, animDt);
+    this.playerVisual.sync(v, a, animDt);
     this.entityViews.sync(a, animDt);
     // VFX run in real time: only the pause (debug / tests) and the debug time scale affect them, never a hit-stop
     const vfxDt = this.debug.get('paused') ? 0 : realDt * this.debug.get('timeScale');
@@ -724,7 +745,7 @@ export class Game2D {
       this.camera.snap();
       this.effects?.system.clear();
     }
-    this.playerSprite.sync(this.session.player.view, 1, 0);
+    this.playerVisual.sync(this.session.player.view, 1, 0);
     this.deathOverlay.update(this.session.deathSnapshot);
     this.transitionOverlay.update(this.session.transitionSnapshot);
     this.updateHud(0);
@@ -743,7 +764,7 @@ export class Game2D {
       debug: this.debug,
       renderer: this.renderer,
       camera: this.camera,
-      playerSprite: this.playerSprite,
+      playerVisual: this.playerVisual,
       roomView: this.roomView,
       entityViews: this.entityViews,
       touchControls: this.touchControls,
@@ -759,6 +780,7 @@ export class Game2D {
       effects: () => this.effects,
       cosmeticsReady: () => this.effects !== null && this.bossViews !== null,
       art: () => this.art,
+      visualLacks: () => (this.playerVisual.artSet ? lackedClips(this.playerVisual.artSet.def, PLAYER_VISUAL.required) : [...PLAYER_VISUAL.required]),
       menuOpen: () => this.menuOpen,
       virtualPad: () => this.virtualPad,
       setVirtualPad: (pad) => void (this.virtualPad = pad),

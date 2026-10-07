@@ -12,6 +12,8 @@ export interface ActorSpriteOptions {
   zIndex?: number;
   /** Blink frequency (Hz) while the actor is invulnerable. */
   blinkHz?: number;
+  /** The set is partial by design (real art next to a placeholder): a state it has no clip for is not worth a note. */
+  quietFallbacks?: boolean;
 }
 
 /**
@@ -57,11 +59,18 @@ export class ActorSprite {
   get frame(): string | null {
     return this.shown;
   }
+  /** The way it faces (+1 right, −1 left) and whether anything of it is drawn. */
+  get facing(): number {
+    return this.root.scale.x;
+  }
+  get visible(): boolean {
+    return this.root.visible;
+  }
 
   /** Swaps the art (placeholder → final, skin, variant). The next `sync` continues from the actor's current state. */
   setSpriteSet(set: LoadedSpriteSet<Texture>): void {
     this.set = set;
-    this._presenter = new ActorPresenter(set.def, set.meta, { blinkHz: this.options.blinkHz });
+    this._presenter = new ActorPresenter(set.def, set.meta, { blinkHz: this.options.blinkHz, quietFallbacks: this.options.quietFallbacks });
     const s = (set.def.visualScale ?? 1) / set.def.artPxPerMeter;
     for (const sprite of [this.body, this.flash]) {
       sprite.anchor.set(set.def.pivot[0], set.def.pivot[1]);

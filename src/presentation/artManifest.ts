@@ -626,6 +626,7 @@ export function toSpriteSetDefinition(packId: string, sprite: ArtSprite, variant
   };
   if (sprite.scale !== 1) def.visualScale = sprite.scale;
   if (sprite.anchors) def.anchors = sprite.anchors;
+  if (sprite.missingClips === 'chain') def.missingClips = 'chain';
   return def;
 }
 

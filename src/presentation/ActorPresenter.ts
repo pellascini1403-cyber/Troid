@@ -23,6 +23,8 @@ export interface SpritePose {
 export interface ActorPresenterOptions {
   /** Blink frequency (Hz) while `blink` is set (i-frames). */
   blinkHz?: number;
+  /** The set is partial by design (real art next to a placeholder): its fallbacks are not worth a note (see `SpriteAnimator`). */
+  quietFallbacks?: boolean;
 }
 
 /**
@@ -45,7 +47,7 @@ export class ActorPresenter {
     private readonly meta: AtlasMeta | null,
     options: ActorPresenterOptions = {},
   ) {
-    this.animator = new SpriteAnimator(def);
+    this.animator = new SpriteAnimator(def, options.quietFallbacks ?? false);
     this.blinkHz = options.blinkHz ?? 14;
     this.pose.frame = this.animator.frameName;
   }

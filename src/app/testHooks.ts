@@ -12,8 +12,9 @@ import type { MasterVolume } from '@/audio/volume';
 import type { InputManager } from '@/input/InputManager';
 import { VirtualPad } from '@/input/sources/VirtualPad';
 import type { TouchSource } from '@/input/sources/TouchSource';
+import type { VisualMode } from '@/presentation/visualSource';
 import type { AnchorId } from '@/presentation/vocabulary';
-import type { ActorSprite } from '@/render/ActorSprite';
+import type { PlayerVisualSwitch } from '@/render/PlayerVisual';
 import type { CameraAdapter2D } from '@/render/CameraAdapter2D';
 import type { EntityViews } from '@/render/EntityViews';
 import type { Renderer2D } from '@/render/Renderer2D';
@@ -40,7 +41,7 @@ export interface HookHost {
   readonly debug: DebugState;
   readonly renderer: Renderer2D;
   readonly camera: CameraAdapter2D;
-  readonly playerSprite: ActorSprite;
+  readonly playerVisual: PlayerVisualSwitch;
   readonly roomView: RoomView2D;
   readonly entityViews: EntityViews;
   readonly touchControls: TouchControls;
@@ -59,6 +60,8 @@ export interface HookHost {
   cosmeticsReady(): boolean;
   /** The art library, once its chunk has arrived (`null` for a page with no art, which never fetches it). */
   art(): Art | null;
+  /** The clips the protagonist's art still lacks for the protagonist to be drawn entirely with it (all of them while there is no art). */
+  visualLacks(): string[];
   menuOpen(): boolean;
   /** The abstract gamepad of the E2E, made on first use (`null` when there is none). */
   virtualPad(): VirtualPad | null;
@@ -121,6 +124,11 @@ export function createTestHooks(h: HookHost) {
       return set ? { id: set.def.id, atlas: set.def.atlas, artPxPerMeter: set.def.artPxPerMeter, frames: set.textures.size, clips: Object.keys(set.def.clips) } : null;
     },
     artRelease: (setId: string) => void h.art()?.release({ id: setId }),
+    /** Test hook (S36): which look draws the protagonist — `auto`, `placeholder` (the way back) or `art`. Takes effect on the next frame. */
+    setVisualMode: (mode: VisualMode) => {
+      h.playerVisual.setMode(mode);
+      h.refreshPresented();
+    },
     /** Test hook: where a point of the world is on screen (CSS px), with the camera of the last frame. */
     worldToScreen: (x: number, y: number) => h.renderer.worldToScreen(x, y),
     /** Test hook: the HUD as the model computed it and as laid out (px). */
@@ -156,7 +164,7 @@ export function createTestHooks(h: HookHost) {
     state: () => {
       const b = session.player.body;
       const vp = h.renderer.viewport;
-      const ps = h.playerSprite;
+      const ps = h.playerVisual;
       const anchor = (id: AnchorId): { x: number; y: number } => ps.anchorWorld(id);
       const effects = h.effects();
       const rig: CameraRig = h.camera.rig;
@@ -225,8 +233,14 @@ export function createTestHooks(h: HookHost) {
         menuOpen: h.menuOpen(),
         art: h.art()?.snapshot() ?? null,
         sprite: {
-          set: ps.spriteSetId, frame: ps.frame, facing: ps.root.scale.x, visible: ps.root.visible,
+          set: ps.spriteSetId, frame: ps.frame, facing: ps.facing, visible: ps.visible,
           hand: anchor('hand_r'), grip: anchor('weapon_grip'), tip: anchor('weapon_tip'),
+        },
+        // which look draws the protagonist (docs/ART-PIPELINE-2D.md part D): the mode, the look on screen, and what the art has
+        visual: {
+          mode: ps.mode, shows: ps.shows, art: ps.artSet?.def.id ?? null,
+          provides: ps.artSet ? Object.keys(ps.artSet.def.clips) : [],
+          lacks: h.visualLacks(),
         },
         tick: session.now, fps: h.fps.fps,
         // `calls` keeps the field the 3D scenes used; `draws` is the same number under its real name

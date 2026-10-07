@@ -413,4 +413,72 @@ La bajada de ~10 KB sale de **quitar el cargador `Assets` de Pixi del arranque**
 - Sin *mipmaps* (Pixi no los genera por defecto): un sprite dibujado a mucho menos de la mitad de su tamaño puede brillar; la variante a la mitad (la pone el artista) es la solución.
 - La imagen decodificada ocupa memoria de CPU **además** de la de GPU mientras el navegador la guarda (Pixi no cierra el `ImageBitmap` por sí solo; `artIO.ts` lo cierra al soltar la página).
 
-*(Las partes siguientes se añaden con cada paso: **D** el visual del protagonista y el *fallback* (S36) · **E** validación y qué assets reales faltan (S37, S38) · **F** el laboratorio y R1 (S39, S40) · **G** VFX, audio, entorno y rendimiento (S41–S43).)*
+---
+
+# Parte D — El visual del protagonista y el *fallback* (S36)
+
+> **Qué es:** cómo se dibuja al héroe, detrás de **una interfaz**, para que su aspecto —el *placeholder* o el arte real— cambie **sin que gameplay, cámara, HUD, guardado ni input lo sepan**, y se pueda **volver atrás en cualquier momento**. Código: `presentation/visualSource.ts` (**puro**: qué aspecto dibuja un estado), `render/PlayerVisual.ts` (la interfaz y el conmutador), `content/visuals.ts` (dónde está el arte del héroe y qué clips debe traer).
+> **Lo que NO hace:** no hay arte real del protagonista en el repositorio: el conmutador se ha probado con **arte sintético** (§C). Con el repositorio tal cual, el juego dibuja **exactamente lo de siempre** (el *placeholder*) y no pide ni un archivo.
+
+## D.1 La interfaz y los dos aspectos
+
+```
+Game2D ──────────────►  PlayerVisualSwitch   (implementa PlayerVisual: root · spriteSetId · frame · facing · visible · sync · anchor · anchorWorld · dispose)
+ (no sabe qué aspecto)      │
+                            ├── PlaceholderVisual  =  ActorSprite sobre el set procedural      (SIEMPRE está: es el camino de vuelta)
+                            └── SpritePlayerVisual =  ActorSprite sobre el set REAL            (solo cuando la biblioteca de arte lo ha cargado)
+```
+
+- **`ActorSprite` ya es un `PlayerVisual`** (su superficie es exactamente esa): cada aspecto es un `ActorSprite`; el conmutador los **sincroniza los dos con el mismo estado de vista en cada fotograma** (cada uno lleva su propio tiempo de animación; pasar de uno a otro es un **corte sobre la misma pose**, nunca un reinicio) y **hace visible solo uno**: sin llamada de dibujo de más.
+- El conmutador **no escribe nunca** el estado de vista ni toca posición alguna: lo que lee gameplay (cuerpo de colisión, *hurtbox*, *hitboxes*, velocidades, daño, cámara) es **dato de `player/` y `combat/`**, no del dibujo (§A.7). Lo prueba `playerVisual.test.ts` («nunca escribe el estado de vista») y el E2E `player-art` (§D.5).
+- **Configurable:** `?visual=auto|placeholder|art` (por defecto `auto`), `PLAYER_VISUAL` en `content/visuals.ts` (paquete y set del arte del héroe, y los **15 clips requeridos**), y el gancho `__troid.setVisualMode(modo)` para las pruebas.
+- **Reversible en cualquier momento:** `placeholder` vuelve **al instante** al *placeholder* (el arte sigue cargado: volver a `auto` es igual de inmediato); `detachArt()` quita el arte y lo devuelve a la biblioteca.
+
+## D.2 Qué aspecto dibuja cada estado (`chooseSource`)
+
+| Modo | Regla |
+|---|---|
+| **`auto`** (por defecto) | el **arte** en todo estado que **puede representar** (§D.3); el ***placeholder*** en el resto |
+| **`placeholder`** | siempre el *placeholder*: el camino de vuelta |
+| **`art`** | siempre el arte, y lo que le falte lo resuelve **su propia cadena de *fallbacks*** (acaba en su `idle`): para **juzgar el arte por sí solo** |
+| set con `"missingClips": "chain"` en el manifiesto | en `auto` se comporta como `art`: el arte **nunca** cede al *placeholder* (el artista prefiere ver su `idle` antes que la cápsula) |
+| sin arte cargado (no hay índice, el paquete no existe, la imagen está rota…) | **solo el *placeholder***, en cualquier modo |
+
+## D.3 Qué estados «puede representar» el arte
+
+**El clip propio del estado, o un sustituto que sea lo mismo para el ojo** — y nada más. La cadena de *fallbacks* del animador (`ANIM_FALLBACKS`) es más ancha y acaba en `idle` para todo: eso es correcto **dentro** de un set (hay que dibujar algo) y **erróneo para elegir entre dos aspectos** (un tajo no es un hechizo; un `idle` no es un *dash*). Por eso `visualSource.ts` tiene su propia tabla:
+
+| Estado | Lo representa el arte si tiene… |
+|---|---|
+| `walk` · `run` · `move` | cualquiera de los tres |
+| `jump` · `fall` | cualquiera de los dos |
+| `attack` · `attack1` | cualquiera de los dos (`attack` es el nombre del contenido; `attack1`, el del artista: el mismo tajo) |
+| `attack2` | `attack2`, o `attack1`/`attack` (el combo puede repetir el tajo) |
+| `land` · `alert` | su clip, **o el `idle`** (son poses mantenidas de unos ticks: pasar al *placeholder* para 4 fotogramas sería un parpadeo, no un *fallback*) |
+| **todo lo demás** (`crouch`, `crouchWalk`, `dash`, `attackAir`, `attackCrouch`, `hurt`, `death`, `cast`, `special`, `drink`, `interact`…) | **solo su propio clip**: dice algo que ningún otro clip dice |
+
+Consecuencia visible para el usuario: con un set que solo trae `idle`, `walk` y `attack1`, el juego dibuja **al héroe real** de pie, caminando, corriendo y dando el primer tajo (y el segundo, repitiéndolo), y **la cápsula** al saltar, al hacer *dash*, al agacharse, al ser herido, al morir, al lanzar o al beber. El arte entra **clip a clip** sin que nada más cambie.
+
+## D.4 El *fallback* (regla de la tarea)
+
+| Situación | Qué ve el jugador | Qué se dice |
+|---|---|---|
+| no hay `public/art` ni `?art=` | el *placeholder* | **nada** (ni petición, ni aviso) |
+| hay arte, pero **no** el paquete `player` | el *placeholder* | en desarrollo, una vez: `pack "player" is not in the art index` |
+| el paquete existe pero el set no carga (imagen o JSON rotos, 404, fotograma que falta en `idle`…) | el *placeholder* | en desarrollo, una vez: el motivo (`[art] sprite set "player/hero" could not be loaded: …`) |
+| el set carga pero **le faltan clips** | arte donde puede, *placeholder* donde no (§D.3) | en desarrollo, **una** línea de `info`: qué clips faltan para completar los 15 (`the protagonist's art has no clip for …`); **no** una nota por cada estado |
+| un clip rompe el contrato (fotograma ausente, espada fuera de la mano…) | ese clip cae al *placeholder* (§C.5) | en desarrollo, qué clip y por qué |
+| *build* de **jugador** (no desarrollo, sin `?hooks=1`) | lo mismo que arriba | **nunca un aviso ni un error**: el registro queda en el nivel silencioso (`debug`); y los sets parciales **no** emiten la nota del animador «no clip for X» (`quietFallbacks`) |
+
+## D.5 Probado
+
+| Qué | Dónde |
+|---|---|
+| la política `chooseSource` / `providesState` / `lackedClips`: sustitutos, sin préstamos, modos, `chain`, los 15 clips | `visualSource.test.ts` (13) |
+| el conmutador: un aspecto visible a la vez, el corte no mueve al héroe (posición, giro, escala), el camino de vuelta y de ida, el modo `art`, la pose invisible, el estado de vista **intacto**, quitar/cambiar/liberar el arte **una sola vez**, anclas del aspecto visible, silencio con sets parciales | `playerVisual.test.ts` (12) |
+| **navegador** (arte sintético): sin arte → *placeholder* y 15 clips por dibujar; con arte, **en cada tick** de una jugada el aspecto es el que dice la política; el tajo sigue las **fases de la simulación** (`startup`/`active`/`recovery` → fotogramas 0-1/2/3) con **la espada en la mano** (`|grip − hand| < 5 cm`, punta 0.9 m delante) y **conecta** (el *hitbox* es de la simulación); muerte y hechizo → *placeholder*; camino de vuelta e ida; arte roto o sin paquete → *placeholder* sin errores | E2E `player-art` (A–C) |
+| **la simulación no sabe nada:** el mismo guion de teclas (andar, saltar, tajo, *dash*) con **sin arte**, **arte `auto`**, **camino de vuelta** y **solo arte** da la **misma traza**, tick a tick (posición, velocidad, vida, magia, combate, *hit-stop*, golpes al muñeco) | E2E `player-art` (D) |
+
+*(Siguiente: **E** validación y qué assets reales faltan (S37, S38) · **F** el laboratorio y R1 (S39, S40) · **G** VFX, audio, entorno y rendimiento (S41–S43).)*
+
+

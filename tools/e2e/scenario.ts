@@ -68,6 +68,8 @@ export interface GameState {
   quality?: { setting: string; tier: string; resolution: number; particleBudget: number | null; spriteBudget: number | null };
   keys?: Record<string, string>;
   menuOpen?: boolean;
+  /** 2D view only (S36): which look draws the protagonist — the mode, the look on screen, the id of the art's set (null until it is attached), the clips it provides and the required ones it still lacks. */
+  visual?: { mode: string; shows: string; art: string | null; provides: string[]; lacks: string[] };
   /** 2D view only (S35): the art library — what it holds, what it has fetched; `null` for a page with no art (it never loads the library). */
   art?: ArtSnapshot | null;
   /** 2D view only: VFX counters. */

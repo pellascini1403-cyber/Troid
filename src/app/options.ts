@@ -1,4 +1,5 @@
 import type { CameraConfig } from '@/camera/CameraRig';
+import { VISUAL_MODES, type VisualMode } from '@/presentation/visualSource';
 
 /** Everything that can be chosen from the URL (handy for testing on a real phone without rebuilding). */
 export interface GameOptions {
@@ -22,6 +23,8 @@ export interface GameOptions {
   safe?: string;
   /** `?art=<folder>` reads the art from `<folder>/index.json` (a folder next to the page) instead of the one the build found. */
   art?: string;
+  /** `?visual=auto|placeholder|art`: which look draws the protagonist (docs/ART-PIPELINE-2D.md part D). `auto` by default: the real art where it has it, the placeholder where not. */
+  visual: VisualMode;
   camera: Partial<CameraConfig>;
 }
 
@@ -45,6 +48,7 @@ export function optionsFromQuery(q: URLSearchParams): GameOptions {
     touch: q.get('touch') === '1',
     safe: q.get('safe') ?? undefined,
     art: q.get('art') ?? undefined,
+    visual: (VISUAL_MODES as readonly string[]).includes(q.get('visual') ?? '') ? (q.get('visual') as VisualMode) : 'auto',
     camera: cameraConfigFromQuery(q),
   };
 }
