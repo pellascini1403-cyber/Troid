@@ -18,8 +18,8 @@
 | **S28** Spirit Bolt en R3 | ✅ | `1ccd14e` |
 | **S29** jefe (Custodio de Tinta, arena de R4, Air Dash) | ✅ | `dbae23d` |
 | **S30** ajustes (volumen, remapeo, calidad, posición táctil) | ✅ | `8286d2f` |
-| **S31** calibración móvil (solo geometría y documentación) | ✅ | |
-| **S32** integración final | ⏳ | |
+| **S31** calibración móvil (solo geometría y documentación) | ✅ | `400d4dd` |
+| **S32** integración final | ✅ | el commit que cierra el Prompt 6 (`git log -1` de esta rama) |
 
 ---
 
@@ -765,4 +765,94 @@ Cada zona táctil ≥ 44 px CSS · nada táctil fuera del área segura · ningun
 | `tsc` | 0 | 0 |
 | E2E (desarrollo y producción) | 33 / 33 | **34 / 34** (0 errores y 0 avisos de consola) |
 | Arranque en frío de R1 | 197.5 KB gz | **198.4 KB gz** |
+
+---
+
+## S32 — Integración final ✅
+
+**Qué es.** El cierre: comprobar **todo junto** lo que S22–S31 construyó por piezas —**R1 → R2 → R3 → Spirit Bolt → R4 → jefe → recompensa → salida**, y la muerte, los *checkpoints*, el guardado y la carga, la cuarta botella, el HUD, la magia, el táctil, el mando, el teclado, los ajustes, la cámara y los peligros—, dejar la documentación al día y medirlo todo otra vez. **S32 no añade nada al juego** (ni una línea de `src/`): añade las dos pruebas que faltaban para decir «integrado» con la boca llena, y documentación.
+
+### Lo que se añadió
+
+| Qué | Para qué |
+|---|---|
+| **`tests/integration/slice.test.ts`** (5 tests) | el mundo entero jugado **desde una partida nueva hasta el final del mundo con el *recorder* real** conectado a un almacén real: cada guardado que hace el juego por el camino es un punto donde una persona pudo cerrar la página. Después el juego **se empieza otra vez desde cada uno de esos guardados** —tal como lo hace una carga: 9 estados distintos, de «R1 con el slime vencido» a «R4 con el Air Dash tomado»— y **se juega lo que queda**: **siempre se puede terminar** y el juego que termina es, **en lo que se guarda, el mismo** (mismas banderas, habilidades, carta, botellas y *checkpoint*) **desde cualquier guardado**. Y otra vez **con una derrota justo tras cargar**: el héroe vuelve al *checkpoint*, lo ganado sigue ganado (lo abierto, abierto; lo roto, roto; lo tomado, tomado) y el camino sigue ahí. Los guardados no se pierden ni retroceden (cada uno contiene todas las banderas del anterior) y **ninguno lleva una bandera volátil** |
+| **E2E `finale`** (35.º escenario, ≈ 20 s) | **una sentada, tres dispositivos, en un navegador real.** Una partida **nueva** (sin guardado) se juega con el **teclado** por R1 y R2 y, desde la primera pausa de R3 (con las manos quietas, como quien suelta un mando y coge otro), con el **mando** por la subida, la carta, el bolt que rompe el sello, R4, el Custodio, el Air Dash y la salida: grabada en Node y repetida **tick a tick comparando un resumen de toda la simulación cada 50 ticks** (5561 ticks, 249 cambios de tecla/botón; el jefe incluido). Después: **lo que la página guardó es, campo a campo, lo que la simulación sabe** (banderas, habilidades, carta, botellas, *checkpoint*, dónde está el héroe), en **una sola clave** y sin banderas volátiles; **recargar continúa esa partida** donde el juego pone al héroe —R4, sin Custodio, con las puertas abiertas, el Spirit Bolt equipado, el *checkpoint* aún el inicio del mundo (nadie descansó)— y **la pantalla táctil** (toques reales por CDP) **lleva al héroe hasta la salida del mundo**. Por el camino mira que el HUD y el botón Habilidad siguen la carta, y que las llamadas de dibujo no pasan de 15 (presupuesto 60) |
+| `tools/e2e/replay.ts` | la repetición puede pulsar en el **teclado o en el mando abstracto** (`device(tick)`): lo que en la simulación son las mismas nueve acciones, en el mando son sus botones y el stick. Un cambio de dispositivo ocurre al empezar una tanda, donde no hay nada pulsado |
+
+> **Una trampa que se evitó (y queda dicha):** el *recorder* guarda «justo después del tick» con un `queueMicrotask`; en una prueba síncrona **nunca se ejecuta**, y mi primera versión de `slice.test.ts` pasaba **en vacío** (cero guardados, así que «desde cada guardado» no probaba nada). Se vio porque las pruebas **sobre los guardados** exigen que haya (≥ 8, y 9 distintos); la prueba retiene las microtareas y las suelta al empezar el tick siguiente, que es el mismo instante. Lección para las pruebas por bucle: **afirmar que el bucle tiene algo que recorrer**.
+
+### La integración, contra la lista del Prompt
+
+| «Verificar» | Dónde se comprueba (todo en desarrollo **y** producción) |
+|---|---|
+| **R1 → R2 → R3 → Spirit Bolt → R4 → jefe → recompensa → salida** | `world` (con el teclado real, **bit a bit**, tres transiciones y el jefe), `finale` (teclado + mando, de una partida nueva al final, y el táctil en el último tramo), `worldJourney` y `slice` (en la simulación) |
+| **muerte** | `death`, `checkpoint`, `boss-death`; `checkpoints`, `death`, `bossWorld` y `slice` (una derrota tras cargar, desde 5 guardados) |
+| **checkpoints** | `checkpoint` (descansar → caer en R2 y en R3 → vuelta al santuario; vida, magia y botellas solo las da el descanso) |
+| **save / load** | `save` (una clave, recarga, copia dañada, `.bak`, versión futura, sala fantasma, *playground*, `?new=1`), `finale` (guardado exacto y recarga), `progressSoak` (fallos aleatorios del almacén), `slice` (reanudar desde cada guardado) |
+| **cuarta botella** | `bottle4` (ruta grabada y repetida; brilla, se guarda con su bandera, sobrevive a recarga, transición y derrota; una sola vez) |
+| **HUD** | `hud`, `bottles`, `mobile` (rectángulos del DOM), `finale` |
+| **magia** | `magic`, `bolt` (cuesta 30; regenera 6/s), `progression` |
+| **táctil** | `touch` (gestos con dedos reales), `vertical` (R1 entera), `mobile` (siete ventanas, cada botón con varios dedos), `finale` (el último tramo), `settings` (la disposición) |
+| **mando** | `gamepad`, `finale` (R3 → salida, jefe incluido) |
+| **teclado** | `movement`, `crouch`, `combat`, `world`, `finale` … |
+| **ajustes** | `settings` (volumen, calidad, teclas, disposición táctil → recargar → persiste; migración 1 → 2; reparación), `language` |
+| **cámara** | `camera` (límites por sala; la arena se fija al cruzar su borde y los límites se funden), `boss` |
+| **peligros** | `hazard` (los pinchos se ven; un toque cuesta un punto con empuje, sacudida e *i-frames*; repite; un salto los pasa; el último punto mata) |
+
+### Criterios de aceptación ✅
+
+| Criterio | Evidencia |
+|---|---|
+| existe un *world graph* · R1 → R2, R2 → R3, R3 → R4 funcionan · los *spawn points* son correctos · existen transiciones | `WorldDefinition` + `worldGraph` (`validateWorld`, `analyzeProgression`; `worldGraph.test`, `content/world.test`), `RoomTransition` (`transitions`, `worldRooms`, `worldJourney`), E2E `world` y `transition` (26 transiciones, una cancelada por una derrota) |
+| existe guardado y carga de progreso · existe *checkpoint* · la muerte devuelve al último | `ProgressData` v1 + `SafeStore` + `progressRecorder`; santuarios (`checkpoints`); E2E `save`, `checkpoint`, `finale` |
+| los peligros funcionan | `HazardSystem` (`hazards`), E2E `hazard` |
+| la cámara tiene límites · la arena del jefe limita la cámara | `cameraZones`, `roomCameras`, E2E `camera`, `boss` |
+| la cuarta botella existe y persiste | `bottleFourth`, E2E `bottle4` |
+| el Spirit Bolt está bloqueado al principio, se obtiene en R3 y cuesta 30 | `seal`, `spiritBoltWorld`, `spiritBolt`; E2E `progression`, `bolt` |
+| el jefe tiene FSM, dos ataques, avisos violeta, puede morir, desbloquea la salida, y su progreso persiste | `guardian`, `bossWorld`, `airDash`; E2E `boss` (los avisos **medidos en píxeles violeta**), `boss-death`, `finale` |
+| los ajustes adicionales funcionan | `remap`, `settingsData/Store`, `settingsMenu`, `volume`, `viewport`; E2E `settings` |
+| el teclado, el táctil, el mando y el HUD siguen funcionando | E2E `movement` … `touch`, `gamepad`, `hud`, `mobile`, `finale` |
+| los 1180 tests anteriores siguen pasando · se añaden tests nuevos | **1833** pasan; **+653** nuevos. Los que fijaban algo que el Prompt 6 cambió **a propósito** se **adaptaron conservando su intención** (cada paso lo lista; ninguno se borró ni se debilitó) |
+| E2E en desarrollo y en producción · consola limpia | **35 / 35 en cada uno**; el *runner* falla cualquier escenario con un error de consola (0 errores, 0 avisos) |
+| bundle medido · documentación actualizada | **198.4 KB gz** (arriba); `PROMPT6-LOG`, `GAME-SPEC-2D`, `ARCHITECTURE-2D`, `ROADMAP`, `README` y `MOBILE-CALIBRATION` al día |
+
+### Qué encontró la integración
+
+**Ningún defecto de juego.** Las dos pruebas nuevas pasaron al primer intento (descontados mis dos errores de escritura: la microtarea de arriba y la elección del momento de cambiar de dispositivo, que tiene que ser una pausa con las manos quietas). Lo que se había encontrado por el camino se arregló en su paso: la reaparición que no guardaba `at` y la *pipe* de partículas diferida (S24), la carrera de un toque en `vertical` (S24), el redondeo del borde de la reserva del HUD que hacía que pedir más tamaño diera botones más pequeños y los dos hallazgos de la página real, la pausa sobre una botella y la barra bajo un botón (S31), y los dos escenarios que dependían del reloj de la página (`touch`, `hud`: S30).
+
+### Medido ✅ (cierre del Prompt 6)
+
+| | Baseline (S21) | **Cierre (S32)** |
+|---|---|---|
+| Tests | 1180 / 82 archivos | **1833 / 116 archivos** (+653) |
+| `tsc --noEmit` | 0 | **0** |
+| Build de producción | OK (0.9 s) | **OK** (≈ 1.1 s) |
+| E2E desarrollo / producción | 23 / 23 | **35 / 35** y **35 / 35** (0 errores y 0 avisos de consola) |
+| Arranque en frío de R1 (`bench:bundle`) | 197.9 KB gz (27 scripts) | **198.4 KB gz** (31 scripts) — presupuesto 200 KB, **margen 1.6 KB** |
+| Diferido en reposo (efectos, partículas, vistas del jefe) | — | 14.4 KB gz |
+| Toda la primera sesión | — | 212.9 KB gz (35 scripts) |
+| *Draw calls* en el peor momento de cada escenario | R1 12 · sala completa 14 · partida aleatoria 22 | slime 7 · R1 12 · sala completa 14 · transiciones 12 · mundo 15 · **pelea con el jefe 15** · *finale* 15 · peligros 10 · ajustes 11 · **partida aleatoria 22** (presupuesto **60**) |
+
+---
+
+## Informe final del Prompt 6
+
+1. **S21–S32 implementados** (tabla de estado, arriba): baseline · grafo de mundo · transiciones · guardado y *checkpoints* · peligros · zonas de cámara · cuarta botella · Spirit Bolt en R3 tras un sello · el jefe, la arena y el Air Dash · ajustes v2 · calibración móvil (geometría) · integración final.
+2. **Tests:** **1833** en **116 archivos** (baseline 1180 / 82). Todos pasan.
+3. **`tsc`:** 0 errores.
+4. **Build:** OK (≈ 1.1 s).
+5. **E2E:** **35 / 35 en desarrollo y 35 / 35 en producción**, consola limpia (0 errores, 0 avisos). Los de este Prompt: `world · transition · save · checkpoint · hazard · bottle4 · progression · boss · boss-death · settings · mobile · finale`.
+6. **Bundle:** arranque en frío de R1 **198.4 KB gz** (presupuesto 200; margen 1.6 KB); primera sesión completa 212.9 KB gz. Cómo se mantuvo bajo el techo: efectos, vistas del jefe, menú, herramientas de desarrollo y ganchos de pruebas son *chunks* diferidos; el diagnóstico de cada paso está en su sección. No se quitó ninguna función ni ningún test.
+7. ***Draw calls*:** ≤ **22** en el peor momento de cualquier escenario (la pelea con el jefe, 15; una partida aleatoria de 1600 rondas con 300 partículas, 22) frente a un presupuesto de 60.
+8. **Commits** (uno por paso, mensajes en español): S21 `1b4756a` · S22 `99f0649` · S23 `ce5ab17` · S24 `fc6acb8` · S25 `056c038` · S26 `dad0241` · S27 `2dbe0c6` · S28 `1ccd14e` · S29 `dbae23d` · S30 `8286d2f` · S31 `400d4dd` · S32 (el que cierra la rama).
+9. **Archivos principales:** **mundo** `world/{WorldDefinition, worldGraph, validateRoom, RoomDefinition}`, `content/world.ts`, `content/rooms/{r1Gate, r2Hall, r3Chamber, r4Sanctum}`; **simulación** `gameplay/{RoomTransition, HazardSystem, Seal, progress, DeathFlow, GameSession}`, `enemies/{Guardian, GuardianDefinition}`, `camera/cameraZones`, `abilities` (Air Dash en `PlayerController`); **guardado** `save/{ProgressData, ProgressStore, SafeStore, SettingsData, SettingsStore}`, `app/progressRecorder`; **interfaz** `ui/hud/{BossBarModel, BossBarView, bossBarLayout, layout}`, `ui/touch/layout`, `ui/settings/{SettingsMenu, PauseButton}`, `ui/overlays/TransitionOverlay`, `input/remap`, `audio/volume`; **vistas** `render/{GuardianView, SealView, LateView, InteractableViews, RoomView2D}`; **app** `app/{Game2D, bossViews, effects, testHooks}`; **pruebas** `tests/integration/{worldJourney, worldRooms, transitions, checkpoints, hazards, bottleFourth, spiritBoltWorld, seal, guardian, bossWorld, airDash, progressSoak, slice}`, `tests/unit/ui/{mobileGeometry, bossBarLayout, settingsMenu}` y 12 escenarios E2E nuevos con `tools/e2e/{replay, bossKit}`. En total, desde el final del Prompt 5 (`2977c04`): **174 archivos, +18.2 k / −0.8 k líneas** (`src/` 73 archivos, `tests/` 69, `tools/` 26, `docs/` 5 y el `README`).
+10. **Grafo del mundo final:** `R1 «Puerta de las Ruinas» ⇄ R2 «Galería de Raíces» ⇄ R3 «Cámara del Sello» ⇄ R4 «Santuario» → fin del mundo`. Inicio: R1 `start`. R1 → R2 pide `defeated:r1_slime` (la puerta de R1); R3 → R4 pide `broken:r3_seal` (el sello); la salida de R4 al fin del mundo pide `defeated:r4_boss`. La cuarta botella (R2) y los santuarios (R2 y R4) son opcionales. Tabla completa de conexiones y reglas del validador: S22.
+11. **Guardado y *checkpoints*:** un progreso (`troid.progress`, v1: dónde se continúa, *checkpoint*, banderas, habilidades, cartas, ranuras de botella) y unos ajustes (`troid.settings`, v2) sobre el mismo almacén seguro (copia `.bak`, lectura de vuelta, `.corrupt` conservado, cola serie, nunca lanza, repara todo lo que lee y lo que escribe). Se guarda **una vez por ráfaga de cambios**, justo tras el tick; **las banderas volátiles** (`~…`, las puertas de una pelea) **no se guardan nunca**; una partida cargada **continúa en la entrada de la sala**, con vida y magia llenas y las botellas llenas. Un **santuario** (R2, R4) fija el *checkpoint*, llena vida, magia y botellas y guarda; **morir** devuelve al último *checkpoint* **en cualquier sala** (sin descanso previo, al inicio del mundo) con vida y magia llenas, **las botellas sin rellenar**, y todo lo ganado intacto; el jefe vuelve **entero y dormido**.
+12. **El jefe:** el **Custodio de Tinta**, original y abstracto, 36 de vida, en la arena de 39 m de R4. FSM `dormant → intro → choose → telegraph → attack → recover` (+ `hurt`, `dead`), elección con el `Rng` de la sesión. Despierta cuando los pies del héroe cruzan x = 27.5: las dos puertas se cierran, la cámara se fija a la arena y aparece su barra. **Dos ataques, ambos avisados en violeta sobre el suelo**: la carga (≈ 8.2 m, daño 2) y la lluvia de tinta (3 columnas, 4 en la segunda fase; daño 1); segunda fase a ≤ 50 %. Sin daño por contacto. Al caer: `defeated:r4_boss` (guardada), puertas abiertas, cámara libre, el Air Dash aparece y la salida del mundo se abre. Una derrota lo deja entero y dormido; uno vencido no vuelve.
+13. **Problemas pendientes** (ninguno bloquea lo pedido; todos documentados arriba): la salida del mundo **no tiene pantalla de cierre ni créditos** (solo emite `exit:reached`, con una columna de luz); **no hay aviso de «gira el dispositivo»** (la bandera `rotateDevice` existe); el menú **no avisa** de que el tamaño táctil pedido no cabe (a la izquierda cede a menudo); «Auto» **no mide** el dispositivo; el mando y el táctil no se remapean; **no suena nada** (el volumen está preparado); **no se ha peleado con el jefe a toques** (sí en simulación, con teclado y con mando); margen de bundle de 1.6 KB.
+14. **Limitaciones de pruebas en dispositivos reales:** **nada se ha medido ni calibrado en un iPhone, un iPad ni un Android**, ni con un mando físico; **no se inventó ninguna cifra de dispositivo**. Lo que hay: geometría por cálculo (2 160 combinaciones de ventana × margen × tamaño × lado × posición) y los rectángulos del DOM en Chromium con `isMobile` + `hasTouch`, densidad 2–3 y márgenes simulados; toques del protocolo DevTools (**un dedo perfecto**: sin radio ni presión, con el reloj de los toques virtual); Chromium dibuja **por software** (las cifras de *draw calls* y de tiempo sirven para comparar, no son absolutas). Los umbrales de `TouchConfig`, el alcance de los botones, la deriva del pulgar (R18), las *safe areas* reales, la barra de direcciones que se esconde, el rendimiento y el calor siguen pendientes. Protocolo y tablas **vacías**: [MOBILE-CALIBRATION](MOBILE-CALIBRATION.md).
+15. **Para el Prompt 7:** probar y calibrar en **dispositivos reales** (la deuda mayor); **arte definitivo** del protagonista y de enemigos y salas, VFX de energía cian/azul y sonido; el **final de la slice** (pantalla de cierre) y el aviso de girar; autodetección real de calidad; avisar en el menú cuando el tamaño no cabe; **presupuestar el bundle** (palancas: `InteractableViews`/`SealView` y paquetes por sala) antes de meter arte; `CapacitorPreferencesAdapter` y empaquetado nativo.
+
+> **Confirmación explícita:** **el protagonista continúa siendo el *placeholder* abstracto** (la cápsula con espada de los Prompts 3 y 4). **No se ha rediseñado ni sustituido su apariencia**: ni cara, cabeza, pelo, máscara ni ropa, ni otra silueta, ni *sprites* finales; **ningún archivo que defina su aspecto o su definición (`content/player.ts`, `content/sprites.ts`, `content/placeholders/playerPlaceholder.ts`, `assets/`, `render/ActorSprite.ts`) tiene un solo cambio en todo el Prompt 6** (comprobado con `git diff 2977c04..HEAD` sobre esos archivos). El jefe, el sello, los peligros y las salas son formas abstractas propias en la paleta cerrada (negro, blanco, cian/azul; violeta para lo enemigo y sus avisos): **no se copió nada de Hollow Knight ni de Solo Leveling** (ni personajes, ni enemigos, ni mapas, ni interfaz, ni ataques, ni nombres).
 

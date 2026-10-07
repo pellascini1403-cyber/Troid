@@ -109,18 +109,29 @@ export function record(driver: Recordable, play: () => void): Recording {
   return { runs, digests, total };
 }
 
+/** The device a replay presses on: the keyboard, or the abstract gamepad of the test hook (the same actions, through the pad's own buttons and stick). */
+export type Device = 'keyboard' | 'gamepad';
+
+/** The standard-mapping button of each action that is a button on the pad (docs/GAME-SPEC-2D.md §4.2); left and right are the stick. */
+const PAD_BUTTONS: Readonly<Record<Exclude<keyof Held, 'left' | 'right'>, number>> = { down: 13, jump: 0, attack: 2, dash: 1, ability: 3, bottle: 4, interact: 6 };
+
 export interface ReplayOptions {
   /** Largest number of ticks between two looks at the game (the observer sees the state every this many ticks). */
   chunk?: number;
   /** Called after each chunk with the game state and the tick reached. */
   observe?: (state: GameState, tick: number) => Promise<void>;
+  /**
+   * Which device presses at a given tick (default: the keyboard). It is asked at the START of each run of identical held states, so a hand-over
+   * between devices happens where one run ends and another begins — the caller chooses a moment when nothing is held, as a person would.
+   */
+  device?: (tick: number) => Device;
 }
 
-/** Plays a recording through the real keyboard and checks every digest. Throws at the first tick that differs. */
+/** Plays a recording through the real keyboard (or the abstract gamepad) and checks every digest. Throws at the first tick that differs. */
 export async function replay(ctx: Ctx, rec: Recording, opts: ReplayOptions = {}): Promise<void> {
   const chunk = opts.chunk ?? 4;
   const down = new Set<string>();
-  const hold = async (held: Held): Promise<void> => {
+  const holdKeys = async (held: Held): Promise<void> => {
     for (const k of Object.keys(KEYS) as Array<keyof Held>) {
       const code = KEYS[k];
       if (held[k] && !down.has(code)) {
@@ -132,12 +143,30 @@ export async function replay(ctx: Ctx, rec: Recording, opts: ReplayOptions = {})
       }
     }
   };
+  let padUsed = false;
+  const holdPad = async (held: Held): Promise<void> => {
+    const buttons = (Object.keys(PAD_BUTTONS) as Array<keyof typeof PAD_BUTTONS>).filter((k) => held[k]).map((k) => PAD_BUTTONS[k]);
+    await ctx.page.evaluate(`window.__troid.pad.set(${held.right ? 1 : held.left ? -1 : 0}, 0, ${JSON.stringify(buttons)})`);
+    padUsed = true;
+  };
+  /** Presses `held` on `device` and lets go of everything on the other one. */
+  const hold = async (held: Held, device: Device = 'keyboard'): Promise<void> => {
+    if (device === 'gamepad') {
+      await holdKeys(NO_KEYS);
+      await holdPad(held);
+    } else {
+      if (padUsed) await holdPad(NO_KEYS);
+      await holdKeys(held);
+    }
+  };
   const browserDigest = (): Promise<string> => ctx.page.evaluate(`(function (s) {${DIGEST_SRC}})(window.__troid.session)`) as Promise<string>;
 
   let tick = 0;
   let next = 0; // index of the next digest to check
+  let device: Device = 'keyboard';
   for (const run of rec.runs) {
-    await hold(run.held);
+    device = opts.device?.(tick) ?? 'keyboard';
+    await hold(run.held, device);
     let left = run.ticks;
     while (left > 0) {
       const toDigest = (rec.digests[next]?.tick ?? Infinity) - tick;
@@ -154,5 +183,5 @@ export async function replay(ctx: Ctx, rec: Recording, opts: ReplayOptions = {})
       if (opts.observe) await opts.observe(await ctx.state(), tick);
     }
   }
-  await hold(NO_KEYS);
+  await hold(NO_KEYS, device);
 }

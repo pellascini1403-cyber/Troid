@@ -4,13 +4,17 @@ Metroidvania 2D de acción y exploración, pensado primero para **iOS y Android*
 Dirección definitiva: **2D puro con sprites**, renderer **PixiJS v8**, energía cian/azul, controles móviles por gestos.
 Este repositorio contiene la base técnica y, en construcción, la *vertical slice* «Ancient Forest Ruins» (15–30 min).
 
-> **Estado real (2026-10-06):** el **Prompt 5 está completo** sobre el núcleo del Prompt 4. El juego corre en **2D puro con PixiJS v8** (Three.js está retirado del código y de las
-> dependencias; el último estado 3D está en el *tag* `proto-3d-f5` y en la rama `archive/proto-3d-f5`) y la sala R1 «Puerta de las Ruinas» se juega **entera con teclado, con controles táctiles por
-> gestos y con mando**: moverse, saltar, agacharse, atacar, hacer dash; **vida (5), magia (100) y una carta** en un HUD en DOM; **recoger la carta interactuando** y lanzar el **Spirit Bolt**
-> (30 de magia); **botellas de energía** (3, se beben para curar y se recargan de una en una); interacción contextual (un icono que existe solo al alcance); **idioma español/inglés que se guarda**
-> y un menú de pausa mínimo. Todo con *placeholders* abstractos: **no hay arte final** y el protagonista sigue siendo la cápsula abstracta del Prompt 3/4.
-> ⚠ **No se ha verificado nada en un iPhone ni en un Android reales** (ni con un mando físico): lo táctil se prueba con toques CDP simulados y el mando con uno abstracto.
-> Qué se hizo, qué se midió y qué falta: [bitácora del Prompt 5](docs/PROMPT5-LOG.md) (y del [Prompt 4](docs/PROMPT4-LOG.md)). Lo siguiente es el Prompt 6 (mundo conectado, guardado, jefe).
+> **Estado real (2026-10-07):** el **Prompt 6 está completo** sobre los Prompts 4 y 5. El juego corre en **2D puro con PixiJS v8** (Three.js está retirado; el último estado 3D está en el
+> *tag* `proto-3d-f5` y en la rama `archive/proto-3d-f5`) y hay un **mini-mundo metroidvania de cuatro salas jugable de principio a fin** —**R1 → R2 → R3 → R4 → jefe → recompensa → salida**—:
+> la slice entera se recorre en el navegador **con el teclado de punta a punta** y **con teclado y mando en una sola sentada** (el mando, abstracto, desde R3 hasta el final, jefe incluido), y los **controles
+> táctiles por gestos** se ejercitan con toques reales del protocolo DevTools en R1 entera, en cada botón y en el último tramo de R4 (**no se ha peleado con el jefe a toques**). Moverse, saltar, agacharse, atacar, hacer dash; **vida (5), magia (100) y cartas** en un HUD en DOM; **botellas de energía** (3, y una
+> **cuarta** en R2 para quien elige el camino alto); **peligros** (pinchos); el **Spirit Bolt** en R3, que **rompe un sello de tinta** que cierra el camino; **santuarios** (checkpoints) donde se
+> descansa; **guardado de progreso** automático (sobrevive a recargar la página); **cámara** con zonas; y **el Custodio de Tinta**, un jefe original con dos ataques avisados en violeta, dos fases y una
+> recompensa (el **Air Dash**). **Menú de pausa** con idioma (es/en), volumen (preparado: todavía no suena nada), calidad, teclas y disposición táctil. Todo con *placeholders* abstractos: **no hay
+> arte final** y el protagonista sigue siendo la **cápsula abstracta con espada** de los Prompts 3/4, sin rediseñar.
+> ⚠ **Nada se ha verificado ni calibrado en un iPhone, un iPad ni un Android reales** (ni con un mando físico): lo táctil se prueba con toques del protocolo DevTools y con la geometría, el mando con uno
+> abstracto. Qué se verificó y qué falta: [MOBILE-CALIBRATION](docs/MOBILE-CALIBRATION.md). Qué se hizo, qué se midió y qué queda: [bitácora del Prompt 6](docs/PROMPT6-LOG.md) (y de los
+> [Prompt 5](docs/PROMPT5-LOG.md) y [Prompt 4](docs/PROMPT4-LOG.md)). Lo siguiente es el Prompt 7 (arte, pulido, dispositivos reales).
 
 > **Documentación vigente:** [GAME-SPEC-2D](docs/GAME-SPEC-2D.md) (qué se construye) · [ARCHITECTURE-2D](docs/ARCHITECTURE-2D.md) (cómo) ·
 > [MIGRATION-2D](docs/MIGRATION-2D.md) (orden, riesgos, criterios) · [ADR-0003](docs/adr/0003-arquitectura-2d-definitiva.md) (decisiones) ·
@@ -33,7 +37,7 @@ Herramientas de desarrollo (usan el Chromium preinstalado, ver `TROID_CHROMIUM`)
 
 ```bash
 npm run shot -- --out .shots/boot.png --w 844 --h 390   # captura del juego en tamaño teléfono
-npm run test:e2e                                           # 23 escenarios E2E con Playwright (--prod: contra el build; un nombre filtra: `-- vertical`)
+npm run test:e2e                                           # 35 escenarios E2E con Playwright (--prod: contra el build; un nombre filtra: `-- finale`)
 npm run bench:bundle                                       # qué descarga un arranque en frío del build de producción (KB gz)
 ```
 
@@ -49,11 +53,11 @@ npm run bench:bundle                                       # qué descarga un ar
 | Habilidad de la carta equipada (Spirit Bolt, 30 de magia) | `K` / clic derecho | `Y` | botón **Habilidad** (derecha; solo existe con una carta) |
 | Botella de energía (cura) | `L` / `Q` | `LB` | chip que aparece **solo** si hace falta curar; o tocar un vial del HUD |
 | Interactuar (coger, activar, abrir) | `E` | `LT` | tocar el **icono** que flota sobre el objeto (solo existe al alcance) |
-| Pausa y ajustes (idioma, tamaño y opacidad de los controles) | `Esc` / `P` | `Start` | icono arriba al centro |
+| Pausa y ajustes (idioma, volumen, calidad, teclas y disposición de los controles táctiles) | `Esc` / `P` | `Start` | icono arriba al centro |
 | Panel de depuración (colliders, hitboxes, vida, tiempo) | `` ` `` (o `?debug=1`) | | |
 
-Sin parámetros se empieza en **R1** con el dash. `?room=movement_test` o `?room=crouch_test` abren los patios de pruebas (las habilidades son entonces las de `?unlock=dash`),
-`?lang=es|en` fuerza el idioma, `?vh=` cambia el zoom, `?hooks=1` expone `window.__troid` para las pruebas.
+Sin parámetros se empieza en **R1** con el dash (o se **continúa** la partida guardada; `?new=1` empieza de cero). `?room=movement_test` o `?room=crouch_test` abren los patios de pruebas (las habilidades son entonces las de `?unlock=dash`),
+`?lang=es|en` fuerza el idioma, `?vh=` cambia el zoom, `?touch=1` muestra los controles táctiles en un escritorio, `?safe=arriba,derecha,abajo,izquierda` imita un *notch* (px), `?paused=1` arranca con la simulación parada, `?hooks=1` expone `window.__troid` para las pruebas. Las salas de pruebas (`?room=`) nunca leen ni escriben el progreso.
 
 Laboratorios (solo desarrollo, cargados aparte): `?lab=sprites` (hoja de contacto de un *sprite set* con sus anclas) · `?lab=vfx` (cada efecto por el director real) ·
 `?lab=slime` (las poses del Ink Slime y su aviso en vivo, `&mode=live&manual=1`) · `?lab=stress` (presupuesto de render).

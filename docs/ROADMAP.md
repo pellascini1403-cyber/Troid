@@ -1,6 +1,6 @@
 # Roadmap — Troid (2D + PixiJS)
 
-> **Estado a 2026-10-06.** Plan detallado, puertas y criterios de cada paso: [MIGRATION-2D](MIGRATION-2D.md) · Qué se construye: [GAME-SPEC-2D](GAME-SPEC-2D.md) ·
+> **Estado a 2026-10-07.** Plan detallado, puertas y criterios de cada paso: [MIGRATION-2D](MIGRATION-2D.md) · Qué se construye: [GAME-SPEC-2D](GAME-SPEC-2D.md) ·
 > Cómo: [ARCHITECTURE-2D](ARCHITECTURE-2D.md) · Decisiones: [ADR-0003](adr/0003-arquitectura-2d-definitiva.md).
 
 **Objetivo de la vertical slice «Ancient Forest Ruins» (15–30 min):** entrar → explorar → combatir → conseguir algo → continuar → enfrentarse a un enemigo.
@@ -13,8 +13,8 @@ Cada paso termina con `npm run check` en verde, build de producción y —cuando
 | **Prompt 3** | especificación definitiva 2D, arquitectura, migración, ADR (solo documentación) | ✅ |
 | **Prompt 4** | migración a 2D + PixiJS y núcleo jugable: movimiento, agacharse, combate, enemigo, sala, muerte, VFX mínimos, i18n | ✅ (617 tests · 12 escenarios E2E · R1 jugable con teclado; [bitácora](PROMPT4-LOG.md)) |
 | **Prompt 5** | magia, cartas, botellas, interacción, **controles táctiles por gestos**, gamepad, HUD, ajustes e idioma persistentes | ✅ (1180 tests · 23 escenarios E2E · R1 completa por teclado, **táctil** y mando; arranque en frío 197.9 KB gz; [bitácora](PROMPT5-LOG.md)). ⚠ **Sin verificar en un iPhone ni un Android reales** |
-| **Prompt 6** | mundo conectado, flags, puntos de guardado, guardado, jefe con fases | ⬜ **siguiente** |
-| **Prompt 7** | arte definitivo, VFX, pulido, rendimiento, empaquetado nativo (Capacitor), QA | ⬜ |
+| **Prompt 6** | mundo conectado (4 salas), transiciones, flags, checkpoints, guardado de progreso, peligros, zonas de cámara, cuarta botella, el Spirit Bolt en R3 tras un sello, el jefe (Custodio de Tinta), ajustes v2 y calibración móvil (solo geometría) | ✅ (**1833 tests** · **35 escenarios E2E** en desarrollo y producción · **R1 → R2 → R3 → R4 → jefe → recompensa → salida** jugable de principio a fin (recorrida en el navegador con el teclado de punta a punta y con teclado + mando en una sentada; el táctil, con toques CDP en R1 entera, los botones y el último tramo de R4); arranque en frío 198.4 KB gz; [bitácora](PROMPT6-LOG.md)). ⚠ **Nada calibrado en un dispositivo real** ([MOBILE-CALIBRATION](MOBILE-CALIBRATION.md)) |
+| **Prompt 7** | arte definitivo, VFX de energía cian/azul, pulido, rendimiento, aviso de girar el dispositivo, cierre de la slice, empaquetado nativo (Capacitor), QA en dispositivos | ⬜ **siguiente** |
 
 ### Pasos del Prompt 4 ✅ (cortes seguros: **A** = S0–S4 · **B** = S5–S8 · **C** = S9–S11)
 
@@ -25,7 +25,20 @@ S5 agacharse · S6 combate (rescate de `wip/f6-combat-core`) · S7 VFX mínimos 
 
 S12 baseline y revisión del bundle · S13 entrada unificada (contrato de ejes, gestos táctiles, mando) · S14 HUD en DOM y los recursos que muestra · S15 magia y Spirit Bolt · S16 botellas de energía y cartas · S17 interacción contextual · S18 idioma persistente y ajustes · S19 R1 completa con todo lo nuevo y los ocho escenarios E2E · S20 validación final (sondeos aleatorios que hallaron y corrigieron cinco defectos latentes) y documentación.
 
-### Qué queda para el Prompt 6 (y no se hizo a propósito en el 5)
+### Pasos del Prompt 6 ✅ (S21–S32)
+
+S21 baseline y bitácora · S22 grafo de mundo y salas R1–R4 · S23 transiciones deterministas · S24 guardado de progreso, *checkpoints* y regla de muerte · S25 peligros · S26 zonas de cámara · S27 cuarta botella · S28 Spirit Bolt en R3 tras un sello · S29 el jefe (Custodio de Tinta), la arena y el Air Dash · S30 ajustes v2 (volumen preparado, calidad, teclas, disposición táctil) · S31 calibración móvil (geometría y documentación; **sin afirmar nada de dispositivos reales**) · S32 integración final (la slice entera guardada y reanudable desde cada guardado; un E2E de principio a fin con teclado, mando y táctil).
+
+### Qué queda para el Prompt 7 (lo que el 6 dejó a propósito o a la vista)
+
+- **Dispositivo real (⚠ la gran deuda):** probar en un **iPhone, un iPad y un Android** —ergonomía y alcance de los botones, la deriva del pulgar (R18), los umbrales de `TouchConfig`, *safe areas* con *notch* e isla, la barra de direcciones que se esconde (el `resize` suelta los dedos), un mando físico, rendimiento (Android de gama baja, calor) y el perfil de calidad que conviene—. Protocolo y tablas **vacías** en [MOBILE-CALIBRATION](MOBILE-CALIBRATION.md).
+- **Arte y feeling:** sprites definitivos del protagonista y los enemigos, el arte de las salas, VFX de energía cian/azul, sonido (el volumen del menú está **preparado**, no suena nada). **El protagonista sigue siendo la cápsula abstracta con espada**; nada de él se ha rediseñado.
+- **El final de la slice:** hoy la salida del mundo (`end`, una columna de luz) solo emite `exit:reached`: **no hay pantalla de cierre ni créditos**. Tampoco hay aviso de «gira el dispositivo» (la bandera `rotateDevice` existe).
+- **Ajustes:** «Auto» **no mide** el dispositivo (es el perfil equilibrado); el menú **no avisa** de que el tamaño de los controles pedido no cabe junto al HUD (a la izquierda cede a menudo); el mando y el táctil no se remapean.
+- **Bundle:** **198.4 KB gz** de 200 (margen 1.6 KB). Palancas sin tocar: `InteractableViews` / `SealView` al *chunk* diferido (≈ 1.5 KB) y **paquetes por sala** (≈ 3 KB: la simulación y los datos del jefe solo hacen falta al llegar a R4). El arte definitivo **no cabe sin** una de ellas o sin subir el techo con una medición delante.
+- **Persistencia nativa:** `CapacitorPreferencesAdapter` (el almacenamiento de un WebView puede purgarse) y el sello de tiempo.
+
+### Qué quedó para el Prompt 6 (y no se hizo a propósito en el 5) — ✅ hecho en el 6
 
 - **Mundo y progreso:** mover la carta del Spirit Bolt de R1 a R3 (hoy es provisional, ⚠ desviación documentada), transiciones entre salas (`RoomTransition`: fundido y carga con `ExitDef.to`), puntos de guardado (recarga completa de botellas; `refillAll()` ya está listo), **guardado del progreso** (flags, cartas, ranuras, punto de guardado: hoy solo se guardan los ajustes), peligros y zonas de cámara, jefe con fases. La cuarta ranura de botella existe (`addBottleSlot`) pero ninguna sala la coloca todavía.
 - **Ajustes por migración:** volumen, *bindings* (remapeo), calidad y accesibilidad, y la **posición** de los controles táctiles (hoy solo tamaño y opacidad).
