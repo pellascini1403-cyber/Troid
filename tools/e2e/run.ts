@@ -18,6 +18,7 @@ import { playerArt } from './scenarios/playerArt';
 import { playerLab } from './scenarios/playerLab';
 import { audioCues } from './scenarios/audioCues';
 import { environment } from './scenarios/environment';
+import { artPerformance } from './scenarios/artPerformance';
 import { playerR1 } from './scenarios/playerR1';
 import { progression } from './scenarios/progression';
 import { camera } from './scenarios/camera';
@@ -50,7 +51,7 @@ import { vertical } from './scenarios/vertical';
 import { vfx } from './scenarios/vfx';
 import { world } from './scenarios/world';
 
-const ALL: Scenario[] = [assets, playerArt, playerLab, playerR1, audioCues, environment, movement, crouch, combat, slime, r1, room, death, render, camera, sprites, vfx, stress, touch, gamepad, hud, magic, bolt, bottles, bottle4, progression, interaction, devtools, language, vertical, transition, world, boss, bossDeath, checkpoint, save, settings, hazard, mobile, finale, soak];
+const ALL: Scenario[] = [assets, playerArt, playerLab, playerR1, audioCues, environment, artPerformance, movement, crouch, combat, slime, r1, room, death, render, camera, sprites, vfx, stress, touch, gamepad, hud, magic, bolt, bottles, bottle4, progression, interaction, devtools, language, vertical, transition, world, boss, bossDeath, checkpoint, save, settings, hazard, mobile, finale, soak];
 const filter = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const prod = process.argv.includes('--prod');
 const selected = ALL.filter((s) => !filter || s.name.includes(filter));

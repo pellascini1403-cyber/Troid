@@ -869,4 +869,65 @@ Una sala **es** sus datos: lo que el héroe pisa, golpea o atraviesa es `solids`
 
 **Coste:** `presentation/environment.ts` se reparte con el renderizador (`PARALLAX_FACTOR` y `layerSpan` viven aquí y las importan `render/layers` y `render/backdrops`); el resto —censo, reglas de paquete, repetición— lo leen solo las herramientas y las pruebas y **no viaja en el juego**.
 
-*(Siguiente: **J** rendimiento (S43).)*
+---
+
+# Parte J — El coste del arte, medido (S43)
+
+> **Qué es:** una escena de estrés del arte (`?lab=art-stress`, un *chunk* aparte que nadie descarga jugando) y el E2E `art-performance` que la mide: una multitud de **100, 500 y 1000 *sprites*** repartidos entre **varias páginas de atlas que llegan por la biblioteca de arte real**, con transparencia, con luz y con los **efectos reales**, dibujados por el renderizador real. Mide **llamadas de dibujo**, **memoria**, **regularidad de los fotogramas** y **tiempo de carga del arte**; y **afirma lo que es propiedad del diseño** (≤ 60 llamadas de dibujo, la memoria contra los presupuestos de la parte C, los efectos dentro de su presupuesto de partículas).
+> **Lo que NO es:** una medición en dispositivos. El arte es **sintético** (ruido sobre lienzos transparentes, del tamaño que tendría arte plausible: **no** es el arte del usuario) y el navegador de pruebas dibuja con **GL por software** (SwiftShader) en la CPU de este contenedor. **No hay mediciones en iOS ni en Android**, y nada de lo de abajo dice cómo irá en un móvil.
+
+## J.1 Qué mide cada número, y qué puede y qué no puede decir
+
+| Medida | Cómo | Qué dice | Qué **no** dice |
+|---|---|---|---|
+| **Llamadas de dibujo por fotograma** | se cuentan las llamadas `draw*` de WebGL (`DrawCallCounter`) | **cómo está construida la escena**: es una propiedad del diseño, no de la máquina; por eso se **afirma** (≤ 60) | cuántas unidades de textura tiene una GPU concreta (WebGL2 garantiza ≥ 16 por etapa; por encima de eso depende del dispositivo y **no se ha medido**) |
+| **Memoria** | la biblioteca cuenta lo que retiene: ancho × alto × 4 bytes por página (RGBA8), y se contrasta con lo que escribió el empaquetador | la cuenta **exacta** de las páginas, contra los presupuestos propuestos (24 / 32 / 96 MiB) | la memoria real de la GPU (la imagen vive también decodificada en la CPU: súmale otro tanto), ni la de ningún móvil |
+| **Fotogramas** | el tiempo entre `requestAnimationFrame` (media, p50, p95, máximo, desviación, *hitches* = más del doble de la mediana) | cómo se compara **una escena con otra aquí** | nada sobre un dispositivo: es CPU de contenedor con GL por software. **No se afirma ningún umbral** |
+| **Carga del arte** | de pedir el índice a tener todas las páginas como texturas | lo que cuestan **leer, decodificar y subir** | la red: se sirve desde una ruta local, **sin latencia ni ancho de banda** |
+
+## J.2 El arte sintético
+
+Ocho *sprites sets* de 16 fotogramas de 256 × 256 (un grupo de personajes, cada set en sus páginas); el suelo de una zona (3 imágenes de 1536 × 1024, residentes sin dibujarse, para la memoria); y 24 sets diminutos (64 × 64) para la escena de más páginas de las que una GPU enlaza a la vez. **Son tamaños plausibles, no los del arte del usuario.** El mismo laboratorio mide su arte cuando llegue: `?lab=art-stress&art=<carpeta>&use=paquete/set,…`.
+
+## J.3 Lo que salió (una medición, en este contenedor: Chromium sin cabeza + SwiftShader)
+
+**Carga:** 9 páginas, **23.2 MiB** (14.7 el grupo + 8.5 el suelo), 21 ficheros, **listo en ≈ 0.6 s** por una ruta local (≈ 0.5 s de imágenes); montón de JavaScript ≈ 6 MiB (compilación de producción).
+
+| Escena | Llamadas de dibujo | Fotograma (media · p95) |
+|---|---|---|
+| 100 / 500 *sprites*, 1 / 4 / 8 páginas | **1** | 16.7–17.8 ms · 16.8–33.3 ms |
+| **1000** *sprites*, 1 / 4 / 8 páginas, ordenados | **1** | 22–24 ms · 33–50 ms |
+| 1000 *sprites*, 4 / 8 páginas, **intercalados** (cada vecino de otra página) | **1** | 23 ms · 33–50 ms |
+| 1000 *sprites*, **16 y 24 páginas**, ordenados o intercalados | **1** | 22–26 ms · 33–50 ms |
+| 500 *sprites* a **alfa 0.5** | **1** (igual que opacos) | 17 ms · 17 ms |
+| 500 *sprites* con el **30 % con luz** (aditiva) en **su propia capa** | **2** | 20 ms · 33 ms |
+| 500 *sprites* con el 30 % con luz **mezclado en la misma capa** | **301** | 24–33 ms · 33–50 ms |
+| 500 *sprites* + **efectos de combate** (20 ráfagas por segundo) | **4** (pico ≈ 170 / 300 partículas, 0 descartadas) | 20 ms · 33 ms |
+| **lo peor a la vez:** 1000 *sprites* en 8 páginas intercalados, translúcidos, animados, 30 % con luz y 30 ráfagas por segundo | **5** (pico ≈ 240 / 300, 0 descartadas) | 21–27 ms · 33–50 ms |
+
+Contra los presupuestos propuestos: el grupo (14.7 MiB) cabe en el de arranque (24), el suelo (8.5) en el de zona (32) y todo lo residente (23.2) en 96.
+
+## J.4 Las reglas que salen de las medidas
+
+1. **Las páginas no cuestan llamadas de dibujo, hasta donde la GPU enlaza texturas.** 1000 *sprites* de 24 páginas distintas, ordenados o intercalados, son **una** llamada: el renderizador agrupa en un lote los de varias texturas. WebGL2 garantiza al menos 16 unidades; la regla de diseño es **no más de 16 páginas a la vista por capa**. Por encima de eso el coste depende del dispositivo y **no se ha medido en ninguno**.
+2. **Lo que rompe un lote es cambiar de mezcla.** La luz (aditiva) mezclada con *sprites* normales en una misma capa rompe el lote en cada cambio: **301 llamadas frente a 2**. La regla: **la luz va en su capa** (`fxWorld` y `lightOverlay` son aditivas y existen para eso). Es la que más importa para el arte de VFX que llegue: **nunca dentro de `actors`**.
+3. **La transparencia no cuesta una llamada de dibujo** (sí relleno de píxeles, que aquí no se puede medir bien: GL por software).
+4. **Animar dentro de una página no cuesta nada** en llamadas: cambiar de fotograma es cambiar el rectángulo de la misma textura.
+5. **Memoria:** 16 fotogramas de 256 × 256 recortados cuestan ≈ 1.8 MiB por personaje; **una página de 2048 × 2048 son 16 MiB**: una sola se come dos tercios del presupuesto de arranque. Por eso las páginas son *tan pequeñas como puedan* (§C.1).
+6. **Los efectos respetan su presupuesto** bajo carga: ≈ 240 de 300 partículas en el perfil medio, 0 descartadas; el gobernador (150 / 300 / 400 por perfil) existe para cuando no.
+
+## J.5 Lo que no se ha medido
+
+Dispositivos reales (iOS, Android); la memoria de GPU de verdad; calor y batería; la descarga por red móvil (el peso de los PNG reales, no del ruido, que se comprime distinto); el *hitching* de subir una textura grande en un teléfono; el coste de relleno de la transparencia en una GPU móvil; el tiempo de decodificación de PNG reales de 2048². Todo eso se medirá con el arte y el aparato delante: **esto es el instrumento y las reglas de diseño, no el resultado en un teléfono.**
+
+## J.6 Probado (S43)
+
+| Qué | Dónde |
+|---|---|
+| el reparto de la multitud entre los sets (ordenado: en bloques; intercalado: por turnos), el resumen de los fotogramas (media, percentiles, desviación, *hitches*), la mediana, la cuenta de una página, los presupuestos | `stressModel.test.ts` (12) |
+| **navegador:** la biblioteca retiene **exactamente** las páginas que escribió el empaquetador y pidió **exactamente** los ficheros que había; el grupo, el suelo y todo lo residente caben en sus presupuestos; la multitud es una o dos llamadas de dibujo con 1, 4, 8, 16 y 24 páginas, ordenadas o intercaladas; la transparencia no añade ninguna; la luz en su capa añade una y **mezclada multiplica por más de veinte**; los efectos no pasan de su presupuesto de partículas; lo peor a la vez cabe en 60 | E2E `art-performance` |
+| ninguna página del juego pide el laboratorio | E2E `assets` |
+
+**Coste:** el *chunk* del laboratorio pesa 3.0 KB gzip y solo se descarga con `?lab=art-stress`; el arranque en frío sube **0.2 KB** (190.4 → 190.6 KB gzip; presupuesto 200) por el reparto de módulos en *chunks*.
+
+*(Siguiente: el cierre del Prompt 7, S44.)*

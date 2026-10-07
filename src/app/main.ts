@@ -17,6 +17,10 @@ if (lab === 'sprites') {
   // The protagonist's art, looked at without playing: a clip at a time with the anchors, the sword and the body of the game (docs/ART-PIPELINE-2D.md part G).
   const { startPlayerLab } = await import('./labs/playerLab');
   await startPlayerLab(host, params);
+} else if (lab === 'art-stress') {
+  // The budget check of the art: a crowd of sprites from art atlases and the real effects, measured (docs/ART-PIPELINE-2D.md part J).
+  const { startArtStressLab } = await import('./labs/artStressLab');
+  await startArtStressLab(host, params);
 } else if (lab === 'slime') {
   // The Ink Slime's procedural poses and its wind-up warning (docs/MIGRATION-2D.md S9).
   const { startSlimeLab } = await import('./labs/slimeLab');

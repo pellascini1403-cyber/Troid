@@ -15,8 +15,10 @@ export interface FixtureSprite {
   id: string;
   /** The canvas every frame of the set is drawn on, in pixels. */
   canvas: [number, number];
-  /** State → number of frames (the frame prefix is `<state>_`, `idle_00`…). */
+  /** State → number of frames (the frame prefix is `<state>_`, `idle_00`…, after `prefix`). */
   clips: Record<string, number>;
+  /** Put before the frame prefix of every clip (`s3_` → `s3_idle_00`): a pack names each frame once, so the sets of one pack need a prefix each. */
+  prefix?: string;
   /** Extra keys of a clip (`phases`, `fps`…), by state. */
   clipExtra?: Record<string, Record<string, unknown>>;
   /** The clips that hold the sword (the blows): each of their frames gets the anchors of the sword contract, the hand and the grip together and the tip ahead of them. */
@@ -71,7 +73,7 @@ function swordFrames(s: FixtureSprite): Record<string, unknown> {
     const count = s.clips[state] ?? 0;
     for (let i = 0; i < count; i++) {
       const hand: [number, number] = [0.25 + 0.15 * i, 1.05];
-      frames[`${state}_${String(i).padStart(2, '0')}`] = { anchors: { hand_r: hand, weapon_grip: hand, weapon_tip: [hand[0] + 0.9, 1.25] } };
+      frames[`${s.prefix ?? ''}${state}_${String(i).padStart(2, '0')}`] = { anchors: { hand_r: hand, weapon_grip: hand, weapon_tip: [hand[0] + 0.9, 1.25] } };
     }
   }
   return frames;
@@ -101,7 +103,7 @@ export function createArtFixture(packs: readonly FixturePack[]): Fixture {
           artPxPerMeter: 60,
           pivot: [0.5, 1],
           height: Math.round((s.canvas[1] / 60) * 0.85 * 100) / 100, // the figure fills most of its canvas, as a drawn one would
-          clips: Object.fromEntries(Object.entries(s.clips).map(([state, count]) => [state, { frames: `${state}_`, count, fps: 8, ...s.clipExtra?.[state] }])),
+          clips: Object.fromEntries(Object.entries(s.clips).map(([state, count]) => [state, { frames: `${s.prefix ?? ''}${state}_`, count, fps: 8, ...s.clipExtra?.[state] }])),
           ...(s.sword ? { frames: swordFrames(s) } : {}),
           ...s.extra,
         })),
@@ -109,7 +111,7 @@ export function createArtFixture(packs: readonly FixturePack[]): Fixture {
     );
     for (const s of p.sprites) {
       for (const [state, count] of Object.entries(s.clips)) {
-        for (let i = 0; i < count; i++) put(join(src, p.id, s.id, `${state}_${String(i).padStart(2, '0')}.png`), encodePng(noise(s.canvas, seed++)));
+        for (let i = 0; i < count; i++) put(join(src, p.id, s.id, `${s.prefix ?? ''}${state}_${String(i).padStart(2, '0')}.png`), encodePng(noise(s.canvas, seed++)));
       }
     }
   }
