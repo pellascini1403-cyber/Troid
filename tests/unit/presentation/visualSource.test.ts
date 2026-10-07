@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PLAYER_VISUAL } from '@/content/visuals';
-import { chooseSource, lackedClips, providesState, VISUAL_MODES, type VisualSet } from '@/presentation/visualSource';
+import { chooseSource, lackedClips, providesState, standInFor, VISUAL_MODES, type VisualSet } from '@/presentation/visualSource';
 import { ANIM_STATES, type AnimState } from '@/presentation/vocabulary';
 
 /**
@@ -41,6 +41,19 @@ describe('providesState: what the art can stand for', () => {
       expect(providesState(swing, s), s).toBe(false);
     }
     expect(providesState(art(['idle']), 'walk')).toBe(false);
+  });
+});
+
+describe('standInFor: which clip draws a state', () => {
+  it('the state\'s own clip first, then the stand-in the set has — and nothing for a state no clip can stand for', () => {
+    expect(standInFor(art(['attack', 'attack1']), 'attack')).toBe('attack');
+    expect(standInFor(art(['attack1']), 'attack')).toBe('attack1');
+    expect(standInFor(art(['attack']), 'attack1')).toBe('attack');
+    expect(standInFor(art(['attack1']), 'attack2')).toBe('attack1');
+    expect(standInFor(art(['run']), 'walk')).toBe('run');
+    expect(standInFor(art(['idle']), 'land')).toBe('idle');
+    expect(standInFor(art(['idle', 'walk']), 'dash')).toBeNull();
+    expect(standInFor(art([]), 'idle')).toBeNull();
   });
 });
 

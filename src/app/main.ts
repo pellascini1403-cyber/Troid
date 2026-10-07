@@ -13,6 +13,10 @@ if (lab === 'sprites') {
   // VFX stage: every trigger through the real director (docs/MIGRATION-2D.md S7).
   const { startVfxLab } = await import('./labs/vfxLab');
   await startVfxLab(host, params);
+} else if (lab === 'player') {
+  // The protagonist's art, looked at without playing: a clip at a time with the anchors, the sword and the body of the game (docs/ART-PIPELINE-2D.md part G).
+  const { startPlayerLab } = await import('./labs/playerLab');
+  await startPlayerLab(host, params);
 } else if (lab === 'slime') {
   // The Ink Slime's procedural poses and its wind-up warning (docs/MIGRATION-2D.md S9).
   const { startSlimeLab } = await import('./labs/slimeLab');

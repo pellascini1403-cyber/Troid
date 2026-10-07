@@ -43,9 +43,15 @@ const STAND_INS: Readonly<Partial<Record<AnimState, readonly AnimState[]>>> = {
   alert: ['idle'],
 };
 
+/** The state whose clip draws `state` in this set: `state` itself when it has the clip, else the first stand-in it has, else `null`. */
+export function standInFor(set: Pick<SpriteSetDefinition, 'clips'>, state: AnimState): AnimState | null {
+  if (set.clips[state] !== undefined) return state;
+  return (STAND_INS[state] ?? []).find((s) => set.clips[s] !== undefined) ?? null;
+}
+
 /** Can the art stand for `state`: has it the clip, or one of the stand-ins above? */
 export function providesState(set: Pick<SpriteSetDefinition, 'clips'>, state: AnimState): boolean {
-  return set.clips[state] !== undefined || (STAND_INS[state] ?? []).some((s) => set.clips[s] !== undefined);
+  return standInFor(set, state) !== null;
 }
 
 /** The look that draws `state` now. Without art there is only the placeholder. */

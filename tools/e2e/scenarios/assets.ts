@@ -59,7 +59,7 @@ export const assets: Scenario = {
         ...SIZE,
         prepare: async (context) => {
           context.on('request', (r) => {
-            if (/\/art-test\/|\/art\/index\.json|\/assets\/art-|\/app\/art\.ts|artLibrary|artIO/.test(r.url())) stray.push(r.url());
+            if (/\/art-test\/|\/art\/index\.json|\/assets\/art-|\/assets\/playerLab-|\/app\/art\.ts|\/labs\/playerLab|artLibrary|artIO/.test(r.url())) stray.push(r.url());
           });
         },
       });

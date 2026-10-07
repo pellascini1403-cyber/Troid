@@ -600,6 +600,38 @@ Si el arte llega como **una hoja por clip** en vez de un archivo por fotograma, 
 
 **Lo que NO se ha podido probar sin arte real:** cómo se ve, cuánto pesa, cuánta memoria y qué tiempo de carga tiene **el arte del usuario** (S43 mide el sistema con arte **sintético** en Chromium de escritorio; no hay mediciones en iOS ni Android).
 
+---
+
+# Parte G — El laboratorio del protagonista (S39) y R1 (S40)
+
+> **Qué es:** `?lab=player`, una herramienta para **mirar el arte del héroe sin jugar**: un clip cada vez, fotograma a fotograma, con las anclas dibujadas encima, la espada donde el arte dice que está, los límites del propio dibujo y —**aparte del dibujo, a propósito**— el cuerpo de colisión, la *hurtbox* y la *hitbox* que el juego usa de verdad, para **ver** qué toca el arte y qué no. Código: `app/labs/playerLab.ts` (el laboratorio), `presentation/labModel.ts` (las cuentas, **puras**: qué fotograma toca y dónde cae el dibujo en metros). E2E: `player-lab`.
+> **Lo que NO es:** parte del juego. Es un *chunk* aparte que **ninguna página del juego pide** (lo prueba el E2E `assets`), no escribe estado de simulación alguno y no cambia nada de lo que el juego hace.
+
+## G.1 Qué hace (S39)
+
+| Control | Qué hace |
+|---|---|
+| **look** `placeholder` · `art` · `both` | el *placeholder* solo, el arte solo, o **los dos lado a lado** a la misma escala del mundo (la forma más rápida de ver si la escala y el pivote del arte cuadran con el cuerpo). Sin arte, solo el *placeholder* (los otros botones están desactivados y el panel dice cómo cargarlo) |
+| **animation** | cualquiera de los estados (los 15 requeridos primero). Si el arte **no tiene** el clip, el panel lo dice (`no clip "jump" → the game draws the placeholder here`); si lo representa **otro** clip, el panel dice cuál (`attack ← attack1`), igual que el juego |
+| `◀` `❚❚/▶` `▶` y espacio / flechas | **fotograma a fotograma** (con la vuelta al principio y al final), pausa y *play* (en un clip que se juega una vez, *play* al final lo **repite** desde el principio); velocidad 0.25×–2×; `mirror` (mirar a la izquierda); *repeat* para ver en bucle un clip que el juego juega una vez |
+| **show** | `anchors` (todas las anclas del fotograma; las de reserva proporcionales, tenues) · `sword` (empuñadura → punta, y un círculo que se pone **rojo si la empuñadura se aleja de la mano más de 4 cm**) · `picture bounds` (el **lienzo** entero y la parte que **conservó el recorte**, en metros) · `collision body` · `hurtbox` · `hitbox` (la del ataque del juego: tenue y **brillante en la fase `active`**) · rejilla de 0.5 m · guía de altura |
+| **scale** ×0.5–×1.5 «(the picture only)» | multiplica `visualScale` de lo que se ve: **el dibujo crece y el cuerpo, la *hurtbox* y la *hitbox* no** — se ve (y el E2E lo comprueba) que la palanca visual **no toca nada del juego** (§A.7) |
+| **frame** | por cada aspecto: set, clip, fotograma `(3/8)`, fps, bucle o una vez, **fase** (`startup`/`active`/`recovery`), píxeles por metro, escala, el **lienzo y la parte recortada en metros**, `hand_r` · `grip` · `tip`, y **a qué distancia está la empuñadura de la mano** (`✓` si ≤ 4 cm) |
+| **still to be drawn** | los clips de los 15 que el arte aún no trae |
+
+`?art=<carpeta>` carga el arte de una carpeta (o el que halló el *build*); `?pack=…&set=…` mira **cualquier otro set** de la biblioteca de arte (el de un enemigo, por ejemplo); `?look=`, `?clip=`, `?play=0` abren el laboratorio ya puesto.
+
+## G.2 Probado (S39)
+
+| Qué | Dónde |
+|---|---|
+| `ClipTimeline` (bucle, una vez, pausa, paso con vuelta, velocidad, *play* sobre un clip terminado, clips de 0/1 fotogramas y sin ritmo) y las cuentas en metros (el lienzo es una **fracción** del pivote; la escala visual; la misma imagen a media resolución cubre los mismos metros; la parte recortada) | `labModel.test.ts` (11) |
+| `standInFor`: el clip que dibuja un estado en un set (el propio, o el sustituto) | `visualSource.test.ts` |
+| **navegador**, con el *placeholder* y con **arte sintético**: el panel y los 15 clips; un golpe fotograma a fotograma con la espada en la mano en cada uno y sus tres fases en orden; pausa que se queda y *play* que sigue; casillas; el cuerpo y la *hurtbox* son los del juego (`0.35 × 1.7`, `0.3 × 1.55`) **antes y después de escalar el dibujo**; límites de la escala; con arte: ambos aspectos, cada uno solo, el lienzo del arte en metros (`64 px / 60 px/m`) y su recorte, un clip que falta dicho, las fases de **su** golpe y `attack ← attack1` | E2E `player-lab` |
+| ninguna página del juego pide el laboratorio | E2E `assets` (A) |
+
+**Coste:** el *chunk* del laboratorio pesa 6.5 KB gzip y **solo se descarga con `?lab=player`**. Como comparte módulos con el juego, el *bundler* los reparte en más trozos pequeños y el arranque en frío del jugador sube **0.8 KB** (189.2 → 190.0 KB gzip; presupuesto 200) y tres archivos; es el precio de tener herramientas que miran lo mismo que el juego.
+
 *(Siguiente: **G** el laboratorio `?lab=player` y R1 (S39, S40) · **H** VFX y audio (S41) · **I** entorno (S42) · **J** rendimiento (S43).)*
 
 

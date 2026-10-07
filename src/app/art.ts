@@ -15,6 +15,8 @@ export interface ArtHost {
   drawnPxPerMetre: () => number;
   /** A development build says what is wrong with the art; a player's build keeps it to the log's quiet level (never a warning, never an error). */
   dev: boolean;
+  /** Where the notes go instead (a lab shows them in its panel). */
+  note?: (message: string) => void;
 }
 
 export type Art = ArtLibrary<ImageSource, Texture>;
@@ -27,6 +29,6 @@ export function createArt(host: ArtHost): Art {
     textures: pixiArtTextures,
     drawnPxPerMetre: host.drawnPxPerMetre,
     now: () => performance.now(),
-    note: (message) => (host.dev ? scope.warn(message) : scope.debug(message)),
+    note: host.note ?? ((message) => (host.dev ? scope.warn(message) : scope.debug(message))),
   });
 }
