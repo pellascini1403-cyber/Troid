@@ -96,7 +96,7 @@ export const language: Scenario = {
     assert.equal(await page.locator('[data-testid="settings-title"]').textContent(), 'Pausa');
     assert.equal(await page.locator('[data-testid="pause-button"]').getAttribute('aria-label'), 'Pausa y ajustes');
     await savedLanguage(page, 'es');
-    assert.deepEqual((await saved(page))!['touch'], { scale: 1, opacity: 1 });
+    assert.deepEqual((await saved(page))!['touch'], { scale: 1, opacity: 1, side: 'right', offsetX: 0, offsetY: 0 }, 'the touch settings saved are the designed ones (S30 added the side and the position)');
     await page.locator('[data-testid="settings-resume"]').click();
     await waitFor(page, `document.querySelector('[data-testid="settings-menu"]').dataset.open === '0'`, 'Resume closes the menu');
     const after = await tick(page);
@@ -160,7 +160,7 @@ export const language: Scenario = {
     await waitFor(page, `document.querySelector('[data-testid="settings-menu"]')?.dataset.open === '1'`, 'the menu still opens');
     await page.locator('[data-testid="settings-lang-es"]').click();
     await savedLanguage(page, 'es');
-    assert.equal((await saved(page))!['version'], 1, 'and a new choice is saved properly');
+    assert.equal((await saved(page))!['version'], 2, 'and a new choice is saved properly, as the current version of the settings (2 since S30)');
 
     // a value from a LATER game is kept aside, never overwritten silently
     await page.evaluate(`localStorage.setItem(${JSON.stringify(KEY)}, '{"version":9,"language":"es"}')`);
@@ -185,7 +185,7 @@ export const language: Scenario = {
     assert.ok(Math.abs(after2 / before - 1.3) < 0.01, `the controls grew by 30 % at once (${before} → ${after2})`);
     assert.equal(await page.locator('[data-testid="touch-layer"]').evaluate((e) => (e as HTMLElement).style.opacity), '0.5', 'and fade at once');
     for (let i = 0; i < 40 && ((await saved(page))?.['touch'] as { scale?: number } | undefined)?.scale !== 1.3; i++) await page.waitForTimeout(50);
-    assert.deepEqual((await saved(page))!['touch'], { scale: 1.3, opacity: 0.5 });
+    assert.deepEqual((await saved(page))!['touch'], { scale: 1.3, opacity: 0.5, side: 'right', offsetX: 0, offsetY: 0 }, 'what the player chose, and the designed side and position');
     await page.locator('[data-testid="settings-resume"]').click();
     await page.reload();
     await ready(page);

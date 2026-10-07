@@ -22,7 +22,7 @@ export class Translator {
   private readonly warn = log.scope('i18n');
 
   constructor(
-    private readonly catalogs: Readonly<Record<string, Catalog>>,
+    private catalogs: Readonly<Record<string, Catalog>>,
     locale: string,
     private readonly fallback = 'en',
   ) {
@@ -43,6 +43,16 @@ export class Translator {
     const next = this.resolve(locale, this.changed.get());
     this.changed.set(next);
     return next;
+  }
+
+  /**
+   * Adds texts to a language that is already there (a part of the interface that loads later brings its own words). The same key again replaces it;
+   * a language the translator does not have is ignored. It announces nothing: whoever extends it is about to read what it added.
+   */
+  extend(locale: string, entries: Catalog): void {
+    const current = this.catalogs[locale];
+    if (!current) return;
+    this.catalogs = { ...this.catalogs, [locale]: { ...current, ...entries } };
   }
 
   has(key: string): boolean {

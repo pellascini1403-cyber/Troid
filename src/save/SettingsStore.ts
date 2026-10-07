@@ -1,11 +1,17 @@
 import { Observable } from '@/core/observable';
 import { SafeStore } from './SafeStore';
-import { defaultSettings, parseSettings, repairSettings, serializeSettings, type SettingsData, type TouchSettings } from './SettingsData';
+import type { KeyMap } from '@/input/remap';
+import type { QualitySetting } from '@/presentation/viewport';
+import { defaultSettings, parseSettings, repairSettings, serializeSettings, type SettingsData, type TouchSettings, type VolumeSettings } from './SettingsData';
 import type { StorageAdapter } from './StorageAdapter';
 
 /** A change to the settings: only what is given changes. */
 export interface SettingsPatch {
   language?: string | null;
+  volume?: Partial<VolumeSettings>;
+  quality?: QualitySetting;
+  /** The whole map of keys replaces the one there was (the menu works out swaps and refusals before asking). */
+  keys?: KeyMap;
   touch?: Partial<TouchSettings>;
 }
 
@@ -45,6 +51,9 @@ export class SettingsStore {
     const cur = this.state;
     const next = repairSettings({
       language: patch.language === undefined ? cur.language : patch.language,
+      volume: { ...cur.volume, ...patch.volume },
+      quality: patch.quality ?? cur.quality,
+      keys: patch.keys ?? cur.keys,
       touch: { ...cur.touch, ...patch.touch },
     });
     this.state = next;

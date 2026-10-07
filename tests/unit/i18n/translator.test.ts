@@ -107,3 +107,43 @@ describe('detectLocale (GAME-SPEC-2D §18: the device language if es-* / en-*, E
     expect(detectLocale([], supported, 'es')).toBe('es');
   });
 });
+
+describe('extend: a part of the interface that loads later brings its own words (docs/PROMPT6-LOG.md S30)', () => {
+  const catalogs = { en: { 'a.one': 'One' }, es: { 'a.one': 'Uno' } };
+
+  it('adds texts to a language the translator has: they are found at once, in that language, with their parameters', () => {
+    const t = createTranslator(catalogs, 'es');
+    expect(t.has('b.two')).toBe(false);
+    t.extend('es', { 'b.two': 'Dos {n}' });
+    t.extend('en', { 'b.two': 'Two {n}' });
+    expect(t.t('b.two', { n: 2 })).toBe('Dos 2');
+    t.setLocale('en');
+    expect(t.t('b.two', { n: 2 })).toBe('Two 2');
+    expect(t.t('a.one'), 'what was there is still there').toBe('One');
+  });
+
+  it('the same key again replaces it; extending does not touch the catalogs it was built from', () => {
+    const t = createTranslator(catalogs, 'en');
+    t.extend('en', { 'a.one': 'Uno!' });
+    expect(t.t('a.one')).toBe('Uno!');
+    expect(catalogs.en['a.one']).toBe('One');
+    expect(createTranslator(catalogs, 'en').t('a.one')).toBe('One');
+  });
+
+  it('a language it does not have is ignored (the translator never grows a language by being extended), and extending announces no change', () => {
+    const t = createTranslator(catalogs, 'en');
+    const seen: string[] = [];
+    t.changed.subscribe((l) => void seen.push(l));
+    t.extend('fr', { 'a.one': 'Un' });
+    expect(t.languages.sort()).toEqual(['en', 'es']);
+    t.extend('en', { 'c.three': 'Three' });
+    expect(seen).toEqual([]);
+  });
+
+  it('the fallback language still catches what the current one lacks', () => {
+    const t = createTranslator(catalogs, 'es');
+    t.extend('en', { 'only.en': 'Only English' });
+    expect(t.t('only.en')).toBe('Only English');
+  });
+});
+

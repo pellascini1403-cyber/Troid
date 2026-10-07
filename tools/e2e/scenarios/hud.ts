@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Page } from 'playwright-core';
+import { frames } from '../frames';
 import type { Scenario } from '../scenario';
 import { centreOf, TouchScreen } from '../touch';
 
@@ -146,7 +147,10 @@ export const hud: Scenario = {
     // ================================================================== every aspect ratio: top left, on screen, clear of the controls
     for (const [w, h] of [[1024, 768], [1280, 720], [844, 390], [1260, 540], [667, 375]] as const) {
       await page.setViewportSize({ width: w, height: h });
-      await page.waitForTimeout(120);
+      // wait for the page to have laid the HUD out for THIS window (its `resize` runs on the page's own frames, which can be slow without a GPU), not for a time
+      const scale = Math.min(1.6, Math.max(0.9, Math.min(w, h * 2.1) / 844));
+      for (let i = 0; i < 80 && Math.abs(((await page.evaluate('window.__troid.hud().layout.scale')) as number) - scale) > 1e-9; i++) await page.waitForTimeout(50);
+      await frames(page, 3);
       const hb = await box(page, 'hud-block');
       const l = ((await page.evaluate('window.__troid.hud().layout')) as { scale: number });
       assert.ok(hb.x >= 0 && hb.y >= 0 && hb.x + hb.width <= w && hb.y + hb.height <= h, `${w}×${h}: the HUD is entirely on screen (${JSON.stringify(hb)})`);

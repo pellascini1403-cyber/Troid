@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { frames } from '../frames';
 import type { Scenario } from '../scenario';
 import { centreOf, TouchScreen } from '../touch';
 
@@ -207,6 +208,7 @@ export const touch: Scenario = {
     await ctx.step(20);
     assert.ok((await ctx.state()).vx > 8);
     await screen.cancelAll(); // the system takes the touches
+    await frames(page, 3); // …and the page has them (the cancel is delivered on the page's own frames: stepping before it arrives would run the old finger)
     await ctx.step(40);
     s = await ctx.state();
     assert.ok(Math.abs(s.vx) < 0.1, `a cancelled touch stops the hero (${s.vx})`);

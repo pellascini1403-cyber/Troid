@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { computeViewport, MAX_ASPECT, MIN_ASPECT, RESOLUTION_CAP } from '@/presentation/viewport';
+import { computeViewport, MAX_ASPECT, MIN_ASPECT, QUALITY_SETTINGS, RESOLUTION_CAP, tierFor } from '@/presentation/viewport';
+import { PARTICLE_BUDGET, SPRITE_FX_BUDGET } from '@/presentation/vfx';
 
 const base = { dpr: 1, resolutionCap: 2, viewHeight: 13.5 };
 const vp = (cssWidth: number, cssHeight: number, extra: Partial<typeof base> = {}) => computeViewport({ cssWidth, cssHeight, ...base, ...extra });
@@ -62,3 +63,35 @@ describe('viewport: render resolution', () => {
     expect(Number.isFinite(v.visibleWidth)).toBe(true);
   });
 });
+
+describe('the quality a player chooses (docs/PROMPT6-LOG.md S30)', () => {
+  it('three choices: auto, low and high — nothing else', () => {
+    expect([...QUALITY_SETTINGS]).toEqual(['auto', 'low', 'high']);
+  });
+
+  it('low and high are the two ends of the profiles the game has; auto is the balanced one it always had — it measures nothing', () => {
+    expect(tierFor('low')).toBe('low');
+    expect(tierFor('high')).toBe('high');
+    expect(tierFor('auto')).toBe('medium');
+  });
+
+  it('each profile costs what it should: the render resolution and the effect budgets only go up from low to high', () => {
+    const order = ['low', 'medium', 'high'] as const;
+    for (let i = 1; i < order.length; i++) {
+      const a = order[i - 1]!;
+      const b = order[i]!;
+      expect(RESOLUTION_CAP[b], `${b} resolution`).toBeGreaterThan(RESOLUTION_CAP[a]);
+      expect(PARTICLE_BUDGET[b], `${b} particles`).toBeGreaterThan(PARTICLE_BUDGET[a]);
+      expect(SPRITE_FX_BUDGET[b], `${b} sprite effects`).toBeGreaterThan(SPRITE_FX_BUDGET[a]);
+    }
+  });
+
+  it('the choice changes how sharp the picture is on a dense screen, and only there: a screen of density 1 is the same in every profile', () => {
+    const at = (setting: (typeof QUALITY_SETTINGS)[number], dpr: number) => vp(844, 390, { dpr, resolutionCap: RESOLUTION_CAP[tierFor(setting)] }).resolution;
+    expect(at('low', 3)).toBe(1.25);
+    expect(at('auto', 3)).toBe(1.75);
+    expect(at('high', 3)).toBe(2);
+    for (const s of QUALITY_SETTINGS) expect(at(s, 1), s).toBe(1);
+  });
+});
+

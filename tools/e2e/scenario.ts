@@ -62,6 +62,11 @@ export interface GameState {
   bottles?: string[];
   projectiles?: Array<{ id: string; x: number; y: number; facing: number }>;
   respawnPoint?: { room: string; entry: string };
+  /** 2D view only (S30): the master volume (level 0–1 and the gain of it), the quality profile in force and what it costs, the main key of each action, whether the menu is open. */
+  volume?: { level: number; gain: number };
+  quality?: { setting: string; tier: string; resolution: number; particleBudget: number | null; spriteBudget: number | null };
+  keys?: Record<string, string>;
+  menuOpen?: boolean;
   /** 2D view only: VFX counters. */
   vfx?: { particles: number; sprites: number; spawned: number; dropped: number; peakParticles: number; poolCreated: number };
   /** 2D view only: median / worst GL draw calls per frame over the last 120 frames. */

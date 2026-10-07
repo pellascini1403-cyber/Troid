@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { CATALOGS } from '@/i18n/catalogs';
+import { ALL_CATALOGS } from '../../helpers/catalogs';
 
 /**
  * Keys that the code names in DATA (`nameKey: 'room.r1.name'`, `labelKey: 'touch.attack'`, …) rather than in a `t('…')` call
@@ -33,7 +33,7 @@ describe('keys named in data exist in every language', () => {
   });
 
   it('none is missing in any language', () => {
-    const missing = refs().flatMap(({ file, key }) => Object.keys(CATALOGS).filter((l) => CATALOGS[l]![key] === undefined).map((l) => `${file}: "${key}" missing in ${l}`));
+    const missing = refs().flatMap(({ file, key }) => Object.keys(ALL_CATALOGS).filter((l) => ALL_CATALOGS[l]![key] === undefined).map((l) => `${file}: "${key}" missing in ${l}`));
     expect(missing).toEqual([]);
   });
 });

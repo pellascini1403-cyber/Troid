@@ -4,7 +4,7 @@ import type { TouchSource, TouchTarget } from '@/input/sources/TouchSource';
 import type { Translator } from '@/i18n/translator';
 import { cssHex, PALETTE } from '@/presentation/palette';
 import { createIcon } from '../icons';
-import { computeTouchLayout, NO_INSETS, type Disc, type Insets, type TouchLayout } from './layout';
+import { computeTouchLayout, DEFAULT_PLACEMENT, NO_INSETS, type Disc, type Insets, type Placement, type TouchLayout } from './layout';
 
 type ControlId = 'attack' | 'dash' | 'ability' | 'chip';
 
@@ -33,6 +33,8 @@ export interface TouchControlsOptions {
   size?: number;
   /** Opacity of what is drawn (Settings), 0.3 … 1. */
   opacity?: number;
+  /** Which side the buttons are on and how far in and up they hang (Settings). */
+  placement?: Placement;
 }
 
 /**
@@ -58,6 +60,7 @@ export class TouchControls {
   private width = 0;
   private height = 0;
   private size: number;
+  private placement: Placement;
   private visible = true;
 
   constructor(
@@ -68,6 +71,7 @@ export class TouchControls {
   ) {
     const doc = parent.ownerDocument;
     this.size = options.size ?? 1;
+    this.placement = { ...DEFAULT_PLACEMENT, ...options.placement };
     this.layout = computeTouchLayout(0, 0);
 
     this.root = doc.createElement('div');
@@ -127,14 +131,30 @@ export class TouchControls {
     this.width = width;
     this.height = height;
     this.insets = insets;
-    this.layout = computeTouchLayout(width, height, insets, this.size);
+    this.layout = this.compute();
     if (changed) this.releaseAll(); // the fingers are no longer where they were
     this.applyLayout();
   }
 
   setSize(size: number): void {
     this.size = size;
-    this.layout = computeTouchLayout(this.width, this.height, this.insets, size);
+    this.relayout();
+  }
+
+  /** The player moved the buttons: the other side of the screen, further in, higher. */
+  setPlacement(placement: Placement): void {
+    this.placement = { ...placement };
+    this.relayout();
+  }
+
+  private compute(): TouchLayout {
+    return computeTouchLayout(this.width, this.height, this.insets, this.size, undefined, this.placement);
+  }
+
+  /** The layout changed under the fingers (a setting, not a resize): a finger on a button that moved is no longer on it. */
+  private relayout(): void {
+    this.layout = this.compute();
+    this.releaseAll();
     this.applyLayout();
   }
 

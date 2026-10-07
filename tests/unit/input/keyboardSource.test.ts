@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DisposableStore } from '@/core/lifecycle';
 import { InputManager } from '@/input/InputManager';
 import { DEFAULT_BINDINGS, type Bindings } from '@/input/bindings';
+import { applyKeyMap, assignKey, type KeyMap } from '@/input/remap';
 import { attachKeyboardMouse } from '@/input/sources/KeyboardMouseSource';
 
 const key = (type: 'keydown' | 'keyup', code: string, init: KeyboardEventInit = {}) => {
@@ -162,6 +163,80 @@ describe('keyboard + mouse source', () => {
     expect(input.sample().jumpPressed).toBe(false);
     key('keydown', 'KeyZ');
     expect(input.sample().jumpPressed).toBe(true);
+  });
+
+  describe('the keys a player chose (docs/PROMPT6-LOG.md S30): the source reads the bindings on every event, so a change is in force at once', () => {
+    /** What `Game2D` does when the menu reports a map: new bindings from the defaults, and nothing left pressed. */
+    const choose = (map: KeyMap): void => {
+      bindings = applyKeyMap(DEFAULT_BINDINGS, map);
+      input.releaseAll();
+    };
+    type Frame = ReturnType<InputManager['sample']>;
+    /** Presses `code`, reads what it did (the frame is reused: it must be read before the next sample) and lets go. */
+    const sampleOf = <T>(code: string, read: (f: Frame) => T): T => {
+      key('keydown', code);
+      const out = read(input.sample());
+      key('keyup', code);
+      input.sample();
+      return out;
+    };
+
+    it('the new key does the action and the old one does nothing — for every action the player may change', () => {
+      const cases: Array<[string, string, string, (f: Frame) => boolean]> = [
+        ['jump', 'KeyH', 'Space', (f) => f.jumpPressed],
+        ['attack', 'KeyF', 'KeyJ', (f) => f.attackPressed],
+        ['dash', 'KeyG', 'ShiftLeft', (f) => f.dashPressed],
+        ['ability', 'KeyR', 'KeyK', (f) => f.abilityPressed],
+        ['bottle', 'KeyB', 'KeyL', (f) => f.bottlePressed],
+        ['interact', 'KeyT', 'KeyE', (f) => f.interactPressed],
+        ['down', 'KeyX', 'KeyS', (f) => f.move.y < 0],
+      ];
+      for (const [action, to, from, did] of cases) {
+        const r = assignKey({}, action as 'jump', to);
+        expect(r.ok, action).toBe(true);
+        choose((r as { map: KeyMap }).map);
+        expect(sampleOf(to, did), `${action}: ${to} does it`).toBe(true);
+        expect(sampleOf(from, did), `${action}: ${from} no longer does`).toBe(false);
+      }
+    });
+
+    it('the extra keys of an action stay: the second Shift still dashes, the arrow still crouches, Q still drinks', () => {
+      choose({ dash: 'KeyG', down: 'KeyX', bottle: 'KeyB' });
+      expect(sampleOf('ShiftRight', (f) => f.dashPressed)).toBe(true);
+      expect(sampleOf('ArrowDown', (f) => f.move.y)).toBeLessThan(0);
+      expect(sampleOf('KeyQ', (f) => f.bottlePressed)).toBe(true);
+    });
+
+    it('two actions that swapped keys each do what the other did', () => {
+      const r = assignKey({}, 'attack', 'KeyK') as { map: KeyMap };
+      choose(r.map);
+      expect(sampleOf('KeyK', (f) => [f.attackPressed, f.abilityPressed])).toEqual([true, false]);
+      expect(sampleOf('KeyJ', (f) => [f.attackPressed, f.abilityPressed])).toEqual([false, true]);
+    });
+
+    it('movement and the pause keys do not move: whatever the player chose, A and D walk and Escape and P pause', () => {
+      choose({ attack: 'KeyF', jump: 'KeyH', dash: 'KeyG', down: 'KeyX', interact: 'KeyT' });
+      expect(sampleOf('KeyD', (f) => f.move.x)).toBe(1);
+      expect(sampleOf('KeyA', (f) => f.move.x)).toBe(-1);
+      expect(sampleOf('Escape', (f) => f.pausePressed)).toBe(true);
+      expect(sampleOf('KeyP', (f) => f.pausePressed)).toBe(true);
+    });
+
+    it('the browser default is kept from the new keys and no longer from the old ones', () => {
+      choose({ attack: 'KeyF' });
+      expect(key('keydown', 'KeyF').defaultPrevented).toBe(true);
+      key('keyup', 'KeyF');
+      expect(key('keydown', 'KeyJ').defaultPrevented).toBe(false);
+    });
+
+    it('a key that was held when the choice was made is let go: nothing keeps acting under the old key', () => {
+      key('keydown', 'KeyJ'); // attack, held
+      expect(input.sample().attackHeld).toBe(true);
+      choose({ attack: 'KeyF' });
+      expect(input.sample().attackHeld).toBe(false);
+      key('keyup', 'KeyJ');
+      expect(input.sample().attackHeld).toBe(false);
+    });
   });
 
   it('disposing removes every listener: later events do nothing', () => {

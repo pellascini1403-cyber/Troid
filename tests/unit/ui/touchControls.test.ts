@@ -75,6 +75,69 @@ describe('touch controls (DOM)', () => {
     }
   });
 
+  describe('where the player put the buttons (docs/PROMPT6-LOG.md S30)', () => {
+    const at = (id: string): { cx: number; cy: number } => {
+      const el = q(host, id);
+      return { cx: Number.parseFloat(el.style.left) + Number.parseFloat(el.style.width) / 2, cy: Number.parseFloat(el.style.top) + Number.parseFloat(el.style.height) / 2 };
+    };
+    const NONE = { top: 0, right: 0, bottom: 0, left: 0 };
+
+    it('the buttons go to the other side and the movement zone comes to this one: the DOM is the layout of that placement', () => {
+      controls.setPlacement({ side: 'left', offsetX: 0, offsetY: 0 });
+      const l = computeTouchLayout(844, 390, NONE, 1, undefined, { side: 'left', offsetX: 0, offsetY: 0 });
+      expect(controls.current.side).toBe('left');
+      for (const [id, d] of [['touch-attack', l.attack], ['touch-dash', l.dash]] as const) {
+        expect(at(id).cx, id).toBeCloseTo(d.cx, 3);
+        expect(at(id).cy, id).toBeCloseTo(d.cy, 3);
+        expect(at(id).cx, `${id} is on the left half`).toBeLessThan(422);
+      }
+      const zone = q(host, 'touch-zone');
+      expect(Number.parseFloat(zone.style.left)).toBeCloseTo(l.zone.x, 3);
+      expect(Number.parseFloat(zone.style.left), 'the zone is on the right half').toBeGreaterThan(422);
+      expect(Number.parseFloat(zone.style.left) + Number.parseFloat(zone.style.width)).toBeCloseTo(844, 3);
+    });
+
+    it('in and up: the offsets move the whole block together', () => {
+      const a0 = at('touch-attack');
+      const d0 = at('touch-dash');
+      controls.setPlacement({ side: 'right', offsetX: 1, offsetY: 1 });
+      const a1 = at('touch-attack');
+      const d1 = at('touch-dash');
+      expect(a1.cx).toBeLessThan(a0.cx);
+      expect(a1.cy).toBeLessThan(a0.cy);
+      expect(a1.cx - d1.cx).toBeCloseTo(a0.cx - d0.cx, 3);
+      expect(a1.cy - d1.cy).toBeCloseTo(a0.cy - d0.cy, 3);
+    });
+
+    it('is given at construction as well: a saved game opens with the buttons where they were left', () => {
+      const own = document.createElement('div');
+      document.body.appendChild(own);
+      const c = new TouchControls(own, new TouchSource(new InputManager()), tr, { placement: { side: 'left', offsetX: 0.5, offsetY: 0 } });
+      c.place(844, 390, NONE);
+      expect(c.current.side).toBe('left');
+      expect(Number.parseFloat(q(own, 'touch-attack').style.left)).toBeLessThan(422);
+      c.dispose();
+    });
+
+    it('the size and the placement keep each other: changing one does not forget the other', () => {
+      controls.setPlacement({ side: 'left', offsetX: 0.5, offsetY: 0.5 });
+      controls.setSize(1.3);
+      const l = computeTouchLayout(844, 390, NONE, 1.3, undefined, { side: 'left', offsetX: 0.5, offsetY: 0.5 });
+      expect(at('touch-attack').cx).toBeCloseTo(l.attack.cx, 3);
+      expect(at('touch-attack').cy).toBeCloseTo(l.attack.cy, 3);
+      controls.place(1280, 720, NONE);
+      const m = computeTouchLayout(1280, 720, NONE, 1.3, undefined, { side: 'left', offsetX: 0.5, offsetY: 0.5 });
+      expect(at('touch-attack').cx).toBeCloseTo(m.attack.cx, 3);
+    });
+
+    it('moving the buttons lets go of every finger: a thumb on a button that moved is no longer on it', () => {
+      q(host, 'touch-attack').dispatchEvent(pointer('pointerdown', 1, 700, 340));
+      expect(input.sample().attackHeld).toBe(true);
+      controls.setPlacement({ side: 'left', offsetX: 0, offsetY: 0 });
+      expect(input.sample().attackHeld).toBe(false);
+    });
+  });
+
   it('moves with the window and with the safe area (a notch pushes the buttons in)', () => {
     const before = Number.parseFloat(q(host, 'touch-attack').style.left);
     controls.place(844, 390, { top: 0, right: 47, bottom: 21, left: 47 });

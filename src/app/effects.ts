@@ -18,6 +18,8 @@ import { VfxSystem } from '@/vfx/VfxSystem';
 export interface Effects {
   readonly system: VfxSystem;
   readonly director: VfxDirector;
+  /** What the quality profile it was built with allows: live particles and live sprite effects (the E2E reads it; the game does not need it). */
+  readonly budgets: { readonly particles: number; readonly sprites: number };
   dispose(): void;
 }
 
@@ -51,15 +53,17 @@ function installParticlePipe(renderer: unknown): void {
 /** Pooled, budgeted, driven by simulation events and running in REAL time (a hit-stop does not freeze the sparks). */
 export function createEffects(o: EffectsOptions): Effects {
   installParticlePipe(o.renderer);
+  const budgets = { particles: PARTICLE_BUDGET[o.tier], sprites: SPRITE_FX_BUDGET[o.tier] };
   const system = new VfxSystem({ add: o.layers.fxWorld, normal: o.layers.fxNormal }, o.atlas, VFX, {
-    particleBudget: PARTICLE_BUDGET[o.tier],
-    spriteBudget: SPRITE_FX_BUDGET[o.tier],
+    particleBudget: budgets.particles,
+    spriteBudget: budgets.sprites,
   });
   system.prewarm();
   const director = new VfxDirector(o.bus, system, VFX_BINDINGS, VFX, o.playerPosition, o.projectileSkills);
   return {
     system,
     director,
+    budgets,
     dispose: () => {
       director.dispose();
       system.destroy();

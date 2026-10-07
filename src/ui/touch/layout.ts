@@ -25,7 +25,20 @@ export interface Box {
   h: number;
 }
 
+/** Where the player put the buttons (the settings screen): which side of the screen, and how far in and up from the corner they hang. */
+export interface Placement {
+  side: 'right' | 'left';
+  /** 0 (as designed) … 1 (the farthest in the window allows). */
+  offsetX: number;
+  /** 0 … 1: how far up (never into the interface at the top). */
+  offsetY: number;
+}
+
+export const DEFAULT_PLACEMENT: Readonly<Placement> = Object.freeze({ side: 'right', offsetX: 0, offsetY: 0 });
+
 export interface TouchLayout {
+  /** The side the buttons are on; the movement zone is the other one. */
+  side: Placement['side'];
   /** The scale of the gestures: `uiScale` of the window (distances in dp × this = px). */
   gestureScale: number;
   /** The scale of what is drawn: `uiScale` × the player's size preference. */
@@ -52,11 +65,27 @@ export const TOUCH_CONTROLS = {
   chip: { dx: -64, dy: -196, visual: 52, hit: 64 },
 } as const;
 
+/** How far the player may move the buttons in from their side and up from the bottom (dp, at most: the window may allow less). */
+export const PLACEMENT_RANGE = { x: 120, y: 90 } as const;
+/** The height of the interface at the top that the buttons are never lifted into (the life, the magic and the bottles), dp. */
+const TOP_RESERVE = 96;
+/** The movement zone never gets narrower than this fraction of the usable width, however far in the buttons are moved. */
+const MIN_ZONE = 0.3;
+/** The block of the four controls, as offsets from the corner of the screen they hang from (dp): its width and its distance from the bottom edge. */
+const CLUSTER = (() => {
+  const all = Object.values(TOUCH_CONTROLS);
+  return {
+    farX: Math.max(...all.map((c) => Math.abs(c.dx) + c.hit / 2)),
+    topY: Math.max(...all.map((c) => Math.abs(c.dy) + c.hit / 2)),
+  };
+})();
+
 /**
  * Where everything goes for a window of `width × height` px with the given safe insets. A pure function of its inputs, so the
  * design numbers (no overlaps, margins from the edges, every aspect ratio from 4:3 to 21:9) are tested without a browser.
- * The controls hang from the bottom-right corner (they never depend on the aspect ratio); the zone is a fraction of the
- * usable width.
+ * The controls hang from the bottom corner of the side the player chose (they never depend on the aspect ratio); the zone is a
+ * fraction of the usable width, on the other side. `placement` moves the buttons in and up by what the player asked for, but only as far as
+ * the window allows: they never leave the safe area, never reach into the interface at the top and never take more than 70 % of the width.
  */
 export function computeTouchLayout(
   width: number,
@@ -64,14 +93,23 @@ export function computeTouchLayout(
   insets: Readonly<Insets> = NO_INSETS,
   sizePreference = 1,
   cfg: Readonly<TouchConfig> = DEFAULT_TOUCH,
+  placement: Readonly<Placement> = DEFAULT_PLACEMENT,
 ): TouchLayout {
   const gestureScale = uiScale(width, height);
   const s = gestureScale * sizePreference;
-  const cornerX = width - insets.right;
+  const mirrored = placement.side === 'left';
+  const usable = Math.max(0, width - insets.left - insets.right);
+  const cornerX = mirrored ? insets.left : width - insets.right;
   const cornerY = height - insets.bottom;
+  // how far in and up the player's choice may actually go in THIS window
+  const maxIn = Math.max(0, usable * (1 - MIN_ZONE) - CLUSTER.farX * s);
+  const maxUp = Math.max(0, cornerY - CLUSTER.topY * s - (insets.top + TOP_RESERVE * s));
+  const unit = (v: number): number => Math.min(1, Math.max(0, Number.isFinite(v) ? v : 0));
+  const inward = unit(placement.offsetX) * Math.min(PLACEMENT_RANGE.x * s, maxIn);
+  const upward = unit(placement.offsetY) * Math.min(PLACEMENT_RANGE.y * s, maxUp);
   const disc = (c: (typeof TOUCH_CONTROLS)[keyof typeof TOUCH_CONTROLS]): Disc => ({
-    cx: cornerX + c.dx * s,
-    cy: cornerY + c.dy * s,
+    cx: mirrored ? cornerX - c.dx * s + inward : cornerX + c.dx * s - inward,
+    cy: cornerY + c.dy * s - upward,
     visual: c.visual * s,
     hit: c.hit * s,
   });
@@ -79,16 +117,24 @@ export function computeTouchLayout(
   const dash = disc(TOUCH_CONTROLS.dash);
   const ability = disc(TOUCH_CONTROLS.ability);
   const chip = disc(TOUCH_CONTROLS.chip);
-  // the zone is the left part of the usable width, but it never reaches a control (a very small window with big controls
-  // would otherwise make them overlap: the zone yields)
-  const usable = Math.max(0, width - insets.left - insets.right);
-  const leftmost = Math.min(...[attack, dash, ability, chip].map((d) => d.cx - d.hit / 2));
-  const zoneW = Math.max(0, Math.min(usable * cfg.leftZoneWidth, leftmost - ZONE_GAP - insets.left));
+  // the zone is the part of the usable width on the side the buttons are not, but it never reaches a control (a very small window with big
+  // controls would otherwise make them overlap: the zone yields)
+  const all = [attack, dash, ability, chip];
+  let zone: Box;
+  if (mirrored) {
+    const rightmost = Math.max(...all.map((d) => d.cx + d.hit / 2));
+    const w = Math.max(0, Math.min(usable * cfg.leftZoneWidth, width - insets.right - rightmost - ZONE_GAP));
+    zone = { x: width - insets.right - w, y: 0, w, h: height };
+  } else {
+    const leftmost = Math.min(...all.map((d) => d.cx - d.hit / 2));
+    zone = { x: insets.left, y: 0, w: Math.max(0, Math.min(usable * cfg.leftZoneWidth, leftmost - ZONE_GAP - insets.left)), h: height };
+  }
   return {
+    side: placement.side,
     gestureScale,
     controlScale: s,
     insets: { ...insets },
-    zone: { x: insets.left, y: 0, w: zoneW, h: height },
+    zone,
     attack,
     dash,
     ability,

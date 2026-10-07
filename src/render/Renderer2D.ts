@@ -1,7 +1,7 @@
 import { Application, Graphics, Sprite } from 'pixi.js';
 import { verticalGradientTexture } from '@/assets/proceduralTextures';
 import { PALETTE } from '@/presentation/palette';
-import { computeViewport, RESOLUTION_CAP, type QualityTier, type ViewportLayout } from '@/presentation/viewport';
+import { computeViewport, RESOLUTION_CAP, tierFor, type QualitySetting, type QualityTier, type ViewportLayout } from '@/presentation/viewport';
 import {
   computeWorldTransform,
   createWorldTransform,
@@ -18,6 +18,8 @@ export interface Renderer2DOptions {
   /** Visible world height in metres (GAME-SPEC-2D §16: 13.5). */
   viewHeight: number;
   tier?: QualityTier;
+  /** What the player chose (S30); `tier` wins when both are given. Without either, the balanced profile. */
+  quality?: QualitySetting;
 }
 
 function hostSize(host: HTMLElement): { cssWidth: number; cssHeight: number } {
@@ -62,7 +64,7 @@ export class Renderer2D {
   }
 
   static async create(opts: Renderer2DOptions): Promise<Renderer2D> {
-    const tier = opts.tier ?? 'medium';
+    const tier = opts.tier ?? tierFor(opts.quality ?? 'auto');
     const size = hostSize(opts.host);
     const layout = computeViewport({ ...size, dpr: window.devicePixelRatio || 1, resolutionCap: RESOLUTION_CAP[tier], viewHeight: opts.viewHeight });
     const app = new Application();
@@ -98,6 +100,11 @@ export class Renderer2D {
     this.size = hostSize(this.host);
     this.relayout();
     return this.layout;
+  }
+
+  /** The player chose another profile: the resolution ceiling follows at once. */
+  setQuality(setting: QualitySetting): void {
+    this.setTier(tierFor(setting));
   }
 
   setTier(tier: QualityTier): void {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultSettings } from '@/save/SettingsData';
+import { defaultSettings, serializeSettings } from '@/save/SettingsData';
 import { SettingsStore } from '@/save/SettingsStore';
 import { MemoryStorage } from '@/save/StorageAdapter';
 import { FlakyStorage } from '../../helpers/storage';
@@ -14,7 +14,9 @@ const warnings = (): { list: string[]; warn: (m: string) => void } => {
   const list: string[] = [];
   return { list, warn: (m) => void list.push(m) };
 };
-const saved = (language: string, scale = 1): string => JSON.stringify({ version: 1, language, touch: { scale, opacity: 1 } });
+const saved = (language: string, scale = 1): string => serializeSettings({ ...defaultSettings(), language, touch: { ...defaultSettings().touch, scale } });
+/** What version 1 of the game wrote (before S30): it must still load. */
+const savedV1 = (language: string, scale = 1): string => JSON.stringify({ version: 1, language, touch: { scale, opacity: 1 } });
 
 describe('loading', () => {
   it('nothing saved: the defaults, and nothing is written (a new player leaves no trace until they change something)', async () => {
@@ -32,6 +34,15 @@ describe('loading', () => {
     expect(s.language).toBe('es');
     expect(s.touch.scale).toBe(1.2);
     expect(store.value).toBe(s);
+  });
+
+  it('a value written by the first version of the game loads: what it held is kept and what is new arrives with its defaults (S30)', async () => {
+    const storage = new MemoryStorage();
+    await storage.set(KEY, savedV1('es', 1.3));
+    const store = new SettingsStore(storage);
+    const s = await store.load();
+    expect(s).toEqual({ ...defaultSettings(), language: 'es', touch: { ...defaultSettings().touch, scale: 1.3 } });
+    expect(await storage.get(`${KEY}.corrupt`), 'an old file is not a damaged one').toBeNull();
   });
 
   it('an unreadable main copy is KEPT as `.corrupt` and the backup takes over (and the main copy is put right)', async () => {
@@ -89,7 +100,7 @@ describe('saving', () => {
     const done = store.update({ language: 'es' });
     expect(store.value.language).toBe('es'); // before the write finishes
     expect(await done).toBe(true);
-    expect(JSON.parse((await storage.get(KEY)) ?? '')).toEqual({ version: 1, language: 'es', touch: { scale: 1, opacity: 1 } });
+    expect(JSON.parse((await storage.get(KEY)) ?? '')).toEqual({ ...defaultSettings(), language: 'es' });
   });
 
   it('a patch changes only what it names: the touch settings merge field by field', async () => {
@@ -97,7 +108,7 @@ describe('saving', () => {
     await store.load();
     await store.update({ language: 'en', touch: { scale: 1.3 } });
     await store.update({ touch: { opacity: 0.5 } });
-    expect(store.value).toEqual({ version: 1, language: 'en', touch: { scale: 1.3, opacity: 0.5 } });
+    expect(store.value).toEqual({ ...defaultSettings(), language: 'en', touch: { ...defaultSettings().touch, scale: 1.3, opacity: 0.5 } });
     await store.update({ language: null });
     expect(store.value.language).toBeNull();
   });
@@ -107,8 +118,44 @@ describe('saving', () => {
     const store = new SettingsStore(storage);
     await store.load();
     await store.update({ touch: { scale: 50, opacity: -2 }, language: 'xx-YY' });
-    expect(store.value).toEqual({ version: 1, language: null, touch: { scale: 1.4, opacity: 0.3 } });
-    expect(JSON.parse((await storage.get(KEY)) ?? '').touch).toEqual({ scale: 1.4, opacity: 0.3 });
+    expect(store.value).toEqual({ ...defaultSettings(), language: null, touch: { ...defaultSettings().touch, scale: 1.4, opacity: 0.3 } });
+    expect(JSON.parse((await storage.get(KEY)) ?? '').touch).toEqual({ ...defaultSettings().touch, scale: 1.4, opacity: 0.3 });
+  });
+
+  it('the volume, the quality, the keys and the position of the touch controls are saved and merge like the rest (S30)', async () => {
+    const storage = new MemoryStorage();
+    const store = new SettingsStore(storage);
+    await store.load();
+    await store.update({ volume: { master: 0.35 }, quality: 'low' });
+    await store.update({ keys: { attack: 'KeyF' }, touch: { side: 'left', offsetX: 0.5 } });
+    await store.update({ touch: { offsetY: 0.25 } });
+    const want = { ...defaultSettings(), volume: { master: 0.35 }, quality: 'low', keys: { attack: 'KeyF' }, touch: { ...defaultSettings().touch, side: 'left', offsetX: 0.5, offsetY: 0.25 } };
+    expect(store.value).toEqual(want);
+    expect(JSON.parse((await storage.get(KEY)) ?? '')).toEqual(want);
+    // and a new store reads it back as it was
+    expect(await new SettingsStore(storage).load()).toEqual(want);
+  });
+
+  it('a patch of the keys REPLACES the map (the menu decides swaps): a second map does not keep what the first one had', async () => {
+    const store = new SettingsStore(new MemoryStorage());
+    await store.load();
+    await store.update({ keys: { attack: 'KeyF', dash: 'KeyG' } });
+    await store.update({ keys: { dash: 'KeyG' } });
+    expect(store.value.keys).toEqual({ dash: 'KeyG' });
+    await store.update({ keys: {} });
+    expect(store.value.keys).toEqual({});
+  });
+
+  it('bad values of the new settings are repaired on the way in as well: a volume out of range, a quality nobody offers, a reserved key, a side that is not one', async () => {
+    const storage = new MemoryStorage();
+    const store = new SettingsStore(storage);
+    await store.load();
+    await store.update({ volume: { master: 7 }, quality: 'ultra' as never, keys: { attack: 'KeyD', jump: 'Tab', dash: 'KeyG' }, touch: { side: 'up' as never, offsetX: -3, offsetY: 9 } });
+    expect(store.value.volume.master).toBe(1);
+    expect(store.value.quality).toBe('auto');
+    expect(store.value.keys, 'KeyD is movement and Tab is the browser\'s').toEqual({ dash: 'KeyG' });
+    expect(store.value.touch).toMatchObject({ side: 'right', offsetX: 0, offsetY: 1 });
+    expect(JSON.parse((await storage.get(KEY)) ?? '')).toEqual(store.value);
   });
 
   it('the write order is `.bak` ← previous, main ← new, read back, drop the `.bak`: nothing is left over when it all goes well', async () => {
@@ -166,7 +213,7 @@ describe('saving', () => {
     const b = store.update({ language: 'en' });
     const c = store.update({ touch: { scale: 1.1 } });
     expect(await Promise.all([a, b, c])).toEqual([true, true, true]);
-    expect(JSON.parse((await storage.get(KEY)) ?? '')).toEqual({ version: 1, language: 'en', touch: { scale: 1.1, opacity: 1 } });
+    expect(JSON.parse((await storage.get(KEY)) ?? '')).toEqual({ ...defaultSettings(), language: 'en', touch: { ...defaultSettings().touch, scale: 1.1 } });
   });
 
   it('`changed` announces every change, with the new settings', async () => {

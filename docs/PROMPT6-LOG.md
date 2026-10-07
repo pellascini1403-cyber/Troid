@@ -16,8 +16,8 @@
 | **S26** zonas de cámara | ✅ | `dad0241` |
 | **S27** cuarta botella | ✅ | `2dbe0c6` |
 | **S28** Spirit Bolt en R3 | ✅ | `1ccd14e` |
-| **S29** jefe (Custodio de Tinta, arena de R4, Air Dash) | ✅ | |
-| **S30** ajustes (volumen, remapeo, calidad, posición táctil) | ⏳ | |
+| **S29** jefe (Custodio de Tinta, arena de R4, Air Dash) | ✅ | `dbae23d` |
+| **S30** ajustes (volumen, remapeo, calidad, posición táctil) | ✅ | |
 | **S31** calibración móvil (solo geometría y documentación) | ⏳ | |
 | **S32** integración final | ⏳ | |
 
@@ -602,4 +602,94 @@ El jefe entero sumó **+5.1 KB gz** al arranque en frío (193.9 → **199.0 KB**
 | Arranque en frío de R1 | 193.9 KB gz | **197.3 KB gz** |
 | Toda la primera sesión | 204.7 KB gz | 211.2 KB gz |
 | *Draw calls* en la pelea | — | **≤ 15** (presupuesto 60), con jefe, avisos, héroe y efectos en pantalla |
+
+---
+
+## S30 — Ajustes v2 ✅
+
+**Qué cambia.** El menú de pausa (que ya tenía el idioma y el tamaño y la opacidad de los controles táctiles) gana lo que el Prompt 5 dejó pendiente, **sin construir un sistema gigantesco**: **volumen** (preparado: todavía no hay sonido), **calidad** (Auto / Low / High), **teclas** de las acciones principales y **disposición de los controles táctiles** (lado, posición, tamaño, opacidad). Todo **se aplica en el acto**, **se guarda** y **sobrevive a una recarga**; nada de esto toca la simulación (los ajustes son de la presentación y de la entrada).
+
+| Ajuste | Qué es de verdad | Qué **no** es |
+|---|---|---|
+| **Volumen** | un nivel 0–1 (por defecto 0.8) que se guarda, se muestra en % y vive en un `MasterVolume` (`audio/volume.ts`) con su `gain` (curva `nivel²`) y un `changed` que el sonido de una versión posterior leerá | **no suena nada todavía**: el menú lo dice con una nota («El sonido llegará en una versión posterior. Tu elección se guarda.») |
+| **Calidad** | `auto` / `low` / `high`: el perfil del render (tope de resolución 1.25 / 1.75 / 2) y de los efectos (partículas 150 / 300 / 400, efectos de *sprite* 24 / 40 / 64) | **`auto` no mide nada**: es el perfil equilibrado (`medium`) que el juego siempre tuvo. El menú lo dice («Automática es el perfil equilibrado. Todavía no mide tu dispositivo.»). Medir el dispositivo queda para cuando haya con qué medirlo |
+| **Teclas** | una tecla por acción —saltar, atacar, esquivar, habilidad, botella, interactuar y agacharse (`down`)— sobre los `Bindings` de siempre | **solo teclado**: ni mando, ni táctil (el táctil son gestos), ni combinaciones, ni perfiles |
+| **Controles táctiles** | lado (derecha / izquierda: espejo), cuánto «hacia dentro» y «hacia arriba», tamaño y opacidad, y «Restaurar disposición» | **no es un editor**: dos deslizadores y un interruptor de lado |
+
+### Los datos: ajustes versión 2 (con migración)
+
+`SettingsData` pasa de la versión 1 a la **2** y **conserva lo que tenía la 1** (idioma, tamaño y opacidad): la migración `1 → 2` añade `volume`, `quality`, `keys` y `touch.{side, offsetX, offsetY}` con sus valores por defecto. Un **archivo dorado por versión** (`settings.v1.json`, `settings.v2.json`) fija el formato. Lo de siempre se mantiene: se **repara todo** lo que se lee **y** lo que se va a escribir (un volumen que no es número, una calidad que nadie ofrece, un lado que no existe, una tecla reservada…), un valor de **una versión posterior** se aparta sin pisarlo, y **cargar no reescribe** nada (un archivo antiguo se queda como está hasta que el jugador cambia algo).
+
+```ts
+{ version: 2, language: 'es' | null, volume: { master: 0.8 }, quality: 'auto' | 'low' | 'high',
+  keys: { attack?: 'KeyF', jump?: 'KeyH', … },                    // solo lo que difiere de lo de serie
+  touch: { scale, opacity, side: 'right' | 'left', offsetX: 0..1, offsetY: 0..1 } }
+```
+
+### Las teclas (`input/remap.ts`, puro)
+
+- **Una tecla principal por acción.** Las teclas *extra* (la segunda Mayús del dash, la flecha de agacharse, la Q de la botella) se quedan, **salvo** que el jugador ponga esa misma tecla en otra acción: entonces la extra desaparece (ninguna tecla hace dos cosas).
+- **Reservadas** (se **rechazan**, nunca se mueven en silencio): el movimiento (WASD y flechas), Walk, las teclas de pausa (Esc, P) —se sacan de los `Bindings`, no de una segunda lista que se desincronice— y las del navegador (Tab, F1–F12, Alt, la tecla de sistema, la del menú contextual, Bloq Mayús).
+- **Intercambio.** Si otra acción ya tiene la tecla, **se intercambian** (la otra recibe la que tenía esta): nadie se queda sin tecla. El menú lo dice («F la usaba Atacar: intercambian las teclas»).
+- **Leído de un archivo** (que una persona pudo editar): acciones desconocidas, no-teclas, reservadas y valores de serie se descartan, y si dos acciones acabaran en la misma tecla **la última vuelve a la suya**.
+- **Cómo se cambia:** se pulsa la acción (el botón dice «Pulsa una tecla…») y luego la tecla. **Esc cancela** (no es la pausa: la tecla **nunca sale del menú** mientras se espera una), una tecla reservada se rechaza y se **sigue esperando**, una pulsación mantenida (auto-repetición) no cuenta, y el clic que sigue a un Espacio o un Intro sobre el botón con foco no vuelve a armarlo.
+- **En vigor al instante:** `Game2D` rehace los `Bindings` (`applyKeyMap`) y suelta lo que estuviera pulsado; la fuente de teclado ya los leía en cada evento. El icono de interactuar sigue la tecla nueva (ya salía de los `Bindings`).
+
+### La disposición táctil (`ui/touch/layout.ts`, puro)
+
+`computeTouchLayout(…, placement)`: con `side: 'left'` el bloque de cuatro controles **se espeja** (mismas alturas, misma distancia al borde izquierdo que tenía al derecho) y la **zona de movimiento pasa al otro lado** (a ras del borde, con el mismo ancho); `offsetX` lo mueve **hacia dentro** hasta 120 dp y `offsetY` **hacia arriba** hasta 90 dp, **solo hasta donde la ventana lo permite**: nunca más del 70 % del ancho (la zona conserva ≥ 30 %), nunca dentro del interfaz de arriba (se reservan 96 dp bajo el borde superior seguro), nunca fuera del área segura. Se prueba en **8 pantallas × 4 márgenes de seguridad × 2 tamaños × 2 lados × 9 posiciones**: ningún solape entre controles, todo dentro del área segura, la zona no toca ningún control y es utilizable, y (para ventanas de ≥ 600 px) no alcanzan el HUD.
+
+> ⚠ **Límite conocido (pasa a S31).** Con el tamaño al máximo (×1.4) en pantallas pequeñas o con el lado izquierdo, el bloque puede **tocar la zona del HUD** (en el lado derecho ya era así con ×1.4 en un móvil de 667 px con *notch*: viene de antes). No se ha «arreglado» recortando en silencio lo que el jugador pide: es lo primero que audita S31 (geometría).
+
+### El menú (`ui/settings/SettingsMenu.ts`, *chunk* diferido)
+
+Idioma · Volumen · Calidad · Controles de teclado (**solo donde hay teclado**: no en un móvil que nunca vio uno; aparece en cuanto se pulsa una tecla) · Controles táctiles (**solo donde hay capa táctil**) · Continuar. No guarda estado (el anfitrión lo tiene: lo lee cada vez que se abre) y **no decide nada**: informa de una elección y `Game2D` la aplica y la guarda. Todo texto es una clave del traductor.
+
+- **Calidad en vivo:** `Renderer2D.setQuality` cambia el tope de resolución **en el acto** y los efectos se **reconstruyen** con los presupuestos del perfil nuevo. Al arrancar, el render se crea **con el perfil guardado** (los ajustes se leen antes del render): el **primer fotograma** ya es el bueno.
+- **Hecho para no engordar el arranque:** las palabras del menú (`settings.*`, `action.*`) viven en **su propio catálogo** (`i18n/menuCatalogs.ts`) que **solo carga el menú** y que se añade al traductor al construirse (`Translator.extend`). Los tests tratan las dos mitades como una (mismas claves en cada idioma, ninguna huérfana ni ausente) y comprueban que **no se solapan**.
+
+### Lo que se adaptó (misma intención, nada borrado)
+
+| Qué fijaba | Cómo queda |
+|---|---|
+| `settingsData` / `settingsStore` (tests) | el formato es la **versión 2**: los mismos casos (reparación campo a campo, valores de una versión posterior, cadena de migraciones, orden de escritura, copia de seguridad…) sobre el modelo nuevo, **más** la carga de un archivo de la versión 1 y los archivos dorados |
+| `settingsMenu` (test) | el anfitrión del menú tiene las operaciones nuevas; los casos de antes (idioma, deslizadores, abrir/cerrar, foco en Continuar, modal, textos en dos idiomas) siguen tal cual |
+| `touchLayout` (test) | la forma del resultado incluye `side` |
+| `language` (E2E) | los ajustes guardados incluyen el lado y la posición de serie, y la versión actual es la 2 |
+
+### Pruebas y E2E
+
+- **Tests (+91, de 1704 a 1795):** `remap` (22: qué se puede cambiar, qué teclas son reservadas, asignar con intercambio y rechazo, sin que ninguna tecla haga dos cosas tras **400 asignaciones aleatorias**, leer un mapa de un archivo), `settingsData` / `settingsStore` (versión 2, migración y archivos dorados, reparaciones), `volume` (6), calidad en `viewport` (4: tres opciones, `auto` es el perfil equilibrado, cada perfil cuesta más, y solo cambia la nitidez en una pantalla densa), `settingsMenu` (38: cada sección con sus palabras en los dos idiomas, esperar la tecla y qué hace cada pulsación, intercambio, reservada, Esc, repetición, Espacio/Intro, restaurar, y la disposición), `keyboardSource` (+6: **la tecla nueva hace la acción y la vieja no, para cada acción**, las extra se quedan, el movimiento y la pausa no se mueven, y nada pulsado queda actuando bajo la tecla vieja), `touchLayout` (+10: espejo, desplazamientos, ventana pequeña, y la rejilla de 8 × 4 × 2 × 2 × 9 casos) y `touchControls` (+5), catálogos (+2) y `Translator.extend` (+4).
+- **E2E (nuevo, 33.º escenario) `settings`:** con **teclas y toques reales**. **Escritorio:** el menú ofrece volumen, calidad y teclas (no lo táctil) y **dice la verdad** (no hay sonido, Auto no mide); el volumen se mueve (también con Inicio / Fin), llega a `state().volume` con su curva y **se guarda**; la calidad Low / High / Auto / Low cambia **la resolución real del lienzo** (1.25 / 2 / 1.75 / 1.25 sobre una pantalla de densidad 2: 1055 / 1688 / 1477 px de ancho) y **los presupuestos de los efectos** (150 / 400 / 300 y 24 / 64 / 40); las teclas: atacar → F, **dash → D rechazado** (la acción sigue esperando, el mensaje lo dice) y **Esc cancela sin cerrar el menú**, saltar → F **intercambia** con atacar, saltar → H; **en el juego**: H salta, Espacio ataca y no salta, F y J no hacen nada, y la segunda Mayús sigue esquivando; **recargar**: todo igual **desde el primer fotograma** (el lienzo ya a 1.25), el menú muestra lo guardado; «Restaurar teclas» vuelve a J y Espacio. **Migración:** un archivo de la **versión 1** (idioma, tamaño, opacidad) carga y **lo conserva** (y el menú habla en el idioma guardado, palabras incluidas), no se reescribe al cargar y a la primera modificación pasa a la versión 2 **sin perder nada**. **Reparación:** un archivo dañado (volumen «loud», calidad «ultra», atacar en D, esquivar en Esc, lado «up»…) arranca con los valores de serie **y conserva lo válido** (saltar en H). **Táctil** (pantalla táctil, toques reales por CDP): lado izquierdo (los botones a la izquierda, la zona a la derecha hasta el borde, a la misma altura), hacia dentro y hacia arriba, más grandes y más tenues; dentro de la pantalla, sin solape y sin tocar el HUD; **funcionan donde están ahora** (un dedo en Atacar ataca; un arrastre en la zona de la derecha corre); se **guardan** y **vuelven tras recargar**; «Restaurar disposición» devuelve el diseño de un clic; y en la capa táctil **no se ofrecen teclas**.
+- **Gancho/estado nuevo:** `state()` → `volume`, `quality` (perfil, resolución, presupuestos), `keys` y `menuOpen`; `touch().layout.side`.
+
+### Bundle: diagnóstico, optimización y cifras
+
+Los ajustes sumaron **+3.5 KB gz** al arranque en frío (**197.3 → 200.8 KB: por encima del presupuesto**). **Diagnóstico** (mapa de fuentes del *chunk* principal y lista de *scripts* del arranque):
+
+| Causa | Coste | Qué se hizo |
+|---|---|---|
+| `Game2D` importaba los presupuestos de partículas (`presentation/vfx.ts`) solo para el gancho de pruebas: el módulo, que vivía únicamente en el *chunk* de efectos, pasó a un **trozo compartido que viaja con el arranque** | 1.3 KB | los presupuestos se leen **del objeto `Effects`** (que ya los conoce): el módulo vuelve a su *chunk* |
+| los **ganchos de pruebas** (`window.__troid`, ~10 KB de fuente: `state()`, pad virtual…) estaban en el *chunk* principal aunque ningún jugador los usa | ≈ 1.4 KB | `app/testHooks.ts`, **diferido**, que recibe del juego un `HookHost` y **no importa ningún módulo que el juego ya use** (cada módulo compartido entre dos *chunks* se parte en un trozo propio, y ese viajaría con el arranque: se probó y empeoraba) |
+| las **palabras del menú** (26 claves × 2 idiomas) en el catálogo principal | ≈ 1.0 KB | catálogo propio del menú (`MENU_CATALOGS`), cargado con él |
+| `Game2D` importaba `tierFor` y `QUALITY_SETTINGS` | 0.4 KB | `Renderer2D.create({ quality })` / `setQuality`; el menú lleva su propia lista (un test la ata a la de los ajustes) |
+
+**No se quitó ninguna función ni ningún test.** Solo cambia *cuándo* llega el código que un jugador no necesita para jugar el primer minuto.
+
+| | S29 | S30 sin optimizar | **S30** |
+|---|---|---|---|
+| Arranque en frío de R1 | 197.3 KB gz | 200.8 KB gz | **197.5 KB gz** (margen 2.5 KB) |
+| Diferido en reposo | 13.9 KB | 13.2 KB | 13.9 KB |
+| Toda la primera sesión | 211.2 KB gz | 214.0 KB gz | **211.5 KB gz** |
+
+> ⚠ **Margen.** Quedan **2.5 KB**. Palancas que quedan si hicieran falta (documentadas, no hechas): `InteractableViews` / `SealView` (≈ 1.5 KB gz, no se usan en R1) al *chunk* de las vistas diferidas; y, a más largo plazo (P7), **paquetes por sala** (la simulación y los datos del jefe, ≈ 3 KB gz, solo hacen falta al llegar a R4).
+
+### Medido ✅
+
+| | S29 | S30 |
+|---|---|---|
+| Tests | 1704 / 111 archivos | **1795 / 113 archivos** |
+| E2E (desarrollo y producción) | 32 / 32 | **33 / 33** |
+| Arranque en frío de R1 | 197.3 KB gz | **197.5 KB gz** |
+| Toda la primera sesión | 211.2 KB gz | 211.5 KB gz |
 

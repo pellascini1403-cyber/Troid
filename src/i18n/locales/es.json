@@ -24,11 +24,5 @@
   "interact.activate": "Activar",
   "interact.open": "Abrir",
   "interact.rest": "Descansar",
-  "settings.open": "Pausa y ajustes",
-  "settings.title": "Pausa",
-  "settings.language": "Idioma",
-  "settings.touch": "Controles táctiles",
-  "settings.touchSize": "Tamaño",
-  "settings.touchOpacity": "Opacidad",
-  "settings.resume": "Continuar"
+  "settings.open": "Pausa y ajustes"
 }

@@ -15,26 +15,26 @@ import { DrawCallCounter } from '@/debug/DrawCallCounter';
 import { FpsMeter } from '@/debug/FpsMeter';
 import { CATALOGS, chooseLocale, createTranslator, FALLBACK_LOCALE, SUPPORTED_LOCALES, type Translator } from '@/i18n';
 import { Enemy } from '@/enemies/Enemy';
-import type { Guardian } from '@/enemies/Guardian';
 import type { EnemyDefinition } from '@/enemies/EnemyDefinition';
 import { TrainingDummy } from '@/enemies/TrainingDummy';
 import { restoreFromProgress } from '@/gameplay/progress';
 import { GameSession } from '@/gameplay/GameSession';
-import type { Projectile } from '@/gameplay/Projectile';
 import { createPlayerStatus } from '@/gameplay/PlayerStatus';
 import { log } from '@/core/log';
 import { DEFAULT_TOUCH } from '@/input/gestures/TouchConfig';
-import { DEFAULT_BINDINGS } from '@/input/bindings';
+import { MasterVolume } from '@/audio/volume';
+import { DEFAULT_BINDINGS, type Bindings } from '@/input/bindings';
 import { InputManager } from '@/input/InputManager';
+import { applyKeyMap, effectiveKeys, type KeyMap } from '@/input/remap';
 import { interactGlyph } from '@/input/glyphs';
 import { attachGamepad, browserPads } from '@/input/sources/GamepadSource';
 import { attachKeyboardMouse } from '@/input/sources/KeyboardMouseSource';
 import { TouchSource } from '@/input/sources/TouchSource';
 import { VirtualPad } from '@/input/sources/VirtualPad';
-import type { AnchorId } from '@/presentation/vocabulary';
 import { ProgressStore } from '@/save/ProgressStore';
 import { SettingsStore } from '@/save/SettingsStore';
 import type { TouchSettings } from '@/save/SettingsData';
+import type { QualitySetting } from '@/presentation/viewport';
 import { ActorSprite } from '@/render/ActorSprite';
 import { CameraAdapter2D } from '@/render/CameraAdapter2D';
 import { DummyView, type DummyLike } from '@/render/DummyView';
@@ -64,6 +64,7 @@ import type { DevTools } from './devTools';
 import { GameLoop } from './GameLoop';
 import { afterIdle } from './dom';
 import type { Effects } from './effects';
+import type { HookHost } from './testHooks';
 
 type BossViews = typeof import('./bossViews');
 import { attachProgressRecorder } from './progressRecorder';
@@ -71,8 +72,6 @@ import { optionsFromQuery, type GameOptions } from './options';
 
 /** How long after the first frame the page waits before it fetches the effects (it still waits for an idle moment after that). */
 const EFFECTS_DELAY_MS = 2000;
-/** What the effects report while they have not arrived. */
-const NO_EFFECTS = { particles: 0, sprites: 0, spawned: 0, dropped: 0, peakParticles: 0, poolCreated: 0 };
 
 /**
  * Composition root of the 2D game (`?view=2d`): wires the deterministic simulation to PixiJS. Nothing here decides
@@ -94,12 +93,17 @@ export class Game2D {
   private readonly interactableViews: InteractableViews;
   private readonly prompt: InteractionPrompt;
   private readonly promptPoint = { x: 0, y: 0 };
-  private readonly bindings = structuredClone(DEFAULT_BINDINGS);
+  /** The keys in force: the defaults with what the player chose on top (S30). A remap replaces the object, and every reader asks for it again each time. */
+  private bindings: Bindings = structuredClone(DEFAULT_BINDINGS);
+  /** The master volume (S30, prepared): the level the player chose; the sound of a later version reads its gain from here. */
+  private readonly volume: MasterVolume;
   private readonly playerSprite: ActorSprite;
   private readonly entityViews: EntityViews;
   /** The effects: a separate chunk, fetched when the page is idle (or at once under `?hooks=1`). `null` until it arrives: the game needs none of them. */
   private effects: Effects | null = null;
   private effectsRequest: Promise<void> | null = null;
+  /** Builds the effects again with the budgets of the profile in force (set once their chunk has arrived). */
+  private rebuildEffects: (() => void) | null = null;
   private readonly deathOverlay: DeathOverlay;
   private readonly transitionOverlay: TransitionOverlay;
   private readonly safeArea: SafeArea;
@@ -143,16 +147,17 @@ export class Game2D {
     const options = optionsFromQuery(query);
     const counter = new DrawCallCounter();
     if (options.hooks || import.meta.env.DEV) DrawCallCounter.install(counter);
-    const renderer = await Renderer2D.create({ host, viewHeight: options.camera.viewHeight ?? CAMERA_2D.viewHeight ?? 13.5 });
+    // what the player chose last time (the language, the volume, the quality, the keys, the touch controls): read before anything is drawn, so the
+    // first frame is already right — the quality is the profile the renderer is built with
+    const settings = new SettingsStore(createStorage(), { warn: (message) => log.scope('save').warn(message) });
+    await settings.load();
+    const renderer = await Renderer2D.create({ host, viewHeight: options.camera.viewHeight ?? CAMERA_2D.viewHeight ?? 13.5, quality: settings.value.quality });
     // Sprites load asynchronously (a placeholder atlas is drawn, final art would be fetched), so the game is built only
     // once the player's set is ready: `__troid.ready()` is true as soon as `create` resolves.
     const sprites = new SpriteAssetManager<Texture>(createPixiSpriteLoader({ procedural: PROCEDURAL_ATLASES }));
     const playerDef = SPRITE_SETS[PLAYER.spriteSetId];
     if (!playerDef) throw new Error(`player sprite set "${PLAYER.spriteSetId}" is not in the content registry`);
     const playerSet = await sprites.acquire(playerDef);
-    // what the player chose last time (the language, the touch controls): read before anything is drawn, so the first frame is already right
-    const settings = new SettingsStore(createStorage(), { warn: (message) => log.scope('save').warn(message) });
-    await settings.load();
     // the progress of the game: continued, or erased with `?new=1`. A playground (`?room=`) never reads or writes it
     const progress = options.room ? null : new ProgressStore(createStorage(), { warn: (message) => log.scope('save').warn(message) });
     if (progress) await (options.newGame ? progress.erase() : progress.load());
@@ -169,6 +174,8 @@ export class Game2D {
     progress: ProgressStore | null,
   ) {
     this.settings = settings;
+    this.bindings = applyKeyMap(DEFAULT_BINDINGS, settings.value.keys);
+    this.volume = new MasterVolume(settings.value.volume.master);
     // A new game starts the vertical slice (room R1, with the starting abilities). `?room=` opens a playground instead and
     // then the abilities are exactly `?unlock=` says: the test rooms never depended on what the hero starts with.
     const startRoom = options.room && ROOMS[options.room] ? options.room : START.room;
@@ -213,7 +220,12 @@ export class Game2D {
     this.safeArea = new SafeArea(ui);
     this.lifecycle.add(() => this.safeArea.dispose());
     this.touchSource = new TouchSource(this.input, DEFAULT_TOUCH, () => this.touchControls.gestureScale);
-    this.touchControls = new TouchControls(ui, this.touchSource, this.translator, { size: settings.value.touch.scale, opacity: settings.value.touch.opacity });
+    const saved0 = settings.value.touch;
+    this.touchControls = new TouchControls(ui, this.touchSource, this.translator, {
+      size: saved0.scale,
+      opacity: saved0.opacity,
+      placement: { side: saved0.side, offsetX: saved0.offsetX, offsetY: saved0.offsetY },
+    });
     this.lifecycle.add(() => this.touchControls.dispose());
     // the HUD sits in the top-left; a finger on one of its bottle icons goes through the same single-owner touch source
     this.hud = new HudView(ui, this.translator, {
@@ -348,15 +360,21 @@ export class Game2D {
     const loadEffects = (): Promise<void> =>
       (this.effectsRequest ??= import('./effects').then(({ createEffects }) => {
         if (this.closed) return;
-        this.effects = createEffects({
-          renderer: renderer.app.renderer,
-          layers: renderer.layers,
-          atlas: vfxAtlas,
-          bus: this.session.bus,
-          tier: renderer.qualityTier,
-          playerPosition: () => ({ x: body.x, y: body.y }),
-          projectileSkills: new Set(Object.keys(SKILLS)),
-        });
+        // built from the profile in force NOW — and again whenever the player chooses another one (its budgets are those of the profile)
+        const build = (): void => {
+          this.effects?.dispose();
+          this.effects = createEffects({
+            renderer: renderer.app.renderer,
+            layers: renderer.layers,
+            atlas: vfxAtlas,
+            bus: this.session.bus,
+            tier: renderer.qualityTier,
+            playerPosition: () => ({ x: body.x, y: body.y }),
+            projectileSkills: new Set(Object.keys(SKILLS)),
+          });
+        };
+        this.rebuildEffects = build;
+        build();
       }));
     this.lifecycle.add(() => this.effects?.dispose());
     const loadCosmetics = (): void => {
@@ -564,8 +582,16 @@ export class Game2D {
       this.menu = new SettingsMenu(document.getElementById('ui') ?? document.body, this.translator, {
         languages: SUPPORTED_LOCALES,
         touchAvailable: () => this.touchControls.isVisible,
-        current: () => ({ language: this.translator.locale, touch: { ...this.settings.value.touch } }),
+        // a keyboard is there unless this is a touch screen that has never seen one (a desktop, a laptop, a tablet with keys)
+        keyboardAvailable: () => !this.touchControls.isVisible || this.input.device === 'keyboard',
+        current: () => {
+          const v = this.settings.value;
+          return { language: this.translator.locale, volume: v.volume.master, quality: v.quality, keys: { ...v.keys }, touch: { ...v.touch } };
+        },
         setLanguage: (language) => this.setLanguage(language),
+        setVolume: (level) => this.setVolume(level),
+        setQuality: (quality) => this.setQuality(quality),
+        setKeys: (keys) => this.setKeys(keys),
         setTouch: (patch) => this.setTouch(patch),
         close: () => this.closeMenu(),
       });
@@ -579,12 +605,38 @@ export class Game2D {
     void this.settings.update({ language: this.translator.locale });
   }
 
-  /** The player moved a slider: the touch controls follow at once and the choice is saved. */
+  /** The player moved a slider or chose a side: the touch controls follow at once and the choice is saved. */
   private setTouch(patch: Partial<TouchSettings>): void {
-    const next = { ...this.settings.value.touch, ...patch };
+    void this.settings.update({ touch: patch });
+    const next = this.settings.value.touch; // repaired: what is applied is what is saved
     this.touchControls.setSize(next.scale);
     this.touchControls.setOpacity(next.opacity);
-    void this.settings.update({ touch: patch });
+    this.touchControls.setPlacement({ side: next.side, offsetX: next.offsetX, offsetY: next.offsetY });
+    this.layoutUi();
+  }
+
+  /** The volume slider (prepared: nothing plays yet): the level is the master's and it is saved. */
+  private setVolume(level: number): void {
+    void this.settings.update({ volume: { master: level } });
+    this.volume.set(this.settings.value.volume.master);
+  }
+
+  /**
+   * The quality profile (Auto / Low / High): the renderer takes the resolution ceiling of the profile and the effects are built again with its
+   * budgets, at once. `auto` is the balanced profile: it measures nothing.
+   */
+  private setQuality(quality: QualitySetting): void {
+    void this.settings.update({ quality });
+    this.renderer.setQuality(this.settings.value.quality);
+    this.rebuildEffects?.();
+    this.layoutUi();
+  }
+
+  /** The keys the player gave the main actions: in force at once (nothing stays pressed under the old ones) and saved. */
+  private setKeys(keys: KeyMap): void {
+    void this.settings.update({ keys });
+    this.bindings = applyKeyMap(DEFAULT_BINDINGS, this.settings.value.keys);
+    this.input.releaseAll();
   }
 
   // ------------------------------------------------------------------------------------------------------ debug
@@ -646,77 +698,41 @@ export class Game2D {
     this.updatePrompt();
   }
 
-  /** `window.__troid`: lets Playwright drive and inspect the game deterministically (dev builds / `?hooks=1`). */
+  /**
+   * `window.__troid`: lets Playwright drive and inspect the game deterministically (dev builds / `?hooks=1`). It lives in a chunk of its own
+   * (`testHooks.ts`) that is fetched when it is asked for — a player never downloads it — and gets what it needs through `HookHost`.
+   */
   private exposeTestHooks(): void {
-    const hooks = {
+    const host: HookHost = {
       game: this,
       session: this.session,
       input: this.input,
-      /** The 2D view is ready as soon as `Game2D.create` resolved (the sprite sets are loaded before it is built). */
-      ready: () => true,
-      /** The effects have arrived (they load after the first frame): a test that looks at them waits for this. */
-      // every cosmetic chunk is in place: the effects and the looks of the boss (a scenario starts, and reloads, with all of them there)
-      effectsReady: () => this.effects !== null && this.bossViews !== null,
-      /** Freezes real-time simulation so tests can advance it tick by tick. */
-      pause: () => this.debug.set('paused', true),
-      resume: () => this.debug.set('paused', false),
-      step: (n = 1) => {
-        for (let i = 0; i < n; i++) this.stepOnce();
-        this.refreshPresented();
-      },
-      /** Test hook: a training dummy at `(x, y)` (the entity joins the world at the end of the next tick). */
-      spawnDummy: (x: number, y = 0, health = 5) => {
-        const dummy = this.session.spawn(new TrainingDummy(this.session.ids.next('dummy'), { x, y, health }));
-        return dummy.id;
-      },
-      /** Test hook: an Ink Slime at `(x, y)` looking at `facing` (joins the world at the end of the next tick). */
-      spawnSlime: (x: number, y = 0, facing: 1 | -1 = -1) => {
-        const slime = this.session.spawn(new Enemy(this.session.ids.next('ink_slime'), ENEMIES.ink_slime as EnemyDefinition, { x, y, facing }));
-        return slime.id;
-      },
-      /** Test hook: an enemy hitbox over the player's torso, resolved by the next tick (1 damage, standard knockback). */
-      strikePlayer: (facing: 1 | -1 = 1) => {
-        const b = this.session.player.body;
-        this.session.combat.submit({
-          ownerId: 'e2e_enemy', team: 'enemy', rect: { x0: b.x - 0.5, x1: b.x + 0.5, y0: b.y + 0.2, y1: b.y + 1.2 }, attackId: 'e2e_strike',
-          damage: 1, knockback: { x: 5.5, y: 4 }, stun: 14, hitStop: 6, shake: 0.2, facing, alreadyHit: new Set(),
-        });
-      },
-      /** Test hook: what the touch layer sees right now (fingers owned, the movement gesture, the layout in px). */
-      touch: () => ({
-        visible: this.touchControls.isVisible,
-        active: this.touchSource.active,
-        gesture: this.touchSource.gesture,
-        layout: this.touchControls.current,
-      }),
-      /** Test hook: where a point of the world is on screen (CSS px), with the camera of the last frame. */
-      worldToScreen: (x: number, y: number) => this.renderer.worldToScreen(x, y),
-      /** Test hook: the HUD as the model computed it and as laid out (px). */
-      hud: () => ({ state: this.hudModel.state, layout: this.hud.current }),
-      /** Test hook: the abstract gamepad, in the Gamepad API's own terms (+y of the stick is DOWN); `pressed` = held button indices. */
-      pad: {
-        set: (x: number, y: number, pressed: number[] = []) => {
-          const pad = this.virtualPad ?? (this.virtualPad = new VirtualPad());
-          pad.connected = true;
-          pad.neutral().stick(x, y);
-          for (const i of pressed) pad.press(i);
-        },
-        disconnect: () => void this.virtualPad?.disconnect(),
-        remove: () => void (this.virtualPad = null),
-      },
-      revive: () => {
-        this.session.player.revive();
-        this.session.rescuePlayer();
-        this.refreshPresented();
-      },
-      teleport: (x: number, y: number) => {
-        this.session.player.respawn(x, y, this.session.player.facing);
-        this.session.collision.probeGround(this.session.player.body);
-        this.camera.snap();
-        this.refreshPresented();
-      },
-      /** Lets the camera run `seconds` of its own time at 60 Hz right now: a test need not wait on slow software-GL frames to see where it settles. */
-      settleCamera: (seconds = 4) => {
+      debug: this.debug,
+      renderer: this.renderer,
+      camera: this.camera,
+      playerSprite: this.playerSprite,
+      roomView: this.roomView,
+      entityViews: this.entityViews,
+      touchControls: this.touchControls,
+      touchSource: this.touchSource,
+      hudModel: this.hudModel,
+      hud: this.hud,
+      translator: this.translator,
+      settings: this.settings,
+      volume: this.volume,
+      fps: this.fps,
+      counter: this.counter,
+      shakes: this.shakes,
+      effects: () => this.effects,
+      cosmeticsReady: () => this.effects !== null && this.bossViews !== null,
+      menuOpen: () => this.menuOpen,
+      virtualPad: () => this.virtualPad,
+      setVirtualPad: (pad) => void (this.virtualPad = pad),
+      stepOnce: () => this.stepOnce(),
+      refreshPresented: () => this.refreshPresented(),
+      spawnDummy: (x, y, health) => this.session.spawn(new TrainingDummy(this.session.ids.next('dummy'), { x, y, health })).id,
+      spawnSlime: (x, y, facing) => this.session.spawn(new Enemy(this.session.ids.next('ink_slime'), ENEMIES.ink_slime as EnemyDefinition, { x, y, facing })).id,
+      settleCamera: (seconds) => {
         const p = this.session.player;
         const v = p.view;
         const target: CameraTarget = { x: v.x, y: v.y, vx: p.body.vx, vy: p.body.vy, facing: p.facing, grounded: p.body.grounded };
@@ -725,81 +741,12 @@ export class Game2D {
           this.camera.update(1 / 60, target);
         }
       },
-      state: () => {
-        const b = this.session.player.body;
-        const vp = this.renderer.viewport;
-        const ps = this.playerSprite;
-        const anchor = (id: AnchorId): { x: number; y: number } => ps.anchorWorld(id);
-        return {
-          x: b.x, y: b.y, vx: b.vx, vy: b.vy, grounded: b.grounded,
-          anim: this.session.player.view.anim, state: this.session.player.controller.state,
-          crouched: this.session.player.controller.crouched, bodyHeight: b.height,
-          health: this.session.player.health.current, maxHealth: this.session.player.health.max,
-          hitStop: this.session.hitStopLeft, now: this.session.now, trauma: this.camera.rig.currentTrauma, shakes: { ...this.shakes },
-          invulnerable: this.session.player.invulnerable, blink: this.session.player.view.blink, flash: this.session.player.view.flash,
-          combat: {
-            attack: this.session.player.combat.attack?.id ?? null, phase: this.session.player.view.phase,
-            ticks: this.session.player.combat.attackTicks, combo: this.session.player.combat.combo,
-          },
-          dummies: this.session.entities.filter((e) => e.kind === 'dummy').map((e) => {
-            const d = e as TrainingDummy;
-            return { id: d.id, x: d.body.x, y: d.body.y, vx: d.body.vx, hp: d.health.current, hits: d.hits };
-          }),
-          enemies: this.session.entities.filter((e) => e.kind === 'enemy').map((e) => {
-            const n = e as Enemy;
-            return {
-              id: n.id, def: n.def.id, state: n.state, ticks: n.stateTicks, x: n.body.x, y: n.body.y, vx: n.body.vx, facing: n.facing,
-              hp: n.health.current, hits: n.hits, anim: n.view.anim, phase: n.view.phase, phaseT: n.view.phaseT, opacity: n.view.opacity,
-            };
-          }),
-          // the boss, when the room has one that stands (S29): what the fight tests read
-          boss: (() => {
-            const g = this.session.entities.find((e) => e.kind === 'guardian') as Guardian | undefined;
-            if (!g) return null;
-            return {
-              id: g.id, def: g.def.id, state: g.state, ticks: g.stateTicks, x: g.body.x, y: g.body.y, facing: g.facing, hp: g.health.current, maxHp: g.health.max,
-              attack: g.attackKind, enraged: g.enraged, marks: g.telegraphMarks.map((m) => ({ x: m.x, w: m.w, t01: m.t01 })), opacity: g.view.opacity,
-            };
-          })(),
-          // objects in each scene layer: the E2E proves that rebuilding a room leaves nothing behind
-          scene: Object.fromEntries(
-            (['terrain', 'actors', 'fxNormal', 'fxWorld', 'backdropFar', 'backdropMid', 'backdropNear', 'foreground', 'lightOverlay'] as const).map((k) => [k, this.renderer.layers[k].children.length]),
-          ),
-          room: this.session.room.id,
-          flags: this.session.flags.list(),
-          gates: Object.fromEntries((this.session.room.gates ?? []).map((g) => [g.id, { open: this.session.gateOpen(g.id), alpha: this.roomView.gateAlpha(g.id) ?? null }])),
-          exits: [...this.session.exitsReached],
-          views: this.entityViews.count,
-          vfx: this.effects?.system.stats ?? NO_EFFECTS,
-          death: this.session.deathSnapshot, transition: this.session.transitionSnapshot, lang: this.translator.locale,
-          device: this.input.device,
-          // the player's resources (the HUD shows them; the tests read the numbers)
-          magic: this.session.magic.current,
-          card: this.session.loadout.equipped?.id ?? null,
-          bottles: this.session.bottles.slots.map((b) => b.state),
-          projectiles: this.session.entities.filter((e) => e.kind === 'projectile').map((e) => {
-            const p = e as unknown as Projectile;
-            return { id: p.id, x: p.x, y: p.y, facing: p.facing };
-          }),
-          respawnPoint: { ...this.session.respawnPoint },
-          sprite: {
-            set: ps.spriteSetId, frame: ps.frame, facing: ps.root.scale.x, visible: ps.root.visible,
-            hand: anchor('hand_r'), grip: anchor('weapon_grip'), tip: anchor('weapon_tip'),
-          },
-          tick: this.session.now, fps: this.fps.fps,
-          // `calls` keeps the field the 3D scenes used; `draws` is the same number under its real name
-          calls: this.counter.median, triangles: 0,
-          draws: this.counter.median, drawsMax: this.counter.max,
-          camera: {
-            x: this.camera.centre.x, y: this.camera.centre.y, viewHeight: this.camera.rig.pose.viewHeight,
-            zone: this.camera.activeZone, limits: this.camera.rig.limits ? { ...this.camera.rig.limits } : null,
-          },
-          view: { contentWidth: vp.contentWidth, contentHeight: vp.contentHeight, ppm: vp.ppm, resolution: vp.resolution, visibleWidth: vp.visibleWidth, barX: vp.barX, barY: vp.barY, rotateDevice: vp.rotateDevice },
-          canvas: { cssWidth: this.renderer.app.canvas.clientWidth, cssHeight: this.renderer.app.canvas.clientHeight, width: this.renderer.app.canvas.width, height: this.renderer.app.canvas.height },
-        };
-      },
+      keys: () => ({ ...effectiveKeys(this.settings.value.keys) }),
     };
-    (window as unknown as { __troid: typeof hooks }).__troid = hooks;
+    void import('./testHooks').then(({ createTestHooks }) => {
+      if (this.closed) return;
+      (window as unknown as { __troid?: unknown }).__troid = createTestHooks(host);
+    });
     this.lifecycle.add(() => {
       delete (window as unknown as { __troid?: unknown }).__troid;
     });

@@ -78,3 +78,14 @@ export function computeViewport(i: ViewportInput): ViewportLayout {
 /** Render-resolution ceilings per quality profile (docs/ARCHITECTURE-2D.md §7.10). */
 export const RESOLUTION_CAP = { low: 1.25, medium: 1.75, high: 2 } as const;
 export type QualityTier = keyof typeof RESOLUTION_CAP;
+
+/**
+ * What a player may choose (docs/PROMPT6-LOG.md S30). `auto` is NOT a measurement: nothing in the game measures a device yet, so it is the balanced
+ * profile (`medium`) the game always had; `low` and `high` are the two ends. A measuring `auto` is for the day there is something to measure it with.
+ */
+export const QUALITY_SETTINGS = ['auto', 'low', 'high'] as const;
+export type QualitySetting = (typeof QUALITY_SETTINGS)[number];
+
+export function tierFor(setting: QualitySetting): QualityTier {
+  return setting === 'low' ? 'low' : setting === 'high' ? 'high' : 'medium';
+}
