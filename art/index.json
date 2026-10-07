@@ -1,0 +1,6 @@
+{
+  "manifestVersion": 1,
+  "packs": [
+    { "id": "player", "category": "player", "load": "boot", "manifest": "player/player.pack.json", "tags": ["protagonist"] }
+  ]
+}

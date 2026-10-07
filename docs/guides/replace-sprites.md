@@ -11,7 +11,7 @@
 > **Estado (Prompt 7, S35):** esta guía describe el camino de **archivos**: carpeta `art/` → `npm run assets:pack` → `public/art/` → biblioteca de arte
 > (`assets/artLibrary.ts`). El detalle técnico —reglas de atlas, empaquetador, política de carga— está en [ART-PIPELINE-2D.md](../ART-PIPELINE-2D.md) (partes B y C).
 > Lo que todavía **no** está (el adaptador que **dibuja** al héroe con el arte cargado, S36; el laboratorio `?lab=player`, S39) está marcado en cada paso.
-> **Hoy no hay arte real en el repositorio.**
+> **Hoy no hay arte real en el repositorio.** Para el **protagonista** hay una guía propia, con la lista exacta de lo que falta: [deliver-protagonist-art.md](deliver-protagonist-art.md) (`npm run assets:missing`).
 
 ## 1. Qué entrega el artista
 
@@ -30,6 +30,7 @@ Dos formas, a elegir (se pueden mezclar por paquete):
 | Escala | `artPxPerMeter` = píxeles de arte por metro de mundo **de la imagen maestra**; `scale` es un multiplicador visual (dirección de arte, 0.25–4). **El tamaño en pantalla no depende de la resolución del arte** (S34: `artManifest.test.ts`, `actorSprite.test.ts`). |
 | Variantes de resolución | Si el artista exporta una variante a la mitad (`"resolution": 0.5`), el motor **elige** la que conviene a la pantalla; **no fabrica** variantes por su cuenta. |
 | Formato | PNG; RGBA de 8 bits es lo ideal. 16 bits se redondean a 8 (se avisa). Exporta en **sRGB**: un perfil de color incrustado no se arrastra (se avisa). Sin entrelazado. |
+| Hojas de *sprites* | Una hoja por clip también vale: se declara la cuadrícula (`sheets`) y se **recorta sin tocar un píxel**; la hoja ha de medir exactamente lo que dice la cuadrícula. |
 | Anclas por fotograma | `anchors` en el manifiesto (`frames.<nombre>.anchors`) o en el JSON del atlas (`meta.troid.frames`): **metros respecto a los pies**, +x adelante, +y arriba. `heightPx` en **píxeles de la maestra**. |
 
 ### Anclas

@@ -175,6 +175,9 @@ export class Reader {
   warn(path: string, message: string): void {
     this.issues.push({ level: 'warn', path, message });
   }
+  info(path: string, message: string): void {
+    this.issues.push({ level: 'info', path, message });
+  }
   get failed(): boolean {
     return this.issues.some((i) => i.level === 'error');
   }
@@ -304,12 +307,17 @@ function readPhases(r: Reader, v: unknown, path: string, count: number | null): 
   return { startup, active, recovery };
 }
 
-function readClip(r: Reader, v: unknown, path: string): ArtClip | null {
+function readClip(r: Reader, v: unknown, path: string, awaitingArt: boolean): ArtClip | null {
   const o = r.object(v, path);
   if (!o) return null;
   r.known(o, path, CLIP_KEYS);
   const frames = r.string(o['frames'], `${path}.frames`, { pattern: FRAME_PREFIX, what: 'a frame-name prefix (letters, digits, _ and -)' });
-  const count = r.number(o['count'], `${path}.count`, { min: 1, max: 96, int: true });
+  // a pack that awaits its art says WHICH clips it will hold; how many frames each has is only known once somebody has drawn them
+  let count: number | null;
+  if (awaitingArt && o['count'] === undefined) {
+    count = 1;
+    r.info(`${path}.count`, 'not declared: counted as 1 until the art is delivered (the delivered pack declares the real number)');
+  } else count = r.number(o['count'], `${path}.count`, { min: 1, max: 96, int: true });
   let fps: number | undefined;
   if (o['fps'] !== undefined && o['frameDuration'] !== undefined) r.error(path, 'give "fps" or "frameDuration" (milliseconds per frame), not both');
   else if (o['fps'] !== undefined) fps = r.number(o['fps'], `${path}.fps`, { min: 0.25, max: 120 }) ?? undefined;
@@ -370,7 +378,12 @@ function readSprite(r: Reader, v: unknown, path: string, atlasIds: ReadonlyMap<s
     atlases.sort((a, b) => (atlasIds.get(b)?.resolution ?? 0) - (atlasIds.get(a)?.resolution ?? 0));
   }
 
-  const artPxPerMeter = r.number(o['artPxPerMeter'], `${path}.artPxPerMeter`, { min: 0, exclusiveMin: true, max: 2000 });
+  // …and the scale and the pivot of art that does not exist yet are nominal: nothing reads them (a pack that awaits its art is never loaded)
+  let artPxPerMeter: number | null;
+  if (awaitingArt && o['artPxPerMeter'] === undefined) {
+    artPxPerMeter = 100;
+    r.info(`${path}.artPxPerMeter`, 'not declared: nominal 100 px/m until the art is delivered (the delivered pack declares the real one)');
+  } else artPxPerMeter = r.number(o['artPxPerMeter'], `${path}.artPxPerMeter`, { min: 0, exclusiveMin: true, max: 2000 });
   const scale = o['scale'] === undefined ? 1 : r.number(o['scale'], `${path}.scale`, { min: 0.25, max: 4 });
   const height = r.number(o['height'], `${path}.height`, { min: 0, exclusiveMin: true, max: 40 });
   if (o['facing'] !== undefined && o['facing'] !== 'right') r.error(`${path}.facing`, 'the art must face right ("right"): the engine mirrors it by the facing');
@@ -394,6 +407,9 @@ function readSprite(r: Reader, v: unknown, path: string, atlasIds: ReadonlyMap<s
         pivot = null;
       }
     }
+  } else if (awaitingArt) {
+    pivot = [0.5, 1];
+    r.info(`${path}.pivot`, 'not declared: nominal [0.5, 1] until the art is delivered (the delivered pack declares the real one)');
   } else r.error(`${path}.pivot`, 'the feet pivot is required: "pivot" (0…1) or "pivotPx"');
 
   const missingClips = r.oneOf(o['missingClips'], `${path}.missingClips`, MISSING_CLIP_POLICIES, 'placeholder');
@@ -413,7 +429,7 @@ function readSprite(r: Reader, v: unknown, path: string, atlasIds: ReadonlyMap<s
         r.error(`${path}.clips.${name}`, `declares "${state}" twice (an alias and its state)`);
         continue;
       }
-      const clip = readClip(r, raw, `${path}.clips.${name}`);
+      const clip = readClip(r, raw, `${path}.clips.${name}`, awaitingArt);
       if (clip) clips[state as AnimState] = clip;
     }
   }

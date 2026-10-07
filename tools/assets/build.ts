@@ -3,7 +3,8 @@ import { dirname, join } from 'node:path';
 import { artClipFrames, parseArtIndex, parseArtPack, type ArtAtlas, type ArtIndexEntry, type ArtIssue, type ArtPack } from '../../src/presentation/artManifest';
 import { inspectPicture, pictureIssues } from './inspect';
 import { atlasJson, DEFAULT_PACK, packFrames, type PackOptions, type SourceFrame } from './pack';
-import { decodePng, encodePng, readPngInfo } from './png';
+import { decodePng, encodePng, readPngInfo, type PngInfo, type RgbaImage } from './png';
+import { extractSheet } from './sheet';
 import { verifyArt, verifyArtFolder } from './verify';
 
 /**
@@ -100,6 +101,37 @@ function packFolders(entry: ArtIndexEntry, packDir: string, outFolder: string, r
     const frames: SourceFrame[] = [];
     // what the pictures say about themselves (no transparency, nothing visible, cut at the edge), said ONCE per message for the whole set, not once per frame
     const said = new Map<string, { level: ArtIssue['level']; message: string; frames: string[] }>();
+    const examine = (name: string, image: RgbaImage, info: Pick<PngInfo, 'hasAlpha'>): void => {
+      for (const i of pictureIssues(`${sprite.id}/${name}.png`, inspectPicture(image, info), entry.category, sprite.pivot[1])) {
+        const key = `${i.level}|${i.message}`;
+        said.set(key, { level: i.level, message: i.message, frames: [...(said.get(key)?.frames ?? []), `${name}.png`] });
+      }
+    };
+    // frames that come from a spritesheet cut by a grid the manifest states (a crop: nothing is resampled)
+    const fromSheet = new Map<string, { image: RgbaImage; sheet: string; info: PngInfo }>();
+    const sheets = rawSprites[index]?.['sheets'];
+    if (sheets !== undefined && !Array.isArray(sheets)) issues.push({ level: 'error', path: `${label} sprites.${sprite.id}.sheets`, message: 'must be a list of sheets' });
+    for (const [k, rawSheet] of (Array.isArray(sheets) ? sheets : []).entries()) {
+      const at = `${label} sprites.${sprite.id}.sheets[${k}]`;
+      const name = typeof (rawSheet as { file?: unknown } | null)?.file === 'string' ? (rawSheet as { file: string }).file : '';
+      const file = join(dir(sprite.id), name);
+      if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*\.png$/.test(name) || !existsSync(file)) {
+        issues.push({ level: 'error', path: at, message: name ? `the sheet ${sprite.id}/${name} is not there` : 'needs a "file"' });
+        continue;
+      }
+      try {
+        const bytes = readFileSync(file);
+        const info = readPngInfo(bytes, true);
+        const cut = extractSheet(rawSheet, decodePng(bytes));
+        for (const e of cut.errors) issues.push({ level: 'error', path: at, message: e });
+        for (const f of cut.frames) {
+          if (fromSheet.has(f.name)) issues.push({ level: 'error', path: at, message: `frame "${f.name}" is also cut by sheet ${fromSheet.get(f.name)!.sheet}` });
+          else fromSheet.set(f.name, { image: f.image, sheet: name, info });
+        }
+      } catch (err) {
+        issues.push({ level: 'error', path: at, message: `${name}: ${err instanceof Error ? err.message : String(err)}` });
+      }
+    }
     const wanted = new Map<string, string>(); // frame name → the clip that asks for it
     for (const [state, clip] of Object.entries(sprite.clips)) for (const name of artClipFrames(clip!)) if (!wanted.has(name)) wanted.set(name, state);
     for (const [name, state] of wanted) {
@@ -110,8 +142,18 @@ function packFolders(entry: ArtIndexEntry, packDir: string, outFolder: string, r
       }
       claimed.set(name, sprite.id);
       const file = join(dir(sprite.id), `${name}.png`);
+      const cut = fromSheet.get(name);
+      if (existsSync(file) && cut) {
+        issues.push({ level: 'error', path: `${label} sprites.${sprite.id}.clips.${state}`, message: `frame "${name}" is both a file (${sprite.id}/${name}.png) and a cell of sheet ${cut.sheet}: say it once` });
+        continue;
+      }
+      if (cut) {
+        examine(name, cut.image, cut.info);
+        frames.push({ name, image: cut.image });
+        continue;
+      }
       if (!existsSync(file)) {
-        issues.push({ level: 'error', path: `${label} sprites.${sprite.id}.clips.${state}`, message: `missing frame file ${sprite.id}/${name}.png` });
+        issues.push({ level: 'error', path: `${label} sprites.${sprite.id}.clips.${state}`, message: `missing frame file ${sprite.id}/${name}.png (or a sheet that cuts it)` });
         continue;
       }
       try {
@@ -120,10 +162,7 @@ function packFolders(entry: ArtIndexEntry, packDir: string, outFolder: string, r
         if (info.bitDepth === 16) issues.push({ level: 'info', path: `${label} ${sprite.id}/${name}.png`, message: 'is 16 bits per channel: the GPU has 8, so its values were rounded to 8' });
         if (info.colourChunks.includes('iCCP')) issues.push({ level: 'warn', path: `${label} ${sprite.id}/${name}.png`, message: 'carries an embedded colour profile (iCCP): the pixel numbers are used as they are, the profile is not carried over — export as sRGB so that nothing shifts' });
         const image = decodePng(bytes);
-        for (const i of pictureIssues(`${sprite.id}/${name}.png`, inspectPicture(image, info), entry.category, sprite.pivot[1])) {
-          const key = `${i.level}|${i.message}`;
-          said.set(key, { level: i.level, message: i.message, frames: [...(said.get(key)?.frames ?? []), `${name}.png`] });
-        }
+        examine(name, image, info);
         frames.push({ name, image });
       } catch (err) {
         issues.push({ level: 'error', path: `${label} ${sprite.id}/${name}.png`, message: err instanceof Error ? err.message : String(err) });
@@ -135,7 +174,8 @@ function packFolders(entry: ArtIndexEntry, packDir: string, outFolder: string, r
     }
     // the folder may hold frames no clip uses: they are not packed, and the artist is told
     const folder = existsSync(dir(sprite.id)) ? readdirSync(dir(sprite.id)).filter((f) => f.toLowerCase().endsWith('.png')) : [];
-    const unused = folder.filter((f) => !wanted.has(f.slice(0, -4)));
+    const sheetFiles = new Set([...fromSheet.values()].map((c) => c.sheet));
+    const unused = [...folder.filter((f) => !wanted.has(f.slice(0, -4)) && !sheetFiles.has(f)), ...[...fromSheet.keys()].filter((n) => !wanted.has(n)).map((n) => `${n} (of a sheet)`)];
     if (unused.length > 0) issues.push({ level: 'warn', path: `${label} sprites.${sprite.id}`, message: `${unused.length} frame file(s) no clip uses (${unused.slice(0, 3).join(', ')}${unused.length > 3 ? ', …' : ''}): they are not packed` });
     if (frames.length === 0 || frames.length < wanted.size) return; // what is missing was reported; nothing is packed for a set that is not whole
 
@@ -155,7 +195,9 @@ function packFolders(entry: ArtIndexEntry, packDir: string, outFolder: string, r
         ids.push(id);
       });
       built.push({ id: sprite.id, frames: frames.length, stored: packed.stats.stored, pages: packed.pages.length, pagePixels: packed.stats.pagePixels });
-      spritesOut.push({ ...rawSprites[index], atlases: ids });
+      const { sheets: _sheets, ...shipped } = rawSprites[index] ?? {};
+      void _sheets; // the grid is how the frames were cut, not something the game needs: it does not ship
+      spritesOut.push({ ...shipped, atlases: ids });
     } catch (err) {
       issues.push({ level: 'error', path: `${label} sprites.${sprite.id}`, message: err instanceof Error ? err.message : String(err) });
     }

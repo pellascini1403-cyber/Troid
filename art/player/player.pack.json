@@ -1,0 +1,36 @@
+{
+  "manifestVersion": 1,
+  "id": "player",
+  "category": "player",
+  "status": "awaiting-art",
+  "comment": "THE SLOT OF THE PROTAGONIST'S ART (docs/guides/deliver-protagonist-art.md). There is no art in this repository yet: this file only DECLARES what the game will ask of it — the sprite set 'hero' and its fifteen clips — and nothing is shipped while the status is 'awaiting-art' (the game keeps its placeholder and asks for no file). When the art is delivered: put one PNG per frame in art/player/hero/ (idle_00.png …), declare each clip's real 'count' and 'fps' (and 'phases' for the blows), the real 'artPxPerMeter' and 'pivot', the sword anchors per frame, change the status to 'provisional' or 'final', and run `npm run assets:pack`. The numbers left out here (scale, pivot, frames per clip) are the ones only the art can give.",
+  "tags": ["protagonist"],
+  "atlases": [],
+  "sprites": [
+    {
+      "id": "hero",
+      "atlases": [],
+      "height": 1.7,
+      "facing": "right",
+      "missingClips": "placeholder",
+      "tags": ["protagonist", "sword"],
+      "clips": {
+        "idle":          { "frames": "idle_",          "tags": ["first"] },
+        "walk":          { "frames": "walk_",          "tags": ["first"] },
+        "jump":          { "frames": "jump_",          "tags": ["first"] },
+        "fall":          { "frames": "fall_" },
+        "dash":          { "frames": "dash_",          "tags": ["first"] },
+        "attack1":       { "frames": "attack1_",       "tags": ["first", "sword"] },
+        "attack2":       { "frames": "attack2_",       "tags": ["sword"] },
+        "aerialAttack":  { "frames": "aerialAttack_",  "tags": ["sword"] },
+        "crouch":        { "frames": "crouch_" },
+        "crouchAttack":  { "frames": "crouchAttack_",  "tags": ["sword"] },
+        "hurt":          { "frames": "hurt_",          "tags": ["first"] },
+        "death":         { "frames": "death_" },
+        "cast":          { "frames": "cast_" },
+        "drink":         { "frames": "drink_" },
+        "interact":      { "frames": "interact_" }
+      }
+    }
+  ]
+}

@@ -192,6 +192,26 @@ describe('parseArtPack: what the reader refuses, with the path of the field', ()
     expect(errors(raw)).toEqual([]);
   });
 
+  it('a pack that awaits its art may leave out what only the art can say — the scale, the pivot, how many frames — which then count as nominal, with a note; a pack WITH art may not', () => {
+    const awaiting = {
+      manifestVersion: 1, id: 'player', category: 'player', status: 'awaiting-art', atlases: [],
+      sprites: [{ id: 'hero', atlases: [], height: 1.7, clips: { idle: { frames: 'idle_' }, aerialAttack: { frames: 'aerialAttack_' } } }],
+    };
+    const { value, issues } = parseArtPack(awaiting);
+    expect(issues.filter((i) => i.level === 'error')).toEqual([]);
+    const hero = value!.sprites[0]!;
+    expect([hero.artPxPerMeter, hero.pivot, hero.clips.idle!.count, hero.clips.attackAir!.frames]).toEqual([100, [0.5, 1], 1, 'aerialAttack_']);
+    expect(issues.filter((i) => i.level === 'info').map((i) => i.path).sort()).toEqual([
+      'sprites[0].artPxPerMeter', 'sprites[0].clips.aerialAttack.count', 'sprites[0].clips.idle.count', 'sprites[0].pivot',
+    ]);
+    // the same manifest with art is refused for each of them
+    const withArt = { ...awaiting, status: 'final', atlases: [{ id: 'a', source: 'a.png', data: 'a.json', width: 8, height: 8 }], sprites: [{ ...awaiting.sprites[0]!, atlases: ['a'] }] };
+    const e = errors(withArt).join('\n');
+    expect(e).toMatch(/artPxPerMeter: must be a number/);
+    expect(e).toMatch(/pivot: the feet pivot is required/);
+    expect(e).toMatch(/clips\.idle\.count: must be a number/);
+  });
+
   it('refuses a sprite set that names an atlas the pack does not declare (a broken reference)', () => {
     const raw = valid() as { sprites: Array<Record<string, unknown>> };
     raw.sprites[0]!['atlases'] = ['hero_2x', 'nowhere'];

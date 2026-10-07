@@ -13,7 +13,7 @@ export const SWORD_GRIP_TOLERANCE = 0.04;
 export const SCALE_TOLERANCE = 0.15;
 
 /** Clips in which the sword is in play: they must carry the full sword contract frame by frame. */
-const SWORD_STATES: readonly AnimState[] = ['attack', 'attack1', 'attack2', 'attackAir', 'attackCrouch', 'special'];
+export const SWORD_STATES: readonly AnimState[] = ['attack', 'attack1', 'attack2', 'attackAir', 'attackCrouch', 'special'];
 
 /**
  * Checks a sprite set against the engine's asset contract (docs/ARCHITECTURE-2D.md §7.6): the same function backs the

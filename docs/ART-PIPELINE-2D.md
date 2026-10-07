@@ -538,6 +538,68 @@ Antes de empaquetar, cada PNG de `art/<paquete>/<set>/` pasa por `inspectPicture
 | el arte del repositorio construye sin errores | `artRepo.test.ts` |
 | **E2E `assets` (F)**: el arte bueno pasa el comprobador; una imagen con un byte cambiado, un tamaño declarado distinto, un fotograma que falta y un pivote imposible se **encuentran con su archivo, sin navegador** | `tools/e2e/scenarios/assets.ts` |
 
-*(Siguiente: qué assets reales faltan, exactamente (S38) · **F** el laboratorio y R1 (S39, S40) · **G** VFX, audio, entorno y rendimiento (S41–S43).)*
+---
+
+# Parte F — El protagonista real: el estado de la importación y lo que falta (S38)
+
+> **Estado, sin letra pequeña: el arte final del protagonista NO está físicamente disponible en el repositorio y NO se ha integrado.** No se ha generado, dibujado, recortado de las ilustraciones de referencia ni imitado nada; el juego sigue dibujando al héroe con el *placeholder* abstracto. Lo que sí está hecho es todo lo necesario para que **el arte del usuario entre limpio, eficiente y reversible** (partes B–E), el hueco del protagonista **declarado** y una orden que dice **exactamente** qué falta.
+> **La guía para entregarlo:** [docs/guides/deliver-protagonist-art.md](guides/deliver-protagonist-art.md) — los 15 clips, lo que se pide de cada fotograma, las anclas de la espada, los pasos.
+
+## F.1 Qué hay en el repositorio
+
+| Archivo | Qué es |
+|---|---|
+| `art/index.json` | el índice **autorado**: el paquete `player` (categoría `player`, carga `boot`) |
+| `art/player/player.pack.json` | **el hueco del protagonista**: `status: "awaiting-art"`; el *sprite set* `hero` con sus **15 clips** y sus prefijos (`idle_`, `walk_`, … `aerialAttack_`, `crouchAttack_`), `height: 1.7`, mira a la derecha, `missingClips: "placeholder"`; los seis que se validan primero llevan la etiqueta `first` y los cuatro golpes la etiqueta `sword`. **No lleva imágenes ni números inventados**: la escala, el pivote y los fotogramas por clip son lo que solo el arte puede decir y el manifiesto los trata como nominales (con una nota) mientras espera |
+| `src/content/visuals.ts` | dónde está el arte del héroe (`player` / `hero`), los **15 clips requeridos** y los **6 a validar primero** (`idle, walk, attack1, dash, jump, hurt`) — **un test comprueba que el manifiesto declara exactamente esos 15** |
+| `tools/assets/missing.ts` | **`npm run assets:missing`**: calcula, de la carpeta `art/` y de la lista del juego, qué clips están entregados y cuáles no (con los nombres de fotograma que faltan). Se actualiza **solo** al llegar los fotogramas |
+
+**Nada se publica mientras el paquete espera su arte:** `npm run assets:pack` no escribe `public/art/`, el juego no pide ningún archivo ni descarga el código del arte (§C.6), y el *bundle* en frío no cambia.
+
+## F.2 Qué falta, exactamente (hoy: todo)
+
+```
+$ npm run assets:missing
+The protagonist's art — pack "player", sprite set "hero" (status: awaiting-art)
+Delivered: 0 of 15 clips. The game draws the rest with its placeholder.
+
+  clip          also called              kind  sword  first  state
+  idle          —                        loop  —      first  NOT DELIVERED: no frame files yet
+  walk          —                        loop  —      first  NOT DELIVERED: no frame files yet
+  jump          —                        once  —      first  NOT DELIVERED: no frame files yet
+  fall          —                        loop  —             NOT DELIVERED: no frame files yet
+  dash          —                        once  —      first  NOT DELIVERED: no frame files yet
+  attack1       —                        once  yes    first  NOT DELIVERED: no frame files yet
+  attack2       —                        once  yes           NOT DELIVERED: no frame files yet
+  attackAir     aerialAttack, airAttack  once  yes           NOT DELIVERED: no frame files yet
+  crouch        —                        loop  —             NOT DELIVERED: no frame files yet
+  attackCrouch  crouchAttack             once  yes           NOT DELIVERED: no frame files yet
+  hurt          damage                   once  —      first  NOT DELIVERED: no frame files yet
+  death         die                      once  —             NOT DELIVERED: no frame files yet
+  cast          —                        once  —             NOT DELIVERED: no frame files yet
+  drink         —                        once  —             NOT DELIVERED: no frame files yet
+  interact      —                        once  —             NOT DELIVERED: no frame files yet
+```
+
+**Lo que falta, en una lista:** (1) los fotogramas PNG RGBA de los **15 clips** de arriba, todos en el mismo lienzo, mirando a la derecha; (2) `artPxPerMeter` y `pivot` del set; (3) `count`, `fps` y —en los cuatro golpes— `phases` de cada clip; (4) las **anclas de la espada** (`hand_r`, `weapon_grip`, `weapon_tip`) en cada fotograma de `attack1`, `attack2`, `attackAir` y `attackCrouch`; (5) cambiar el estado a `provisional` o `final`. **Nada de eso existe todavía.**
+
+## F.3 La espada: `swordAnchor` por pose
+
+La espada es **parte del dibujo** del héroe; el motor **no pega una pieza aparte**. Lo que el contrato pide por pose es lo que la tarea llama *swordAnchor*: las anclas `hand_r` + `weapon_grip` (a ≤ 4 cm una de otra: **la espada está en la mano derecha**) y `weapon_tip` (la dirección y el largo de la hoja), en cada fotograma de los golpes. Se comprueba **en tres sitios**: el *build* (`applyContract` → «el juego dejaría este clip fuera»), la biblioteca (al cargar, el clip se descarta) y el E2E `player-art` (a cada tick del golpe: `|grip − hand| < 5 cm` y la punta 0.9 m por delante). Los VFX del tajo nacen en estas anclas. **Si la espada llegara como una pieza separada**, las anclas ya llevan posición y dirección por pose: un `SwordOverlay` sería una adición pequeña; **no se ha construido** porque nada de lo entregado lo pide y sería un sistema sin arte que lo use.
+
+## F.4 Extracción de fotogramas «cuando está claramente definida»
+
+Si el arte llega como **una hoja por clip** en vez de un archivo por fotograma, se declara la cuadrícula en el manifiesto (`sheets`: `file`, `prefix`, `frameSize`, `columns`, `count`, `first`) y el empaquetador **recorta**. **No se adivina nada**: la hoja ha de medir **exactamente** `columns × ceil(count/columns)` celdas; si no, el *build* falla y dice las dos medidas. Un recorte es toda la operación (nada se remuestrea ni se mezcla): cada celda sale **bit a bit** como se dibujó (lo prueba `sheet.test.ts` y `buildArt.test.ts`). Los fotogramas de una hoja pasan por las mismas comprobaciones que los sueltos (§E.3), y la cuadrícula **no se publica**.
+
+## F.5 Qué pasará cuando llegue el arte (lo que se ha probado con arte *sintético*)
+
+1. `assets:missing` cambia solo; `assets:check` dice todo lo que esté mal, con la ruta; `assets:pack` lo empaqueta sin pérdida.
+2. El héroe usa el arte **estado por estado** (§D): lo entregado, con el arte; lo que falte, con el *placeholder*; **`?visual=placeholder` vuelve atrás al instante**.
+3. La simulación **no cambia**: el mismo guion de teclas da la misma traza, tick a tick, con y sin arte (E2E `player-art` D).
+4. Los seis primeros que se validan (`idle`, `walk`, `attack1`, `dash`, `jump`, `hurt`) se podrán **ver** uno a uno con sus anclas en el laboratorio `?lab=player` (S39).
+
+**Lo que NO se ha podido probar sin arte real:** cómo se ve, cuánto pesa, cuánta memoria y qué tiempo de carga tiene **el arte del usuario** (S43 mide el sistema con arte **sintético** en Chromium de escritorio; no hay mediciones en iOS ni Android).
+
+*(Siguiente: **G** el laboratorio `?lab=player` y R1 (S39, S40) · **H** VFX y audio (S41) · **I** entorno (S42) · **J** rendimiento (S43).)*
 
 

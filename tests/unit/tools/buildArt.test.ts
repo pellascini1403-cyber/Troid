@@ -243,6 +243,43 @@ describe('building art', () => {
     expect(errors(build(false)).join('\n')).toMatch(/missing frames? (idle_02|walk_00)/);
   });
 
+  it('cuts a spritesheet by the grid the manifest states — lossless, and the grid does not ship', async () => {
+    const frames = writeSource({ skip: ['walk_00', 'walk_01'], manifest: manifest({ sprites: [sprite({ sheets: [{ file: 'walk.png', prefix: 'walk_', frameSize: [W, H], columns: 2, count: 2 }] })] }) });
+    // walk.png: the two walk frames side by side (a sheet drawn by hand elsewhere)
+    const a = frames.get('walk_00')!;
+    const b = frames.get('walk_01')!;
+    const data = new Uint8Array(2 * W * 4 * H);
+    for (let y = 0; y < H; y++) {
+      data.set(a.data.subarray(y * W * 4, (y + 1) * W * 4), (y * 2 * W) * 4);
+      data.set(b.data.subarray(y * W * 4, (y + 1) * W * 4), (y * 2 * W + W) * 4);
+    }
+    put(join(src, 'hero', 'hero', 'walk.png'), encodePng({ width: 2 * W, height: H, data }));
+    const r = build();
+    expect(errors(r)).toEqual([]);
+    expect(r.ok).toBe(true);
+    const pack = JSON.parse(readFileSync(join(out, 'hero', 'hero.pack.json'), 'utf8')) as { sprites: Array<Record<string, unknown>> };
+    expect(pack.sprites[0]!['sheets'], 'how the frames were cut is not something the game needs').toBeUndefined();
+    // every frame, the two from the sheet included, comes back out of the pages exactly as it was drawn
+    const json = JSON.parse(readFileSync(join(out, 'hero', 'hero_0.json'), 'utf8')) as { frames: Record<string, { frame: { x: number; y: number; w: number; h: number }; spriteSourceSize?: { x: number; y: number }; sourceSize?: { w: number; h: number } }> };
+    const page = decodePng(readFileSync(join(out, 'hero', 'hero_0.png')));
+    for (const [name, original] of frames) {
+      const f = json.frames[name]!;
+      const rebuilt = new Uint8Array(W * H * 4);
+      const off = f.spriteSourceSize ?? { x: 0, y: 0 };
+      for (let y = 0; y < f.frame.h; y++) rebuilt.set(page.data.subarray(((f.frame.y + y) * page.width + f.frame.x) * 4, ((f.frame.y + y) * page.width + f.frame.x + f.frame.w) * 4), ((off.y + y) * W + off.x) * 4);
+      expect(Buffer.from(rebuilt).equals(Buffer.from(original.data)), name).toBe(true);
+    }
+  });
+
+  it('refuses a sheet that is not the size of its grid, a frame that is both a file and a cell, and a sheet that is not there', () => {
+    writeSource({ manifest: manifest({ sprites: [sprite({ sheets: [{ file: 'walk.png', prefix: 'walk_', frameSize: [W, H], columns: 2, count: 2 }] })] }) });
+    expect(errors(build(false)).join('\n')).toMatch(/hero sprites\.hero\.sheets\[0\]: the sheet hero\/walk\.png is not there/);
+    put(join(src, 'hero', 'hero', 'walk.png'), encodePng({ width: 2 * W + 1, height: H, data: new Uint8Array((2 * W + 1) * H * 4).fill(9) }));
+    expect(errors(build(false)).join('\n')).toMatch(/walk\.png is 97 × 64 but 2 column\(s\) of 48 × 64 and 2 frame\(s\) make 96 × 64: nothing is guessed/);
+    put(join(src, 'hero', 'hero', 'walk.png'), encodePng({ width: 2 * W, height: H, data: new Uint8Array(2 * W * H * 4).fill(9) }));
+    expect(errors(build(false)).join('\n')).toMatch(/frame "walk_00" is both a file \(hero\/walk_00\.png\) and a cell of sheet walk\.png: say it once/);
+  });
+
   it('refuses to write into a folder it did not make, and rewrites one it did', () => {
     writeSource();
     put(join(out, 'index.json'), '{"mine":true}');
