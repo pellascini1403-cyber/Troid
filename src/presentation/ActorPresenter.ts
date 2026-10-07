@@ -86,7 +86,10 @@ export class ActorPresenter {
    */
   anchor(id: AnchorId, out: ResolvedAnchor = { x: 0, y: 0, fallback: false }): ResolvedAnchor {
     resolveAnchor(this.def, this.meta, this.pose.frame, id, out);
-    out.x *= this.pose.facing;
+    // anchors are authored in the art's own metres; a visual scale grows the picture about the feet, and the anchors with it
+    const k = this.def.visualScale ?? 1;
+    out.x *= k * this.pose.facing;
+    out.y *= k;
     return out;
   }
 

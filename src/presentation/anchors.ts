@@ -17,6 +17,7 @@ export function fallbackAnchor(id: AnchorId, height: number): AnchorPoint {
     case 'hand_r': return [0.22 * height, 0.5 * height];
     case 'weapon_grip': return [0.22 * height, 0.5 * height];
     case 'weapon_tip': return [0.7 * height, 0.45 * height];
+    case 'hit_origin': return [0.6 * height, 0.5 * height];
     case 'vfx_origin': return [0, 0.5 * height];
     case 'projectile_origin': return [0.45 * height, 0.55 * height];
     case 'interaction': return [0, 0.6 * height];

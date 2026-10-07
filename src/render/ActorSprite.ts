@@ -62,7 +62,7 @@ export class ActorSprite {
   setSpriteSet(set: LoadedSpriteSet<Texture>): void {
     this.set = set;
     this._presenter = new ActorPresenter(set.def, set.meta, { blinkHz: this.options.blinkHz });
-    const s = 1 / set.def.artPxPerMeter;
+    const s = (set.def.visualScale ?? 1) / set.def.artPxPerMeter;
     for (const sprite of [this.body, this.flash]) {
       sprite.anchor.set(set.def.pivot[0], set.def.pivot[1]);
       sprite.scale.set(s);

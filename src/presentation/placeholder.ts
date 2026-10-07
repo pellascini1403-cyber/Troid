@@ -89,6 +89,8 @@ export function poseAnchors(pose: PlaceholderPose): Record<AnchorId, AnchorPoint
     hand_r: hand,
     weapon_grip: hand,
     weapon_tip: [hand[0] + blade.length * dir[0], hand[1] + blade.length * dir[1]],
+    // the blow connects out along the blade, near its tip
+    hit_origin: [hand[0] + 0.85 * blade.length * dir[0], hand[1] + 0.85 * blade.length * dir[1]],
     vfx_origin: along(body.h * 0.5),
     projectile_origin: [hand[0] + 0.18 * dir[0], hand[1] + 0.18 * dir[1]],
     interaction: along(body.h * 0.6),

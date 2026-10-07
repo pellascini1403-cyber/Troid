@@ -37,6 +37,11 @@ export interface SpriteSetDefinition {
   atlas: string;
   /** Art pixels per metre: the sprite is scaled by `1 / artPxPerMeter` so it is measured in metres. */
   artPxPerMeter: number;
+  /**
+   * Visual size multiplier about the feet (default 1): art direction — the same art drawn bigger or smaller on screen. It is the one knob that
+   * makes a sprite look larger than the body it stands for WITHOUT touching collision, speed or any hitbox (those never read the sprite).
+   */
+  visualScale?: number;
   /** Feet-centre pivot, normalised to the (untrimmed) frame: `[0.5, 1]` = bottom centre. */
   pivot: readonly [number, number];
   /** Standing height in metres (validation and fallback anchors). */

@@ -67,6 +67,53 @@ describe('anchors (port of CharacterModel sockets)', () => {
   });
 });
 
+describe('resolution and visual scale: the art is measured in metres', () => {
+  /** The placeholder's own pose table at another density: same frames, same anchors, a different number of pixels per metre. */
+  const at = (ppm: number): ReturnType<typeof fakeSet> => {
+    const def = { ...PLAYER_PLACEHOLDER.def, artPxPerMeter: ppm };
+    // a frame of the sheet is 3.6 × 2.4 m of art: as many pixels as the density says
+    return fakeSet(def, PLAYER_PLACEHOLDER.meta, [Math.round(3.6 * ppm), Math.round(2.4 * ppm)]);
+  };
+  const bounds = (a: ActorSprite): { w: number; h: number } => ({ w: body(a).width, h: body(a).height });
+
+  it('the same art at two resolutions covers the same metres of the world and has the same anchors (nothing gameplay reads moves)', () => {
+    const view = createActorViewState();
+    Object.assign(view, { x: 4, prevX: 4, y: 1, prevY: 1, facing: 1, anim: 'attack', phase: 'active', phaseT: 0.3 });
+    const hi = new ActorSprite(at(160));
+    const lo = new ActorSprite(at(40));
+    hi.sync(view, 0, 0);
+    lo.sync(view, 0, 0);
+    expect(bounds(hi).w).toBeCloseTo(bounds(lo).w, 1);
+    expect(bounds(hi).h).toBeCloseTo(bounds(lo).h, 1);
+    expect(bounds(hi).h, 'a 2.4 m frame').toBeCloseTo(2.4, 1);
+    expect(hi.root.position.x).toBe(lo.root.position.x);
+    expect(hi.root.position.y).toBe(lo.root.position.y);
+    for (const id of ANCHOR_IDS) {
+      const a = hi.anchorWorld(id);
+      const b = lo.anchorWorld(id);
+      expect([a.x, a.y], id).toEqual([b.x, b.y]);
+    }
+  });
+
+  it('a visual scale makes the picture bigger about the FEET, and the anchors with it — the position of the actor does not change', () => {
+    const view = createActorViewState();
+    Object.assign(view, { x: 4, prevX: 4, y: 1, prevY: 1, facing: 1, anim: 'attack', phase: 'active', phaseT: 0.3 });
+    const plain = new ActorSprite(at(56));
+    const big = new ActorSprite(fakeSet({ ...PLAYER_PLACEHOLDER.def, visualScale: 1.25 }, PLAYER_PLACEHOLDER.meta, [Math.round(3.6 * 56), Math.round(2.4 * 56)]));
+    plain.sync(view, 0, 0);
+    big.sync(view, 0, 0);
+    expect(bounds(big).h).toBeCloseTo(1.25 * bounds(plain).h, 2);
+    expect(big.root.position.x).toBe(plain.root.position.x);
+    expect(big.root.position.y).toBe(plain.root.position.y);
+    const feet = big.anchorWorld('feet');
+    expect([feet.x, feet.y]).toEqual([4, 1]);
+    const a = plain.anchor('weapon_tip');
+    const b = big.anchor('weapon_tip');
+    expect(b.x).toBeCloseTo(1.25 * a.x, 9);
+    expect(b.y).toBeCloseTo(1.25 * a.y, 9);
+  });
+});
+
 describe('ActorSprite (port of CharacterModel + ActorVisual)', () => {
   it('draws two sprites (body + additive flash overlay) from the shared set and never modifies its textures', () => {
     const set = fakeSet();

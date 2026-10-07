@@ -153,7 +153,7 @@ El *benchmark* de *bundle* cuenta **solo JavaScript**: ni imágenes ni JSON. S35
 
 - **En el repositorio:** `public/icon.svg` y `public/manifest.webmanifest` (la app, no el juego) y `docs/img/camera-study.png` (un estudio de cámara del prototipo 3D). **Ningún sprite del protagonista, ningún atlas, ningún fotograma.** La historia de git conserva dos vistas previas **recoloreadas** (`docs/img/*-recolor-preview.jpg`) y un maniquí 3D (`public/assets/models/mannequin.glb`) del prototipo retirado: **no son arte del juego y no se usan** (recolorear al protagonista está prohibido).
 - **Fuera del repositorio** (la carpeta de adjuntos de la sesión, **no versionada** y que no viaja con el código): **20 imágenes** —10 PNG (una de 1536 × 1024 y nueve de 2752 × 2064) y 10 JPEG— que son el *concept art* y las referencias que aportó el usuario (el retrato, la hoja de poses, las «babas negras», capturas de escenarios: inventario de GAME-SPEC-2D §2.2). Comprobado ahora con `file`: **todas son RGB sin canal alfa**. **No son sprites**: según ese inventario tienen fondo blanco o gris con ruido, escala distinta por pose (193–321 px), efectos rojos fundidos con el cuerpo, una sola imagen por pose y **no incluyen** los clips que el juego necesita (un ciclo de caminar, un salto en fases, 6 fotogramas por ataque…). El GAME-SPEC-2D §2.1 ya lo dice: *«las imágenes son concept art, no sprites de producción»*, y §2.7 dice que usar recortes **verificados pieza a pieza** como piel provisional **requiere que el usuario lo autorice** (DP-1; por defecto, no) — y **no se ha autorizado**.
-- **Conclusión de S33:** los assets reales del protagonista **no están disponibles** como sprites. El pipeline se prepara **completo** (contrato, cargador, validación, adaptador, laboratorio) y el *placeholder* abstracto sigue siendo la piel. Qué falta exactamente: [Parte E](#parte-e--qué-assets-reales-faltan-s38) (se escribe en S38).
+- **Conclusión de S33:** los assets reales del protagonista **no están disponibles** como sprites. El pipeline se prepara **completo** (contrato, cargador, validación, adaptador, laboratorio) y el *placeholder* abstracto sigue siendo la piel. Qué falta exactamente: la **Parte E** (se escribe en S38).
 
 ## A.13 Hallazgos de la auditoría (lo que Prompt 7 cierra)
 
@@ -176,4 +176,90 @@ El *benchmark* de *bundle* cuenta **solo JavaScript**: ni imágenes ni JSON. S35
 
 ---
 
-*(Las partes B–G se añaden en S34–S43: contrato, atlas y carga, adaptador y *fallback*, validación, assets que faltan, laboratorio, VFX y audio, entorno, rendimiento.)*
+# Parte B — El contrato de assets (S34)
+
+> **Qué es:** lo que un paquete de arte **declara** para que el motor lo use sin que una línea de gameplay lo sepa. Dos archivos JSON versionados (`manifestVersion: 1`): el **índice** (`art/index.json`) y el **paquete** (`art/<paquete>/<id>.pack.json`). Código: `presentation/artManifest.ts` (**puro**: lo lee igual el navegador, Node y los tests). Tests: `tests/unit/presentation/artManifest.test.ts`.
+> **Lo que NO es:** arte. Los ejemplos de abajo son **números y nombres técnicos**; ningún archivo del repositorio describe, dibuja ni imita al protagonista.
+
+## B.1 El índice: qué paquetes hay y cuándo se descarga cada uno
+
+```jsonc
+// public/art/index.json            (no existe mientras no haya arte: no hay petición, no hay aviso)
+{ "manifestVersion": 1,
+  "packs": [
+    { "id": "player",  "category": "player",      "load": "boot", "manifest": "player/player.pack.json" },
+    { "id": "r2_art",  "category": "environment", "load": "zone", "zones": ["r2_hall"], "manifest": "r2/r2.pack.json" },
+    { "id": "labs",    "category": "vfx",         "load": "lazy", "manifest": "labs/labs.pack.json" } ] }
+```
+
+| Campo | Qué dice |
+|---|---|
+| `category` | `player` · `enemies` · `environment` · `vfx` · `ui`: **un paquete pertenece a una sola** (así un atlas nunca mezcla lo que no se necesita a la vez; S35) |
+| `load` | **`boot`**: con el juego, **después del primer fotograma** (nunca antes) · **`zone`**: cuando el héroe entra en una de sus `zones` (salas o regiones; se pide durante el fundido de la transición) · **`lazy`**: solo cuando algo lo pide por nombre (un laboratorio, una escena de estrés) |
+| `manifest` | ruta del paquete, **relativa al índice y dentro de la carpeta `art/`**: nunca `..`, ni `/`, ni esquema (`https:`), ni `\` |
+
+## B.2 El paquete: atlas y conjuntos de sprites
+
+```jsonc
+// public/art/<paquete>/<id>.pack.json   (cifras ILUSTRATIVAS)
+{ "manifestVersion": 1, "id": "hero", "category": "player", "status": "final", "tags": ["hero"],
+  "atlases": [
+    { "id": "hero_2x", "source": "hero_2x.png", "data": "hero_2x.json", "width": 1024, "height": 512, "resolution": 1   },
+    { "id": "hero_1x", "source": "hero_1x.png", "data": "hero_1x.json", "width":  512, "height": 256, "resolution": 0.5 } ],
+  "sprites": [ {
+    "id": "hero", "atlases": ["hero_2x", "hero_1x"],
+    "artPxPerMeter": 160, "scale": 1, "pivot": [0.5, 0.95], "frameSize": [200, 300], "height": 1.7, "facing": "right",
+    "missingClips": "placeholder",
+    "clips": {
+      "idle":    { "frames": "idle_", "count": 8, "fps": 8 },
+      "attack1": { "frames": "atk1_", "count": 7, "frameDuration": 70, "phases": { "startup": [0,1], "active": [2,4], "recovery": [5,6] } },
+      "aerialAttack": { "frames": "air_", "count": 6, "fps": 12 } },
+    "anchors": { },
+    "frames":  { "atk1_03": { "heightPx": 270, "anchors": { "hand_r": [0.62,1.02], "weapon_grip": [0.62,1.02], "weapon_tip": [1.5,1.3], "hit_origin": [1.35,1.25] } } },
+    "tags": ["sword"] } ] }
+```
+
+| Campo (sprite) | Significado | Regla |
+|---|---|---|
+| `id` | el id del conjunto (`SpriteSetDefinition.id`) | `[a-z0-9_.:-]`, único en el paquete |
+| `atlases` | **las variantes de resolución de los MISMOS fotogramas** | ids declarados arriba; resoluciones distintas; se ordenan **de mayor a menor** |
+| `artPxPerMeter` | píxeles de arte por metro **de la imagen maestra** (`resolution: 1`) | > 0. **Es el único vínculo entre los píxeles del arte y los metros del mundo** |
+| `scale` | multiplicador **visual** sobre el pie (dirección de arte); por defecto 1 | 0.25–4. **No toca colisión, velocidad ni ningún hitbox** (§A.7) |
+| `pivot` / `pivotPx` | el pivote de los pies, normalizado al fotograma **sin recortar** (`[0.5, 0.95]`), o en píxeles (necesita `frameSize`) | dentro del fotograma; uno de los dos, no ambos |
+| `frameSize` | tamaño del fotograma sin recortar, en px | opcional; el *checker* lo compara con el atlas |
+| `height` | altura **dibujada** del personaje de pie, en metros a la densidad nominal | para validar la escala y las anclas de reserva |
+| `facing` | el arte **mira a la derecha**; el motor lo refleja con el `facing` | solo `"right"` |
+| `missingClips` | qué mostrar si el arte **no tiene** el clip de un estado: `placeholder` (el clip del *placeholder*) o `chain` (la cadena de *fallbacks* del propio set) | por defecto `placeholder` (§D) |
+| `clips` | `estado → { frames, count, fps \| frameDuration, loop?, phases?, tags? }` | los ids del motor **o sus alias**: `aerialAttack → attackAir`, `crouchAttack → attackCrouch`, `landing → land`, `damage → hurt`, `die → death`. Un nombre desconocido es **un error que lista los conocidos** |
+| `anchors` | anclas fijas del set (metros desde los pies, +x adelante) | solo ids conocidos |
+| `frames` | datos **por fotograma** (`heightPx`, `anchors`) escritos en el propio manifiesto | alternativa a `meta.troid` del JSON del atlas |
+| `tags` | etiquetas cortas `[a-z0-9_.:-]` (`sword`, `hero`, `provisional`…) | para herramientas |
+
+| Campo (atlas) | Significado |
+|---|---|
+| `source` | la imagen (`.png` o `.webp`), **relativa a la carpeta del paquete** |
+| `data` | el JSON que exporta el empaquetador (rectángulos, recortes): formato «hash» de TexturePacker |
+| `width`, `height` | tamaño **declarado** de la imagen; el *checker* (S37) lo compara con la cabecera real del archivo. > 2048 en un lado: **aviso** (un móvil puede no aceptarlo); > 4096: error |
+| `resolution` | densidad de **esta** imagen respecto a la maestra: `1` = la maestra, `0.5` = una variante a la mitad |
+
+## B.3 Resolución y escala: cómo cambia el arte sin cambiar el juego
+
+1. **El mundo está en metros** y no sabe de píxeles. El único número que los une es `artPxPerMeter`.
+2. **Un sprite se dibuja a `scale / (artPxPerMeter × resolution)` metros por píxel de arte** (`metresPerPixel`). Cambiar la resolución del arte (una variante a la mitad, un maestro a 3×) cambia `artPxPerMeter` o `resolution` y **nada más**: el pivote, las anclas (metros), los clips, las fases y la altura son los mismos. Lo prueban `artManifest.test.ts` («las dos variantes son el MISMO set medido en metros») y `actorSprite.test.ts` («el mismo arte a dos resoluciones cubre los mismos metros y tiene las mismas anclas»; en el navegador, `?lab=sprites&variant=1`).
+3. **Qué variante se carga** (`chooseAtlasVariant`): la **menor** que aún tiene al menos el 85 % de los píxeles que la pantalla va a dibujar (`ppm × resolución × scale`), o la mayor que haya. Con los números de §A.4: un móvil (51 px/m dibujados) toma la variante a la mitad (80 px/m); una tableta (106) y un monitor 4K (160) toman la maestra.
+4. **`scale` y `pivot` son las dos palancas** para un sprite visualmente más grande o desplazado: ajustan **solo su representación** (`ActorSprite` escala `visualScale / artPxPerMeter` y las anclas crecen con él). **La física nunca se ajusta sola** a lo que se ve (§A.7).
+5. **Anclas:** se escriben en **metros del arte nominal**, relativas a los pies. Las anclas de espada del contrato (`hand_r`, `weapon_grip`, `weapon_tip`) y la de golpe (`hit_origin`, **solo para herramientas y efectos cosméticos**; el *hitbox* es dato en `AttackDefinition`) viajan por fotograma.
+
+## B.4 Qué hace el motor con el contrato
+
+| Función (`presentation/artManifest.ts`) | Para qué |
+|---|---|
+| `parseArtIndex(json)` · `parseArtPack(json)` | leen y comprueban **sin lanzar nunca**: devuelven `{ value, issues }` con la **ruta del campo** (`sprites[0].clips.idle.count`), **todos los problemas de una vez**, y `value = null` si hay algún error. Las claves desconocidas son **avisos** (un typo no pasa en silencio; una herramienta más nueva puede escribir más) |
+| `toSpriteSetDefinition(pack, sprite, atlas)` | el **único puente** al `SpriteSetDefinition` que ya entienden `ActorSprite`, el animador y el validador: la densidad pasa a ser la **de esa imagen** (maestra × resolución) |
+| `chooseAtlasVariant(sprite, atlases, pxPorMetroDibujados)` | la variante de resolución para una pantalla |
+| `missingClips(sprite, queridos)` | qué estados faltan por dibujar |
+| `CLIP_ALIASES`, `isSafeRelativePath` | los nombres que un artista puede usar y la regla de rutas |
+
+**Un manifiesto no puede salirse de su carpeta, ni apuntar a una URL, ni nombrar un estado que el motor no conozca.** Un paquete con `status: "awaiting-art"` **declara lo que tendrá** (clips, cuentas, fases, pivote, escala) **sin imágenes**: es lo que S38 usa para decir exactamente qué falta.
+
+*(Las partes siguientes se añaden con cada paso: **C** atlas, carga diferida y presupuesto (S35) · **D** el visual del protagonista y el *fallback* (S36) · **E** validación y qué assets reales faltan (S37, S38) · **F** el laboratorio y R1 (S39, S40) · **G** VFX, audio, entorno y rendimiento (S41–S43).)*

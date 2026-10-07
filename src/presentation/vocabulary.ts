@@ -18,8 +18,11 @@ export type AnimState = (typeof ANIM_STATES)[number];
 /**
  * Anchor points of an actor, in METRES relative to the feet centre, +x = forward (the art faces right) and +y = up.
  * VFX, projectiles' visuals and the sword attach to these, never to pixel coordinates or frame numbers.
+ *
+ * `hit_origin` is where the ART shows a blow connecting (the visual centre of the contact). Only tools and cosmetic effects read it: the
+ * hitbox of an attack is data in its `AttackDefinition`, never a point of the picture (docs/ART-PIPELINE-2D.md §A.7).
  */
-export const ANCHOR_IDS = ['feet', 'head', 'hand_r', 'weapon_grip', 'weapon_tip', 'vfx_origin', 'projectile_origin', 'interaction'] as const;
+export const ANCHOR_IDS = ['feet', 'head', 'hand_r', 'weapon_grip', 'weapon_tip', 'hit_origin', 'vfx_origin', 'projectile_origin', 'interaction'] as const;
 export type AnchorId = (typeof ANCHOR_IDS)[number];
 
 /** Phase of an attack (or any timed action) as the SIMULATION sees it; the animation derives the frame from it. */
