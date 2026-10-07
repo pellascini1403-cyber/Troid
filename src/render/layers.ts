@@ -1,15 +1,7 @@
 import { Container } from 'pixi.js';
 
-/**
- * Parallax factors (docs/ARCHITECTURE-2D.md §7.4): 1 = moves with the world, 0 = glued to the screen.
- * The foreground moves FASTER than the world (> 1) so dark silhouettes in front of the action add depth.
- */
-export const PARALLAX_FACTOR = {
-  backdropFar: 0.15,
-  backdropMid: 0.4,
-  backdropNear: 0.75,
-  foreground: 1.2,
-} as const;
+// The parallax factors are DATA of the environment contract (docs/ART-PIPELINE-2D.md, part I): one place, tested against this scene graph.
+export { PARALLAX_FACTOR } from '@/presentation/environment';
 
 /**
  * The scene graph, back to front. Everything inside `world` lives in METRES (view space: +Y down, see

@@ -23,8 +23,9 @@ import type { Ctx, Scenario } from '../scenario';
  */
 const PACKS: FixturePack[] = [
   { id: 'player', category: 'player', load: 'boot', sprites: [{ id: 'hero', canvas: [64, 96], clips: { idle: 4, walk: 4 } }] },
-  { id: 'forest', category: 'environment', load: 'zone', zones: ['r1_gate'], sprites: [{ id: 'moss', canvas: [48, 48], clips: { idle: 3 } }] },
-  { id: 'caves', category: 'environment', load: 'zone', zones: ['r2_hall', 'r3_chamber'], sprites: [{ id: 'drip', canvas: [48, 80], clips: { idle: 3 } }] },
+  // (scenery says what it draws — the environment contract, docs/ART-PIPELINE-2D.md part I — or the build refuses it)
+  { id: 'forest', category: 'environment', load: 'zone', zones: ['r1_gate'], sprites: [{ id: 'moss', canvas: [48, 48], clips: { idle: 3 }, extra: { pivot: [0, 0], tags: ['role:solid', 'material:moss', 'part:fill'] } }] },
+  { id: 'caves', category: 'environment', load: 'zone', zones: ['r2_hall', 'r3_chamber'], sprites: [{ id: 'drip', canvas: [48, 80], clips: { idle: 3 }, extra: { pivot: [0.5, 1], tags: ['role:decor'] } }] },
   { id: 'lab', category: 'vfx', load: 'lazy', sprites: [{ id: 'probe', canvas: [32, 32], clips: { idle: 2, walk: 2 } }] },
 ];
 const SIZE = { width: 844, height: 390, dpr: 1 };

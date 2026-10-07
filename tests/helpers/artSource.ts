@@ -76,7 +76,9 @@ export function writeSourceArt(src: string, packs: SourcePack[]): void {
     put(join(src, p.id, `${p.id}.pack.json`), json(p.manifest ? p.manifest(manifest) : manifest));
     for (const s of p.sprites) {
       for (const [state, c] of Object.entries(s.clips)) {
-        for (let i = 0; i < c.count; i++) put(join(src, p.id, s.id, `${state}_${String(i).padStart(2, '0')}.png`), encodePng(noiseFrame(seed++, s.box ?? { x: 20, y: 8, w: 40, h: 68 })));
+        // the frames are named by the prefix the manifest gives the clip (`${state}_` unless the test says another: a pack names each frame once)
+        const prefix = (c.extra?.['frames'] as string | undefined) ?? `${state}_`;
+        for (let i = 0; i < c.count; i++) put(join(src, p.id, s.id, `${prefix}${String(i).padStart(2, '0')}.png`), encodePng(noiseFrame(seed++, s.box ?? { x: 20, y: 8, w: 40, h: 68 })));
       }
     }
   }

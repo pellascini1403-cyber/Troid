@@ -2,7 +2,9 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { ROOMS, WORLD } from '@/content';
 import { PLAYER_VISUAL } from '@/content/visuals';
+import { ENV_CONTRACT, environmentSlots } from '@/presentation/environment';
 import { buildArt } from '../../../tools/assets/build';
 import { decodePng, encodePng } from '../../../tools/assets/png';
 import { verifyArt, verifyArtFolder, type VerifyResult } from '../../../tools/assets/verify';
@@ -134,7 +136,8 @@ describe('the pictures: transparency', () => {
   });
 
   it('…but only a note for scenery, which may fill its canvas', () => {
-    build(simple({ id: 'cave', category: 'environment', sprites: [{ id: 'cave', clips: { idle: { count: 2 } } }] }));
+    // (a piece of scenery now says what it draws — the environment contract, part I — or the build says so; the picture is what this test is about)
+    build(simple({ id: 'cave', category: 'environment', sprites: [{ id: 'cave', clips: { idle: { count: 2 } }, extra: { pivot: [0, 1], tags: ['role:backdrop', 'backdrop:ruins', 'part:far'] } }] }));
     writeFileSync(join(out, 'cave', 'cave_0.png'), (() => {
       const info = decodePng(readFileSync(join(out, 'cave', 'cave_0.png')));
       return rawPng({ width: info.width, height: info.height, bitDepth: 8, colorType: 2, samples: Array.from({ length: info.height }, () => new Array<number>(info.width * 3).fill(90)) });
@@ -287,5 +290,75 @@ describe('the build runs the same questions on what is about to ship', () => {
     expect(r.ok).toBe(true);
     expect(r.issues.filter((i) => i.level === 'error')).toEqual([]);
     expect(verifyArtFolder(out).ok).toBe(true);
+  });
+});
+
+/**
+ * THE ENVIRONMENT'S ART (docs/ART-PIPELINE-2D.md, part I): a pack of the `environment` category must say what each sprite draws (role, what it is for, which piece), be
+ * placed from where its repetition starts, and — as a final pack — have every piece the four rooms of the world ask for. Read from the data of the rooms.
+ */
+describe('environment art', () => {
+  const slots = environmentSlots(WORLD.rooms.map((id) => ROOMS[id]!));
+  /** A sprite per required piece of the world, tagged and pivoted as the contract asks. */
+  const piece = (s: (typeof slots)[number]): SourcePack['sprites'][number] => {
+    const spec = ENV_CONTRACT[s.role];
+    const id = `${s.role}_${s.subject ?? 'x'}_${s.part || 'x'}`.replace(/[^a-z0-9_]/g, '_');
+    return {
+      id,
+      clips: { idle: { count: 1, extra: { frames: `${id}_` } } }, // (a pack names each frame once: the still picture of each sprite has its own prefix)
+      extra: { pivot: [...spec.pivot], tags: [`role:${s.role}`, ...(spec.subject ? [`${spec.subject}:${s.subject}`] : []), ...(s.part ? [`part:${s.part}`] : [])] },
+    };
+  };
+  const scenery = (over: Partial<SourcePack> = {}, only: (s: (typeof slots)[number]) => boolean = () => true): SourcePack => ({
+    id: 'forest', category: 'environment', load: 'zone', zones: ['r1_gate'], status: 'final', sprites: slots.filter((s) => s.required && only(s)).map(piece), ...over,
+  });
+
+  it('a final pack with every piece the world asks for verifies clean', () => {
+    build(scenery());
+    const v = verifyArtFolder(out);
+    expect(errors(v)).toEqual([]);
+    expect(warnings(v)).toEqual([]);
+    expect(v.ok).toBe(true);
+  });
+
+  // (a source that breaks the contract does not even build: the packer asks the same questions. So each test builds a GOOD pack and breaks the one that ships)
+  const manifest = (change: (m: Record<string, any>) => void): void => editJson('forest/forest.pack.json', change);
+
+  it('a sprite that does not say what it draws fails the build, naming the pack and the sprite', () => {
+    build(scenery());
+    manifest((m) => void (m['sprites'][3].tags = []));
+    const v = verifyArtFolder(out);
+    expect(v.ok).toBe(false);
+    expect(errors(v).filter((e) => /^forest sprites\.[a-z_]+: says nothing of what it draws/.test(e))).toHaveLength(1);
+    expect(errors(v).filter((e) => /the world asks for the "body" of door "gate"/.test(e)), 'and what it was is now a piece the world lacks').toHaveLength(1);
+  });
+
+  it('a final pack that lacks a piece the world asks for fails; a provisional one only warns (the blockout draws what is missing)', () => {
+    build(scenery());
+    const dropHazard = (m: Record<string, any>): void => void (m['sprites'] = m['sprites'].filter((x: { tags: string[] }) => !x.tags.includes('role:hazard')));
+    manifest(dropHazard);
+    const final = verifyArtFolder(out);
+    expect(final.ok).toBe(false);
+    expect(errors(final)).toEqual([expect.stringMatching(/the world asks for the "cell" of hazard "spikes" \(r2_hall\) and the pack does not have it$/)]);
+    manifest((m) => void (m['status'] = 'provisional'));
+    const provisional = verifyArtFolder(out);
+    expect(provisional.ok).toBe(true);
+    expect(warnings(provisional).filter((w) => /hazard "spikes".*the blockout draws it$/.test(w))).toHaveLength(1);
+  });
+
+  it('a pivot that is not where the role starts is an error', () => {
+    build(scenery());
+    manifest((m) => void (m['sprites'][0].pivot = [0.5, 1]));
+    expect(errors(verifyArtFolder(out))).toEqual([expect.stringMatching(/its pivot is \[0\.5, 1\] but a [a-z]+ is placed from \[/)]);
+  });
+
+  it('a pack that awaits its art is declared, not looked at', () => {
+    build(scenery({ status: 'awaiting-art' }));
+    expect(verifyArtFolder(out)).toMatchObject({ ok: true, issues: [] });
+  });
+
+  it('only the environment is held to it: the same tags (or none) on a pack of another category are nobody\'s business', () => {
+    build(simple({ sprites: [{ id: 'blob', clips: { idle: { count: 2 } }, extra: { tags: ['role:tree'] } }] }));
+    expect(verifyArtFolder(out)).toMatchObject({ ok: true, issues: [] });
   });
 });

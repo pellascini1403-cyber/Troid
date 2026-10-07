@@ -77,6 +77,8 @@ export interface GameState {
   visual?: { mode: string; shows: string; art: string | null; provides: string[]; lacks: string[] };
   /** 2D view only (S40): the four boxes of the hero in world metres — the picture that is SEEN, the body that COLLIDES, the hurtbox that is HURT and the hitbox that HITS (`null` when no blow is out). */
   boxes?: { visual: Box; body: Box; hurtbox: Box; hitbox: Box | null };
+  /** 2D view only (S42): where each parallax layer sits (view-space metres) and the pivot of the world they follow — `layer = (1 − factor) × pivot`. */
+  parallax?: { pivot: { x: number; y: number }; layers: Record<'backdropFar' | 'backdropMid' | 'backdropNear' | 'foreground', { x: number; y: number }> };
   /** 2D view only (S41): the cues of the sound to come — how many in all, how many of each and the last ones (oldest first). `null` until the effects have arrived. */
   cues?: { total: number; counts: Record<string, number>; recent: Array<{ cue: string; tick: number; x: number | null; y: number | null; intensity: number; variant: string }> } | null;
   /** 2D view only (S35): the art library — what it holds, what it has fetched; `null` for a page with no art (it never loads the library). */

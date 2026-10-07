@@ -1,14 +1,16 @@
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildArt, formatReport } from './build';
-import { formatDelivery, readDelivery } from './missing';
+import { ROOMS, WORLD } from '../../src/content';
+import { environmentSlots } from '../../src/presentation/environment';
+import { formatDelivery, formatEnvironmentDelivery, readDelivery, readEnvironmentDelivery } from './missing';
 import { verifyArtFolder } from './verify';
 
 /**
  * `npm run assets:pack` — packs `art/` into `public/art/` (docs/ART-PIPELINE-2D.md, part C).
  * `npm run assets:check` — the same checks, writes nothing, exits 1 on any error: what `npm run build` and the CI ask before a browser is ever opened.
  * `npm run assets:verify` — checks only what is in `public/art` (what the game will fetch), whoever put it there.
- * `npm run assets:missing` — what of the protagonist's art has been delivered and what has not (`--strict`: exit 1 while anything is missing).
+ * `npm run assets:missing` — what of the protagonist's art and of the environment's has been delivered and what has not (`--strict`: exit 1 while anything is missing).
  *
  *   --src <dir>     the folder the artist hands over (default `art`)
  *   --out <dir>     the folder the game fetches (default `public/art`)
@@ -28,9 +30,13 @@ const write = !has('--check') && !has('--verify') && !has('--missing');
 const maxSide = value('--max-side');
 
 if (has('--missing')) {
-  const report = readDelivery(value('--src') ?? join(root, 'art'));
+  const src = value('--src') ?? join(root, 'art');
+  const report = readDelivery(src);
+  const environment = readEnvironmentDelivery(src, environmentSlots(WORLD.rooms.map((id) => ROOMS[id]!)));
   console.log(formatDelivery(report));
-  process.exit(has('--strict') && report.delivered < report.total ? 1 : 0);
+  console.log('');
+  console.log(formatEnvironmentDelivery(environment));
+  process.exit(has('--strict') && (report.delivered < report.total || environment.delivered < environment.total) ? 1 : 0);
 }
 
 if (has('--verify')) {

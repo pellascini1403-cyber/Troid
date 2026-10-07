@@ -2,9 +2,11 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { ROOMS, WORLD } from '@/content';
 import { PLAYER_VISUAL } from '@/content/visuals';
+import { environmentSlots } from '@/presentation/environment';
 import { encodePng } from '../../../tools/assets/png';
-import { formatDelivery, readDelivery } from '../../../tools/assets/missing';
+import { formatDelivery, formatEnvironmentDelivery, readDelivery, readEnvironmentDelivery } from '../../../tools/assets/missing';
 import { json, noiseFrame, put } from '../../helpers/artSource';
 
 /**
@@ -91,5 +93,61 @@ describe('readDelivery', () => {
     put(join(src, 'player', 'player.pack.json'), '{ broken');
     expect(() => readDelivery(src)).not.toThrow();
     expect(readDelivery(src).status).toBe('none');
+  });
+});
+
+/**
+ * WHAT OF THE ENVIRONMENT'S ART HAS BEEN DELIVERED (docs/ART-PIPELINE-2D.md, part I): the pieces the four rooms ask for, read from their data, against the sprites of the
+ * environment packs in the folder. The frames are noise: technical fixtures, never art.
+ */
+describe('readEnvironmentDelivery', () => {
+  const slots = environmentSlots(WORLD.rooms.map((id) => ROOMS[id]!));
+  const REQUIRED = slots.filter((s) => s.required).length;
+  const declareScenery = (status: string, sprites: Array<{ id: string; tags: string[] }>, files = true): void => {
+    rmSync(join(src, 'forest'), { recursive: true, force: true }); // (each declaration is the whole of the folder)
+    put(join(src, 'index.json'), json({ manifestVersion: 1, packs: [{ id: 'forest', category: 'environment', load: 'zone', zones: ['r1_gate'], manifest: 'forest/forest.pack.json' }] }));
+    put(
+      join(src, 'forest', 'forest.pack.json'),
+      json({ manifestVersion: 1, id: 'forest', category: 'environment', status, atlases: [], sprites: sprites.map((x) => ({ id: x.id, atlases: [], height: 1, pivot: [0, 0], tags: x.tags, clips: { idle: { frames: `${x.id}_`, count: 1 } } })) }),
+    );
+    if (files) for (const x of sprites) put(join(src, 'forest', x.id, `${x.id}_00.png`), encodePng(noiseFrame(1, { x: 2, y: 2, w: 6, h: 6 }, 16, 16)));
+  };
+
+  it('with no art folder at all, none of the twelve required pieces is delivered, and it says so without throwing', () => {
+    const r = readEnvironmentDelivery(join(root, 'nowhere'), slots);
+    expect(r).toMatchObject({ packs: [], delivered: 0, total: REQUIRED });
+    expect(REQUIRED).toBe(12);
+    expect(r.rows.every((x) => !x.delivered)).toBe(true);
+  });
+
+  it('a piece is delivered when its sprite says what it draws, its frame is there and its pack no longer awaits its art', () => {
+    declareScenery('provisional', [{ id: 'stone_fill', tags: ['role:solid', 'material:stone', 'part:fill'] }, { id: 'stone_cap', tags: ['role:solid', 'material:stone', 'part:cap'] }]);
+    const r = readEnvironmentDelivery(src, slots);
+    expect(r.packs).toEqual([{ id: 'forest', status: 'provisional' }]);
+    expect(r.delivered).toBe(1); // (the cap is delivered too, but it is optional: only required pieces are counted)
+    expect(r.rows.find((x) => x.slot.role === 'solid' && x.slot.subject === 'stone' && x.slot.part === 'fill')).toMatchObject({ delivered: true, by: 'forest/stone_fill' });
+    expect(r.rows.find((x) => x.slot.role === 'solid' && x.slot.subject === 'stone' && x.slot.part === 'cap')?.delivered).toBe(true);
+    expect(r.rows.find((x) => x.slot.role === 'solid' && x.slot.subject === 'earth' && x.slot.part === 'fill')?.delivered).toBe(false);
+  });
+
+  it('nothing is delivered while the pack awaits its art, or when the frame is not there, or when the sprite does not say what it draws', () => {
+    declareScenery('awaiting-art', [{ id: 'stone_fill', tags: ['role:solid', 'material:stone', 'part:fill'] }]);
+    expect(readEnvironmentDelivery(src, slots).delivered).toBe(0);
+    declareScenery('provisional', [{ id: 'stone_fill', tags: ['role:solid', 'material:stone', 'part:fill'] }], false);
+    expect(readEnvironmentDelivery(src, slots).delivered).toBe(0);
+    declareScenery('provisional', [{ id: 'stone_fill', tags: [] }, { id: 'odd', tags: ['role:tree'] }]);
+    expect(readEnvironmentDelivery(src, slots).delivered).toBe(0);
+  });
+
+  it('says it all in words for a person, and where to read how to deliver it', () => {
+    declareScenery('provisional', [{ id: 'stone_fill', tags: ['role:solid', 'material:stone', 'part:fill'] }]);
+    const text = formatEnvironmentDelivery(readEnvironmentDelivery(src, slots));
+    expect(text).toMatch(/pack "forest" \(provisional\)/);
+    expect(text).toMatch(/Delivered: 1 of 12 required pieces\. The game draws the rest with its blockout\./);
+    expect(text).toMatch(/solid stone · fill .*required .*delivered \(forest\/stone_fill\)/);
+    expect(text).toMatch(/solid earth · fill .*required .*NOT DELIVERED/);
+    expect(text).toMatch(/solid stone · cap .*optional/);
+    expect(text).toMatch(/deliver-environment-art\.md/);
+    expect(formatEnvironmentDelivery(readEnvironmentDelivery(join(root, 'nowhere'), slots))).toMatch(/no pack of it in art\//);
   });
 });

@@ -1,9 +1,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { ROOMS, WORLD } from '../../src/content';
 import { PLAYER_VISUAL } from '../../src/content/visuals';
 import { checkSpriteFrames, mergeFrameMeta, parseAtlasData, type AtlasPage } from '../../src/presentation/artAtlas';
 import { applyContract } from '../../src/presentation/artContract';
 import { atlasVariants, parseArtIndex, parseArtPack, toSpriteSetDefinition, type ArtAtlas, type ArtIndexEntry, type ArtIssue, type ArtPack, type ArtSprite } from '../../src/presentation/artManifest';
+import { environmentPackIssues, environmentSlots } from '../../src/presentation/environment';
 import { lackedClips } from '../../src/presentation/visualSource';
 import { inspectPicture, pictureIssues } from './inspect';
 import { decodePng, readPngInfo } from './png';
@@ -91,6 +93,8 @@ function verifyPack(entry: ArtIndexEntry, read: FileReader, issues: ArtIssue[]):
   result.status = pack.status;
   if (pack.id !== entry.id || pack.category !== entry.category) issues.push({ level: 'error', path: label, message: `the manifest says it is "${pack.id}" (${pack.category}) but the index lists "${entry.id}" (${entry.category})` });
   if (pack.status === 'awaiting-art') return result; // declared, no images: nothing more to look at
+  // the scenery says what it draws, the way the environment contract asks (part I): the pieces the world's rooms ask for are read from their data
+  if (pack.category === 'environment') issues.push(...tag(label, environmentPackIssues(pack, environmentSlots(WORLD.rooms.map((id) => ROOMS[id]!)))));
 
   // ---- every atlas: the files are there and are what the manifest says
   const pages = new Map<string, AtlasPage>();

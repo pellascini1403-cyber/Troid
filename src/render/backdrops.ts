@@ -1,10 +1,12 @@
 import { Graphics, type Container } from 'pixi.js';
 import type { Rect } from '@/core/math';
 import { Rng } from '@/core/rng';
+import { layerSpan, PARALLAX_FACTOR } from '@/presentation/environment';
 import { PALETTE } from '@/presentation/palette';
 import { viewY } from '@/presentation/worldTransform';
 import type { Layers } from './layers';
-import { PARALLAX_FACTOR } from './layers';
+
+export { layerSpan };
 
 /**
  * PROVISIONAL scenery (docs/MIGRATION-2D.md S10: "capas de fondo provisionales"): layers of flat silhouettes behind and in
@@ -22,17 +24,10 @@ export interface BackdropOptions {
   seed: number;
 }
 
-/** The widest view the game ever shows (21:9 at 13.5 m: 31.5 m), halved, plus a margin: how far a layer must reach past the camera range. */
-const HALF_VIEW = 16 + 8;
 /** The generators place elements until they pass the end of the span by this much (the largest gap between two of them), so the span is always FILLED to its end. */
 const OVERRUN = 18;
 
 type BackdropBuilder = (layers: Layers, opts: BackdropOptions) => Graphics[];
-
-/** A layer's horizontal span in its own coordinates for a camera range of `[x0, x1]`. */
-export function layerSpan(bounds: Rect, factor: number): { x0: number; x1: number } {
-  return { x0: bounds.x0 * factor - HALF_VIEW, x1: bounds.x1 * factor + HALF_VIEW };
-}
 
 /** «Ancient Forest Ruins»: a pale haze far away, trunks, broken stone pillars, and dark vines hanging in front. */
 const ruins: BackdropBuilder = (layers, { bounds, seed }) => {

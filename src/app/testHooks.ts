@@ -205,6 +205,11 @@ export function createTestHooks(h: HookHost) {
             attack: g.attackKind, enraged: g.enraged, marks: g.telegraphMarks.map((m) => ({ x: m.x, w: m.w, t01: m.t01 })), opacity: g.view.opacity,
           };
         })(),
+        // where the parallax layers sit now and the pivot of the world they follow (S42): the environment contract says `layer = (1 − factor) × pivot`
+        parallax: {
+          pivot: { x: h.renderer.layers.world.pivot.x, y: h.renderer.layers.world.pivot.y },
+          layers: Object.fromEntries((['backdropFar', 'backdropMid', 'backdropNear', 'foreground'] as const).map((k) => [k, { x: h.renderer.layers[k].position.x, y: h.renderer.layers[k].position.y }])),
+        },
         // objects in each scene layer: the E2E proves that rebuilding a room leaves nothing behind
         scene: Object.fromEntries(
           (['terrain', 'actors', 'fxNormal', 'fxWorld', 'backdropFar', 'backdropMid', 'backdropNear', 'foreground', 'lightOverlay'] as const).map((k) => [k, h.renderer.layers[k].children.length]),

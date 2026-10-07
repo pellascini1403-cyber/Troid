@@ -771,4 +771,102 @@ El juego **no tiene sonido**. Lo que tiene es la lista de **momentos para los qu
 
 **Coste:** el *chunk* de efectos (tardío: se descarga con la página ociosa) pasa de 0.4 a **1.2 KB gzip**; el **arranque en frío no cambia (190.4 KB)**. Ni `vfxContract` ni la tabla `AUDIO_CONTRACT` viajan en ningún *chunk*: solo las pruebas las leen.
 
-*(Siguiente: **I** entorno (S42) · **J** rendimiento (S43).)*
+---
+
+# Parte I — Contrato de assets de entorno (S42)
+
+> **Qué es:** cómo se organizará, se repetirá, se pedirá y se entregará el escenario que sustituya al *blockout*, escrito como **datos y funciones puras** (`presentation/environment.ts`) y comprobado en el *build* (`tools/assets/verify.ts`, `missing.ts`): las **capas y el paralaje**, las **piezas** que el mundo pide (leídas de los datos de las salas), la **regla con que una imagen rellena un rectángulo**, las **etiquetas** con que un *sprite* dice qué dibuja y la regla de oro: **la colisión es de los datos de la sala, nunca del dibujo**.
+> **Lo que NO es:** escenario. No hay arte de entorno, no se ha generado ni imitado ninguno, y **todavía no existe el código que dibuja una sala con imágenes** (§I.8). Guía para quien lo dibuje: [deliver-environment-art.md](guides/deliver-environment-art.md).
+
+## I.1 Lo que se dibuja hoy (el *blockout*, que se conserva)
+
+Todo es procedural, determinista (la misma sala, el mismo aspecto) y de la vista: `RoomView2D` pinta los sólidos como rectángulos planos por `material` con un borde superior iluminado, cada puerta aparte (para disolverla), las espinas y un haz de luz por salida; `backdrops.ts` genera las cuatro capas de fondo (`ruins`); `InteractableViews` y `SealView` pintan lo que se toma o se golpea. **Nada de esto toca la colisión.**
+
+## I.2 Las capas
+
+`ENV_LAYERS` es la escena de atrás adelante, y **una prueba la compara con `createLayers`** (lo que el renderizador construye y lo que se le dice al artista no pueden separarse):
+
+| Capa | Espacio | Factor | Mezcla | Lleva | Arte |
+|---|---|---|---|---|---|
+| `sky` | pantalla | — | normal | el cielo provisional, pegado a la pantalla | — |
+| `backdropFar` · `backdropMid` · `backdropNear` | mundo | **0.15 · 0.4 · 0.75** | normal | la lejanía · troncos · pilares | `backdrop` |
+| `propsBack` | mundo | 1 | normal | santuarios, palancas, objetos | `decor`, `interactive` |
+| `terrain` | mundo | 1 | normal | suelo, paredes, plataformas, puertas, espinas | `solid`, `platform`, `door`, `hazard` |
+| `actors` | mundo | 1 | normal | el héroe, los enemigos, el jefe | — |
+| `fxNormal` · `fxWorld` | mundo | 1 | normal · **aditiva** | tinta, humo, polvo · luz: proyectiles, tajos, el sigilo del sello | — · `seal` |
+| `foreground` | mundo | **1.2** | normal | siluetas oscuras delante (más rápido que el mundo) | `foreground`, `decor` |
+| `lightOverlay` | mundo | 1 | **aditiva** | haces sobre las salidas, objetos que flotan | `light`, `interactive` |
+| `debug` · `screen` | mundo · pantalla | 1 · — | normal | `?debug=1` · viñeta, destellos, fundidos | — |
+
+**Paralaje:** una capa con factor *f* se coloca en `(1 − f) × pivote` (el pivote es la cámara, ajustado a un píxel del dispositivo, para que no tiemble) y se mueve *f* × la cámara; cubre **`f × (ancho de la sala) + 2 × 24 m`** (`layerSpan`: la vista más ancha, 21:9 a 13.5 m, mide 31.5 m). Orden obligado: 0 < lejos < medio < cerca < 1 < primer plano.
+
+## I.3 Los roles
+
+Diez clases de arte, cada una con **qué dato de la sala dibuja**, **en qué capa**, **cómo rellena** lo que el dato le da y **desde qué punto del *sprite*** (`ENV_CONTRACT`):
+
+| Rol | Dibuja | Relleno | Pivote | Partes (**obligatoria**) |
+|---|---|---|---|---|
+| `solid` | los `solids` de tipo sólido, por `material` | `tile` desde arriba-izquierda, recortado | `[0, 0]` | **`fill`**, `cap`, `edge-l`, `edge-r` |
+| `platform` | los `solids` `oneway` | `tile-x` | `[0, 0]` | **`body`**, `cap-l`, `cap-r` |
+| `door` | los `gates` (`gate`, `seal`); se disuelve en 0.6 s | `tile-y` desde abajo | `[0, 1]` | **`body`**, `top`, `bottom` |
+| `hazard` | los `hazards`, por tipo | `tile-x` desde su suelo | `[0, 1]` | **`cell`** |
+| `backdrop` | `art.backdrop`: tres tiras | `strip` sin costura | `[0, 1]` | **`far`**, **`mid`**, **`near`** |
+| `foreground` | `art.backdrop`: siluetas delante | `strip` | `[0, 1]` | `strip` |
+| `decor` | objetos que no chocan con nada | puntual | `[0.5, 1]` | — |
+| `interactive` | los `interactables`, por tipo | puntual | `[0.5, 1]` | **una** por tipo |
+| `seal` | los `seals` | puntual | `[0.5, 0.5]` | **una** |
+| `light` | las `exits` | puntual | `[0.5, 1]` | una |
+
+## I.4 La regla de repetición
+
+**El rectángulo de la sala es la verdad y el arte se recorta a él, nunca al revés.** Los bloques del juego no están en una rejilla (un bloque de 1.4 × 1.1 m es normal), así que `planTiles(rect, celda)` da celdas **enteras** desde la **esquina superior izquierda** y la última columna y la última fila **recortadas** a lo que queda —**jamás escaladas**—: 1.4 × 1.1 m con una celda de 1 m son una celda entera y una tira de 0.4 m, y 0.1 m de la fila siguiente. `axisPlan` trata una longitud a una millonésima de un número entero de celdas como ese número (no dibuja una celda recortada a nada). Una prueba lo comprueba **contra cada sólido de cada sala del juego**: las celdas más lo recortado suman exactamente su largo, para cuatro tamaños de celda. Las tiras de paralaje (`stripCover`) se repiten sin costura hasta cubrir `layerSpan`.
+
+## I.5 Lo que pide el mundo
+
+`environmentSlots(salas)` lee los datos de las salas y da **una pieza por (rol, sujeto, parte)**: cada material de cada sólido, cada puerta, cada tipo de peligro y de objeto, los sellos, las salidas y el fondo. **Hoy (R1–R4): 26 piezas, 12 obligatorias** —`solid` `stone` y `earth` (`fill`), `platform` `wood` (`body`), `door` `gate` y `seal` (`body`), `hazard` `spikes` (`cell`), `backdrop` `ruins` (`far`, `mid`, `near`), `interactive` `rest` y `pickup`, `seal`— y sale sola: una sala con un material nuevo pide piezas nuevas. Las salas de pruebas (`moss`) no son del mundo y no cuentan.
+
+`npm run assets:missing` la imprime (`0 of 12 required pieces` hoy) con las salas que usan cada una; `--strict` falla mientras falte algo.
+
+## I.6 Cómo se entrega y qué comprueba el *build*
+
+Un paquete `environment` con **un *sprite* por pieza** que **dice qué dibuja con etiquetas** (`role:solid`, `material:stone`, `part:fill`). `environmentPackIssues`, dentro de `assets:check` / `npm run build`:
+
+| Regla | Nivel |
+|---|---|
+| un único `role:` conocido; el sujeto que ese rol pide (`material:`/`kind:`/`backdrop:`); una parte válida si el rol las tiene | **error** |
+| el pivote del rol (donde empieza la repetición) | **error** |
+| un clip `idle` (una imagen quieta es un `idle` de un fotograma) y un prefijo de fotograma único en el paquete (esto último, del manifiesto) | **error** |
+| una sola escala por paquete; dos *sprites* para la misma pieza | aviso |
+| faltan piezas obligatorias del mundo | **error** si el paquete es `final`, aviso si es `provisional` (lo que falte, el *blockout*) |
+| el paquete espera su arte (`awaiting-art`) | no se mira |
+
+## I.7 La colisión no es el dibujo
+
+Una sala **es** sus datos: lo que el héroe pisa, golpea o atraviesa es `solids`, `gates`, `hazards` y `exits`. El `material` de un sólido y el `art` de la sala son **vestido**. Se garantiza en tres sitios:
+
+1. **Arquitectura** (`architecture.test.ts`, S40): ni `world/` ni `player/`, `combat/`, `gameplay/`… pueden importar nada de `presentation/` salvo el vocabulario —`presentation/environment` no está entre ello—, ni de `render/`.
+2. **Prueba de la simulación** (`artIndependence.test.ts`): la **misma jugada** (correr, saltar, golpear, *dash*, agacharse) en R1 y R2 con su fondo, **sin fondo**, con **un fondo que no existe**, y con **todos los sólidos de otro material** (incluido uno que nadie ha dibujado) da **los mismos ticks y los mismos colisionadores**.
+3. **Navegador** (E2E `environment`): lo dibujado es lo que los datos piden.
+
+## I.8 Lo que no está construido (y por qué)
+
+- **El dibujo de una sala con imágenes** (un `EnvironmentView` que use `planTiles` y `stripCover`, con el *blockout* como respaldo pieza a pieza y el camino de vuelta, como `PlayerVisualSwitch`): sin una imagen real no hay tamaño de celda, ni alto de tira, ni se sabe si una pieza lleva cara de fondo; escribirlo ahora sería diseñar contra nada. El contrato fija **qué ha de poder hacer** y las funciones que lo harán ya están probadas.
+- **`decor` en `RoomDefinition`:** ninguna sala lista objetos decorativos; añadir el campo sin arte que lo use sería un dato sin dueño. El rol existe y, el día que una sala los liste, nombrará un *sprite* de este rol.
+- **Comprobar costuras** (que el borde derecho de una tira case con el izquierdo): necesita imágenes reales para calibrar el umbral; se añadirá a `verify` con ellas.
+- **Alfa por pieza:** un `cap` o una puerta necesitan esquinas transparentes y un `fill` puede ser opaco; hoy `inspect` solo exige alfa a personajes, enemigos, VFX e interfaz, y pide una nota (no un error) en el escenario opaco. Se afinará por rol con el arte delante.
+
+## I.9 Probado (S42)
+
+| Qué | Dónde |
+|---|---|
+| la escena del contrato **es** la que construye `createLayers`; los factores son monótonos; capas ↔ roles se corresponden en ambos sentidos; `layerSpan`/`stripCover`; `axisPlan`/`planTiles` (incluido **contra cada sólido de cada sala**); lo que el mundo pide (las 12 obligatorias, los opcionales, qué salas, es **dato**: material nuevo → pieza nueva); las etiquetas; **cada regla del paquete con su caso que la rompe** | `environment.test.ts` (30) |
+| el *build*: un paquete `final` completo verifica limpio; un *sprite* sin decir qué dibuja, un pivote equivocado y piezas que faltan (error en `final`, aviso en `provisional`) paran o avisan, con la ruta; un paquete que espera arte, o de otra categoría, ni se mira | `verifyArt.test.ts` (+6) |
+| el informe de lo entregado: sin carpeta, una pieza entregada (etiquetas + fotograma + paquete listo), nada mientras espera arte / sin fotograma / sin etiquetas, el texto | `missing.test.ts` (+4) |
+| la colisión no es el dibujo | `artIndependence.test.ts` (5) |
+| **navegador:** cada dato de cada sala del mundo tiene su objeto dibujado, en su capa y sin sobrantes; el paralaje coloca cada capa en `(1 − f) × pivote` y la mueve *f* × la cámara, con el orden debido (**falla** si el renderizador aplica otro factor) | E2E `environment` |
+
+*Adaptado sin cambiar su intención:* el ensayo «un escenario opaco es solo una nota» (`verifyArt.test.ts`, S37) y los paquetes de `environment` del E2E `assets` ahora **dicen qué dibujan** (etiquetas y pivote), porque el contrato lo exige.
+
+**Coste:** `presentation/environment.ts` se reparte con el renderizador (`PARALLAX_FACTOR` y `layerSpan` viven aquí y las importan `render/layers` y `render/backdrops`); el resto —censo, reglas de paquete, repetición— lo leen solo las herramientas y las pruebas y **no viaja en el juego**.
+
+*(Siguiente: **J** rendimiento (S43).)*
