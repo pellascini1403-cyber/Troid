@@ -24,7 +24,7 @@ El documento técnico completo es [ART-PIPELINE-2D](ART-PIPELINE-2D.md) (partes 
 | **S41** VFX y audio | `d296609` | el contrato visual de los efectos y las **17 señales de audio** (sin sonido) | 2166 |
 | **S42** entorno | `08a0d54` | capas y paralaje, las 12 piezas que pide el mundo, la regla de repetición, la colisión que no es el dibujo | 2211 |
 | **S43** rendimiento | `d9d22e2` | `?lab=art-stress`: 100/500/1000 *sprites* de varias páginas, con alfa, luz y efectos, medidos | 2223 |
-| **S44** cierre | *(este commit)* | `world-art` (la slice entera con arte puesto, bit a bit), **pausar es inmediato** (una carrera hallada por la integración), documentación, informe | 2223 (sin cambios: S44 añade E2E, no pruebas unitarias) |
+| **S44** cierre | `c0107db` | `world-art` (la slice entera con arte puesto, bit a bit), **pausar es inmediato** (una carrera hallada por la integración), documentación, informe | 2223 (sin cambios: S44 añade E2E, no pruebas unitarias) |
 
 Todos los mensajes de *commit* están en español y terminan con los dos *trailers* del proyecto; cada paso verificó `tsc`, las pruebas relevantes, el *build*, el E2E y la medición del *bundle*.
 
