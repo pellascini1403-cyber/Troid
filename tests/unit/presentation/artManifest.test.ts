@@ -184,6 +184,14 @@ describe('parseArtPack: what the reader refuses, with the path of the field', ()
     expect(errors(awaiting)).toEqual([]);
   });
 
+  it('anchors in pixels (a hundred metres from the feet) are refused with a message that says what is wrong', () => {
+    const raw = valid() as { sprites: Array<Record<string, unknown>> };
+    raw.sprites[0]!['frames'] = { idle_00: { anchors: { hand_r: [120, 150] } } };
+    expect(errors(raw).join('\n')).toMatch(/frames\.idle_00\.anchors\.hand_r: \[120,150\] is not in metres.*is it in pixels\?/);
+    raw.sprites[0]!['frames'] = { idle_00: { anchors: { hand_r: [0.4, 1.1] } } };
+    expect(errors(raw)).toEqual([]);
+  });
+
   it('refuses a sprite set that names an atlas the pack does not declare (a broken reference)', () => {
     const raw = valid() as { sprites: Array<Record<string, unknown>> };
     raw.sprites[0]!['atlases'] = ['hero_2x', 'nowhere'];

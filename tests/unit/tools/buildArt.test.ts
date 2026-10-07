@@ -79,10 +79,13 @@ describe('building art', () => {
     expect(r.ok).toBe(true);
     expect(r.packs).toEqual([]);
     expect(existsSync(out)).toBe(false);
-    put(join(out, 'index.json'), '{}'); // somebody else's
+    put(join(out, 'index.json'), json({ manifestVersion: 1, packs: [] })); // somebody else's (art put by hand is checked too: this one is valid)
     expect(build().ok).toBe(true);
     expect(existsSync(join(out, 'index.json'))).toBe(true);
     expect(formatReport(build(), true)).toMatch(/nothing to build/);
+    put(join(out, 'index.json'), '{}');
+    expect(build().ok, 'a hand-made index that is not valid is reported, and still not touched').toBe(false);
+    expect(readFileSync(join(out, 'index.json'), 'utf8')).toBe('{}');
   });
 
   it('packs the frames of each sprite set into pages and writes the manifest the game reads — valid by the game\'s own reader', () => {
@@ -221,14 +224,14 @@ describe('building art', () => {
 
   it('copies art the artist packed with their own tool exactly as it is, after the same checks', () => {
     // a 2-frame atlas written "by another tool": the build must not re-encode it
-    const image = encodePng({ width: 32, height: 16, data: new Uint8Array(32 * 16 * 4).fill(90) });
-    const atlasJson = json({ frames: { idle_00: { frame: { x: 0, y: 0, w: 16, h: 16 } }, idle_01: { frame: { x: 16, y: 0, w: 16, h: 16 } } }, meta: { image: 'sheet.png', size: { w: 32, h: 16 } } });
+    const image = encodePng({ width: 128, height: 64, data: new Uint8Array(128 * 64 * 4).fill(90) });
+    const atlasJson = json({ frames: { idle_00: { frame: { x: 0, y: 0, w: 64, h: 64 } }, idle_01: { frame: { x: 64, y: 0, w: 64, h: 64 } } }, meta: { image: 'sheet.png', size: { w: 128, h: 64 } } });
     put(join(src, 'index.json'), json({ manifestVersion: 1, packs: [index()] }));
     put(join(src, 'hero', 'sheet.png'), image);
     put(join(src, 'hero', 'sheet.json'), atlasJson);
     put(
       join(src, 'hero', 'hero.pack.json'),
-      json(manifest({ atlases: [{ id: 'sheet', source: 'sheet.png', data: 'sheet.json', width: 32, height: 16, resolution: 1 }], sprites: [sprite({ atlases: ['sheet'], clips: { idle: { frames: 'idle_', count: 2 } } })] })),
+      json(manifest({ atlases: [{ id: 'sheet', source: 'sheet.png', data: 'sheet.json', width: 128, height: 64, resolution: 1 }], sprites: [sprite({ atlases: ['sheet'], clips: { idle: { frames: 'idle_', count: 2 } } })] })),
     );
     const r = build();
     expect(errors(r)).toEqual([]);
@@ -236,7 +239,7 @@ describe('building art', () => {
     expect(readFileSync(join(out, 'hero', 'sheet.png')).equals(image)).toBe(true);
     expect(readFileSync(join(out, 'hero', 'sheet.json'), 'utf8')).toBe(atlasJson);
     // and a copied pack whose atlas does not hold the frames its clips name is refused
-    put(join(src, 'hero', 'hero.pack.json'), json(manifest({ atlases: [{ id: 'sheet', source: 'sheet.png', data: 'sheet.json', width: 32, height: 16, resolution: 1 }], sprites: [sprite({ atlases: ['sheet'] })] })));
+    put(join(src, 'hero', 'hero.pack.json'), json(manifest({ atlases: [{ id: 'sheet', source: 'sheet.png', data: 'sheet.json', width: 128, height: 64, resolution: 1 }], sprites: [sprite({ atlases: ['sheet'] })] })));
     expect(errors(build(false)).join('\n')).toMatch(/missing frames? (idle_02|walk_00)/);
   });
 

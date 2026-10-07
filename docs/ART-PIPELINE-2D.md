@@ -479,6 +479,65 @@ Consecuencia visible para el usuario: con un set que solo trae `idle`, `walk` y 
 | **navegador** (arte sintético): sin arte → *placeholder* y 15 clips por dibujar; con arte, **en cada tick** de una jugada el aspecto es el que dice la política; el tajo sigue las **fases de la simulación** (`startup`/`active`/`recovery` → fotogramas 0-1/2/3) con **la espada en la mano** (`|grip − hand| < 5 cm`, punta 0.9 m delante) y **conecta** (el *hitbox* es de la simulación); muerte y hechizo → *placeholder*; camino de vuelta e ida; arte roto o sin paquete → *placeholder* sin errores | E2E `player-art` (A–C) |
 | **la simulación no sabe nada:** el mismo guion de teclas (andar, saltar, tajo, *dash*) con **sin arte**, **arte `auto`**, **camino de vuelta** y **solo arte** da la **misma traza**, tick a tick (posición, velocidad, vida, magia, combate, *hit-stop*, golpes al muñeco) | E2E `player-art` (D) |
 
-*(Siguiente: **E** validación y qué assets reales faltan (S37, S38) · **F** el laboratorio y R1 (S39, S40) · **G** VFX, audio, entorno y rendimiento (S41–S43).)*
+---
+
+# Parte E — Validación de sprites en el *build* (S37)
+
+> **Qué es:** todo lo que se puede saber de una carpeta de arte **sin abrir un navegador**, para que un *build* **falle ante un asset roto, con la ruta del archivo y qué hacer**, mucho antes de que alguien vea un dibujo equivocado. Código: `tools/assets/verify.ts` (lee la carpeta como la lee el juego: índice → manifiesto → atlas), `tools/assets/inspect.ts` (qué dice un dibujo de sí mismo), `presentation/artContract.ts` (**la misma función pura** que aplica el juego al cargar un set: lo que el *build* dice que se descartará es lo que el juego descartará).
+> **Qué NO hace:** solo **mira**. Nunca escribe un archivo ni cambia un píxel, y nunca «corrige»: dice **qué** está mal y **dónde**.
+
+## E.1 Dónde corre
+
+| Orden | Qué comprueba | Cuándo |
+|---|---|---|
+| `npm run assets:check` | `art/` (la fuente): las mismas comprobaciones **más** las de los fotogramas sueltos (§E.3), sobre **lo que se va a publicar**, antes de escribir un byte. Si no hay `art/` pero `public/art/` trae arte (puesto a mano), **comprueba esa carpeta** | **dentro de `npm run build`** (`tsc --noEmit && npm run assets:check && vite build`): un asset roto **no compila** |
+| `npm run assets:verify` | solo `public/art/` en disco (lo que el juego descargará, venga de donde venga) | a mano / CI |
+| `npm run assets:pack` | las mismas comprobaciones y, **solo si no hay ningún error**, escribe `public/art/` | al entregar arte |
+| `artRepo.test.ts` (parte de `npm test`) | `art/` del repositorio construye sin errores | cada `npm test`: un asset roto **no se puede commitear sin que se note** |
+| la biblioteca de arte | `applyContract` + `checkSpriteFrames` al **cargar** cada set | en ejecución: lo que el *build* no pudo ver (un despliegue corrupto) nunca rompe el juego (§C.5) |
+
+## E.2 Qué se comprueba (todo lo que pidió la tarea)
+
+| Comprobación | Nivel | Cómo se dice |
+|---|---|---|
+| **Dimensiones**: el tamaño de la **cabecera real** del PNG = el `width`/`height` declarado; el JSON del atlas dice lo mismo; los fotogramas caben en la imagen | error | `the image file blob_0.png is 128 × 64 but the manifest declares 132 × 64` |
+| **Dimensiones**: todos los fotogramas de un set tienen **un solo tamaño original** (el pivote es una fracción de él) y es el `frameSize` declarado | error | `the frames do not share one original size — 96 × 80 (idle_00, idle_02) vs 98 × 80 (idle_01)` |
+| **Dimensiones**: el lienzo **cabe al personaje** (`alto del lienzo / artPxPerMeter ≥ height`) | error | `the canvas is 1.60 m tall at 60 px/m but the character is 1.7 m: it does not fit (is artPxPerMeter right?)` |
+| **Dimensiones**: página > 2048 en un lado (> 4096 es error) | aviso | §C.1 |
+| **Alfa**: la imagen **no tiene canal alfa** (un RGB) — para lo que se dibuja sobre el mundo (`player`, `enemies`, `vfx`, `ui`) | **error** | `has no alpha channel (it is an RGB picture): … the whole canvas would be drawn as a rectangle. Export it as RGBA` |
+| **Alfa**: tiene canal alfa pero **todo es opaco** (¿se quitó el fondo?) | aviso | `every pixel is opaque: was the background removed?` |
+| **Alfa**: fotograma **vacío** (todo transparente) | aviso | `is fully transparent: a blink between two poses may be meant, an empty frame by mistake is not` |
+| **Alfa**: el arte **toca el borde izquierdo, derecho o superior** del lienzo (se puede cortar; el borde inferior solo si el pivote no está abajo) | aviso | `its pixels touch the left and right edge of the canvas: the art may be cut off there (leave a margin)` |
+| El escenario (`environment`) puede llenar su lienzo | nota | solo se dice, no se reporta |
+| **Atlas**: el JSON del paquetador es válido (rectángulos enteros, recorte coherente, **sin rotación**, nombres) | error | `rotated frames are not supported (turn "allow rotation" off in the packer)` |
+| **Atlas**: PNG dañado (CRC), 16 bits (se redondea), perfil de color incrustado (el navegador convertiría; el empaquetador no) | error / aviso | `the PNG is corrupt (chunk IDAT fails its checksum)` |
+| **Fotogramas / clips completos**: **cada** fotograma de **cada** clip está en alguna página, en **una sola** | error del clip | `missing frames walk_01 (the clip has 4)` |
+| **Clips completos del protagonista:** el set `player/hero` trae los **15 clips** que pide el juego (`content/visuals.ts`) | `final`: **error** · `provisional`: aviso | `the protagonist's art lacks 12 of the 15 clips the game asks of it: jump, fall, dash, … — the placeholder draws those states` |
+| **Anclas**: valores que parecen **píxeles** (> 6 m del pie; > 20 m ya lo rechaza el manifiesto con un mensaje que lo dice) | error | `anchors that look like PIXELS, not metres from the feet (a hero is under 2 m tall): attack1_00.hand_r = [120, 150]` |
+| **Anclas**: fuera del dibujo (con 0.25 m de margen) | aviso | `anchors outside the picture (−0.60 … 0.60 m across…): … — are they metres FROM THE FEET, +x forward, +y up?` |
+| **Ancla de espada**: en cada fotograma de un golpe (`attack…`, `special`) existen `hand_r`, `weapon_grip` y `weapon_tip` y **`\|grip − hand\| ≤ 4 cm`** | error del clip | `clip "attack1": the sword grip is not on the right hand (> 0.04 m) in 3 frame(s)` |
+| **Fases** de un ataque dentro de sus fotogramas (y en orden) | error / aviso | `clip "attack1" phase "recovery" [2, 5] is outside its 3 frames` |
+| **Escala**: `heightPx` (en píxeles de la maestra) frente a `height`/`artPxPerMeter` (15 %) | aviso | `the character is 4.00 m tall at 100 px/m, the definition says 1.7 m. Suggested artPxPerMeter: …` |
+| **Nombres**: ids, prefijos, nombres de fotograma, estados (con alias) y anclas **conocidos**; rutas relativas y dentro de su carpeta | error | `"jump2" is not an animation state (known: …; aliases: …)` |
+| **Referencias rotas**: un set que nombra un atlas que no existe; un manifiesto o una imagen o un JSON que **no están**; un manifiesto que no es el paquete que dice el índice | error | `atlases.blob_0: the image blob_0.png is not there` |
+| **Qué haría el juego** (`applyContract`): por cada variante de cada set, qué clips **dejaría fuera** y si lo **rechazaría entero** | `final`: error · `provisional`: aviso · set rechazado: error | `the game would leave this clip out (…): the state would fall back — a "final" pack must not need that` |
+
+*(Las anclas de un set van por fotograma, en el manifiesto o en el JSON del atlas; los clips que el juego deja fuera caen por la cadena de *fallbacks* o al *placeholder*: §D.)*
+
+## E.3 Los fotogramas sueltos (solo al empaquetar)
+
+Antes de empaquetar, cada PNG de `art/<paquete>/<set>/` pasa por `inspectPicture` (alfa, vacío, bordes) y se dice **una vez por set**, no una por fotograma: `4 frames (idle_00.png, idle_01.png, walk_00.png, …) has no alpha channel (it is an RGB picture) …`. Es la comprobación que atrapa **de verdad** lo más probable de un primer envío: imágenes con fondo opaco o sin canal alfa.
+
+## E.4 Probado
+
+| Qué | Dónde |
+|---|---|
+| cada comprobación de §E.2 (**cada una rompe UNA cosa** de una carpeta buena construida con el empaquetador real, y comprueba qué dice y con qué ruta) | `verifyArt.test.ts` (24) |
+| `inspectPicture` / `pictureIssues`: categorías, bordes, páginas | `inspect.test.ts` (7) |
+| `applyContract`: clip fuera, set rechazado, advertencias, sin mutar | `artContract.test.ts` (8) |
+| el arte del repositorio construye sin errores | `artRepo.test.ts` |
+| **E2E `assets` (F)**: el arte bueno pasa el comprobador; una imagen con un byte cambiado, un tamaño declarado distinto, un fotograma que falta y un pivote imposible se **encuentran con su archivo, sin navegador** | `tools/e2e/scenarios/assets.ts` |
+
+*(Siguiente: qué assets reales faltan, exactamente (S38) · **F** el laboratorio y R1 (S39, S40) · **G** VFX, audio, entorno y rendimiento (S41–S43).)*
 
 

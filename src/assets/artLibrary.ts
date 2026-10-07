@@ -1,8 +1,7 @@
 import { atlasVariants, chooseAtlasVariant, parseArtAtlasRef, parseArtIndex, parseArtPack, toSpriteSetDefinition, artSetId, type ArtAtlas, type ArtIndexEntry, type ArtIssue, type ArtPack, type ArtSprite } from '@/presentation/artManifest';
 import { checkSpriteFrames, mergeFrameMeta, parseAtlasData, usedFrameNames, type AtlasData, type AtlasFrameJson, type AtlasPage } from '@/presentation/artAtlas';
+import { applyContract, type DroppedClip } from '@/presentation/artContract';
 import type { SpriteSetDefinition } from '@/presentation/SpriteSetDefinition';
-import { validateSpriteSet } from '@/presentation/validateSpriteSet';
-import type { AnimState } from '@/presentation/vocabulary';
 import type { LoadedSpriteSet } from './SpriteAssetManager';
 
 /**
@@ -71,12 +70,6 @@ export interface ArtPackInfo {
   /** Absolute URL of the manifest: the paths inside it are relative to it. */
   url: string;
   atlases: ReadonlyMap<string, ArtAtlas>;
-}
-
-/** A clip the library did not take from a pack, and why: the state it stands for falls back. */
-export interface DroppedClip {
-  state: AnimState;
-  reason: string;
 }
 
 export interface ArtStats {
@@ -335,38 +328,19 @@ export class ArtLibrary<S, T> {
       const meta = { frames: mergeFrameMeta(sprite, pages, ref.resolution) };
       const available = new Set(taken.flatMap((p) => Object.keys(p.data.frames)));
 
-      // what is wrong, clip by clip (that clip is left out) and set-wide (the set is refused)
+      // what is wrong, clip by clip (that clip is left out) and set-wide (the set is refused): one pure function, the same the build-time checker applies
       const where = `${ref.packId}/${ref.spriteId}`;
-      const broken = new Map<AnimState, string>();
-      const refused: string[] = [];
-      const issues: ArtIssue[] = checkSpriteFrames(sprite, pages);
-      for (const i of issues) {
-        if (i.level !== 'error') continue;
-        const state = /\.clips\.([A-Za-z]+)$/.exec(i.path)?.[1] as AnimState | undefined;
-        if (state && wanted.clips[state]) broken.set(state, broken.get(state) ?? i.message);
-        else refused.push(i.message);
+      const cross = checkSpriteFrames(sprite, pages);
+      const contract = applyContract(wanted, meta, available, cross);
+      if (contract.refused.length > 0) {
+        this.report(where, contract.refused.map((m): ArtIssue => ({ level: 'error', path: '', message: m })));
+        throw new Error(contract.refused[0]);
       }
-      // the same contract the placeholder is held to (the sword in the hand, a scale that matches its height…), asked of each clip on its own
-      const idle = wanted.clips.idle;
-      const baseline = validateSpriteSet({ ...wanted, clips: idle ? { idle } : {} }, meta, available).filter((i) => i.level === 'error');
-      for (const i of baseline) refused.push(i.message);
-      const known = new Set(baseline.map((i) => i.message));
-      for (const [state, clip] of Object.entries(wanted.clips) as Array<[AnimState, NonNullable<SpriteSetDefinition['clips'][AnimState]>]>) {
-        if (state === 'idle' || broken.has(state)) continue;
-        const own = validateSpriteSet({ ...wanted, clips: { ...(idle ? { idle } : {}), [state]: clip } }, meta, available).find((i) => i.level === 'error' && !known.has(i.message));
-        if (own) broken.set(state, own.message);
-      }
-      if (broken.has('idle')) refused.push(`clip "idle": ${broken.get('idle')}`);
-      if (refused.length > 0) {
-        this.report(where, refused.map((m): ArtIssue => ({ level: 'error', path: '', message: m })));
-        throw new Error(refused[0]);
-      }
-      const dropped: DroppedClip[] = [...broken.entries()].map(([state, reason]) => ({ state, reason }));
-      for (const d of dropped) this.note(`${where}: clip "${d.state}" is left out (${d.reason}): the state falls back`);
-      this.report(where, issues.filter((i) => i.level === 'warn'));
-      const clips = { ...wanted.clips };
-      for (const d of dropped) delete clips[d.state];
-      const def: SpriteSetDefinition = { ...wanted, clips };
+      for (const d of contract.dropped) this.note(`${where}: clip "${d.state}" is left out (${d.reason}): the state falls back`);
+      this.report(where, contract.warnings.map((m): ArtIssue => ({ level: 'warn', path: '', message: m })));
+      const def = contract.def;
+      const clips = def.clips;
+      const dropped = contract.dropped;
 
       // only the frames the clips that remain draw become textures
       const used = new Set(usedFrameNames({ clips: Object.fromEntries(Object.entries(clips).map(([k, c]) => [k, { frames: c.frames, count: c.count }])) }));

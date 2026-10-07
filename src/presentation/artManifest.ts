@@ -269,6 +269,10 @@ export function readAnchors(r: Reader, v: unknown, path: string): Partial<Record
       r.error(`${path}.${k}`, `unknown anchor "${k}" (known: ${ANCHOR_IDS.join(', ')})`);
       continue;
     }
+    if (Array.isArray(p) && p.length === 2 && p.every(isNumber) && (Math.abs(p[0] as number) > 20 || Math.abs(p[1] as number) > 20)) {
+      r.error(`${path}.${k}`, `${JSON.stringify(p)} is not in metres: an anchor is METRES from the feet (+x forward, +y up) and a hero is under 2 m tall — is it in pixels?`);
+      continue;
+    }
     const pt = r.pair(p, `${path}.${k}`, { min: -20, max: 20 });
     if (pt) out[k as AnchorId] = pt;
   }

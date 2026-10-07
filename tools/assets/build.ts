@@ -1,9 +1,10 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { checkSpriteFrames, parseAtlasData, type AtlasPage } from '../../src/presentation/artAtlas';
 import { artClipFrames, parseArtIndex, parseArtPack, type ArtAtlas, type ArtIndexEntry, type ArtIssue, type ArtPack } from '../../src/presentation/artManifest';
+import { inspectPicture, pictureIssues } from './inspect';
 import { atlasJson, DEFAULT_PACK, packFrames, type PackOptions, type SourceFrame } from './pack';
 import { decodePng, encodePng, readPngInfo } from './png';
+import { verifyArt, verifyArtFolder } from './verify';
 
 /**
  * THE ART BUILD (docs/ART-PIPELINE-2D.md, part C): `art/` — what the artist hands over, committed, never served — in; `public/art/` — what the game fetches,
@@ -97,6 +98,8 @@ function packFolders(entry: ArtIndexEntry, packDir: string, outFolder: string, r
 
   relaxed.value.sprites.forEach((sprite, index) => {
     const frames: SourceFrame[] = [];
+    // what the pictures say about themselves (no transparency, nothing visible, cut at the edge), said ONCE per message for the whole set, not once per frame
+    const said = new Map<string, { level: ArtIssue['level']; message: string; frames: string[] }>();
     const wanted = new Map<string, string>(); // frame name → the clip that asks for it
     for (const [state, clip] of Object.entries(sprite.clips)) for (const name of artClipFrames(clip!)) if (!wanted.has(name)) wanted.set(name, state);
     for (const [name, state] of wanted) {
@@ -116,10 +119,19 @@ function packFolders(entry: ArtIndexEntry, packDir: string, outFolder: string, r
         const info = readPngInfo(bytes, true);
         if (info.bitDepth === 16) issues.push({ level: 'info', path: `${label} ${sprite.id}/${name}.png`, message: 'is 16 bits per channel: the GPU has 8, so its values were rounded to 8' });
         if (info.colourChunks.includes('iCCP')) issues.push({ level: 'warn', path: `${label} ${sprite.id}/${name}.png`, message: 'carries an embedded colour profile (iCCP): the pixel numbers are used as they are, the profile is not carried over — export as sRGB so that nothing shifts' });
-        frames.push({ name, image: decodePng(bytes) });
+        const image = decodePng(bytes);
+        for (const i of pictureIssues(`${sprite.id}/${name}.png`, inspectPicture(image, info), entry.category, sprite.pivot[1])) {
+          const key = `${i.level}|${i.message}`;
+          said.set(key, { level: i.level, message: i.message, frames: [...(said.get(key)?.frames ?? []), `${name}.png`] });
+        }
+        frames.push({ name, image });
       } catch (err) {
         issues.push({ level: 'error', path: `${label} ${sprite.id}/${name}.png`, message: err instanceof Error ? err.message : String(err) });
       }
+    }
+    for (const m of said.values()) {
+      const shown = `${m.frames.slice(0, 4).join(', ')}${m.frames.length > 4 ? ', …' : ''}`;
+      issues.push({ level: m.level, path: `${label} sprites.${sprite.id}`, message: `${m.frames.length === 1 ? shown : `${m.frames.length} frames (${shown})`} ${m.message}` });
     }
     // the folder may hold frames no clip uses: they are not packed, and the artist is told
     const folder = existsSync(dir(sprite.id)) ? readdirSync(dir(sprite.id)).filter((f) => f.toLowerCase().endsWith('.png')) : [];
@@ -204,22 +216,6 @@ function buildPack(entry: ArtIndexEntry, srcDir: string, opts: Partial<PackOptio
     manifestOut = { ...rawPack, atlases: packed.atlases, sprites: packed.sprites };
   }
 
-  // the manifest as it will ship, read the way the game reads it, and every sprite set checked against the pages that were just made
-  const parsed = parseArtPack(manifestOut);
-  issues.push(...tagged(label, parsed.issues.filter((i) => i.level !== 'info')));
-  if (parsed.value) {
-    const pages = new Map<string, AtlasPage>();
-    for (const a of parsed.value.atlases) {
-      const out = outputs.find((o) => o.rel === under(outFolder, a.data ?? ''));
-      const data = out ? parseAtlasData(JSON.parse(out.data.toString()) as unknown) : null;
-      if (data) issues.push(...tagged(`${label} ${a.data}`, data.issues.filter((i) => i.level !== 'info')));
-      if (data?.value) pages.set(a.id, { atlas: a, data: data.value });
-    }
-    for (const s of parsed.value.sprites) {
-      const own = s.atlases.map((id) => pages.get(id)).filter((p): p is AtlasPage => p !== undefined);
-      issues.push(...tagged(label, checkSpriteFrames(s, own).filter((i) => i.level !== 'info')));
-    }
-  }
   return { built: { id: entry.id, status, shipped: true, how, sprites }, outputs, manifest: json(manifestOut) };
 }
 
@@ -238,6 +234,13 @@ export function buildArt(options: BuildOptions): BuildResult {
   const indexFile = join(options.srcDir, 'index.json');
   if (!existsSync(indexFile)) {
     if (options.write) removeGenerated(options.outDir, result);
+    // art put by hand in the folder the game fetches still ships: it is checked like any other
+    if (existsSync(join(options.outDir, 'index.json'))) {
+      const shipped = verifyArtFolder(options.outDir);
+      result.issues.push(...shipped.issues);
+      result.packs = shipped.packs.map((p) => ({ id: p.id, status: p.status, shipped: true, how: 'copied', sprites: [] }));
+      result.ok = shipped.ok;
+    }
     return result;
   }
   const raw = readJson(indexFile, 'index.json', result.issues);
@@ -255,12 +258,17 @@ export function buildArt(options: BuildOptions): BuildResult {
       shipped.push(entry);
     }
   }
-  result.ok = !result.issues.some((i) => i.level === 'error') && index?.value != null;
-
   if (shipped.length > 0) {
     outputs.push({ rel: 'index.json', data: json({ manifestVersion: 1, packs: shipped.map((e) => ({ id: e.id, category: e.category, load: e.load, ...(e.zones.length > 0 ? { zones: e.zones } : {}), manifest: e.manifest, ...(e.tags.length > 0 ? { tags: e.tags } : {}) })) }) });
     outputs.push({ rel: 'README.txt', data: `${GENERATED_MARKER}\nThe source is art/: change it there and run the packer again.\n` });
   }
+  // what will ship is checked the way the game and `assets:verify` read it — index → manifest → atlases — before a byte is written
+  const byRel = new Map(outputs.map((o) => [o.rel, o]));
+  result.issues.push(...verifyArt((rel) => {
+    const o = byRel.get(rel);
+    return o ? (typeof o.data === 'string' ? Buffer.from(o.data) : o.data) : null;
+  }).issues);
+  result.ok = !result.issues.some((i) => i.level === 'error') && index?.value != null;
   for (const o of outputs) {
     const size = typeof o.data === 'string' ? Buffer.byteLength(o.data) : o.data.length;
     result.diskBytes += size;

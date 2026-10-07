@@ -100,7 +100,7 @@ export function createArtFixture(packs: readonly FixturePack[]): Fixture {
           id: s.id,
           artPxPerMeter: 60,
           pivot: [0.5, 1],
-          height: 1.7,
+          height: Math.round((s.canvas[1] / 60) * 0.85 * 100) / 100, // the figure fills most of its canvas, as a drawn one would
           clips: Object.fromEntries(Object.entries(s.clips).map(([state, count]) => [state, { frames: `${state}_`, count, fps: 8, ...s.clipExtra?.[state] }])),
           ...(s.sword ? { frames: swordFrames(s) } : {}),
           ...s.extra,

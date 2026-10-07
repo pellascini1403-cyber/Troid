@@ -86,8 +86,10 @@ No hay *cross-fade* en 2D: cada cambio de estado es un corte limpio.
    ```
 
    `status`: `provisional` / `final` publican el paquete; `awaiting-art` **declara lo que tendrá sin imágenes** y **no se publica** (el juego no pide nada).
-2. **Compruébalo sin escribir nada:** `npm run assets:check` — informa de **todos** los problemas de una vez, con la ruta del archivo: fotogramas que faltan, lienzos de
-   tamaños distintos, JSON de atlas incoherente, espada fuera de la mano… Sale con 1 si hay un error.
+2. **Compruébalo sin escribir nada:** `npm run assets:check` — informa de **todos** los problemas de una vez, con la ruta del archivo: fotogramas que faltan, imágenes **sin canal alfa**
+   (un RGB: el lienzo entero se dibujaría como un rectángulo), lienzos de tamaños distintos, JSON de atlas incoherente, anclas en píxeles en vez de metros, espada fuera de la mano,
+   clips que el juego dejaría fuera… Sale con 1 si hay un error, y **`npm run build` lo ejecuta**: un asset roto no compila (lista completa en [ART-PIPELINE-2D §E](../ART-PIPELINE-2D.md)).
+   `npm run assets:verify` comprueba solo lo que hay en `public/art/`.
 3. **Empaqueta:** `npm run assets:pack` — escribe `public/art/` (generado; lleva un `README.txt` que lo dice; **no se edita a mano**). Solo escribe si **no hay ningún error**.
 4. **Reinicia `npm run dev`** (el servidor decide al arrancar si hay arte) o haz `npm run build`. Con `public/art/index.json` presente, el juego pide el arte **después del primer fotograma**;
    sin él, no pide nada. Para probar una carpeta de arte sin empaquetarla en `public/`: `?art=<carpeta junto a la página>`.

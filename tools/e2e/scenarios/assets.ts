@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { BrowserContext } from 'playwright-core';
 import type { ArtSnapshot } from '@/assets/artLibrary';
+import { verifyArtFolder } from '../../assets/verify';
 import { createArtFixture, type Fixture, type FixturePack } from '../artFixture';
 import type { Ctx, Scenario } from '../scenario';
 
@@ -15,6 +19,7 @@ import type { Ctx, Scenario } from '../scenario';
  *   C · R1 → R2: the next room's pack is fetched during the fade, the old one is let go once the new one is there, the pack that boots stays — once each
  *   D · a lazy pack loads when something asks for it by name, and its pages go when it is let go
  *   E · broken files (a corrupt image, a cut request): the game does not notice — no error, the hero plays, the library says what failed
+ *   F · the same faults are found BEFORE a browser is opened: the checker that `npm run build` runs names the file and what is wrong, and the good art passes
  */
 const PACKS: FixturePack[] = [
   { id: 'player', category: 'player', load: 'boot', sprites: [{ id: 'hero', canvas: [64, 96], clips: { idle: 4, walk: 4 } }] },
@@ -120,6 +125,43 @@ export const assets: Scenario = {
       assert.equal(a.bytes, fixture.decodedBytes['player']! + fixture.decodedBytes['caves']!, 'its pages go when it is let go');
       assert.equal(a.failures, 0);
       assert.equal(ctx.errors.length, 0);
+
+      // ===================================================================================================== F · found before a browser
+      const good = verifyArtFolder(fixture.dir);
+      assert.deepEqual(good.issues.filter((i) => i.level === 'error'), [], 'the good art passes the checker');
+      assert.ok(good.ok);
+      const copy = mkdtempSync(join(tmpdir(), 'troid-e2e-verify-'));
+      try {
+        const fresh = (): string => {
+          rmSync(copy, { recursive: true, force: true });
+          cpSync(fixture.dir, copy, { recursive: true });
+          return copy;
+        };
+        const errs = (dir: string): string => verifyArtFolder(dir).issues.filter((i) => i.level === 'error').map((i) => `${i.path}: ${i.message}`).join('\n');
+        // an image with a flipped byte, an image of another size than declared, a frame gone from its page, a manifest the game would refuse
+        let dir = fresh();
+        const png = readFileSync(join(dir, 'forest', 'moss_0.png'));
+        png[png.length - 20] ^= 0xff;
+        writeFileSync(join(dir, 'forest', 'moss_0.png'), png);
+        assert.match(errs(dir), /forest atlases\.moss_0: moss_0\.png: the PNG is corrupt/);
+        dir = fresh();
+        const manifest = JSON.parse(readFileSync(join(dir, 'caves', 'caves.pack.json'), 'utf8')) as { atlases: Array<{ width: number }>; sprites: Array<{ pivot: number[] }> };
+        manifest.atlases[0]!.width += 8;
+        writeFileSync(join(dir, 'caves', 'caves.pack.json'), JSON.stringify(manifest));
+        assert.match(errs(dir), /caves atlases\.drip_0: the image file drip_0\.png is \d+ × \d+ but the manifest declares \d+ × \d+/);
+        dir = fresh();
+        const page = JSON.parse(readFileSync(join(dir, 'player', 'hero_0.json'), 'utf8')) as { frames: Record<string, unknown> };
+        delete page.frames['idle_02'];
+        writeFileSync(join(dir, 'player', 'hero_0.json'), JSON.stringify(page));
+        assert.match(errs(dir), /the game would REFUSE this set: clip "idle": missing frame idle_02/);
+        dir = fresh();
+        manifest.atlases[0]!.width -= 8;
+        manifest.sprites[0]!.pivot = [0.5, 4];
+        writeFileSync(join(dir, 'caves', 'caves.pack.json'), JSON.stringify(manifest));
+        assert.match(errs(dir), /caves sprites\[0\]\.pivot/);
+      } finally {
+        rmSync(copy, { recursive: true, force: true });
+      }
     } finally {
       fixture.cleanup();
     }
