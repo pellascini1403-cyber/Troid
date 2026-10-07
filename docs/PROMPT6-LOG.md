@@ -17,8 +17,8 @@
 | **S27** cuarta botella | ✅ | `2dbe0c6` |
 | **S28** Spirit Bolt en R3 | ✅ | `1ccd14e` |
 | **S29** jefe (Custodio de Tinta, arena de R4, Air Dash) | ✅ | `dbae23d` |
-| **S30** ajustes (volumen, remapeo, calidad, posición táctil) | ✅ | |
-| **S31** calibración móvil (solo geometría y documentación) | ⏳ | |
+| **S30** ajustes (volumen, remapeo, calidad, posición táctil) | ✅ | `8286d2f` |
+| **S31** calibración móvil (solo geometría y documentación) | ✅ | |
 | **S32** integración final | ⏳ | |
 
 ---
@@ -639,7 +639,7 @@ El jefe entero sumó **+5.1 KB gz** al arranque en frío (193.9 → **199.0 KB**
 
 `computeTouchLayout(…, placement)`: con `side: 'left'` el bloque de cuatro controles **se espeja** (mismas alturas, misma distancia al borde izquierdo que tenía al derecho) y la **zona de movimiento pasa al otro lado** (a ras del borde, con el mismo ancho); `offsetX` lo mueve **hacia dentro** hasta 120 dp y `offsetY` **hacia arriba** hasta 90 dp, **solo hasta donde la ventana lo permite**: nunca más del 70 % del ancho (la zona conserva ≥ 30 %), nunca dentro del interfaz de arriba (se reservan 96 dp bajo el borde superior seguro), nunca fuera del área segura. Se prueba en **8 pantallas × 4 márgenes de seguridad × 2 tamaños × 2 lados × 9 posiciones**: ningún solape entre controles, todo dentro del área segura, la zona no toca ningún control y es utilizable, y (para ventanas de ≥ 600 px) no alcanzan el HUD.
 
-> ⚠ **Límite conocido (pasa a S31).** Con el tamaño al máximo (×1.4) en pantallas pequeñas o con el lado izquierdo, el bloque puede **tocar la zona del HUD** (en el lado derecho ya era así con ×1.4 en un móvil de 667 px con *notch*: viene de antes). No se ha «arreglado» recortando en silencio lo que el jugador pide: es lo primero que audita S31 (geometría).
+> ⚠ **Límite conocido (pasa a S31 — ✅ resuelto allí).** Con el tamaño al máximo (×1.4) en pantallas pequeñas o con el lado izquierdo, el bloque puede **tocar la zona del HUD** (en el lado derecho ya era así con ×1.4 en un móvil de 667 px con *notch*: viene de antes). No se «arregló» recortando en silencio lo que el jugador pide: era lo primero que auditó S31 (geometría) y allí se resolvió con una regla explícita («el tamaño cede ante lo que cabe»; ver S31).
 
 ### El menú (`ui/settings/SettingsMenu.ts`, *chunk* diferido)
 
@@ -692,4 +692,77 @@ Los ajustes sumaron **+3.5 KB gz** al arranque en frío (**197.3 → 200.8 KB: p
 | E2E (desarrollo y producción) | 32 / 32 | **33 / 33** |
 | Arranque en frío de R1 | 197.3 KB gz | **197.5 KB gz** |
 | Toda la primera sesión | 211.2 KB gz | 211.5 KB gz |
+
+---
+
+## S31 — Calibración móvil ✅
+
+**Qué es y qué NO es.** S31 es una **auditoría de la geometría de la interfaz** y la **documentación honesta de lo que no se ha podido calibrar**. La orden era no afirmar que se calibró en iOS/Android reales; este entorno **solo** permite probar con CDP, con *drivers* simulados, verificar lógica y verificar geometría. **No se ha medido nada en ningún dispositivo y no se ha inventado ninguna cifra de dispositivo.** Los umbrales táctiles reales siguen **pendientes de prueba en un iPhone, un iPad y un Android**: `docs/MOBILE-CALIBRATION.md` lo dice arriba del todo, lista cada número a calibrar con su síntoma, da el protocolo de prueba y deja las **tablas de resultados vacías («SIN MEDIR»)**.
+
+| Método que sí tenemos | Qué se hizo con él | Qué **no** puede decir |
+|---|---|---|
+| **Geometría** (funciones puras) | `tests/unit/ui/mobileGeometry.test.ts`: **10 ventanas** (9 clases apaisadas + una mínima de 568 × 320) × **4 márgenes de seguridad** (ninguno, *notch*, isla, esquinas redondeadas) × **3–4 tamaños** × **2 lados** × **9 posiciones**; más dos ventanas verticales | si el pulgar llega, si el tamaño es cómodo |
+| **Lógica** | los tests de gestos de P5 (`tests/unit/input/*`, `touchControls`) y las nuevas propiedades de la disposición (monotonía, suelo, lado) | si los umbrales son los que una mano necesita |
+| ***Drivers* simulados** | fuentes de entrada simuladas en los tests; el mando abstracto del E2E | un dispositivo |
+| **CDP** | E2E `mobile` (34.º escenario): Chromium con `isMobile` + `hasTouch`, densidad 2 – 3, márgenes con `?safe=`, **toques reales del protocolo DevTools con varios dedos** | un dedo real (el de CDP es perfecto: sin radio, sin presión, con el reloj de los toques virtual), Safari, Chrome para Android, el rendimiento de un móvil (Chromium dibuja aquí por software) |
+
+### Lo que la auditoría encontró (todo real, todo medido; nada inventado)
+
+| # | Hallazgo | Cómo se vio | Qué se hizo |
+|---|---|---|---|
+| 1 | Los botones podían **tocar el HUD o salirse del área segura** con el tamaño al máximo (el «límite conocido» de S30): el botón de botella (el de arriba del bloque) se salía del área segura en la ventana mínima con ×1.4 | geometría | `computeTouchLayout`: si lo pedido no cabe, **el tamaño cede a lo mayor que sí cabe** (bisección, suelo de escala 0.72 = el 80 % a la escala mínima de la interfaz; el botón más pequeño sigue midiendo 46 px). Si cabe, se respeta tal cual |
+| 2 | El **botón de pausa** quedaba 1–2 px **fuera de la pantalla por arriba** con `uiScale` > 1 (se escala desde su centro y su caja no bajaba lo que crece) | geometría | `pauseTop()`: baja la mitad de lo que crece |
+| 3 | La zona táctil de las **botellas del HUD** medía **39.6 px CSS** a la escala mínima (44 dp × 0.9): menos que un dedo | geometría | `HUD_DESIGN.vial.hitH` 44 → **49 dp** (44 px CSS a la escala mínima); el HUD pasa de 72 a 77 dp de alto |
+| 4 | La **barra del jefe** (fija «abajo al centro») **quedaba bajo un botón**: en una ventana de 667 × 375 con *notch* la barra ocupaba x = 202–465 y la zona del botón de esquivar empezaba en x = 406 | geometría | `computeBossBarLayout` (`ui/hud/bossBarLayout.ts`, puro): se centra si puede; si un botón estorba, **se desliza al tramo libre más ancho** de su franja (lo más cerca del centro) y solo se estrecha si ningún tramo es tan ancho como quiere. La disposición de los botones **le deja siempre ≥ 160 px** (`BAR_ROOM`). `BossBarView.place` la coloca en px (ya no con `vw` y `bottom` en CSS) y `Game2D` la recoloca en cada `layoutUi()` y cuando aparece la capa táctil |
+| 5 | En **vertical** (390 px de ancho) el botón de pausa —arriba al centro— quedaba **sobre la cuarta botella** (el HUD es más ancho que media ventana) | **E2E `mobile`** (la prueba pura no miraba la pausa en vertical: es lo que aporta mirar la página) | `pauseLeft()`: junto al HUD, no encima, cuando la ventana es más estrecha que él (y nunca fuera del área segura). En todas las apaisadas sigue al centro, sin cambios |
+| 6 | **Un error de redondeo decidía** si los botones «cabían»: el tope de subida de los botones termina **justo** en el borde de la reserva del HUD (tangente por construcción), y la comparación `≥` caía a un lado u otro por 1e-14. Resultado: pedir ×1.2 daba botones **más pequeños** (×0.93) que pedir ×1.0 (×0.97) y la bisección, que supone que «cabe» es monótono, se perdía | **el E2E `settings` de S30** (que pide ×1.2 con los botones a la izquierda, dentro y arriba, y comprueba que son más grandes) falló en producción; la geometría pura de 10 ventanas no lo había visto | tocar es caber (tolerancia de una millonésima de px) y **dos pruebas nuevas**: la disposición es **monótona en el tamaño** (9 360 casos: pedir más nunca da botones más pequeños) y el caso exacto que falló. Se comprobó que **fallan sin la corrección** |
+
+> Los hallazgos 5 y 6 salieron de **mirar la página real**, no solo las cuentas: el motivo de tener el escenario `mobile` además de las pruebas puras.
+
+### Lo que cede ante qué (decisión, no fallo)
+
+La posición y el tamaño del menú son una **preferencia**; la ventana decide lo que cabe. Sobre **2 880 combinaciones** (10 ventanas × 4 márgenes × 4 tamaños × 2 lados × 9 posiciones) el tamaño pedido cede en **392 (14 %)**: **39 a la derecha** (el diseño), todas en la ventana mínima de 568 × 320, y **353 a la izquierda**, donde el botón de botella —que cuelga arriba del bloque— queda bajo el HUD al espejarse. **A la derecha nunca cede en una ventana de móvil o de tableta** (lo fija una prueba). El peor caso baja hasta el suelo (×0.72) y **cada zona táctil sigue midiendo ≥ 44 px**. El menú **no avisa** todavía de que lo pedido no cabe (queda para P7).
+
+### Reglas que las pruebas exigen en todas las combinaciones
+
+Cada zona táctil ≥ 44 px CSS · nada táctil fuera del área segura · ninguna pisa a otra · los botones no llegan al HUD · el borde del que cuelgan conserva su margen (28 dp) · la zona de movimiento conserva ≥ 25 % del ancho útil y ningún botón entra en ella · la barra del jefe dentro del área segura, ≥ 160 px y nunca bajo un botón · la pausa dentro del área segura, centrada o junto al HUD y sin tocar un botón · la página no se desplaza ni se amplía · nada es `NaN` ni infinito. **Los números que repiten otro módulo** (la huella del HUD en `ui/touch/layout.ts` y la sala que se le deja a la barra) están **atados con un test** a los módulos de los que vienen: si el HUD o la barra cambian, el test dice dónde.
+
+### Lo que se adaptó (misma intención, nada borrado)
+
+| Qué fijaba | Cómo queda |
+|---|---|
+| `bossBar` (test) | las pruebas de antes tal cual; **dos nuevas** (colocación inicial y recolocación; colocar donde ya está no escribe nada). Ya no hay `left: 50%` ni `width: min(46vw, 440px)` en CSS: la barra se coloca en px |
+| `pauseButton` (test) | las de antes tal cual; **dos nuevas** (la caja escalada cabe en la ventana a todas las escalas; junto al HUD en una ventana estrecha) |
+| E2E `settings` | **sin cambios**: era la prueba que encontró el hallazgo 6 (y pasa con la corrección) |
+
+### Pruebas y E2E
+
+- **Tests (+33, de 1795 a 1828, 115 archivos):** `mobileGeometry` (20: los botones son un dedo, están dentro, aparte y con el margen del borde; la zona de movimiento; los botones nunca llegan al HUD; el tamaño pedido se respeta a la derecha en todo móvil y tableta, y puede ceder a la izquierda sin bajar del suelo; **monotonía**; el caso que falló; los extremos de la posición son extremos de la misma disposición; pausa; barra del jefe; HUD y botellas; vertical; todo finito; atado a `HUD_DESIGN` y `BOSS_BAR`), `bossBarLayout` (9), `bossBar` (+2) y `pauseButton` (+2).
+- **E2E (nuevo, 34.º escenario) `mobile`** (≈ 60 s): **7 ventanas** (de 667 × 375 a 1260 × 540 y dos tabletas; densidades 2, 2.625 y 3; con *notch* e isla simulados) + **dos disposiciones guardadas** (lado izquierdo, hacia dentro y arriba, ×1.4; y derecha, ×1.4, en la ventana pequeña) **leídas desde el primer fotograma** + **una ventana vertical**. En cada una, con el HUD en su mayor tamaño (cinco segmentos, cuatro botellas, carta equipada, herida y botón de botella visible), **lee los rectángulos del DOM**: cada botón ≥ 44 px, dentro del área segura, donde dice la función pura, sin pisarse ni pisar al HUD ni a la pausa; la zona de movimiento; el HUD arriba a la izquierda con margen y la botella ≥ 44 px de alto; la pausa; la **barra del jefe** (con un `boss:started` sintético: aquí se mira **dónde está**, la pelea ya es del escenario `boss`) donde dice la función pura y no bajo un botón; la página sin desplazarse ni ampliarse; y con **toques reales por CDP**: un dedo corre, un segundo **ataca**, luego **esquiva**, luego **lanza el Spirit Bolt** y luego **bebe** (cada botón en su sitio del DOM) y al soltar **nada queda pulsado**, el héroe se para y la página no se ha movido. Imprime una línea por ventana con lo medido (la tabla de `docs/MOBILE-CALIBRATION.md` §1).
+- **Sin cambios de simulación:** nada de S31 toca la simulación ni el determinismo (es presentación: disposición, HUD, barra, pausa); las réplicas bit a bit de `boss`, `boss-death`, `vertical` y `soak` siguen igual.
+
+### Bundle
+
+| | S30 | **S31** |
+|---|---|---|
+| Arranque en frío de R1 | 197.5 KB gz | **198.4 KB gz** (+0.9 KB: la regla de «lo que cabe», `bossBarLayout`, `BossBarView.place` y la pausa junto al HUD) — **margen 1.6 KB** |
+| Toda la primera sesión | 211.5 KB gz | 212.9 KB gz |
+
+> ⚠ **Margen.** Quedan **1.6 KB** de 200. Palancas documentadas que siguen sin tocar: `InteractableViews` / `SealView` al *chunk* diferido (≈ 1.5 KB gz) y paquetes por sala (P7).
+
+### Límites que S31 deja a la vista (nada se oculta)
+
+- **Nada calibrado en dispositivo** (ver arriba). Pendiente: iPhone, iPad, Android.
+- **Vertical:** la bandera `rotateDevice` existe y el E2E comprueba que se activa, pero **no hay aviso de «gira el dispositivo»** (P7).
+- **El menú no avisa** de que el tamaño pedido no cabe (a la izquierda cede a menudo).
+- **Un dedo de CDP es perfecto** y su reloj es virtual: los tiempos de los gestos (p. ej. los 100 ms del gesto de bajada) no se han probado contra el reloj de un dispositivo.
+
+### Medido ✅
+
+| | S30 | S31 |
+|---|---|---|
+| Tests | 1795 / 113 archivos | **1828 / 115 archivos** |
+| `tsc` | 0 | 0 |
+| E2E (desarrollo y producción) | 33 / 33 | **34 / 34** (0 errores y 0 avisos de consola) |
+| Arranque en frío de R1 | 197.5 KB gz | **198.4 KB gz** |
 

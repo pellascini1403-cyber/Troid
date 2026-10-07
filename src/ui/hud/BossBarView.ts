@@ -1,11 +1,17 @@
 import type { Translator } from '@/i18n';
 import { PALETTE, cssHex } from '@/presentation/palette';
+import { NO_INSETS, type Disc, type Insets, type TouchLayout } from '../touch/layout';
 import type { BossBarState } from './BossBarModel';
+import { computeBossBarLayout, type Box0 } from './bossBarLayout';
+
+/** The square a button's touch area fits in: where a finger would be, and where the bar must not. */
+const areaOf = (d: Disc): Box0 => ({ x0: d.cx - d.hit / 2, y0: d.cy - d.hit / 2, x1: d.cx + d.hit / 2, y1: d.cy + d.hit / 2 });
 
 /**
  * The boss's bar (DOM, docs/PROMPT6-LOG.md S29): the name of the guardian and a violet bar of its health at the bottom centre of the screen — the
- * place the touch controls leave free — with the white trail of the last blow behind it. It is `pointer-events: none` (it never catches a finger),
- * only touches the DOM when a value changed, and the only text it has is the boss's name, from the catalogs, in the language of the player.
+ * place the touch controls leave free (S31: and where they do not, the bar moves aside; `bossBarLayout.ts`) — with the white trail of the last blow
+ * behind it. It is `pointer-events: none` (it never catches a finger), only touches the DOM when a value changed, and the only text it has is the
+ * boss's name, from the catalogs, in the language of the player.
  */
 export class BossBarView {
   readonly root: HTMLDivElement;
@@ -30,9 +36,10 @@ export class BossBarView {
     this.root.setAttribute('aria-valuemin', '0');
     this.root.setAttribute('aria-valuemax', '100');
     Object.assign(this.root.style, {
-      position: 'absolute', left: '50%', bottom: 'max(18px, env(safe-area-inset-bottom))', width: 'min(46vw, 440px)', transform: 'translateX(-50%)',
-      display: 'none', opacity: '0', pointerEvents: 'none', zIndex: '24', userSelect: 'none',
+      position: 'absolute', boxSizing: 'border-box', display: 'none', opacity: '0', pointerEvents: 'none', zIndex: '24', userSelect: 'none',
     });
+    // until the game says where (`place`), the bar is where it is on a window without buttons or insets: the bottom centre
+    this.place(parent.clientWidth || (doc.defaultView?.innerWidth ?? 0), parent.clientHeight || (doc.defaultView?.innerHeight ?? 0), NO_INSETS);
     this.name = el('boss-bar-name');
     Object.assign(this.name.style, {
       font: '600 13px/1.2 system-ui, sans-serif', letterSpacing: '0.12em', textTransform: 'uppercase', textAlign: 'center', marginBottom: '5px',
@@ -52,6 +59,18 @@ export class BossBarView {
     track.append(this.ghost, this.fill, this.flash);
     this.root.append(this.name, track);
     parent.appendChild(this.root);
+  }
+
+  /**
+   * Puts the bar where `computeBossBarLayout` says for a window of `width × height` px with the given safe area, keeping clear of the touch buttons
+   * (`touch` is their layout; `null` where there are none — a keyboard). All four count even when one is not on screen at the moment (the Ability button
+   * exists only with a card, the chip only when a bottle would help): a bar that moved when they come and go would be a bar that jumps in the middle of a fight.
+   * Called by the game on every layout (a resize, a setting that moves the buttons); only writes to the DOM when the box changed.
+   */
+  place(width: number, height: number, insets: Readonly<Insets>, touch: Readonly<Pick<TouchLayout, 'attack' | 'dash' | 'ability' | 'chip'>> | null = null): void {
+    const b = computeBossBarLayout(width, height, insets, touch ? [touch.attack, touch.dash, touch.ability, touch.chip].map(areaOf) : []);
+    if (!this.set('place', `${b.x}|${b.y}|${b.width}|${b.height}`)) return;
+    Object.assign(this.root.style, { left: `${b.x}px`, top: `${b.y}px`, width: `${b.width}px`, height: `${b.height}px` });
   }
 
   update(s: Readonly<BossBarState>): void {

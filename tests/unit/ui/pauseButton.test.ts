@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { CATALOGS, createTranslator } from '@/i18n';
-import { PauseButton } from '@/ui/settings/PauseButton';
+import { PauseButton, pauseBox } from '@/ui/settings/PauseButton';
 
 /**
  * The entry to the pause menu (docs/GAME-SPEC-2D.md §17): one small icon at the TOP CENTRE — never on the right, where Attack,
@@ -50,6 +50,21 @@ describe('pause button', () => {
     expect(Number(/translate\(-?[\d.]+px, (-?[\d.]+)px\)/.exec(button.root.style.transform)![1])).toBeGreaterThanOrEqual(24);
   });
 
+  it('in a window narrower than the HUD is wide (a phone held upright) it goes right next to the HUD instead of over its bottles (S31)', () => {
+    const none = { top: 0, right: 0, bottom: 0, left: 0 };
+    button.place(390, 844, none, 0.9);
+    const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(button.root.style.transform)!;
+    const x0 = Number(m[1]) + 25 - 25 * 0.9; // the scaled box
+    expect(x0, 'clear of the widest HUD (five segments, four bottles: 16 + 206 dp, and a gap)').toBeGreaterThanOrEqual((16 + 206 + 8) * 0.9 - 1);
+    expect(x0 + 50 * 0.9, 'and still inside the window').toBeLessThanOrEqual(390);
+    // a window that cannot hold both keeps the button at the centre (it never leaves the screen)
+    button.place(260, 600, none, 1);
+    expect(centre()).toBe(130);
+    // wherever the HUD is not in the way it is the middle of what is usable
+    button.place(844, 390, none, 1);
+    expect(centre()).toBe(422);
+  });
+
   it('is never on the right half of the screen, at any aspect ratio (4:3 … 21:9)', () => {
     for (const [w, h] of [[800, 600], [1280, 720], [844, 390], [1000, 430], [2520, 1080]] as const) {
       button.place(w, h, { top: 0, right: 0, bottom: 0, left: 0 });
@@ -87,6 +102,22 @@ describe('pause button', () => {
   it('scales with the controls', () => {
     button.place(844, 390, { top: 0, right: 0, bottom: 0, left: 0 }, 1.4);
     expect(button.root.style.transform).toContain('scale(1.4)');
+  });
+
+  it('the SCALED button is inside the window at every scale (it grows about its centre: S31, at 1.5 its top edge was 1 px off the screen)', () => {
+    for (const scale of [0.9, 1, 1.2, 1.5, 1.6]) {
+      for (const top of [0, 24, 47]) {
+        const insets = { top, right: 0, bottom: 0, left: 0 };
+        button.place(844, 390, insets, scale);
+        const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(button.root.style.transform)!;
+        const cy = Number(m[2]) + 25;
+        expect(cy - 25 * scale, `top inset ${top} at ×${scale}`).toBeGreaterThanOrEqual(top);
+        // …and what the function the geometry tests use says is the same box
+        const box = pauseBox(844, insets, scale);
+        expect(box.y0).toBeCloseTo(cy - 25 * scale, 6);
+        expect(box.x1 - box.x0).toBeCloseTo(50 * scale, 6);
+      }
+    }
   });
 
   it('dispose removes it and its listeners', () => {

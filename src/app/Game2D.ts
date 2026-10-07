@@ -58,6 +58,7 @@ import type { SettingsMenu } from '@/ui/settings/SettingsMenu';
 import { PauseButton } from '@/ui/settings/PauseButton';
 import { applySafeOverride, SafeArea } from '@/ui/safeArea';
 import { TouchControls } from '@/ui/touch/TouchControls';
+import type { Insets } from '@/ui/touch/layout';
 import { listen } from './dom';
 import { createStorage } from './storage';
 import type { DevTools } from './devTools';
@@ -285,7 +286,9 @@ export class Game2D {
     // a screen that shows the touch controls from the start IS a touch device: the prompts speak touch until another device is used
     if (this.touchControls.isVisible) this.input.noteUse('touch');
     listen(this.lifecycle, window, 'pointerdown', (e) => {
-      if (e.pointerType === 'touch') this.touchControls.setVisible(true);
+      if (e.pointerType !== 'touch' || this.touchControls.isVisible) return;
+      this.touchControls.setVisible(true);
+      this.layoutUi(); // the bar of a boss gives way to the buttons that have just appeared
     }, { capture: true });
 
     // ---- views ----
@@ -306,6 +309,7 @@ export class Game2D {
           if (!this.closed) {
             this.bossViews = m;
             this.bossBar = new m.BossBarView(ui, this.translator);
+            this.layoutUi();
           }
           return m;
         },
@@ -453,6 +457,12 @@ export class Game2D {
     this.hud.place(width, height, insets);
     this.prompt.place(width, height, insets, this.touchControls.gestureScale);
     this.pauseButton.place(width, height, insets, this.touchControls.gestureScale);
+    this.placeBossBar(width, height, insets);
+  }
+
+  /** The boss's bar goes at the bottom centre and out of the way of the touch buttons while they are on screen (S31); there is nothing to avoid on a keyboard. */
+  private placeBossBar(width: number, height: number, insets: Readonly<Insets>): void {
+    this.bossBar?.place(width, height, insets, this.touchControls.isVisible ? this.touchControls.current : null);
   }
 
   /** The HUD and the contextual touch controls follow the simulation's status (read through one snapshot; nothing else is touched). */

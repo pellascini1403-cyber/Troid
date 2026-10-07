@@ -15,10 +15,12 @@ export const HUD_DESIGN = {
   life: { segW: 22, segH: 10, gap: 3 },
   magic: { w: 140, h: 8 },
   /**
-   * A bottle icon: the vial drawn is 22 × 30; its touch area is as TALL as a finger needs (44) and as WIDE as its pitch (36):
-   * neighbours must never share pixels (a finger means one bottle), so the width follows the spacing, not the 44 dp ideal.
+   * A bottle icon: the vial drawn is 22 × 30; its touch area is as TALL as a finger needs and as WIDE as its pitch (36):
+   * neighbours must never share pixels (a finger means one bottle), so the width follows the spacing, not the 44 px ideal. The height is 49 dp so that
+   * at the smallest `uiScale` (0.9: a small phone) it is still 44 css px (S31: the geometry audit found 39.6 px with 44 dp). To drink, a touch screen
+   * has a second way: the chip, which is 64 dp across.
    */
-  vial: { w: 22, h: 30, pitch: 36, hitH: 44 },
+  vial: { w: 22, h: 30, pitch: 36, hitH: 49 },
   /** Vertical gaps inside the stack: life → magic, magic → bottles. */
   rowGap: { lifeMagic: 8, magicBottles: 10 },
   /** The touch area of the bottle icons is taller than the vial drawn: it reaches up this far over the gap above them. */

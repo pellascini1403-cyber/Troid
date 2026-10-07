@@ -67,10 +67,19 @@ export const TOUCH_CONTROLS = {
 
 /** How far the player may move the buttons in from their side and up from the bottom (dp, at most: the window may allow less). */
 export const PLACEMENT_RANGE = { x: 120, y: 90 } as const;
-/** The height of the interface at the top that the buttons are never lifted into (the life, the magic and the bottles), dp. */
-const TOP_RESERVE = 96;
+/**
+ * What the HUD takes at the top left, in dp: its margin from the safe area, its height and the widest it gets in this game (five life segments and four
+ * bottles). The numbers belong to `ui/hud/layout.ts`; they are repeated here so that this module does not import it (a test holds the two together).
+ */
+export const HUD_FOOTPRINT = { margin: 16, height: 77, width: 206, gap: 8 } as const;
+/** The height of the interface at the top that the buttons are never lifted into: the HUD and a gap, dp. */
+const TOP_RESERVE = HUD_FOOTPRINT.margin + HUD_FOOTPRINT.height + HUD_FOOTPRINT.gap;
 /** The movement zone never gets narrower than this fraction of the usable width, however far in the buttons are moved. */
 const MIN_ZONE = 0.3;
+/** The room the boss's bar always has at the bottom, between the buttons and the other edge (`ui/hud/bossBarLayout.ts`: its least width and its gap on each side). */
+const BAR_ROOM = 160 + 2 * 8;
+/** The smallest the buttons get when the HUD asks them to make room (the size of the 80 % setting on the smallest `uiScale`): a finger is still ≥ 44 px. */
+const SMALLEST = 0.72;
 /** The block of the four controls, as offsets from the corner of the screen they hang from (dp): its width and its distance from the bottom edge. */
 const CLUSTER = (() => {
   const all = Object.values(TOUCH_CONTROLS);
@@ -85,7 +94,9 @@ const CLUSTER = (() => {
  * design numbers (no overlaps, margins from the edges, every aspect ratio from 4:3 to 21:9) are tested without a browser.
  * The controls hang from the bottom corner of the side the player chose (they never depend on the aspect ratio); the zone is a
  * fraction of the usable width, on the other side. `placement` moves the buttons in and up by what the player asked for, but only as far as
- * the window allows: they never leave the safe area, never reach into the interface at the top and never take more than 70 % of the width.
+ * the window allows: they never leave the safe area, never reach into the interface at the top, never take more than 70 % of the width and
+ * always leave the bottom of the window room for the boss's bar. If the size asked for would put them on the HUD, they are as big as can be without
+ * it (never below what a finger needs): the size in the settings is a preference, the window decides what fits.
  */
 export function computeTouchLayout(
   width: number,
@@ -96,27 +107,61 @@ export function computeTouchLayout(
   placement: Readonly<Placement> = DEFAULT_PLACEMENT,
 ): TouchLayout {
   const gestureScale = uiScale(width, height);
-  const s = gestureScale * sizePreference;
   const mirrored = placement.side === 'left';
   const usable = Math.max(0, width - insets.left - insets.right);
   const cornerX = mirrored ? insets.left : width - insets.right;
   const cornerY = height - insets.bottom;
-  // how far in and up the player's choice may actually go in THIS window
-  const maxIn = Math.max(0, usable * (1 - MIN_ZONE) - CLUSTER.farX * s);
-  const maxUp = Math.max(0, cornerY - CLUSTER.topY * s - (insets.top + TOP_RESERVE * s));
   const unit = (v: number): number => Math.min(1, Math.max(0, Number.isFinite(v) ? v : 0));
-  const inward = unit(placement.offsetX) * Math.min(PLACEMENT_RANGE.x * s, maxIn);
-  const upward = unit(placement.offsetY) * Math.min(PLACEMENT_RANGE.y * s, maxUp);
-  const disc = (c: (typeof TOUCH_CONTROLS)[keyof typeof TOUCH_CONTROLS]): Disc => ({
-    cx: mirrored ? cornerX - c.dx * s + inward : cornerX + c.dx * s - inward,
-    cy: cornerY + c.dy * s - upward,
-    visual: c.visual * s,
-    hit: c.hit * s,
-  });
-  const attack = disc(TOUCH_CONTROLS.attack);
-  const dash = disc(TOUCH_CONTROLS.dash);
-  const ability = disc(TOUCH_CONTROLS.ability);
-  const chip = disc(TOUCH_CONTROLS.chip);
+  // the HUD, with a gap around it, as a box
+  const hudPad = HUD_FOOTPRINT.gap * gestureScale;
+  const hud = {
+    x0: insets.left + HUD_FOOTPRINT.margin * gestureScale - hudPad,
+    y0: insets.top + HUD_FOOTPRINT.margin * gestureScale - hudPad,
+    x1: insets.left + (HUD_FOOTPRINT.margin + HUD_FOOTPRINT.width) * gestureScale + hudPad,
+    y1: insets.top + (HUD_FOOTPRINT.margin + HUD_FOOTPRINT.height) * gestureScale + hudPad,
+  };
+  /** The four touch areas for the buttons at scale `s`, with the player's position limited to what THIS window allows at that scale. */
+  const discsAt = (s: number): Disc[] => {
+    const maxIn = Math.max(0, usable * (1 - MIN_ZONE) - CLUSTER.farX * s, 0);
+    const room = Math.max(0, usable - CLUSTER.farX * s - BAR_ROOM);
+    const maxUp = Math.max(0, cornerY - CLUSTER.topY * s - (insets.top + TOP_RESERVE * gestureScale));
+    const inward = unit(placement.offsetX) * Math.min(PLACEMENT_RANGE.x * s, maxIn, room);
+    const upward = unit(placement.offsetY) * Math.min(PLACEMENT_RANGE.y * s, maxUp);
+    return [TOUCH_CONTROLS.attack, TOUCH_CONTROLS.dash, TOUCH_CONTROLS.ability, TOUCH_CONTROLS.chip].map((c) => ({
+      cx: mirrored ? cornerX - c.dx * s + inward : cornerX + c.dx * s - inward,
+      cy: cornerY + c.dy * s - upward,
+      visual: c.visual * s,
+      hit: c.hit * s,
+    }));
+  };
+  const safe = { x0: insets.left, y0: insets.top, x1: width - insets.right, y1: height - insets.bottom };
+  /**
+   * Do the buttons fit: all inside the safe area and none on the HUD? Touching is fitting (to a millionth of a px): the lift of the buttons is limited by the very
+   * edge of the HUD's reserve, so a button resting against it is the normal case, and a rounding error must not decide whether it "fits".
+   */
+  const fits = (discs: readonly Disc[]): boolean =>
+    discs.every((d) => {
+      if (d.cx - d.hit / 2 < safe.x0 - 1e-6 || d.cx + d.hit / 2 > safe.x1 + 1e-6 || d.cy - d.hit / 2 < safe.y0 - 1e-6 || d.cy + d.hit / 2 > safe.y1 + 1e-6) return false;
+      const nx = Math.max(hud.x0, Math.min(d.cx, hud.x1));
+      const ny = Math.max(hud.y0, Math.min(d.cy, hud.y1));
+      return Math.hypot(d.cx - nx, d.cy - ny) >= d.hit / 2 - 1e-6;
+    });
+  let s = gestureScale * sizePreference;
+  if (!fits(discsAt(s))) {
+    // as big as fits: the largest scale (down to the floor) at which the buttons are inside the safe area and off the HUD — smaller is never worse, so a bisection finds it
+    let lo = Math.min(s, SMALLEST);
+    let hi = s;
+    if (!fits(discsAt(lo))) s = lo;
+    else {
+      for (let i = 0; i < 16; i++) {
+        const mid = (lo + hi) / 2;
+        if (fits(discsAt(mid))) lo = mid;
+        else hi = mid;
+      }
+      s = lo;
+    }
+  }
+  const [attack, dash, ability, chip] = discsAt(s) as [Disc, Disc, Disc, Disc];
   // the zone is the part of the usable width on the side the buttons are not, but it never reaches a control (a very small window with big
   // controls would otherwise make them overlap: the zone yields)
   const all = [attack, dash, ability, chip];

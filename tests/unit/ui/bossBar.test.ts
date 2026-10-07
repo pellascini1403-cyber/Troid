@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { CATALOGS, createTranslator } from '@/i18n';
 import { APPEAR_SECONDS, BossBarModel, FLASH_SECONDS, GHOST_RATE, LINGER_SECONDS } from '@/ui/hud/BossBarModel';
 import { BossBarView } from '@/ui/hud/BossBarView';
+import { computeTouchLayout, NO_INSETS } from '@/ui/touch/layout';
 
 /**
  * The boss's bar (docs/PROMPT6-LOG.md S29): a pure model the simulation's events move — it appears when the guardian wakes, follows its health with
@@ -186,6 +187,43 @@ describe('BossBarView', () => {
     const observer = new MutationObserver((r) => records.push(...r));
     observer.observe(host, { attributes: true, childList: true, subtree: true, characterData: true });
     for (let i = 0; i < 20; i++) show();
+    expect([...records, ...observer.takeRecords()]).toHaveLength(0);
+    observer.disconnect();
+  });
+
+  it('is placed in px at the bottom centre of the window from the start, and the game moves it out of the way of the touch buttons (S31)', () => {
+    const box = (): { left: number; top: number; width: number; height: number } => {
+      const s = q('boss-bar').style;
+      return { left: parseFloat(s.left), top: parseFloat(s.top), width: parseFloat(s.width), height: parseFloat(s.height) };
+    };
+    // before anyone places it: the centre of a window with no buttons and no insets (the window of the test)
+    const first = box();
+    expect(first.left + first.width / 2).toBeCloseTo(window.innerWidth / 2, 6);
+    expect(first.top + first.height).toBeCloseTo(window.innerHeight - 18, 6);
+    // with the buttons of a phone moved all the way in, the bar leaves their area (they are all at the right)
+    const layout = computeTouchLayout(844, 390, NO_INSETS, 1.4, undefined, { side: 'right', offsetX: 1, offsetY: 0 });
+    view.place(844, 390, NO_INSETS, layout);
+    const moved = box();
+    expect(moved.left).toBeGreaterThanOrEqual(0);
+    for (const id of ['attack', 'dash', 'ability', 'chip'] as const) {
+      const d = layout[id];
+      const overlapsX = moved.left < d.cx + d.hit / 2 && d.cx - d.hit / 2 < moved.left + moved.width;
+      const overlapsY = moved.top < d.cy + d.hit / 2 && d.cy - d.hit / 2 < moved.top + moved.height;
+      expect(overlapsX && overlapsY, `the bar is clear of ${id}`).toBe(false);
+    }
+    // without them (a keyboard) it is centred again
+    view.place(844, 390, NO_INSETS, null);
+    const centred = box();
+    expect(centred.left + centred.width / 2).toBeCloseTo(422, 6);
+  });
+
+  it('placing it again where it already is writes nothing to the page', () => {
+    view.place(844, 390, NO_INSETS);
+    const records: MutationRecord[] = [];
+    const observer = new MutationObserver((r) => records.push(...r));
+    observer.observe(host, { attributes: true, subtree: true });
+    view.place(844, 390, NO_INSETS);
+    view.place(844, 390, NO_INSETS, null);
     expect([...records, ...observer.takeRecords()]).toHaveLength(0);
     observer.disconnect();
   });

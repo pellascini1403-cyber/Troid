@@ -3,12 +3,42 @@ import { DisposableStore } from '@/core/lifecycle';
 import type { Translator } from '@/i18n/translator';
 import { cssHex, PALETTE } from '@/presentation/palette';
 import { createIcon } from '../icons';
-import { NO_INSETS, type Insets } from '../touch/layout';
+import { HUD_FOOTPRINT, NO_INSETS, type Insets } from '../touch/layout';
 
 const STYLE_ID = 'troid-pause-style';
 /** Size of the button, css px at scale 1 (the controls' scale is never below 0.9): a finger-sized target, 44 px at the least. The visible disc is smaller. */
 const SIZE = 50;
 const MARGIN = 8;
+
+/** Where the button is for a window `width` px wide with the given safe insets at `scale`: a box in px (the scaled square, centred in what is usable, below the top inset). */
+export function pauseBox(width: number, insets: Readonly<Insets>, scale = 1): { x0: number; y0: number; x1: number; y1: number } {
+  const cx = Math.round(pauseLeft(width, insets, scale)) + SIZE / 2;
+  const top = pauseTop(insets, scale);
+  const half = (SIZE / 2) * scale;
+  const cy = top + SIZE / 2;
+  return { x0: cx - half, y0: cy - half, x1: cx + half, y1: cy + half };
+}
+
+/**
+ * The left edge of the button (before scaling): its centre is the middle of what is usable — except in a window narrower than the HUD is wide (a phone held
+ * upright, S31: the audit found the button over the fourth bottle), where it goes right next to the HUD, as long as it still fits inside the safe area.
+ * The HUD counts at its widest (five life segments, four bottles), so the button does not move when a bottle is found.
+ */
+function pauseLeft(width: number, insets: Readonly<Insets>, scale: number): number {
+  const middle = insets.left + (width - insets.left - insets.right) / 2;
+  const half = (SIZE / 2) * scale;
+  const beside = insets.left + (HUD_FOOTPRINT.margin + HUD_FOOTPRINT.width + HUD_FOOTPRINT.gap) * scale + half;
+  const centre = beside > middle && beside + half <= width - insets.right ? beside : middle;
+  return centre - SIZE / 2;
+}
+
+/**
+ * The `translate` that puts the SCALED button (it scales about its centre) a margin below the top inset: scaling grows it up and down by half the difference,
+ * so the box must come down by that much, or at a large `uiScale` its top edge would be off the window (S31: the geometry audit found it 1 px out at 1.5).
+ */
+function pauseTop(insets: Readonly<Insets>, scale: number): number {
+  return Math.round(insets.top + MARGIN * scale + (SIZE / 2) * Math.max(0, scale - 1));
+}
 
 const rgba = (hex: number, a: number): string => `rgba(${(hex >> 16) & 255},${(hex >> 8) & 255},${hex & 255},${a})`;
 
@@ -22,8 +52,8 @@ function pauseCss(): string {
 }
 
 /**
- * The entry to the pause / settings menu (DOM): one small icon at the TOP CENTRE of the screen — not on the right, where the
- * three fixed controls live, and not a gameplay control. Pressing it (or Escape / P / the pad's Start) pauses the game and opens
+ * The entry to the pause / settings menu (DOM): one small icon at the TOP CENTRE of the screen (beside the HUD, in a window narrower than it is wide) — not on
+ * the right, where the three fixed controls live, and not a gameplay control. Pressing it (or Escape / P / the pad's Start) pauses the game and opens
  * the menu. It never takes keyboard focus (a Space press that jumps must not also "click" it) and, like the other overlays, a
  * click on it is never an attack (`data-ui-block`). Holds no text: its name is the translator's `settings.open`.
  */
@@ -82,9 +112,7 @@ export class PauseButton {
     this.height = height;
     this.insets = insets;
     this.scale = scale;
-    const left = insets.left + (width - insets.left - insets.right) / 2 - SIZE / 2;
-    const top = insets.top + MARGIN * scale;
-    Object.assign(this.root.style, { transform: `translate(${Math.round(left)}px, ${Math.round(top)}px) scale(${scale})` });
+    Object.assign(this.root.style, { transform: `translate(${Math.round(pauseLeft(width, insets, scale))}px, ${pauseTop(insets, scale)}px) scale(${scale})` });
   }
 
   /** The menu is open: the button steps out of the way (it is the menu's own Resume that closes it). */
