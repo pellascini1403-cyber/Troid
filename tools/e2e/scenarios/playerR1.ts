@@ -21,7 +21,8 @@ import type { Box, Ctx, GameState, Scenario } from '../scenario';
 const BLOW = { phases: { startup: [0, 1], active: [2, 2], recovery: [3, 3] } };
 const CLIPS: Record<string, number> = { idle: 4, walk: 6, jump: 3, fall: 3, dash: 4, attack1: 4, attack2: 4, attackAir: 4, crouch: 3, attackCrouch: 4, hurt: 3, death: 5, cast: 4, drink: 4, interact: 3 };
 const CANVAS: [number, number] = [96, 128]; // 1.6 × 2.13 m at 60 px/m: a figure much wider and taller than the body it stands for
-const PACKS: FixturePack[] = [
+/** The complete protagonist, synthetic: the fifteen clips of the delivery, the sword in the hand in each blow. */
+export const HERO_PACKS: FixturePack[] = [
   {
     id: 'player',
     category: 'player',
@@ -221,7 +222,7 @@ export const playerR1: Scenario = {
   name: 'player-r1',
   async run(ctx) {
     assert.deepEqual(Object.keys(CLIPS).sort(), [...PLAYER_VISUAL.required].sort(), 'the synthetic hero has exactly the clips the delivery asks for');
-    const complete = createArtFixture(PACKS);
+    const complete = createArtFixture(HERO_PACKS);
     try {
       // ===================================================================================================== A · R1, with the whole art
       await open(ctx, complete, '');

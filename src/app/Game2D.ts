@@ -433,6 +433,13 @@ export class Game2D {
       this.debug.set('paused', true);
       this.loop.paused = true;
     }
+    // A pause takes effect NOW, not at the end of the next frame: a frame that comes late (software GL, a texture upload, a busy page) would otherwise first run, with the loop still
+    // unpaused, the ticks it was owed (up to five) — in the middle of whatever a test or a developer was doing with the simulation stopped.
+    this.lifecycle.add(
+      this.debug.changed.on('change', ({ key, value }) => {
+        if (key === 'paused') this.loop.paused = value === true || this.menuOpen;
+      }),
+    );
 
     listen(this.lifecycle, window, 'resize', () => {
       this.renderer.resize();

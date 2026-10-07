@@ -121,6 +121,8 @@ si un fotograma declara `weapon_grip`, entonces la distancia a `hand_r` debe ser
 El desarrollo del Prompt 4 usa una **piel provisional que no es el personaje**: una silueta abstracta del tamaño del cuerpo (rectángulo redondeado neutro), una muesca que indica hacia dónde mira, un marcador en `hand_r` y una línea corta anclada a ese marcador como «espada». Va marcada `PLACEHOLDER` en el overlay de depuración.
 **No se redibuja al protagonista ni se imita su diseño.** Cambiar el proxy por los sprites reales es cambiar un manifiesto, sin tocar gameplay. Si quieres ver tu personaje real durante el desarrollo, la alternativa es autorizar recortes **verificados pieza a pieza** de tu hoja como piel provisional de uso interno (DP-1; por defecto: no).
 
+
+> **Estado tras el Prompt 7 (S33–S44): el arte final del protagonista NO está físicamente en el repositorio y NO se ha integrado.** No hay un solo *sprite* suyo en `art/`, `public/` ni en ningún sitio versionado, y no se ha generado, dibujado, recortado de las ilustraciones, imitado ni recoloreado nada: el protagonista del juego es **la silueta abstracta con espada** de arriba. Lo que sí existe es el camino para recibirlo sin tocar gameplay: el hueco **declarado** (`art/player/player.pack.json`, estado `awaiting-art`, los 15 clips de la entrega, tomados de la lista de §2.5, con sus fases y sus anclas; `run`, `land` y `crouchWalk` se dibujan con sustitutos explícitos de esos 15), `npm run assets:missing` (hoy: **0 de 15 clips**), la validación en el *build*, el conmutador *placeholder* ↔ arte **estado por estado y reversible** (`?visual=placeholder|art|auto`) y el laboratorio `?lab=player`. Cómo entregarlo: [deliver-protagonist-art](guides/deliver-protagonist-art.md); cómo funciona todo: [ART-PIPELINE-2D](ART-PIPELINE-2D.md).
 ---
 
 ## 3. Dirección visual
@@ -740,6 +742,8 @@ Debe poder guardar progreso, habilidades, cartas, ranuras, flags, punto de guard
 ## 21. Rendimiento (objetivos de juego)
 
 Mobile-first. Presupuestos de partida (a validar en dispositivo ⚠️): ≤ 60 *draw calls* por frame, atlas ≤ 2048 px, memoria de texturas ≤ ~150 MB, ≤ 400 partículas vivas, simulación ≤ 2 ms por tick, **0 asignaciones por frame** en régimen estable. El *benchmark* de 800 sprites ✅ es una referencia técnica: el juego **no** pinta 800 sprites de forma permanente. Detalle en ARCHITECTURE-2D §7.10.
+
+> **Medido en el Prompt 7 (S43)**, con arte **sintético** y en **Chromium sin cabeza con GL por software** (no en un dispositivo): 1000 *sprites* repartidos entre hasta 24 páginas de atlas son **1 llamada de dibujo**; con la luz en su propia capa, 2 (mezclada con los demás, 301); lo peor a la vez (1000 *sprites*, 8 páginas, translúcidos, animados, luz y 30 ráfagas de efectos por segundo) son **5**; 9 páginas = 23.2 MiB. El presupuesto de memoria de las páginas de arte (24 / 32 / 96 MiB) es una **propuesta** que un teléfono debe confirmar. [ART-PIPELINE-2D](ART-PIPELINE-2D.md) parte J.
 
 ---
 

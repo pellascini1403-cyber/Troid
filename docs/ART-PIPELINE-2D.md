@@ -1,6 +1,6 @@
 # Pipeline de arte 2D — cómo entra el arte al juego
 
-> **Estado:** Prompt 7. Este documento se amplía **paso a paso** (S33 → S44). La **Parte A** es la **auditoría de S33**: cómo funcionaba el pipeline **antes de tocar nada** (es una foto histórica: lo que S35 cambió está marcado en ella y explicado en la **Parte C**). La **Parte B** es el contrato (S34) y la **Parte C** los atlas, la carga diferida y el presupuesto (S35). Las partes siguientes (adaptador, validación, laboratorio, VFX, escenarios, rendimiento) se añaden con cada paso.
+> **Estado:** Prompt 7. Este documento se amplía **paso a paso** (S33 → S44). La **Parte A** es la **auditoría de S33**: cómo funcionaba el pipeline **antes de tocar nada** (es una foto histórica: lo que S35 cambió está marcado en ella y explicado en la **Parte C**). La **Parte B** es el contrato (S34) y la **Parte C** los atlas, la carga diferida y el presupuesto (S35). El resto —el visual intercambiable (D), la validación en el *build* (E), el protagonista (F), el laboratorio y R1 con el arte completo (G), VFX y audio (H), el entorno (I), el coste medido (J)— se añadió con cada paso, y la **Parte K** (S44) es el cierre: el *pipeline* entero de un vistazo, la lista de lo que hacer el día que llegue el arte, qué falta exactamente y qué no se ha medido. **El Prompt 7 está cerrado: el *pipeline* está listo y el arte del protagonista, no (0 de 15 clips).**
 >
 > **Aviso, sin letra pequeña:** **en el repositorio no hay arte real del protagonista** (ni de nada). Todo lo que se dibuja hoy sale de generadores procedurales (un atlas de *canvas*). Este pipeline existe para que, cuando llegue el arte real **del usuario**, entre **sin tocar el gameplay**. **No se ha generado, redibujado ni imitado el protagonista**, y nada de este documento lo hace (§A.12).
 
@@ -930,4 +930,92 @@ Dispositivos reales (iOS, Android); la memoria de GPU de verdad; calor y baterí
 
 **Coste:** el *chunk* del laboratorio pesa 3.0 KB gzip y solo se descarga con `?lab=art-stress`; el arranque en frío sube **0.2 KB** (190.4 → 190.6 KB gzip; presupuesto 200) por el reparto de módulos en *chunks*.
 
-*(Siguiente: el cierre del Prompt 7, S44.)*
+---
+
+# Parte K — Integración y cierre del Prompt 7 (S44)
+
+> **Estado, sin letra pequeña:** el arte final del protagonista **no está físicamente disponible en el repositorio** y **no se ha integrado**. No hay un solo *sprite* suyo en `art/`, `public/` ni en ningún sitio versionado; las ilustraciones de referencia que se compartieron en la conversación son de concepto, sin canal alfa y fuera del repositorio. **No se ha generado, dibujado, recortado, imitado, recoloreado ni «mejorado» nada, y no se ha creado ningún sustituto.** El protagonista del juego sigue siendo la **cápsula abstracta con espada** (el *placeholder*, el único que existe), y todo lo de este documento está **preparado, probado con arte sintético y declarado**, no integrado.
+
+## K.1 El *pipeline*, de punta a punta
+
+```
+ EL ARTISTA                       EL REPOSITORIO                                   EL JUEGO
+
+ PNG + manifiesto  ──────▶  art/<paquete>/…  ─── npm run assets:check ───▶  (el build NO compila si el arte está mal,
+ (fotogramas o hojas)        art/index.json       npm run assets:verify        con la ruta del archivo y qué corregir)
+                                   │
+                                   ├─ npm run assets:missing   →  qué clips y piezas faltan, en una tabla (hoy: 0/15 y 0/12)
+                                   ▼
+                          npm run assets:pack  ──▶  public/art/…  (generado: páginas de atlas SIN PÉRDIDA, índice, manifiestos)
+                                                           │
+                                                           ▼
+                      ┌──────────  chunk diferido ArtLibrary (solo si hay un índice; boot · zone · lazy)  ──────────┐
+                      ▼                                                                                            ▼
+        PlayerVisual: el placeholder SIEMPRE está + el arte,                                        Entorno / VFX / enemigos:
+        estado por estado (chooseSource · STAND_INS)                                                 contratos ya escritos (partes H–I)
+                      │
+   ?visual=placeholder | art | auto   ·   ?lab=player (ver)   ·   ?lab=art-stress (medir)   ·   state().boxes / .cues / .parallax (comprobar)
+```
+
+Reglas que atraviesan todo el *pipeline*, cada una con una prueba que falla si se rompe:
+
+| Regla | Dónde se hace cumplir |
+|---|---|
+| **El *placeholder* nunca desaparece**: es el camino de vuelta y el *fallback* de cada estado que el arte no cubra | `chooseSource` / `PlayerVisual` (parte D), E2E `player-art` |
+| **El arte no mueve nada del juego**: la simulación no importa lo que dibuja; las cuatro cajas del héroe están separadas | `architecture.test.ts`, `artIndependence.test.ts`, E2E `player-r1` y `world-art` |
+| **El empaquetador es sin pérdida**: el fotograma original se reconstruye bit a bit | `pack.test.ts` (cada fotograma que empaqueta) |
+| **El arte roto no compila** (tamaño, alfa, atlas, fotogramas, clips, anclas, espada, nombres) | `verifyArt.test.ts`, `npm run build` |
+| **Un paquete nombra cada fotograma una vez** (cada *sprite* con su propio prefijo) | manifiesto + `verifyArt` |
+| **Una página sin arte no descarga nada de arte** | E2E `assets` (ni una petición de arte, ni de su código, ni de los laboratorios; `state().art` es nulo) |
+| **La luz va en su capa** (cambiar de mezcla rompe el lote: 301 llamadas frente a 2) | E2E `art-performance` (parte J) |
+| **La colisión es de los datos de la sala, no del dibujo** | `environment.test.ts`, E2E `environment` |
+
+## K.2 La integración (lo que S44 añade a lo anterior)
+
+El E2E **`world-art`** recorre **la slice entera** (R1 → R2 → R3 → R4 → jefe → recompensa → salida, la misma partida grabada que `world`) **con el arte puesto**: los paquetes del héroe sintéticos servidos por la biblioteca real, el héroe dibujado con el arte estado por estado. Comprueba que **el resultado del juego es el mismo bit a bit**: los *digests* de la simulación cada 50 *ticks* de la reproducción con arte son los de la reproducción sin él. Es la prueba, a escala de toda la slice, de que **poner o quitar el arte no cambia a dónde se llega, qué se recibe ni qué se hace**. Con las suites previas intactas (los tests no se retiran; se adaptaron solo los que fijaban un comportamiento cambiado a propósito, y están en el mensaje de cada *commit*), el *placeholder* sigue jugando exactamente como antes.
+
+> Es arte **sintético** (ruido sobre lienzos transparentes del tamaño de un héroe): prueba el **cableado**, no el aspecto. Cómo se verá el arte real **no se ha podido ver**.
+
+**Lo que la integración encontró** (y no tenía que ver con el arte): la ejecución completa contra el *build* de producción hizo fallar dos escenarios que comparan partidas guionizadas *tick a tick* (`player-art` y `player-r1`) con **exactamente cinco ticks de más** —el tope del `FixedStepper`—. Pausar no era inmediato: el bucle se pausaba al final del *siguiente* fotograma, y un fotograma que llegaba tarde (GL por software, subir una textura) encontraba el bucle en marcha y corría los pasos que se le debían en medio de la partida guionizada. Corregido en `Game2D` (una pausa del estado de depuración pausa el bucle al instante) y fijado con una prueba en `devtools` que deja la página ocupada 400 ms justo tras pausar y exige que no corra ni un tick; falla sin el arreglo. **Coste:** 0.1 KB en el arranque en frío (190.6 → 190.7 KB gzip).
+
+## K.3 Qué hacer el día que llegue el arte (el orden)
+
+1. **Entregar** los PNG en `art/player/hero/` y completar `art/player/player.pack.json` con lo que solo el arte sabe ([deliver-protagonist-art](guides/deliver-protagonist-art.md)); para el entorno, [deliver-environment-art](guides/deliver-environment-art.md).
+2. `npm run assets:missing` → qué clips y piezas hay y cuáles faltan.
+3. `npm run assets:check` → todo lo que está mal, con la ruta del archivo. **Se corrige en el arte o en el manifiesto, nunca en el código del juego.**
+4. `npm run assets:pack` → `public/art/`.
+5. `npm run dev` y **`?lab=player`**: un clip cada vez, con las anclas, la espada, la escala y las cajas del juego; el *placeholder* al lado. **Lo primero a validar son los seis de `PLAYER_VISUAL.first`** (`idle`, `walk`, `attack1`, `dash`, `jump`, `hurt`): ahí se ven a la vez una escala mal, un pivote fuera de los pies o la espada fuera de la mano.
+6. Jugar R1 con `?visual=art` (solo arte) y con `?visual=placeholder` (vuelta inmediata): el cambio es reversible en cualquier momento.
+7. Medir con **`?lab=art-stress&art=<carpeta>&use=paquete/set,…`** (llamadas de dibujo, memoria, fotogramas, carga) y decidir los presupuestos de memoria con **un dispositivo real delante**.
+8. `npm run build` y `npm run bench:bundle`: el arranque en frío no debe pasar de 200 KB gz (el arte son imágenes, no JavaScript).
+9. **Solo entonces** escribir lo que está diseñado y no construido (K.5).
+
+## K.4 Qué falta del arte real (exactamente)
+
+| Pieza | Entregado | Falta |
+|---|---|---|
+| **Protagonista** (`art/player`, *sprite set* `hero`, `awaiting-art`) | **0 de 15 clips** | `idle` · `walk` · `jump` · `fall` · `dash` · `attack1` · `attack2` · `attackAir` · `crouch` · `attackCrouch` · `hurt` · `death` · `cast` · `drink` · `interact`; los cuatro golpes con las anclas de la espada en cada fotograma |
+| **Entorno** (sin paquete en `art/`) | **0 de 12 piezas obligatorias** (y 14 opcionales) | `solid` `stone`/`earth` (`fill`) · `platform` `wood` (`body`) · `door` `gate`/`seal` (`body`) · `hazard` `spikes` (`cell`) · `backdrop` `ruins` (`far`, `mid`, `near`) · `interactive` `rest`/`pickup` · `seal` |
+| **Enemigos y jefe** | procedurales (por código) | su arte, con el mismo contrato que el héroe ([replace-sprites](guides/replace-sprites.md)) |
+| **VFX finales** | los efectos de hoy se conservan | su sustitución en tres niveles (§H.3) |
+| **Audio** | ni archivos ni motor | el motor y un manifiesto de sonidos; las 17 señales están (§H.4) |
+
+`npm run assets:missing` imprime las dos primeras filas, y `--strict` falla (código de salida distinto de 0) mientras falte algo: **la orden no deja fingir una integración**.
+
+## K.5 Lo que está diseñado y no construido (a propósito)
+
+Sin arte delante no se construye, para no inventar un contrato que luego el arte real contradiga: el **dibujo de las salas con imágenes** (las funciones puras que lo sostienen —`planTiles`, `stripCover`, `layerSpan`, `environmentSlots`— ya están probadas contra cada sólido de cada sala, §I.8), la comprobación de costuras y el alfa por pieza, los ***flipbooks* de VFX** (§H.3) y el arte de **enemigos y jefe**.
+
+## K.6 Lo que no se ha verificado (⚠ sin cambios)
+
+Nada del Prompt 7 se ha visto ni medido en un **iPhone, un iPad ni un Android reales**, ni con un **mando físico**. Las medidas de la parte J son de **Chromium sin cabeza con GL por software** (SwiftShader) en la CPU de un contenedor, con arte **sintético**: dicen cómo está construida la escena (llamadas de dibujo, que sí son propiedad del diseño), **no** cómo irá en un teléfono. Los presupuestos de memoria (24 / 32 / 96 MiB) son una **propuesta**.
+
+## K.7 Medido al cierre
+
+| | Fin del Prompt 6 | Fin del Prompt 7 |
+|---|---|---|
+| Pruebas unitarias y de integración | 1833 | **2223** (141 archivos) |
+| Escenarios E2E (desarrollo y producción) | 35 | **43** |
+| Arranque en frío (KB gzip; presupuesto 200) | 198.4 | **190.7** (34 *scripts*) |
+| Primera sesión entera (KB gzip) | — | 205.9 |
+| `tsc` | limpio | limpio |
