@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { ROOMS, WORLD } from '@/content';
 import type { ArtSprite } from '@/presentation/artManifest';
 import {
-  axisPlan, ENV_CONTRACT, ENV_LAYERS, ENV_ROLES, environmentPackIssues, environmentSlots, HALF_VIEW, layerSpan, PARALLAX_FACTOR, planTiles, readEnvTags, slotKey, stripCover,
+  axisPlan, ENV_CONTRACT, ENV_LAYERS, ENV_ROLES, environmentCoverageIssues, environmentPackIssues, environmentSlots, HALF_VIEW, layerSpan, PARALLAX_FACTOR, planTiles, readEnvLook, readEnvTags, slotKey, stripCover,
   type EnvRoomLike, type EnvSlot,
 } from '@/presentation/environment';
 import { createLayers } from '@/render/layers';
@@ -245,7 +245,7 @@ describe('environmentPackIssues: does a pack say what it draws, the way the cont
   it('pieces of one place at different pixel densities do not meet at the seams', () => {
     const a = sprite('a', ['role:solid', 'material:stone', 'part:fill']);
     const b = sprite('b', ['role:solid', 'material:earth', 'part:fill'], { artPxPerMeter: 128 });
-    expect(messages(pack([a, b]))).toEqual([expect.stringMatching(/^warn forest: its sprites are drawn at 64 and 128 pixels per metre/)]);
+    expect(messages(pack([a, b]))).toEqual([expect.stringMatching(/^warn forest: the ground pieces are drawn at 64 and 128 pixels per metre/)]);
   });
 
   it('what the world asks for and the pack lacks: an ERROR in a final pack, a warning in a provisional one (the blockout draws what is missing)', () => {
@@ -263,5 +263,64 @@ describe('environmentPackIssues: does a pack say what it draws, the way the cont
   it('optional pieces are never asked for', () => {
     const asked = environmentPackIssues(pack([], 'final'), slots).map((i) => i.message).join('\n');
     expect(asked).not.toMatch(/"cap"|"edge-l"|"strip"|light/);
+  });
+});
+
+describe('how a piece says it is drawn (readEnvLook)', () => {
+  it('reads the grid of cells, the rise above the line it stands on, the reach past an edge, the blend and the layer', () => {
+    expect(readEnvLook(['role:solid', 'grid:4x2', 'rise:0.34', 'reach:0.2', 'blend:add', 'layer:props-back'])).toEqual({ grid: { cols: 4, rows: 2 }, rise: 0.34, reach: 0.2, blend: 'add', layer: 'props-back', problems: [] });
+    expect(readEnvLook(['role:solid'])).toEqual({ grid: null, rise: 0, reach: 0, blend: 'normal', layer: null, problems: [] });
+  });
+
+  it('says what a tag got wrong instead of guessing', () => {
+    expect(readEnvLook(['grid:4by2', 'rise:lots', 'blend:multiply']).problems).toHaveLength(3);
+  });
+});
+
+describe('environmentPackIssues: pieces drawn by cells, and the scenery of a place split in packs', () => {
+  const tile = (id: string, tags: string[], count: number, ppm = 96, pivot: [number, number] = [0, 0]): ArtSprite => sprite(id, tags, { artPxPerMeter: ppm, pivot, clips: { idle: { frames: `${id}_`, count, tags: [] } } });
+
+  it('a grid must have as many cells as the idle clip has frames, and a row piece has one row', () => {
+    const ok = pack([tile('f', ['role:solid', 'material:stone', 'part:fill', 'grid:4x2'], 8)]);
+    expect(messages(ok)).toEqual([]);
+    const wrong = messages(pack([tile('f', ['role:solid', 'material:stone', 'part:fill', 'grid:4x2'], 6)]));
+    expect(wrong).toEqual([expect.stringMatching(/^error sprites\.f: "grid:4x2" is 8 cells but the idle clip has 6 frames/)]);
+    const rows = messages(pack([tile('c', ['role:solid', 'material:stone', 'part:cap', 'grid:4x2'], 8)]));
+    expect(rows).toEqual([expect.stringMatching(/^warn sprites\.c: a solid piece repeats along one row/)]);
+  });
+
+  it('a parallax layer meets no other layer: the far haze and the near columns may be drawn at different densities, the ground\'s pieces may not', () => {
+    const far = tile('far', ['role:backdrop', 'backdrop:ruins', 'part:far'], 1, 24, [0, 1]);
+    const mid = tile('mid', ['role:backdrop', 'backdrop:ruins', 'part:mid'], 1, 48, [0, 1]);
+    const near = tile('near', ['role:backdrop', 'backdrop:ruins', 'part:near'], 1, 64, [0, 1]);
+    expect(messages(pack([far, mid, near]))).toEqual([]);
+    const a = tile('a', ['role:solid', 'material:stone', 'part:fill'], 1, 96);
+    const b = tile('b', ['role:platform', 'material:wood', 'part:body'], 1, 64);
+    expect(messages(pack([a, b]))).toEqual([expect.stringMatching(/the ground pieces are drawn at 96 and 64/)]);
+  });
+
+  it('a decor piece is made for the layers the scene may put it in, and two of them never "claim the same piece"', () => {
+    const arch = tile('arch', ['role:decor', 'layer:backdrop-near'], 1, 48, [0.5, 1]);
+    const arch2 = tile('arch2', ['role:decor', 'layer:backdrop-near'], 1, 48, [0.5, 1]);
+    expect(messages(pack([arch, arch2]))).toEqual([]);
+    const wrong = messages(pack([tile('x', ['role:decor', 'layer:terrain-x'], 1, 48, [0.5, 1])]));
+    expect(wrong).toEqual([expect.stringMatching(/error sprites\.x: a decor is drawn in/)]);
+  });
+
+  it('what the world asks for is judged over ALL the environment packs together: a pack of backdrops and a pack of ground make one dressing', () => {
+    const slots = environmentSlots(worldRooms()).filter((s) => s.required);
+    const spec = (s: (typeof slots)[number]): ArtSprite => {
+      const c = ENV_CONTRACT[s.role];
+      const tags = [`role:${s.role}`, ...(c.subject ? [`${c.subject}:${s.subject}`] : []), ...(s.part ? [`part:${s.part}`] : [])];
+      return sprite(`${s.role}_${s.subject ?? 'x'}_${s.part || 'x'}`.replace(/[^a-z0-9_]/g, '_'), tags, { pivot: [...c.pivot] as [number, number] });
+    };
+    const backdrops = slots.filter((s) => s.role === 'backdrop').map(spec);
+    const rest = slots.filter((s) => s.role !== 'backdrop').map(spec);
+    const a = { id: 'ruins-back', status: 'final' as const, sprites: backdrops };
+    const b = { id: 'ruins-ground', status: 'final' as const, sprites: rest };
+    expect(environmentCoverageIssues([a, b], slots)).toEqual([]);
+    expect(environmentCoverageIssues([a], slots).length).toBeGreaterThan(0);
+    expect(environmentCoverageIssues([a], slots).every((i) => i.level === 'error')).toBe(true);
+    expect(environmentCoverageIssues([{ ...a, status: 'provisional' }], slots).every((i) => i.level === 'warn')).toBe(true);
   });
 });

@@ -1,0 +1,246 @@
+{
+  "manifestVersion": 1,
+  "id": "ruins-back",
+  "category": "environment",
+  "status": "provisional",
+  "comment": "THE BACK of the ruins: the three seamless strips of the parallax layers (far haze, middle trunks, near colonnade), the colossal ruins that stand in the layers behind the action and the leaves in front of it. Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.",
+  "tags": [
+    "ruins",
+    "generated"
+  ],
+  "atlasMode": "shared",
+  "scenes": {
+    "r1_gate": "scenes/r1_gate.json"
+  },
+  "atlases": [
+    {
+      "id": "ruins-back_0",
+      "source": "ruins-back_0.png",
+      "data": "ruins-back_0.json",
+      "width": 1728,
+      "height": 1708,
+      "resolution": 1
+    }
+  ],
+  "sprites": [
+    {
+      "id": "backdrop_far",
+      "artPxPerMeter": 20,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 17,
+      "frameSize": [
+        1200,
+        340
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:backdrop",
+        "backdrop:ruins",
+        "part:far"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "backdrop_far_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-back_0"
+      ]
+    },
+    {
+      "id": "backdrop_mid",
+      "artPxPerMeter": 25.6,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 17.5,
+      "frameSize": [
+        1536,
+        448
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:backdrop",
+        "backdrop:ruins",
+        "part:mid"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "backdrop_mid_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-back_0"
+      ]
+    },
+    {
+      "id": "backdrop_near",
+      "artPxPerMeter": 38.4,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 17.995,
+      "frameSize": [
+        1536,
+        691
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:backdrop",
+        "backdrop:ruins",
+        "part:near"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "backdrop_near_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-back_0"
+      ]
+    },
+    {
+      "id": "arch_grand_a",
+      "artPxPerMeter": 48,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 9,
+      "frameSize": [
+        576,
+        432
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-near"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "arch_grand_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-back_0"
+      ]
+    },
+    {
+      "id": "arch_grand_b",
+      "artPxPerMeter": 48,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 9,
+      "frameSize": [
+        576,
+        432
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-near"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "arch_grand_b_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-back_0"
+      ]
+    },
+    {
+      "id": "fore_leaves_a",
+      "artPxPerMeter": 48,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3.396,
+      "frameSize": [
+        240,
+        163
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:foreground"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "fore_leaves_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-back_0"
+      ]
+    },
+    {
+      "id": "fore_leaves_b",
+      "artPxPerMeter": 48,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3.396,
+      "frameSize": [
+        240,
+        163
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:foreground"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "fore_leaves_b_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-back_0"
+      ]
+    },
+    {
+      "id": "fore_leaves_c",
+      "artPxPerMeter": 48,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3.396,
+      "frameSize": [
+        240,
+        163
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:foreground"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "fore_leaves_c_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-back_0"
+      ]
+    }
+  ]
+}

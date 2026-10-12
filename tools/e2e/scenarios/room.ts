@@ -84,6 +84,20 @@ export const room: Scenario = {
       await ctx.page.waitForTimeout(80);
       return countPixels(decodePng(await ctx.page.screenshot()), isVioletLight);
     };
+    /** Violet light within 1.7 m of a point of the world (the slime), 2.4 m tall from the floor: the telegraph is looked for where it is, not on the whole screen (the gate's seal is violet too). */
+    const violetAround = async (x: number): Promise<number> => {
+      await ctx.page.waitForTimeout(80);
+      const [a, b] = (await ctx.page.evaluate(`[window.__troid.worldToScreen(${x - 1.7}, 2.4), window.__troid.worldToScreen(${x + 1.7}, -0.2)]`)) as Array<{ x: number; y: number }>;
+      const img = decodePng(await ctx.page.screenshot());
+      let n = 0;
+      for (let py = Math.max(0, Math.floor(a!.y)); py < Math.min(img.height, Math.ceil(b!.y)); py++) {
+        for (let px = Math.max(0, Math.floor(a!.x)); px < Math.min(img.width, Math.ceil(b!.x)); px++) {
+          const i = (py * img.width + px) * 4;
+          if (isVioletLight(img.data[i]!, img.data[i + 1]!, img.data[i + 2]!, img.data[i + 3]!)) n++;
+        }
+      }
+      return n;
+    };
 
     // =================================================================================================== run A · the win
     await ctx.open('paused=1', { width: 844, height: 390, dpr: 1 });
@@ -97,6 +111,8 @@ export const room: Scenario = {
     const seen = new Set<string>();
     const shot = new Set<string>();
     let violetAtWindUp = 0;
+    let violetAroundWindUp = 0;
+    let violetAroundNotice = 0;
     let maxX = 0;
     await replay(ctx, win, {
       chunk: 4,
@@ -127,6 +143,11 @@ export const room: Scenario = {
         await once('a-04-crawl', !!st.crouched && st.x > 68);
         await once('a-05-windup', slime?.state === 'telegraph' && slime.phaseT > 0.7, async () => {
           violetAtWindUp = await violet();
+          violetAroundWindUp = await violetAround(slime!.x);
+        });
+        // the same box a moment earlier, while the slime has only noticed the hero: what the wind-up ADDS
+        await once('a-04b-notice', slime?.state === 'detect', async () => {
+          violetAroundNotice = await violetAround(slime!.x);
         });
         await once('a-06-hurt', st.state === 'hurt' && slime?.state !== 'dead');
         await once('a-07-slash', st.state === 'attack' && (slime?.state === 'hurt' || slime?.state === 'dead'));
@@ -140,7 +161,11 @@ export const room: Scenario = {
       assert.ok(seen.has(verb), `the run showed "${verb}" (saw: ${[...seen].join(', ')})`);
     }
     assert.ok(maxX > 106.6, `all the way to the exit zone (x = ${maxX})`);
-    assert.ok(violetAtWindUp > 150, `the wind-up showed violet on screen (${violetAtWindUp} px)`);
+    console.log(`  violet: ${violetAtWindUp} px on the whole screen at the wind-up; around the slime ${violetAroundNotice} px when it notices → ${violetAroundWindUp} px at the wind-up`);
+    // the telegraph is looked for where it is: around the slime, against the same box a moment before (the scenery of R1 is blue and violet-ish light shows less over it than it did over the
+    // blockout's black, so a count over the whole screen says less about the telegraph than what the wind-up ADDS to what was there)
+    assert.ok(violetAroundWindUp - violetAroundNotice >= 40, `the wind-up adds violet around the slime (${violetAroundNotice} → ${violetAroundWindUp} px)`);
+    assert.ok(violetAtWindUp > 0, `and the screen shows it (${violetAtWindUp} px)`);
     assert.deepEqual(s.flags, ['defeated:r1_slime']);
     assert.deepEqual(s.exits, ['east']);
     assert.equal(s.health, 4, 'the one lunge it let land cost one life');

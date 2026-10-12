@@ -34,6 +34,14 @@ export type ArtCategory = (typeof ART_CATEGORIES)[number];
 export const ART_LOAD_POLICIES = ['boot', 'zone', 'lazy'] as const;
 export type ArtLoadPolicy = (typeof ART_LOAD_POLICIES)[number];
 
+/**
+ * How the packer lays the frames of a pack out on atlas pages. `sprite` (the default): each sprite set gets pages of its own — right for a character, whose frames
+ * are always drawn together. `shared`: the frames of ALL the sets of the pack share the same pages — right for scenery, where hundreds of different pieces are drawn
+ * in one layer and a page per piece would be a draw call per piece. It changes how the frames are stored, never what a set is.
+ */
+export const ATLAS_MODES = ['sprite', 'shared'] as const;
+export type AtlasMode = (typeof ATLAS_MODES)[number];
+
 /** How final the art in a pack is: `awaiting-art` declares what the pack WILL hold and carries no images yet. */
 export const ART_STATUSES = ['final', 'provisional', 'awaiting-art'] as const;
 export type ArtStatus = (typeof ART_STATUSES)[number];
@@ -118,6 +126,10 @@ export interface ArtPack {
   category: ArtCategory;
   status: ArtStatus;
   tags: string[];
+  /** How the packer stores the frames (`sprite`: pages per set; `shared`: one set of pages for the pack). */
+  atlasMode: AtlasMode;
+  /** The dressing the pack gives to rooms: room id → a scene file (`roomScene.ts`), a path inside the pack's folder. */
+  scenes: Record<string, string>;
   atlases: ArtAtlas[];
   sprites: ArtSprite[];
 }
@@ -258,7 +270,7 @@ export class Reader {
 const ATLAS_KEYS = ['id', 'source', 'data', 'width', 'height', 'resolution'] as const;
 const CLIP_KEYS = ['frames', 'count', 'fps', 'frameDuration', 'loop', 'phases', 'tags'] as const;
 const SPRITE_KEYS = ['id', 'atlases', 'artPxPerMeter', 'scale', 'pivot', 'pivotPx', 'frameSize', 'height', 'facing', 'missingClips', 'clips', 'anchors', 'frames', 'tags'] as const;
-const PACK_KEYS = ['manifestVersion', 'id', 'category', 'status', 'tags', 'atlases', 'sprites'] as const;
+const PACK_KEYS = ['manifestVersion', 'id', 'category', 'status', 'tags', 'atlasMode', 'scenes', 'atlases', 'sprites'] as const;
 const STATE_SET: ReadonlySet<string> = new Set(ANIM_STATES);
 const ANCHOR_SET: ReadonlySet<string> = new Set(ANCHOR_IDS);
 
@@ -494,6 +506,16 @@ export function parseArtPack(raw: unknown): Parsed<ArtPack> {
   if (category === null) r.error('category', `must be one of ${ART_CATEGORIES.join(' | ')}`);
   const status = r.oneOf(o['status'], 'status', ART_STATUSES, 'final');
   const tags = r.tags(o['tags'], 'tags');
+  const atlasMode = r.oneOf(o['atlasMode'], 'atlasMode', ATLAS_MODES, 'sprite');
+  const scenes: Record<string, string> = {};
+  if (o['scenes'] !== undefined) {
+    const so = r.object(o['scenes'], 'scenes');
+    for (const [room, file] of Object.entries(so ?? {})) {
+      if (!ID.test(room)) r.error(`scenes.${room}`, `"${room}" is not a room id ([a-z0-9_.:-])`);
+      else if (typeof file !== 'string' || !isSafeRelativePath(file) || !JSON_EXT.test(file)) r.error(`scenes.${room}`, 'must be a relative .json path inside the pack\'s folder');
+      else scenes[room] = file;
+    }
+  }
 
   const atlases = new Map<string, ArtAtlas>();
   if (!Array.isArray(o['atlases'])) r.error('atlases', 'must be a list (empty while the pack awaits its art)');
@@ -535,7 +557,7 @@ export function parseArtPack(raw: unknown): Parsed<ArtPack> {
   for (const a of atlases.values()) if (!used.has(a.id)) r.warn(`atlases`, `atlas "${a.id}" is not used by any sprite set`);
 
   if (r.failed || id === null || category === null) return { value: null, issues: r.issues };
-  return { value: { manifestVersion: ART_MANIFEST_VERSION, id, category, status, tags, atlases: [...atlases.values()], sprites }, issues: r.issues };
+  return { value: { manifestVersion: ART_MANIFEST_VERSION, id, category, status, tags, atlasMode, scenes, atlases: [...atlases.values()], sprites }, issues: r.issues };
 }
 
 const INDEX_KEYS = ['manifestVersion', 'packs'] as const;

@@ -44,12 +44,13 @@ Herramientas de desarrollo (usan el Chromium preinstalado, ver `TROID_CHROMIUM`)
 
 ```bash
 npm run shot -- --out .shots/boot.png --w 844 --h 390   # captura del juego en tamaño teléfono
-npm run test:e2e                                           # 43 escenarios E2E con Playwright (--prod: contra el build; un nombre filtra: `-- finale`)
+npm run test:e2e                                           # 44 escenarios E2E con Playwright (--prod: contra el build; un nombre filtra: `-- finale`)
 npm run bench:bundle                                       # qué descarga un arranque en frío del build de producción (KB gz)
 npm run assets:missing                                     # qué arte falta exactamente (protagonista y entorno); --strict falla mientras falte algo
 npm run assets:check                                       # valida el arte de art/ sin escribir nada (lo ejecuta `build`: el arte roto no compila)
 npm run assets:pack                                        # empaqueta art/ → public/art/ (atlas sin pérdida); assets:verify comprueba lo empaquetado
 npm run assets:poses                                       # los fotogramas del protagonista desde la hoja de poses del usuario (--check: ¿son los que la hoja produce?)
+npm run art:build                                          # pinta el arte del escenario (tools/art: suelo, fondos, luces y las escenas de cada sala) en art/ ; después `assets:pack`
 ```
 
 ### Jugar
@@ -80,8 +81,8 @@ Laboratorios (solo desarrollo, cargados aparte): `?lab=sprites` (hoja de contact
 ```
 src/        código (módulos por responsabilidad; ver docs/ARCHITECTURE-2D.md §2)
 tests/      unit · integration
-tools/      arnés E2E (Playwright: escenarios, decodificador de PNG, grabación y reproducción de partidas) · medición del bundle · assets/ (empaquetador y validador del arte)
-art/        el arte AUTORAL: índice, manifiestos y fuentes (hoy el protagonista, desde la hoja de poses del usuario en art/player/source; ver docs/ART-PIPELINE-2D.md)
+tools/      arnés E2E (Playwright: escenarios, decodificador de PNG, grabación y reproducción de partidas) · medición del bundle · assets/ (empaquetador y validador del arte) · art/ (el pintor del escenario)
+art/        el arte AUTORAL: índice, manifiestos y fuentes (el protagonista, desde la hoja de poses del usuario en art/player/source; el escenario de las ruinas, que pinta tools/art; ver docs/ART-PIPELINE-2D.md)
 public/     assets estáticos (icono, manifiesto web) y, tras `assets:pack`, `art/` (generado: no se edita a mano)
 docs/       arquitectura, ADR, dirección de arte, guías
 ```

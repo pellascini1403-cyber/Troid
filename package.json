@@ -23,6 +23,7 @@
     "assets:verify": "tsx tools/assets/cli.ts --verify",
     "assets:missing": "tsx tools/assets/cli.ts --missing",
     "assets:poses": "tsx tools/assets/poses-cli.ts",
+    "art:build": "tsx tools/art/build.ts",
     "check": "npm run typecheck && npm test"
   },
   "dependencies": {

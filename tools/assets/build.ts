@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { artClipFrames, parseArtIndex, parseArtPack, type ArtAtlas, type ArtIndexEntry, type ArtIssue, type ArtPack } from '../../src/presentation/artManifest';
+import { artClipFrames, isSafeRelativePath, parseArtIndex, parseArtPack, type ArtAtlas, type ArtIndexEntry, type ArtIssue, type ArtPack } from '../../src/presentation/artManifest';
 import { inspectPicture, pictureIssues } from './inspect';
 import { atlasJson, DEFAULT_PACK, packFrames, type PackOptions, type SourceFrame } from './pack';
 import { decodePng, encodePng, readPngInfo, type PngInfo, type RgbaImage } from './png';
@@ -96,6 +96,9 @@ function packFolders(entry: ArtIndexEntry, packDir: string, outFolder: string, r
   const spritesOut: unknown[] = [];
   const claimed = new Map<string, string>();
   const dir = (id: string): string => join(packDir, id);
+  // `atlasMode: "shared"`: the frames of every set of the pack go on the same pages (scenery: hundreds of pieces drawn together)
+  const shared = relaxed.value.atlasMode === 'shared';
+  const gathered: Array<{ sprite: string; frames: SourceFrame[]; shipped: Record<string, unknown> }> = [];
 
   relaxed.value.sprites.forEach((sprite, index) => {
     const frames: SourceFrame[] = [];
@@ -184,6 +187,12 @@ function packFolders(entry: ArtIndexEntry, packDir: string, outFolder: string, r
       issues.push({ level: 'error', path: `${label} sprites.${sprite.id}`, message: `its frames are not all the same size (${[...sizes].join(', ')}): the pivot is a fraction of the frame, so every frame of a set must be drawn on the same canvas` });
       return;
     }
+    const { sheets: _sheets, ...shipped } = rawSprites[index] ?? {};
+    void _sheets; // the grid is how the frames were cut, not something the game needs: it does not ship
+    if (shared) {
+      gathered.push({ sprite: sprite.id, frames, shipped });
+      return;
+    }
     try {
       const packed = packFrames(frames, opts);
       const ids: string[] = [];
@@ -195,13 +204,33 @@ function packFolders(entry: ArtIndexEntry, packDir: string, outFolder: string, r
         ids.push(id);
       });
       built.push({ id: sprite.id, frames: frames.length, stored: packed.stats.stored, pages: packed.pages.length, pagePixels: packed.stats.pagePixels });
-      const { sheets: _sheets, ...shipped } = rawSprites[index] ?? {};
-      void _sheets; // the grid is how the frames were cut, not something the game needs: it does not ship
       spritesOut.push({ ...shipped, atlases: ids });
     } catch (err) {
       issues.push({ level: 'error', path: `${label} sprites.${sprite.id}`, message: err instanceof Error ? err.message : String(err) });
     }
   });
+  if (shared && gathered.length > 0) {
+    try {
+      // one set of pages for the whole pack: the frames of every sprite set, packed together (their names are unique in a pack: that was checked above)
+      const packed = packFrames(gathered.flatMap((g) => g.frames), opts);
+      const pageIds = packed.pages.map((_, n) => `${entry.id}_${n}`);
+      packed.pages.forEach((page, n) => {
+        const id = pageIds[n]!;
+        outputs.push({ rel: under(outFolder, `${id}.png`), data: encodePng(page.image) }, { rel: under(outFolder, `${id}.json`), data: json(atlasJson(packed, n, `${id}.png`)) });
+        atlases.push({ id, source: `${id}.png`, data: `${id}.json`, width: page.image.width, height: page.image.height, resolution: 1 });
+      });
+      for (const g of gathered) {
+        // a set lists the pages its frames are on: loading the set loads those pages and no others
+        const pages = [...new Set(g.frames.map((f) => packed.frames[f.name]!.page))].sort((a, b) => a - b);
+        const names = new Set(g.frames.map((f) => f.name));
+        const stored = new Set(g.frames.filter((f) => packed.frames[f.name]!.sameAs === undefined).map((f) => f.name));
+        built.push({ id: g.sprite, frames: names.size, stored: stored.size, pages: pages.length, pagePixels: pages.reduce((n, p) => n + packed.pages[p]!.image.width * packed.pages[p]!.image.height, 0) });
+        spritesOut.push({ ...g.shipped, atlases: pages.map((p) => pageIds[p]!) });
+      }
+    } catch (err) {
+      issues.push({ level: 'error', path: label, message: err instanceof Error ? err.message : String(err) });
+    }
+  }
   return { atlases, sprites: spritesOut, outputs, built, pack: relaxed.value };
 }
 
@@ -258,6 +287,21 @@ function buildPack(entry: ArtIndexEntry, srcDir: string, opts: Partial<PackOptio
     manifestOut = { ...rawPack, atlases: packed.atlases, sprites: packed.sprites };
   }
 
+  // the scenes the pack carries (where its pieces go in the rooms) ship as they are, after being read: a scene that is not valid is an error here, not in the game
+  const scenes = typeof manifestOut['scenes'] === 'object' && manifestOut['scenes'] !== null && !Array.isArray(manifestOut['scenes']) ? (manifestOut['scenes'] as Record<string, unknown>) : {};
+  for (const [room, rel] of Object.entries(scenes)) {
+    const where = `${label} scenes.${room}`;
+    if (typeof rel !== 'string' || !isSafeRelativePath(rel)) {
+      issues.push({ level: 'error', path: where, message: 'must be a relative .json path inside the pack\'s folder' });
+      continue;
+    }
+    const file = join(packDir, ...rel.split('/'));
+    if (!existsSync(file)) {
+      issues.push({ level: 'error', path: where, message: `the scene file ${rel} is not there` });
+      continue;
+    }
+    outputs.push({ rel: under(outFolder, rel), data: readFileSync(file) });
+  }
   return { built: { id: entry.id, status, shipped: true, how, sprites }, outputs, manifest: json(manifestOut) };
 }
 

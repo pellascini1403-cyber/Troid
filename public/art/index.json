@@ -9,6 +9,42 @@
       "tags": [
         "protagonist"
       ]
+    },
+    {
+      "id": "ruins-ground",
+      "category": "environment",
+      "load": "zone",
+      "zones": [
+        "r1_gate"
+      ],
+      "manifest": "ruins-ground/ruins-ground.pack.json",
+      "tags": [
+        "ruins"
+      ]
+    },
+    {
+      "id": "ruins-back",
+      "category": "environment",
+      "load": "zone",
+      "zones": [
+        "r1_gate"
+      ],
+      "manifest": "ruins-back/ruins-back.pack.json",
+      "tags": [
+        "ruins"
+      ]
+    },
+    {
+      "id": "ruins-light",
+      "category": "environment",
+      "load": "zone",
+      "zones": [
+        "r1_gate"
+      ],
+      "manifest": "ruins-light/ruins-light.pack.json",
+      "tags": [
+        "ruins"
+      ]
     }
   ]
 }

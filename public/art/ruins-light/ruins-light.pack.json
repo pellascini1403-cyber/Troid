@@ -1,0 +1,222 @@
+{
+  "manifestVersion": 1,
+  "id": "ruins-light",
+  "category": "environment",
+  "status": "provisional",
+  "comment": "THE LIGHT of the ruins: pictures whose alpha is intensity, drawn additively in a layer of their own (a shaft over a way out, glows, beams, mist, motes). Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.",
+  "tags": [
+    "ruins",
+    "generated"
+  ],
+  "atlasMode": "shared",
+  "scenes": {
+    "r1_gate": "scenes/r1_gate.json"
+  },
+  "atlases": [
+    {
+      "id": "ruins-light_0",
+      "source": "ruins-light_0.png",
+      "data": "ruins-light_0.json",
+      "width": 1008,
+      "height": 1008,
+      "resolution": 1
+    }
+  ],
+  "sprites": [
+    {
+      "id": "exit_shaft",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 10,
+      "frameSize": [
+        116,
+        320
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:light",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "exit_shaft_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-light_0"
+      ]
+    },
+    {
+      "id": "glow_cyan",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4,
+      "frameSize": [
+        128,
+        128
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "glow_cyan_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-light_0"
+      ]
+    },
+    {
+      "id": "glow_violet",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4,
+      "frameSize": [
+        128,
+        128
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "glow_violet_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-light_0"
+      ]
+    },
+    {
+      "id": "beam_a",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 16,
+      "frameSize": [
+        256,
+        512
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-mid",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "beam_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-light_0"
+      ]
+    },
+    {
+      "id": "beam_b",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 16,
+      "frameSize": [
+        256,
+        512
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-mid",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "beam_b_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-light_0"
+      ]
+    },
+    {
+      "id": "mist_bank",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 6,
+      "frameSize": [
+        1024,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "mist_bank_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-light_0"
+      ]
+    },
+    {
+      "id": "motes_a",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 12,
+      "frameSize": [
+        512,
+        384
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "motes_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-light_0"
+      ]
+    }
+  ]
+}

@@ -7,13 +7,17 @@ import type { GameState, Scenario } from '../scenario';
 /**
  * THE ENVIRONMENT CONTRACT in a real browser (docs/ART-PIPELINE-2D.md, part I) — the BLOCKOUT that the scenery will replace, held to the rules the scenery will obey:
  *
- *   A · each piece of a room's data has its drawn object, in the layer the contract says, and nothing is left over: terrain = the solids' block + one per gate + one per
- *       hazard, three parallax strips and a foreground when the room has a backdrop, a shaft per exit and a floating mark per pickup in the light layer — in every room of
- *       the world, loaded one by one
+ *   A · each piece of a room's data has its drawn object, in the layer the contract says, and nothing is left over: terrain = the solids' block + one per gate + one
+ *       per hazard, three parallax strips and a foreground when the room has a backdrop, a shaft per exit and a floating mark per pickup in the light layer — in every room of
+ *       the world, loaded one by one, WITHOUT art (`?art=`: the count is the blockout's, which is what the art is measured against)
+ *   A2 · the same room DRESSED with the art: the art adds its own containers to the layers, and rebuilding the room (what a transition does) leaves exactly the same objects —
+ *       neither the art's sprites nor the blockout's graphics pile up
  *   B · the parallax layers sit where the contract says as the camera moves: `layer = (1 − factor) × the world's pivot`, so the far scenery lags, the near moves almost with the
  *       world and the foreground runs ahead of it
  */
 const SIZE = { width: 844, height: 390, dpr: 1 };
+/** The scene layers the view of a room owns. */
+const ROOM_LAYERS = ['terrain', 'backdropFar', 'backdropMid', 'backdropNear', 'foreground', 'lightOverlay'] as const;
 
 export const environment: Scenario = {
   name: 'environment',
@@ -21,7 +25,7 @@ export const environment: Scenario = {
     // ================================================================================================ A · each piece of data, its drawn object
     for (const id of ['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum']) {
       const room = ROOMS[id]!;
-      await ctx.open(`room=${id}`, SIZE);
+      await ctx.open(`room=${id}&art=`, SIZE);
       await ctx.step(10);
       const s = await ctx.state();
       assert.equal(s.room, id);
@@ -36,6 +40,27 @@ export const environment: Scenario = {
         lightOverlay: (room.exits?.length ?? 0) + (room.interactables ?? []).filter((i) => i.kind === 'pickup').length, // a shaft per exit, a floating mark per pickup
       };
       for (const [layer, n] of Object.entries(expected)) assert.equal(scene[layer], n, `${id}: ${layer} holds ${scene[layer]} objects, the room's data asks for ${n}`);
+    }
+
+    // ================================================================================================ A2 · dressed with the art, rebuilt: nothing left behind
+    await ctx.open('room=r1_gate&paused=1', SIZE);
+    const dressedState = async (): Promise<GameState> => {
+      for (let i = 0; i < 400; i++) {
+        const s = await ctx.state();
+        if (s.roomArt) return s;
+        await ctx.page.waitForTimeout(50);
+      }
+      throw new Error('the room was never dressed with the art');
+    };
+    // the layers the room's view owns (the actors and the effects belong to the entities, which are not rebuilt with the room)
+    const owned = (s: GameState): Record<string, number> => Object.fromEntries(ROOM_LAYERS.map((k) => [k, s.scene![k] ?? -1]));
+    const before = owned(await dressedState());
+    assert.ok(before['terrain']! > 2, `the art adds its own pieces to the terrain layer (${JSON.stringify(before)})`);
+    for (let round = 0; round < 3; round++) {
+      // what a transition does to the view: the room is dirty, it is built again from its data, its art cleared and put on again
+      await ctx.page.evaluate('window.__troid.game.roomDirty = true');
+      await ctx.step(1);
+      assert.deepEqual(owned(await dressedState()), before, `round ${round + 1}: rebuilding the dressed room leaves the layers as they were`);
     }
 
     // ================================================================================================ B · parallax: layer = (1 − factor) × pivot

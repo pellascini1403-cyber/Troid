@@ -1,0 +1,101 @@
+{
+  "sceneVersion": 1,
+  "room": "r1_gate",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_a",
+        "x": 9,
+        "y": -0.9,
+        "flip": false,
+        "scale": 0.93
+      },
+      {
+        "sprite": "arch_grand_b",
+        "x": 34.5,
+        "y": -0.9,
+        "flip": true,
+        "scale": 1.09
+      },
+      {
+        "sprite": "arch_grand_a",
+        "x": 66,
+        "y": -0.9,
+        "flip": true,
+        "scale": 0.94
+      },
+      {
+        "sprite": "arch_grand_b",
+        "x": 90,
+        "y": -0.9,
+        "flip": false,
+        "scale": 1
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "fore_leaves_a",
+        "x": 3.98,
+        "y": 6.21,
+        "flip": true,
+        "scale": 1.18
+      },
+      {
+        "sprite": "fore_leaves_b",
+        "x": 20.25,
+        "y": 6.08,
+        "flip": true,
+        "scale": 1.33
+      },
+      {
+        "sprite": "fore_leaves_c",
+        "x": 40.31,
+        "y": 6.48,
+        "flip": true,
+        "scale": 1.25
+      },
+      {
+        "sprite": "fore_leaves_a",
+        "x": 54.1,
+        "y": 6.66,
+        "flip": true,
+        "scale": 1.1
+      },
+      {
+        "sprite": "fore_leaves_b",
+        "x": 73.62,
+        "y": 6.07,
+        "flip": true,
+        "scale": 1.23
+      },
+      {
+        "sprite": "fore_leaves_c",
+        "x": 88.91,
+        "y": 6.07,
+        "flip": false,
+        "scale": 1.41
+      },
+      {
+        "sprite": "fore_leaves_a",
+        "x": 106.46,
+        "y": 6.62,
+        "flip": true,
+        "scale": 1.28
+      },
+      {
+        "sprite": "fore_leaves_b",
+        "x": 119.93,
+        "y": 6.68,
+        "flip": true,
+        "scale": 1.15
+      },
+      {
+        "sprite": "fore_leaves_c",
+        "x": 133.6,
+        "y": 6.67,
+        "flip": false,
+        "scale": 1.32
+      }
+    ]
+  }
+}

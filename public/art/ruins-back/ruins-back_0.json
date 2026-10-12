@@ -1,0 +1,146 @@
+{
+  "frames": {
+    "arch_grand_a_00": {
+      "frame": {
+        "x": 1206,
+        "y": 931,
+        "w": 518,
+        "h": 430
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 28,
+        "y": 0,
+        "w": 518,
+        "h": 430
+      },
+      "sourceSize": {
+        "w": 576,
+        "h": 432
+      }
+    },
+    "arch_grand_b_00": {
+      "frame": {
+        "x": 2,
+        "y": 1275,
+        "w": 518,
+        "h": 430
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 28,
+        "y": 0,
+        "w": 518,
+        "h": 430
+      },
+      "sourceSize": {
+        "w": 576,
+        "h": 432
+      }
+    },
+    "backdrop_far_00": {
+      "frame": {
+        "x": 2,
+        "y": 931,
+        "w": 1200,
+        "h": 340
+      },
+      "sourceSize": {
+        "w": 1200,
+        "h": 340
+      }
+    },
+    "backdrop_mid_00": {
+      "frame": {
+        "x": 2,
+        "y": 483,
+        "w": 1536,
+        "h": 444
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 1536,
+        "h": 444
+      },
+      "sourceSize": {
+        "w": 1536,
+        "h": 448
+      }
+    },
+    "backdrop_near_00": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 1536,
+        "h": 477
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 210,
+        "w": 1536,
+        "h": 477
+      },
+      "sourceSize": {
+        "w": 1536,
+        "h": 691
+      }
+    },
+    "fore_leaves_a_00": {
+      "frame": {
+        "x": 524,
+        "y": 1365,
+        "w": 240,
+        "h": 163
+      },
+      "sourceSize": {
+        "w": 240,
+        "h": 163
+      }
+    },
+    "fore_leaves_b_00": {
+      "frame": {
+        "x": 524,
+        "y": 1532,
+        "w": 240,
+        "h": 163
+      },
+      "sourceSize": {
+        "w": 240,
+        "h": 163
+      }
+    },
+    "fore_leaves_c_00": {
+      "frame": {
+        "x": 768,
+        "y": 1275,
+        "w": 240,
+        "h": 153
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 240,
+        "h": 153
+      },
+      "sourceSize": {
+        "w": 240,
+        "h": 163
+      }
+    }
+  },
+  "meta": {
+    "app": "troid-assets",
+    "version": "1",
+    "image": "ruins-back_0.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1728,
+      "h": 1708
+    },
+    "scale": "1"
+  }
+}

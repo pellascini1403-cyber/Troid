@@ -52,16 +52,16 @@ export interface EnvLayer {
 /** The scene, back to front. `createLayers` builds exactly this (a test holds them together). */
 export const ENV_LAYERS: readonly EnvLayer[] = [
   { id: 'sky', space: 'screen', parallax: null, blend: 'normal', holds: 'the placeholder sky, glued to the screen behind the world', art: [] },
-  { id: 'backdropFar', space: 'world', parallax: PARALLAX_FACTOR.backdropFar, blend: 'normal', holds: 'the far scenery: haze, ridges', art: ['backdrop'] },
-  { id: 'backdropMid', space: 'world', parallax: PARALLAX_FACTOR.backdropMid, blend: 'normal', holds: 'the middle scenery: trunks, crowns', art: ['backdrop'] },
-  { id: 'backdropNear', space: 'world', parallax: PARALLAX_FACTOR.backdropNear, blend: 'normal', holds: 'the near scenery: pillars, arches', art: ['backdrop'] },
+  { id: 'backdropFar', space: 'world', parallax: PARALLAX_FACTOR.backdropFar, blend: 'normal', holds: 'the far scenery: haze, ridges', art: ['backdrop', 'decor'] },
+  { id: 'backdropMid', space: 'world', parallax: PARALLAX_FACTOR.backdropMid, blend: 'normal', holds: 'the middle scenery: trunks, crowns', art: ['backdrop', 'decor'] },
+  { id: 'backdropNear', space: 'world', parallax: PARALLAX_FACTOR.backdropNear, blend: 'normal', holds: 'the near scenery: pillars, arches', art: ['backdrop', 'decor'] },
   { id: 'propsBack', space: 'world', parallax: 1, blend: 'normal', holds: 'what stands behind the action: shrines, levers, props', art: ['decor', 'interactive'] },
-  { id: 'terrain', space: 'world', parallax: 1, blend: 'normal', holds: 'the ground, the walls, the platforms, the doors and the thorns', art: ['solid', 'platform', 'door', 'hazard'] },
+  { id: 'terrain', space: 'world', parallax: 1, blend: 'normal', holds: 'the ground, the walls, the platforms, the doors and the thorns, and what grows on them', art: ['solid', 'platform', 'door', 'hazard', 'decor'] },
   { id: 'actors', space: 'world', parallax: 1, blend: 'normal', holds: 'the hero, the enemies and the boss, sorted by depth', art: [] },
   { id: 'fxNormal', space: 'world', parallax: 1, blend: 'normal', holds: 'ink, smoke and dust (dark things cannot be additive)', art: [] },
   { id: 'fxWorld', space: 'world', parallax: 1, blend: 'add', holds: 'light: projectiles, slashes, trails, sparks, the sigil of a seal', art: ['seal'] },
   { id: 'foreground', space: 'world', parallax: PARALLAX_FACTOR.foreground, blend: 'normal', holds: 'dark silhouettes in front of the action (never over the hero\'s band)', art: ['foreground', 'decor'] },
-  { id: 'lightOverlay', space: 'world', parallax: 1, blend: 'add', holds: 'light shafts over the ways out, floating pickups, fog', art: ['light', 'interactive'] },
+  { id: 'lightOverlay', space: 'world', parallax: 1, blend: 'add', holds: 'light shafts over the ways out, floating pickups, fog', art: ['light', 'interactive', 'decor'] },
   { id: 'debug', space: 'world', parallax: 1, blend: 'normal', holds: 'the overlays of `?debug=1`', art: [] },
   { id: 'screen', space: 'screen', parallax: null, blend: 'normal', holds: 'in front, in pixels: vignette, flashes, fades, bars', art: [] },
 ];
@@ -99,11 +99,11 @@ export interface EnvRoleSpec {
 export const ENV_CONTRACT: Readonly<Record<EnvRole, EnvRoleSpec>> = {
   solid: { draws: 'the `solids` of kind solid — ground, walls, blocks — by their material', layers: ['terrain'], fill: 'tile', pivot: [0, 0], subject: 'material', parts: ['fill', 'cap', 'edge-l', 'edge-r'], required: ['fill'] },
   platform: { draws: 'the `solids` of kind oneway (the jump-through platforms) by their material', layers: ['terrain'], fill: 'tile-x', pivot: [0, 0], subject: 'material', parts: ['body', 'cap-l', 'cap-r'], required: ['body'] },
-  door: { draws: 'the `gates`: the solid a flag opens, by its material (`gate`, `seal`); it dissolves over 0.6 s of real time when the gate opens', layers: ['terrain'], fill: 'tile-y', pivot: [0, 1], subject: 'material', parts: ['body', 'top', 'bottom'], required: ['body'] },
+  door: { draws: 'the `gates`: the solid a flag opens, by its material (`gate`, `seal`); it dissolves over 0.6 s of real time when the gate opens. `glow` is the light of its seal: one soft picture stretched over the whole door, additive', layers: ['terrain'], fill: 'tile-y', pivot: [0, 1], subject: 'material', parts: ['body', 'top', 'bottom', 'glow'], required: ['body'] },
   hazard: { draws: 'the `hazards`, by kind: the cell is drawn as big as the art says, along the zone, from its floor', layers: ['terrain'], fill: 'tile-x', pivot: [0, 1], subject: 'kind', parts: ['cell'], required: ['cell'] },
   backdrop: { draws: '`art.backdrop` of a room: three seamless strips that scroll slower than the world', layers: ['backdropFar', 'backdropMid', 'backdropNear'], fill: 'strip', pivot: [0, 1], subject: 'backdrop', parts: ['far', 'mid', 'near'], required: ['far', 'mid', 'near'] },
   foreground: { draws: '`art.backdrop` of a room: dark silhouettes in front of the action', layers: ['foreground'], fill: 'strip', pivot: [0, 1], subject: 'backdrop', parts: ['strip'], required: [] },
-  decor: { draws: 'props that collide with nothing: roots, statues, banners (no room lists them yet: the day one does, it will name a sprite of this role)', layers: ['propsBack', 'foreground'], fill: 'none', pivot: [0.5, 1], subject: null, parts: [], required: [] },
+  decor: { draws: 'pieces that collide with nothing — arches, columns, roots, ferns, statues, haze — placed by a SCENE file (`roomScene.ts`) in the layer it names', layers: ['backdropFar', 'backdropMid', 'backdropNear', 'propsBack', 'terrain', 'foreground', 'lightOverlay'], fill: 'none', pivot: [0.5, 1], subject: null, parts: [], required: [] },
   interactive: { draws: 'the `interactables`, by kind: a shrine (`rest`), a pickup, a lever (`activate`), a door that opens (`open`)', layers: ['propsBack', 'lightOverlay'], fill: 'none', pivot: [0.5, 1], subject: 'kind', parts: [], required: [''] },
   seal: { draws: 'the `seals`: the sigil the hero has to hit', layers: ['fxWorld'], fill: 'none', pivot: [0.5, 0.5], subject: null, parts: [], required: [''] },
   light: { draws: 'the `exits`: the shaft of light over a way out', layers: ['lightOverlay'], fill: 'none', pivot: [0.5, 1], subject: null, parts: [], required: [] },
@@ -252,6 +252,68 @@ export function readEnvTags(tags: readonly string[]): EnvTags {
   return { roles, subject: subjects[0] ?? null, parts: tagValues(tags, 'part') };
 }
 
+/** The tags that say how a piece is DRAWN, as opposed to what it is for. */
+export interface EnvLook {
+  /**
+   * `grid:CxR`: the frames of the `idle` clip are the cells of a PERIODIC picture C cells across and R down, row-major. The cell drawn at column i, row j of a repetition is
+   * frame (i mod C) + C × (j mod R): one painting cut into cells, so a wall of a hundred cells shows no cell twice in a row and has no seam.
+   */
+  grid: { cols: number; rows: number } | null;
+  /** `rise:<m>`: metres of the picture ABOVE the line it stands on (the blades of grass above the top of a block): the piece is lifted by that much. */
+  rise: number;
+  /** `reach:<m>`: metres of an edge piece OUTSIDE the edge it dresses (a root hanging past the side of a block). */
+  reach: number;
+  /** `blend:add`: the piece is light, not matter: it is drawn additively, in a layer of its own. */
+  blend: 'normal' | 'add';
+  /** `layer:<id>`: the layer a decor piece is made for, as a tag spells it (`backdrop-near`: tags are lowercase, see `layerTag`). */
+  layer: string | null;
+  /** What the tags got wrong (a number that is not one, a grid that is not CxR). */
+  problems: string[];
+}
+
+/** How a layer's id is spelled in a tag: tags are lowercase, so `backdropNear` is `backdrop-near`. */
+export const layerTag = (id: string): string => id.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+
+export function readEnvLook(tags: readonly string[]): EnvLook {
+  const look: EnvLook = { grid: null, rise: 0, reach: 0, blend: 'normal', layer: null, problems: [] };
+  for (const g of tagValues(tags, 'grid')) {
+    const m = /^([1-9][0-9]?)x([1-9][0-9]?)$/.exec(g);
+    if (m) look.grid = { cols: Number(m[1]), rows: Number(m[2]) };
+    else look.problems.push(`"grid:${g}" is not "grid:<columns>x<rows>"`);
+  }
+  for (const key of ['rise', 'reach'] as const) {
+    for (const v of tagValues(tags, key)) {
+      const n = Number(v);
+      if (Number.isFinite(n) && n >= 0 && n <= 8) look[key] = n;
+      else look.problems.push(`"${key}:${v}" is not a number of metres (0 … 8)`);
+    }
+  }
+  for (const b of tagValues(tags, 'blend')) {
+    if (b === 'add' || b === 'normal') look.blend = b;
+    else look.problems.push(`"blend:${b}" must be "blend:add" or "blend:normal"`);
+  }
+  look.layer = tagValues(tags, 'layer')[0] ?? null;
+  return look;
+}
+
+/** How a PIECE of a role repeats (the role's `fill` is how its main piece does: a solid's cap runs along its top, its edges down its sides). */
+export function repeatOf(role: EnvRole, part: string): EnvFill {
+  if (role === 'solid') return part === 'cap' ? 'tile-x' : part.startsWith('edge') ? 'tile-y' : 'tile';
+  if (role === 'platform') return part === 'body' ? 'tile-x' : 'none';
+  if (role === 'door') return part === 'body' ? 'tile-y' : 'none';
+  return ENV_CONTRACT[role].fill;
+}
+
+/** The pieces that have to share a pixel grid: they meet each other. A parallax layer meets no other layer, so each one is its own family. */
+function scaleFamily(role: EnvRole, parts: readonly string[], look: EnvLook): string {
+  if (role === 'backdrop') return `backdrop ${parts[0] ?? ''}`;
+  if (role === 'foreground') return 'foreground';
+  // light is soft and never meets another piece: it has no grid to share
+  if (role === 'light' || look.blend === 'add') return 'light';
+  if (role === 'decor') return look.layer === null || look.layer === layerTag('propsBack') || look.layer === 'terrain' ? 'ground' : look.layer;
+  return 'ground';
+}
+
 const PIVOT_EPS = 1e-6;
 
 /**
@@ -264,12 +326,12 @@ export function environmentPackIssues(pack: Pick<ArtPack, 'id' | 'status' | 'spr
   const out: ArtIssue[] = [];
   if (pack.status === 'awaiting-art') return out;
   const claimed = new Map<string, string>();
-  const have = new Set<string>();
-  const scales = new Set<number>();
+  const scales = new Map<string, Set<number>>();
   for (const sprite of pack.sprites) {
     const path = `sprites.${sprite.id}`;
     const { roles, subject, parts } = readEnvTags(sprite.tags);
-    scales.add(sprite.artPxPerMeter);
+    const look = readEnvLook(sprite.tags);
+    for (const problem of look.problems) out.push({ level: 'error', path, message: problem });
     if (roles.length !== 1) {
       out.push({ level: 'error', path, message: roles.length === 0 ? `says nothing of what it draws: it needs ONE "role:<role>" tag (${ENV_ROLES.join(', ')})` : `names ${roles.length} roles (${roles.join(', ')}): it needs exactly one` });
       continue;
@@ -280,6 +342,8 @@ export function environmentPackIssues(pack: Pick<ArtPack, 'id' | 'status' | 'spr
       out.push({ level: 'error', path, message: `"role:${roles[0]}" is not a role of the environment (${ENV_ROLES.join(', ')})` });
       continue;
     }
+    const family = scaleFamily(role, parts, look);
+    scales.set(family, (scales.get(family) ?? new Set<number>()).add(sprite.artPxPerMeter));
     if (spec.subject && subject === null) out.push({ level: 'error', path, message: `a ${role} must say what it is for with a "${spec.subject}:<name>" tag` });
     if (spec.parts.length > 0) {
       if (parts.length !== 1) out.push({ level: 'error', path, message: `a ${role} must name which piece it is with ONE "part:<piece>" tag (${spec.parts.join(', ')})` });
@@ -288,21 +352,57 @@ export function environmentPackIssues(pack: Pick<ArtPack, 'id' | 'status' | 'spr
     if (Math.abs(sprite.pivot[0] - spec.pivot[0]) > PIVOT_EPS || Math.abs(sprite.pivot[1] - spec.pivot[1]) > PIVOT_EPS) {
       out.push({ level: 'error', path, message: `its pivot is [${sprite.pivot[0]}, ${sprite.pivot[1]}] but a ${role} is placed from [${spec.pivot[0]}, ${spec.pivot[1]}] (${spec.fill === 'none' ? 'where it stands' : 'where its repetition starts'})` });
     }
-    if (sprite.clips['idle'] === undefined) out.push({ level: 'error', path, message: 'has no "idle" clip: a still picture is an idle clip of one frame' });
+    const idle = sprite.clips['idle'];
+    if (idle === undefined) out.push({ level: 'error', path, message: 'has no "idle" clip: a still picture is an idle clip of one frame' });
+    if (look.grid !== null) {
+      if (idle !== undefined && idle.count !== look.grid.cols * look.grid.rows) out.push({ level: 'error', path, message: `"grid:${look.grid.cols}x${look.grid.rows}" is ${look.grid.cols * look.grid.rows} cells but the idle clip has ${idle.count} frames` });
+      const repeat = repeatOf(role, parts[0] ?? '');
+      if (repeat === 'tile-x' && look.grid.rows !== 1) out.push({ level: 'warn', path, message: `a ${role} piece repeats along one row: its grid should be "Cx1" (rows ${look.grid.rows} are never drawn)` });
+      if (repeat === 'tile-y' && look.grid.cols !== 1) out.push({ level: 'warn', path, message: `a ${role} piece repeats up one column: its grid should be "1xR" (columns ${look.grid.cols} are never drawn)` });
+      if (repeat === 'none' || repeat === 'strip') out.push({ level: 'warn', path, message: `a ${role} is not repeated by cells: "grid" is ignored` });
+    }
+    if (look.layer !== null && !spec.layers.map(layerTag).includes(look.layer)) out.push({ level: 'error', path, message: `a ${role} is drawn in ${spec.layers.map(layerTag).join(', ')}, not in "${look.layer}"` });
+    if (look.blend === 'add' && !(role === 'decor' || role === 'light' || role === 'seal' || (role === 'door' && parts[0] === 'glow'))) out.push({ level: 'warn', path, message: `only light is additive: "blend:add" on a ${role} is ignored` });
     const part = spec.parts.length > 0 ? (parts[0] ?? '') : '';
     const key = slotKey(role, spec.subject ? subject : null, part);
-    const other = claimed.get(key);
-    if (other !== undefined) out.push({ level: 'warn', path, message: `claims the same piece as ${other} (${role}${subject ? ` ${subject}` : ''}${part ? ` ${part}` : ''}): only one can be drawn` });
-    else claimed.set(key, sprite.id);
-    have.add(key);
+    // a decor piece is placed by name, so two of them never claim the same slot
+    if (role !== 'decor') {
+      const other = claimed.get(key);
+      if (other !== undefined) out.push({ level: 'warn', path, message: `claims the same piece as ${other} (${role}${subject ? ` ${subject}` : ''}${part ? ` ${part}` : ''}): only one can be drawn` });
+      else claimed.set(key, sprite.id);
+    }
   }
-  if (scales.size > 1) out.push({ level: 'warn', path: pack.id, message: `its sprites are drawn at ${[...scales].join(' and ')} pixels per metre: the pieces of one place share a pixel grid, or their seams do not meet` });
-  const lacking = slots.filter((s) => s.required && !have.has(slotKey(s.role, s.subject, s.part)));
-  for (const s of lacking) {
+  for (const [family, set] of scales) {
+    if (set.size > 1) out.push({ level: 'warn', path: pack.id, message: `the ${family} pieces are drawn at ${[...set].join(' and ')} pixels per metre: pieces that meet share a pixel grid, or their seams do not meet` });
+  }
+  if (slots.length > 0) out.push(...environmentCoverageIssues([pack], slots));
+  return out;
+}
+
+/**
+ * Which required pieces the world asks for and NONE of the packs has — an error when the pack that should have it is `final`, a warning while it is provisional
+ * (the blockout draws what is missing). Judged over all the environment packs together: scenery may be split in packs by what is drawn in which layer.
+ */
+export function environmentCoverageIssues(packs: ReadonlyArray<Pick<ArtPack, 'id' | 'status' | 'sprites'>>, slots: readonly EnvSlot[]): ArtIssue[] {
+  const out: ArtIssue[] = [];
+  const have = new Set<string>();
+  for (const pack of packs) {
+    if (pack.status === 'awaiting-art') continue;
+    for (const sprite of pack.sprites) {
+      const { roles, subject, parts } = readEnvTags(sprite.tags);
+      if (roles.length !== 1) continue;
+      const spec = ENV_CONTRACT[roles[0] as EnvRole];
+      if (!spec) continue;
+      have.add(slotKey(roles[0]!, spec.subject ? subject : null, spec.parts.length > 0 ? (parts[0] ?? '') : ''));
+    }
+  }
+  const statusOf = packs.some((p) => p.status === 'final') && packs.every((p) => p.status !== 'provisional') ? 'final' : 'provisional';
+  const label = packs.map((p) => p.id).join(' + ');
+  for (const s of slots.filter((x) => x.required && !have.has(slotKey(x.role, x.subject, x.part)))) {
     out.push({
-      level: pack.status === 'final' ? 'error' : 'warn',
-      path: pack.id,
-      message: `the world asks for the ${s.part ? `"${s.part}" of ` : ''}${s.role}${s.subject ? ` "${s.subject}"` : ''} (${s.rooms.join(', ')}) and the pack does not have it${pack.status === 'final' ? '' : ': the blockout draws it'}`,
+      level: statusOf === 'final' ? 'error' : 'warn',
+      path: label,
+      message: `the world asks for the ${s.part ? `"${s.part}" of ` : ''}${s.role}${s.subject ? ` "${s.subject}"` : ''} (${s.rooms.join(', ')}) and the pack does not have it${statusOf === 'final' ? '' : ': the blockout draws it'}`,
     });
   }
   return out;

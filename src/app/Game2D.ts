@@ -50,6 +50,7 @@ import { ProceduralActor } from '@/render/ProceduralActor';
 import { ProjectileView, type ProjectileLike } from '@/render/ProjectileView';
 import { Renderer2D } from '@/render/Renderer2D';
 import { RoomView2D } from '@/render/RoomView2D';
+import type { RoomArtCoverage, RoomArtView } from '@/render/RoomArtView';
 import { BossBarModel } from '@/ui/hud/BossBarModel';
 import type { BossBarView } from '@/ui/hud/BossBarView';
 import { HudModel } from '@/ui/hud/HudModel';
@@ -95,6 +96,9 @@ export class Game2D {
   private readonly loop: GameLoop;
   private readonly camera: CameraAdapter2D;
   private readonly roomView: RoomView2D;
+  /** The art that dresses the room the hero is in (it arrives with the art library; the blockout draws what it does not cover). */
+  private roomArt: RoomArtView | null = null;
+  private roomArtCover: RoomArtCoverage | null = null;
   /** The markers of the room's interactables (a floating card, a lever) and the DOM icon that floats over the one in reach. */
   private readonly interactableViews: InteractableViews;
   private readonly prompt: InteractionPrompt;
@@ -401,18 +405,23 @@ export class Game2D {
     const startArt = (): void => {
       if (!artUrl || this.artRequest) return;
       this.artRequest = import('./art')
-        .then(async ({ createArt }) => {
+        .then(async ({ createArt, createRoomArt }) => {
           if (this.closed) return;
           const art = createArt({ indexUrl: artUrl, drawnPxPerMetre: () => renderer.viewport.ppm * renderer.viewport.resolution, dev: import.meta.env.DEV || options.hooks });
           this.art = art;
+          this.roomArt = createRoomArt(renderer.layers, art);
           await art.start();
           await art.enterZone(this.session.room.id);
           await this.attachPlayerArt(art, options.hooks || import.meta.env.DEV);
+          await this.dressRoom();
         })
         .catch((err: unknown) => log.scope('art').debug(`the art could not start: ${String(err)}`));
     };
-    this.lifecycle.add(() => this.art?.dispose());
-    this.lifecycle.add(this.session.bus.on('transition:started', (e) => void this.art?.enterZone(e.to.room)));
+    this.lifecycle.add(() => {
+      this.roomArt?.destroy();
+      this.art?.dispose();
+    });
+    this.lifecycle.add(this.session.bus.on('transition:started', (e) => void this.art?.enterZone(e.to.room).then(() => this.roomArt?.prepare(e.to.room))));
     this.lifecycle.add(this.session.bus.on('room:loaded', (e) => void this.art?.enterZone(e.roomId)));
     const loadCosmetics = (): void => {
       void loadEffects();
@@ -559,10 +568,33 @@ export class Game2D {
 
   private buildRoomView(): void {
     const room = this.session.room;
+    // the art of the room that was is gone with it; the new room starts as the blockout and is dressed as soon as its art is in memory
+    this.roomArt?.clear();
+    this.roomArtCover = null;
     this.roomView.build(room, (gateId) => this.session.gateOpen(gateId));
+    void this.dressRoom();
     this.interactableViews.build(room.interactables ?? [], (id) => this.session.interaction.isAvailable(id), (id) => this.isCheckpoint(id));
     this.tools?.setRoom();
     this.camera.setRoom(room);
+  }
+
+  /**
+   * The art of the room the hero is in, over the blockout: what the art covers, the blockout lets go of. A room whose art is not (yet) in memory stays as the blockout and
+   * is dressed the moment it is; a build overtaken by a newer room does nothing.
+   */
+  private async dressRoom(): Promise<void> {
+    const art = this.art;
+    const view = this.roomArt;
+    if (!art || !view || this.closed) return;
+    const room = this.session.room;
+    await art.enterZone(room.id);
+    if (this.closed || this.session.room !== room) return;
+    const cover = await view.build(room);
+    if (!cover || this.closed || this.session.room !== room) return;
+    this.roomArtCover = cover;
+    this.roomView.cover(cover, (id) => view.door(id));
+    // a developer is told what the art got wrong (a strip too short for the camera); a player's console stays quiet
+    if (import.meta.env.DEV) for (const n of cover.notes) log.scope('art').warn(n);
   }
 
   private render(alpha: number, realDt: number): void {
@@ -589,6 +621,7 @@ export class Game2D {
     this.effects?.director.update();
     this.effects?.system.update(vfxDt);
     this.roomView.update(realDt);
+    this.roomArt?.update(realDt);
     this.interactableViews.update(realDt, (id) => this.session.interaction.isAvailable(id), (id) => this.isCheckpoint(id));
     this.deathOverlay.update(this.session.deathSnapshot);
     this.transitionOverlay.update(this.session.transitionSnapshot);
@@ -779,6 +812,7 @@ export class Game2D {
       camera: this.camera,
       playerVisual: this.playerVisual,
       roomView: this.roomView,
+      roomArt: () => this.roomArtCover,
       entityViews: this.entityViews,
       touchControls: this.touchControls,
       touchSource: this.touchSource,

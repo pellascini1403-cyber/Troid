@@ -1,0 +1,1010 @@
+{
+  "manifestVersion": 1,
+  "id": "ruins-ground",
+  "category": "environment",
+  "status": "provisional",
+  "comment": "THE GROUND of the ruins: the pieces that dress the room's own data (docs/ART-PIPELINE-2D.md part M) — earth, stone, timber platforms and the gate — and the props that stand on them. Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.",
+  "tags": [
+    "ruins",
+    "generated"
+  ],
+  "atlasMode": "shared",
+  "scenes": {
+    "r1_gate": "scenes/r1_gate.json"
+  },
+  "atlases": [
+    {
+      "id": "ruins-ground_0",
+      "source": "ruins-ground_0.png",
+      "data": "ruins-ground_0.json",
+      "width": 1216,
+      "height": 1216,
+      "resolution": 1
+    }
+  ],
+  "sprites": [
+    {
+      "id": "earth_fill",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 2,
+      "frameSize": [
+        192,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:earth",
+        "part:fill",
+        "grid:4x2"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "earth_fill_",
+          "count": 8
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "earth_cap",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 1.104,
+      "frameSize": [
+        192,
+        106
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:earth",
+        "part:cap",
+        "grid:4x1",
+        "rise:0.34"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "earth_cap_",
+          "count": 4
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "earth_edge_l",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 2,
+      "frameSize": [
+        40,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:earth",
+        "part:edge-l",
+        "grid:1x2",
+        "reach:0.12"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "earth_edge_l_",
+          "count": 2
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "earth_edge_r",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 2,
+      "frameSize": [
+        40,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:earth",
+        "part:edge-r",
+        "grid:1x2",
+        "reach:0.12"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "earth_edge_r_",
+          "count": 2
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "stone_fill",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 2,
+      "frameSize": [
+        192,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:stone",
+        "part:fill",
+        "grid:4x2"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "stone_fill_",
+          "count": 8
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "stone_cap",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 0.802,
+      "frameSize": [
+        192,
+        77
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:stone",
+        "part:cap",
+        "grid:4x1",
+        "rise:0.12"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "stone_cap_",
+          "count": 4
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "stone_edge_l",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 2,
+      "frameSize": [
+        40,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:stone",
+        "part:edge-l",
+        "grid:1x2",
+        "reach:0.12"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "stone_edge_l_",
+          "count": 2
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "stone_edge_r",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 2,
+      "frameSize": [
+        40,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:stone",
+        "part:edge-r",
+        "grid:1x2",
+        "reach:0.12"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "stone_edge_r_",
+          "count": 2
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "wood_body",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 0.667,
+      "frameSize": [
+        192,
+        64
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:platform",
+        "material:wood",
+        "part:body",
+        "grid:4x1",
+        "rise:0.1"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "wood_body_",
+          "count": 4
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "wood_cap_l",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 0.667,
+      "frameSize": [
+        38,
+        64
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:platform",
+        "material:wood",
+        "part:cap-l",
+        "reach:0.05",
+        "rise:0.1"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "wood_cap_l_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "wood_cap_r",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 0.667,
+      "frameSize": [
+        38,
+        64
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:platform",
+        "material:wood",
+        "part:cap-r",
+        "reach:0.05",
+        "rise:0.1"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "wood_cap_r_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "gate_body",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 3,
+      "frameSize": [
+        144,
+        288
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:door",
+        "material:gate",
+        "part:body"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "gate_body_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "gate_top",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 1,
+      "frameSize": [
+        144,
+        96
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:door",
+        "material:gate",
+        "part:top",
+        "rise:0.1"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "gate_top_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "gate_bottom",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 0.552,
+      "frameSize": [
+        144,
+        53
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:door",
+        "material:gate",
+        "part:bottom"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "gate_bottom_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "gate_glow",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 8,
+      "frameSize": [
+        128,
+        256
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:door",
+        "material:gate",
+        "part:glow",
+        "blend:add",
+        "reach:0.9"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "gate_glow_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "ground_veil",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 2.667,
+      "frameSize": [
+        16,
+        256
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "ground_veil_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "fern_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.302,
+      "frameSize": [
+        154,
+        125
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "fern_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "fern_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.302,
+      "frameSize": [
+        154,
+        125
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "fern_b_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "fern_c",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.302,
+      "frameSize": [
+        154,
+        125
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "fern_c_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "grass_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.552,
+      "frameSize": [
+        96,
+        53
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "grass_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "grass_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.552,
+      "frameSize": [
+        96,
+        53
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "grass_b_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "rubble_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.896,
+      "frameSize": [
+        192,
+        86
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "rubble_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "rubble_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.896,
+      "frameSize": [
+        192,
+        86
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "rubble_b_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "rubble_c",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.896,
+      "frameSize": [
+        192,
+        86
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "rubble_c_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "crystals_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.302,
+      "frameSize": [
+        106,
+        125
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "crystals_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "crystals_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.302,
+      "frameSize": [
+        106,
+        125
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "crystals_b_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "mushrooms_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.604,
+      "frameSize": [
+        96,
+        58
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "mushrooms_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "mushrooms_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.604,
+      "frameSize": [
+        96,
+        58
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "mushrooms_b_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "roots_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 2.198,
+      "frameSize": [
+        154,
+        211
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "roots_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "roots_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 2.198,
+      "frameSize": [
+        154,
+        211
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "roots_b_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "column_whole_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 5.198,
+      "frameSize": [
+        154,
+        499
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "column_whole_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "column_broken_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3.698,
+      "frameSize": [
+        154,
+        355
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "column_broken_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "column_broken_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3.698,
+      "frameSize": [
+        154,
+        355
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "column_broken_b_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "rune_stone_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3.198,
+      "frameSize": [
+        125,
+        307
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "rune_stone_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    },
+    {
+      "id": "effigy_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3.604,
+      "frameSize": [
+        154,
+        346
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "effigy_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-ground_0"
+      ]
+    }
+  ]
+}

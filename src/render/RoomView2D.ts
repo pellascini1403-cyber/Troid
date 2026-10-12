@@ -14,6 +14,20 @@ interface GateView {
   /** 1 = closed and fully drawn, 0 = open and gone. */
   alpha: number;
   target: 0 | 1;
+  /** The door as the ART draws it, when it does: it fades with the blockout's, which is then not drawn. */
+  art?: Container;
+}
+
+/**
+ * What the art draws of the room, as far as the blockout is concerned (`RoomArtView`): the blockout lets go of exactly that and keeps drawing the rest, so a material the
+ * pack has no piece for, or a layer its scene does not fill, still looks like the blockout and never like nothing.
+ */
+export interface BlockoutCover {
+  solids: ReadonlySet<string>;
+  gates: ReadonlySet<string>;
+  exits: ReadonlySet<string>;
+  /** `far`, `mid`, `near`, `front`: the blockout's backdrop layers the scene replaces. */
+  backdrop: ReadonlySet<string>;
 }
 
 /**
@@ -26,31 +40,19 @@ interface GateView {
  */
 export class RoomView2D {
   private terrain: Graphics | null = null;
+  private room: RoomDefinition | null = null;
   private readonly gates = new Map<string, GateView>();
   private readonly extras: Container[] = [];
+  private readonly exitViews = new Map<string, Graphics>();
+  private readonly backdropViews = new Map<string, Graphics>();
 
   constructor(private readonly layers: Layers) {}
 
   /** Builds the room's look. `isOpen` says which gates start open (a beaten guardian stays beaten across a reload). */
   build(room: RoomDefinition, isOpen: (gateId: string) => boolean = () => false): void {
     this.clear();
-    const gateSolids = new Map((room.gates ?? []).map((g) => [g.solid, g.id]));
-
-    const g = new Graphics();
-    const solids = room.solids.filter((s) => !gateSolids.has(s.id));
-    for (const s of solids) {
-      const { x0, y0, x1, y1 } = s.rect;
-      const fill = MATERIAL_FILL[s.material ?? 'stone'] ?? PALETTE.worldDusk;
-      g.rect(x0, viewY(y1), x1 - x0, y1 - y0).fill({ color: fill, alpha: s.kind === 'oneway' ? 0.95 : 1 });
-    }
-    // lit top edges: the cue that tells the player where they can stand
-    for (const s of solids) {
-      const { x0, y1, x1 } = s.rect;
-      g.rect(x0, viewY(y1), x1 - x0, 0.12).fill({ color: PALETTE.worldHaze, alpha: s.kind === 'oneway' ? 0.9 : 0.55 });
-    }
-    g.label = `room:${room.id}`;
-    this.layers.terrain.addChild(g);
-    this.terrain = g;
+    this.room = room;
+    this.drawTerrain(new Set());
 
     for (const gate of room.gates ?? []) {
       const solid = room.solids.find((s) => s.id === gate.solid);
@@ -77,11 +79,76 @@ export class RoomView2D {
       shaft.label = `exit:${x.id}`;
       this.layers.lightOverlay.addChild(shaft);
       this.extras.push(shaft);
+      this.exitViews.set(x.id, shaft);
     }
 
     if (room.art) {
-      for (const layer of buildBackdrop(room.art.backdrop, this.layers, { bounds: room.bounds, seed: room.art.seed ?? 1 })) this.extras.push(layer);
+      for (const layer of buildBackdrop(room.art.backdrop, this.layers, { bounds: room.bounds, seed: room.art.seed ?? 1 })) {
+        this.extras.push(layer);
+        this.backdropViews.set(layer.label.replace('backdrop:', ''), layer);
+      }
     }
+  }
+
+  /** The blockout of the solids in the room that are not in `skip`: flat rectangles with a lit top edge, one `Graphics` for all of them. */
+  private drawTerrain(skip: ReadonlySet<string>): void {
+    const room = this.room;
+    if (!room) return;
+    this.terrain?.destroy();
+    const gateSolids = new Map((room.gates ?? []).map((g) => [g.solid, g.id]));
+    const g = new Graphics();
+    const solids = room.solids.filter((s) => !gateSolids.has(s.id) && !skip.has(s.id));
+    for (const s of solids) {
+      const { x0, y0, x1, y1 } = s.rect;
+      const fill = MATERIAL_FILL[s.material ?? 'stone'] ?? PALETTE.worldDusk;
+      g.rect(x0, viewY(y1), x1 - x0, y1 - y0).fill({ color: fill, alpha: s.kind === 'oneway' ? 0.95 : 1 });
+    }
+    // lit top edges: the cue that tells the player where they can stand
+    for (const s of solids) {
+      const { x0, y1, x1 } = s.rect;
+      g.rect(x0, viewY(y1), x1 - x0, 0.12).fill({ color: PALETTE.worldHaze, alpha: s.kind === 'oneway' ? 0.9 : 0.55 });
+    }
+    g.label = `room:${room.id}`;
+    // under the doors and everything else that was added to the terrain layer after it
+    this.layers.terrain.addChildAt(g, 0);
+    this.terrain = g;
+  }
+
+  /**
+   * The art draws part of this room (`RoomArtView.build`): the blockout lets go of exactly that. `door` gives the art's container for a gate, which then fades with the
+   * blockout's own animation (`update`) — the view follows `gate:changed`, it never decides anything.
+   */
+  cover(cover: BlockoutCover, door: (gateId: string) => Container | undefined = () => undefined): void {
+    this.drawTerrain(cover.solids);
+    for (const [id, gate] of this.gates) {
+      if (!cover.gates.has(id)) continue;
+      const art = door(id);
+      if (!art) continue;
+      gate.art = art;
+      gate.graphics.renderable = false;
+      art.alpha = clamp01(gate.alpha);
+      art.visible = gate.alpha > 0;
+    }
+    for (const id of cover.exits) {
+      const shaft = this.exitViews.get(id);
+      if (shaft) shaft.visible = false;
+    }
+    for (const layer of cover.backdrop) {
+      const view = this.backdropViews.get(layer);
+      if (view) view.visible = false;
+    }
+  }
+
+  /** Gives the blockout back everything (the art was cleared). */
+  uncover(): void {
+    if (!this.room) return;
+    this.drawTerrain(new Set());
+    for (const gate of this.gates.values()) {
+      gate.art = undefined;
+      gate.graphics.renderable = true;
+    }
+    for (const v of this.exitViews.values()) v.visible = true;
+    for (const v of this.backdropViews.values()) v.visible = true;
   }
 
   /** A gate opened or closed: the door dissolves or comes back over `GATE_FADE_SECONDS` (see `update`). */
@@ -90,6 +157,7 @@ export class RoomView2D {
     if (!g) return;
     g.target = open ? 0 : 1;
     g.graphics.visible = true;
+    if (g.art) g.art.visible = true;
   }
 
   /** How drawn a gate is: 1 closed, 0 gone (E2E and debug). */
@@ -104,15 +172,22 @@ export class RoomView2D {
       const step = dt / GATE_FADE_SECONDS;
       g.alpha = g.target > g.alpha ? Math.min(g.target, g.alpha + step) : Math.max(g.target, g.alpha - step);
       g.graphics.alpha = clamp01(g.alpha);
-      if (g.alpha === 0) g.graphics.visible = false;
+      if (g.art) g.art.alpha = clamp01(g.alpha);
+      if (g.alpha === 0) {
+        g.graphics.visible = false;
+        if (g.art) g.art.visible = false;
+      }
     }
   }
 
   clear(): void {
     this.terrain?.destroy();
     this.terrain = null;
+    this.room = null;
     for (const g of this.gates.values()) g.graphics.destroy();
     this.gates.clear();
+    this.exitViews.clear();
+    this.backdropViews.clear();
     for (const e of this.extras.splice(0)) e.destroy();
   }
 

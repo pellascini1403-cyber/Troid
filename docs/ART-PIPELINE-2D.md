@@ -1104,3 +1104,83 @@ Todo lo que es una **decisión de una persona** —qué rectángulo es qué pose
 5. **El rojo.** Las poses con energía roja (8, 9, 10) no se usan y los efectos rojos de las que sí se usan **se han dejado fuera**: la paleta del juego es cian/azul. Los detalles rojos **de la figura** (el filo de la hoja, unos puntos en las botas) **se conservan**.
 6. **Legibilidad.** El héroe es casi negro (luminancia ≈ 0.006): sobre un fondo oscuro **solo se leen los ojos y las líneas cian** (riesgo R14 del GAME-SPEC). Es un problema **de los escenarios y de la luz** (fases B–I), no del dibujo.
 7. **Un detalle de la hoja, no del juego:** el reflejo blanco de los ojos es **tres puntos**; en la pose 12 hay una marca roja junto a la boca que no está en el retrato. Se conservan tal cual.
+
+---
+
+# Parte M — El escenario producido: el pintor, las escenas y la sala dibujada con arte (Prompt 8, fase B)
+
+> **Estado, sin letra pequeña.** **R1 ya no se dibuja con rectángulos**: suelo, muros, plataformas, puerta, tres capas de fondo, hojas delante, luz y *props* son **imágenes** que carga el `ArtLibrary` por zona y dibuja una vista nueva (`RoomArtView`) a partir de **los datos de la sala** y de **una escena**. Pero **ninguna de esas imágenes la ha dibujado una persona**: las hace un **pintor** (código, `tools/art/painter/`) que corre en el Chromium del proyecto —el *canvas* 2D hace las curvas, los degradados y los desenfoques— a partir de formas, ruido y **una sola luz**. Es **original** (el vocabulario es el del proyecto —ruinas, raíces, musgo, cristales de energía cian, sellos violeta—; no se copia ningún personaje, enemigo, símbolo ni escenario de ninguna referencia: las referencias fijan *estructura y atmósfera*, no formas), es **determinista** (cada pieza es función de una semilla y sus parámetros) y es **provisional**: **necesita revisión artística** y, llegado el caso, sustitución por arte hecho a mano **por el mismo camino** (§M.2) sin tocar una línea del juego.
+
+## M.1 Por qué un pintor, y qué es
+
+El encargo pedía que una zona **no se diera por terminada** mientras dependiera de rectángulos, geometría procedural o fondos planos. La única forma de tener imágenes de escenario *sin un artista delante* es **generarlas**, y la forma honesta de hacerlo es **como una herramienta más del pipeline**, versionada, con sus semillas y su documento —no como una caja negra—:
+
+```
+tools/art/packs/ruins.ts      qué piezas hay, con qué parámetros y para qué sirve cada una (etiquetas del contrato)
+tools/art/painter/            el pintor (se empaqueta con esbuild y corre en el Chromium del proyecto)
+tools/art/scenes/r1.ts        dónde van las piezas de R1 (la composición, con semillas)
+npm run art:build             pinta → art/<paquete>/<pieza>/<pieza>_NN.png + art/<paquete>/<paquete>.pack.json + escenas
+npm run assets:pack           comprueba y empaqueta (atlas compartidos) → public/art/
+```
+
+**Lo que sabe hacer el pintor** (`painter/`): ruido y ruido celular **periódicos** (una textura sin costura); mampostería por hiladas o ciclópea, con mortero, astillas, manchas de agua, grietas, musgo y, en las grietas más hondas, un poco de **luz cian** (el hilo de Solo Leveling: energía que se cuela por la piedra); **una luz** (`light.ts`: clave fría desde arriba y algo por delante del héroe, ambiente azul profundo, brillo de borde) que ilumina una altura y un albedo, y una **silueta redondeada** (`silhouette.ts`: cada objeto trae su perfil, así una columna plana se ilumina como un cilindro); troncos con ramas y raíces, copas, columnas y arcos rotos, hiedra, helechos, hierba, cristales y hongos que brillan, piedras con runas, un efigie con capucha; y luces (haz, rayo en diagonal, resplandor, bruma, motas).
+**Runas originales**: marcas abstractas de pocos trazos (anillos, rombos, espirales, ondas), **ninguna que sea una letra de ningún alfabeto**.
+
+## M.2 El camino (el mismo de siempre) y lo que cambió del contrato
+
+`tools/art` → `art/` → manifiestos → `assets:check` → `assets:pack` → `public/art/` → `ArtLibrary` → vista. Lo que este paso añadió al contrato, **todo opcional y retrocompatible** (un paquete que no dice nada de ello se comporta como antes):
+
+| Qué | Dónde | Para qué |
+|---|---|---|
+| `atlasMode: "shared"` | manifiesto de un paquete | el empaquetador pone **los fotogramas de todos los *sprite sets*** del paquete en las **mismas páginas** (cada set lista las páginas donde están los suyos). Un personaje quiere páginas propias (`sprite`, lo de siempre); un escenario no: cientos de piezas distintas en una capa serían **una llamada de dibujo por pieza** |
+| `scenes: { "<sala>": "scenes/<sala>.json" }` | manifiesto de un paquete | **la ropa que el paquete le pone a una sala** (§M.4): dónde está cada pieza que **no** sale de los datos de la sala |
+| `role:decor` en **cualquier capa** | `ENV_CONTRACT`, `ENV_LAYERS` | arcos, columnas, raíces, helechos, bruma… van en `backdropFar/Mid/Near`, `propsBack`, `terrain`, `foreground` y `lightOverlay`; la escena dice cuál |
+| etiquetas `grid:CxR`, `rise:<m>`, `reach:<m>`, `blend:add`, `layer:<id>` | sprites del entorno | `grid`: los fotogramas del clip `idle` son **las celdas de un dibujo periódico** (una pared de cien celdas no repite una dos veces seguidas y no tiene costuras); `rise`/`reach`: lo que la pieza sobresale por encima / por fuera del borde que viste; `blend:add`: es luz |
+| la parte `glow` de una puerta | `door` | la luz de su sello: un solo dibujo suave, ajustado a toda la puerta, aditivo |
+| la regla de escala **por familia** | `environmentPackIssues` | las piezas que **se encuentran** (suelo, muros, plataformas, puerta) comparten malla de píxeles; **una capa de *parallax* no se encuentra con otra**, así que el fondo lejano puede dibujarse a 20 px/m y el cercano a 38 sin aviso |
+| cobertura **entre paquetes** | `environmentCoverageIssues` | «lo que el mundo pide y ningún paquete tiene» se juzga sobre **todos los paquetes de entorno juntos** (suelo, fondo y luz son paquetes distintos) |
+
+El validador del *build* mira ahora también **las escenas** (existen, son JSON válido, son de la sala que dicen y **solo colocan piezas de su paquete**, con el fotograma que piden) y, con atlas compartidos, juzga cada set por **sus** fotogramas.
+
+## M.3 Los paquetes de R1 (zona: las cuatro salas del *slice*)
+
+| Paquete | Qué lleva | Densidad |
+|---|---|---|
+| `ruins-ground` | tierra y piedra (relleno en una **cuadrícula periódica de 4 × 2 celdas de 2 m**, borde superior —hierba o losa—, bordes laterales), plataformas de madera, la puerta del guardián (cuerpo, dintel, umbral y resplandor del sello), un velo de oscuridad para el suelo, y los *props*: helechos, hierba, escombros, cristales y hongos que brillan, raíces colgantes, columnas, una piedra de runas y el efigie del guardián | **96 px/m** (la del héroe) |
+| `ruins-back` | las tres tiras de *parallax* (lejos: cielo, luz y siluetas de bosque con ruinas; medio: troncos con ramas y copas; cerca: una columnata con arcos y muros), dos arcos colosales y las hojas oscuras que cuelgan delante | 20 / 25.6 / 38.4 px/m y 48 los arcos |
+| `ruins-light` | el haz sobre la salida, resplandores cian y violeta, rayos, bruma y motas | 32 px/m |
+
+Las tres son `zone`: se cargan al entrar en cualquier sala del *slice* (por ahora solo R1 tiene escena: en R2–R4 el fondo y el suelo ya se dibujan con las piezas del paquete, y su ropa llega en las fases C–E).
+
+## M.4 La escena de una sala
+
+Una escena (`presentation/roomScene.ts`; `scenes/<sala>.json`) es **solo datos**: capas → lista de colocaciones `{ sprite, x, y, scale?, w?, h?, flip?, alpha?, tint?, frame?, motion? }`, con coordenadas **en el espacio de la propia capa** (metros, +y arriba: una capa de factor *f* se desplaza a *f* × la cámara, así que se coloca donde se verá desde mitad de la sala, no donde «está» en el mundo). `motion` (`sway`, `pulse`, `drift`) es **cosmética**: nada la lee. **No lleva colisión ni lógica**: cualquier escena —más, menos, ninguna, una equivocada— deja lo que el héroe pisa, golpea y atraviesa **exactamente donde lo puso la sala** (lo prueba `room-art` y lo hace cumplir la regla de arquitectura de siempre).
+**Lo que ya dicen los datos de la sala** —sus sólidos, plataformas, puertas, salidas— **no se repite en la escena**: lo dibuja `roomPlan` (§M.5). La escena de R1 la compone `tools/art/scenes/r1.ts`: el **esparcido** (helechos, hierba, escombros, hongos y cristales sobre cada tramo abierto del suelo, con semilla) y los **hitos colocados a mano** que cuentan el recorrido —el camino de entrada bajo los árboles viejos (una piedra de runas que brilla junto al inicio), el abismo con sus pilares rotos y la bruma que sube, las escaleras con raíces colgando, el túnel de gateo bajo la sala en ruinas (raíces cortas, hongos), el patio con los dos efigies que vigilan la puerta del sello violeta, y la luz que va del azul pálido del principio al violeta del final.
+
+## M.5 La vista
+
+`presentation/roomPlan.ts` (**pura**: sin Pixi, sin texturas) decide, con números, **qué celda de qué pieza va dónde**: el relleno de cada bloque desde su esquina superior izquierda con celdas enteras y **la última fila y la última columna recortadas a lo que queda, nunca escaladas** (`cropFrame` calcula el recorte respetando el recorte transparente del empaquetador); el **borde superior solo donde da al cielo** y los laterales solo donde dan al aire (`exposedEdges`: un bloque sobre el suelo no tiene borde donde se apoya); el cuerpo y los extremos de una plataforma; la columna de una puerta desde abajo; y las tiras de *parallax* (`planStrip`: dónde está su base para que **la pantalla se llene a cualquier altura de la cámara**, y un aviso en desarrollo si la tira es demasiado baja). `render/RoomArtView.ts` convierte eso en *sprites* y coloca la escena. Vive en el *chunk* diferido del arte: **el arranque en frío no recibe esa vista**.
+
+**El *blockout* es el respaldo, por ranura.** La vista dice qué cubre (`solids`, `gates`, `exits`, `backdrop`, y lo que **falta** del paquete: `lacking`); `RoomView2D` deja de dibujar **exactamente eso** y sigue dibujando el resto. Un material sin pieza, una capa que la escena no llena, una sala sin escena, o una página sin arte, siguen viéndose como antes, **nunca como nada**. Las puertas se desvanecen con su compuerta (`gate:changed`, 0.6 s de tiempo real): la vista del arte y la del *blockout* comparten la misma animación.
+
+## M.6 Medido (Chromium sin cabeza con GL por software; **nada en un dispositivo real**)
+
+| | |
+|---|---|
+| R1 | **539 *sprites*** en sus capas; **13 llamadas de dibujo** en el peor punto de las seis posiciones del recorrido (presupuesto 60), con luz aditiva, bruma y *parallax* |
+| Memoria del arte de la zona | **22.4 MiB** residentes entre el héroe (1.6) y los tres paquetes del escenario (4 páginas, ≈ 5.9 + 15.7 + 3.9 MB descomprimidas) — **por debajo de los 32 MiB propuestos** (una propuesta que un dispositivo debe confirmar); en disco, **2.7 MB** de PNG empaquetados |
+| Carga | las tres páginas del escenario llegan **después del primer fotograma** y se descartan al salir de la zona (la política de siempre) |
+| Arranque en frío | **192.7 KB gz** (190.8 antes de la fase: +1.9 KB de lo que `Game2D`/`RoomView2D` necesitan para hablar con la vista); el *chunk* del arte, 15.0 KB gz, es diferido |
+| Tiempo de pintar | ≈ 35 s para los tres paquetes, en este contenedor |
+
+## M.7 Lo que falta y lo que necesita revisión artística
+
+1. **Todo el escenario es de un pintor, no de una mano.** Necesita **revisión artística** pieza a pieza: la mampostería, la silueta de los troncos y las copas, los arcos, el efigie y los helechos se leen bien a 844 × 390 y a 1920 × 1080, pero **no tienen el trabajo de una ilustradora**. Cualquiera de ellas se sustituye entregando un PNG con las mismas etiquetas en `art/`.
+2. **Los fondos son estáticos** salvo la deriva de la bruma y las motas, el pulso de los resplandores y el balanceo de lo que lo declare. No hay follaje que responda al héroe, ni luz que cambie con el combate (fases H–I).
+3. **R2, R3 y R4 solo tienen la ropa del contrato** (suelo, muros, plataformas y fondos del paquete); les faltan sus escenas y sus piezas propias: las raíces de R2, el sello de R3, el santuario de R4 y los pinchos, el santuario de descanso y la recogida del contrato (`assets:missing` lo lista).
+4. **El suelo** (el relleno ciclópeo de la tierra) es oscuro y plano a propósito —para que el héroe, casi negro, se lea sobre un fondo más claro (R14)—; falta **variación a gran escala** (estratos visibles, raíces gruesas, charcos).
+5. **Sin calibrar en un dispositivo real**: la densidad (96 px/m en el suelo, menos en los fondos) y la memoria están pensadas para un teléfono, **no medidas en uno**.
+
+## M.8 Probado (S45–S46)
+
+`roomPlan.test.ts` (celdas, recortes, bordes expuestos, plataformas, puertas, tiras, `cropFrame`), `roomScene.test.ts` (leer y comprobar escenas), ampliaciones de `environment.test.ts` (etiquetas, malla por familia, cobertura entre paquetes) y de `buildArt.test.ts` (**páginas compartidas**, las escenas se empaquetan y se leen contra su paquete, la biblioteca las lee por una página común), y el escenario E2E **`room-art`**: R1 con el arte (cada sólido, la puerta y la salida las dibuja el arte; ≤ 60 llamadas en seis puntos del recorrido; memoria bajo el presupuesto), la puerta se desvanece con su compuerta, **sin arte** el *blockout* lo dibuja todo, y **con arte de solo la tierra** lo demás sigue siendo del *blockout*.

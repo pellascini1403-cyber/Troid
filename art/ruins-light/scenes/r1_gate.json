@@ -1,0 +1,148 @@
+{
+  "sceneVersion": 1,
+  "room": "r1_gate",
+  "layers": {
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 2.4,
+        "y": -3,
+        "alpha": 0.4
+      },
+      {
+        "sprite": "beam_b",
+        "x": 18.4,
+        "y": -3,
+        "alpha": 0.34,
+        "flip": true
+      },
+      {
+        "sprite": "beam_a",
+        "x": 34.4,
+        "y": -3,
+        "alpha": 0.34,
+        "flip": true
+      }
+    ],
+    "backdropNear": [
+      {
+        "sprite": "beam_b",
+        "x": 52.5,
+        "y": -2,
+        "alpha": 0.16
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 34.5,
+        "y": -4.4,
+        "alpha": 0.55,
+        "motion": "drift"
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 34.5,
+        "y": -2.6,
+        "alpha": 0.3,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 16,
+        "y": -0.2,
+        "alpha": 0.16,
+        "scale": 0.6,
+        "motion": "drift"
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 56,
+        "y": -0.2,
+        "alpha": 0.16,
+        "scale": 0.6,
+        "motion": "drift"
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 90,
+        "y": -0.2,
+        "alpha": 0.16,
+        "scale": 0.6,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_a",
+        "x": 104,
+        "y": -0.5,
+        "alpha": 0.55,
+        "motion": "drift"
+      },
+      {
+        "sprite": "glow_cyan",
+        "x": 8.2,
+        "y": 0,
+        "scale": 0.8,
+        "alpha": 0.4,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "glow_cyan",
+        "x": 12.6,
+        "y": -0.55,
+        "scale": 0.55,
+        "alpha": 0.4,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "glow_cyan",
+        "x": 51.2,
+        "y": 4.6,
+        "scale": 0.5,
+        "alpha": 0.4,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "glow_cyan",
+        "x": 66.2,
+        "y": -0.5,
+        "scale": 0.4,
+        "alpha": 0.4,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "glow_cyan",
+        "x": 99.4,
+        "y": -0.5,
+        "scale": 0.5,
+        "alpha": 0.4,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "glow_cyan",
+        "x": 111.6,
+        "y": -0.4,
+        "scale": 0.45,
+        "alpha": 0.4,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "glow_violet",
+        "x": 101.3,
+        "y": 0.4,
+        "scale": 0.9,
+        "alpha": 0.2,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "glow_violet",
+        "x": 108.1,
+        "y": 0.4,
+        "scale": 0.9,
+        "alpha": 0.2,
+        "motion": "pulse"
+      }
+    ]
+  }
+}

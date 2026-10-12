@@ -1,8 +1,8 @@
 # Cómo entregar el arte del entorno (y qué pide el mundo)
 
-> **Estado (Prompt 7, S42): no hay arte de entorno en el repositorio.** El juego dibuja un *blockout* —rectángulos planos, un fondo de capas provisional, formas de energía— y **lo que hay hecho es el contrato**: las capas y el paralaje, las piezas que el mundo pide, la regla con que una imagen rellena un rectángulo, un informe de lo que falta y un validador que para el *build*. **No se ha dibujado, generado ni imitado ningún escenario, y todavía no existe el código que dibuje una sala con imágenes** (se escribe cuando haya imágenes contra las que escribirlo: ART-PIPELINE-2D §I.8).
+> **Estado (Prompt 8, fase B): R1 ya se dibuja con imágenes.** El juego dibuja una sala con las imágenes de su paquete de entorno **cuando las tiene** (`RoomArtView`) y deja al *blockout* lo que no cubren. Las imágenes que hoy hay (`art/ruins-ground`, `art/ruins-back`, `art/ruins-light`) **no son de una mano**: las hace un **pintor** (`npm run art:build`, ART-PIPELINE-2D parte M) y son **provisionales**: necesitan revisión artística o sustitución. **Sustituir una pieza por arte hecho a mano es entregar un PNG con las mismas etiquetas** (§2): el juego no cambia.
 >
-> Esta guía dice **qué pide el mundo** y **cómo se entrega**. Para el detalle técnico: [ART-PIPELINE-2D.md](../ART-PIPELINE-2D.md) (parte I). Para el protagonista: [deliver-protagonist-art.md](deliver-protagonist-art.md).
+> Esta guía dice **qué pide el mundo** y **cómo se entrega**. Para el detalle técnico: [ART-PIPELINE-2D.md](../ART-PIPELINE-2D.md) (partes I y M). Para el protagonista: [deliver-protagonist-art.md](deliver-protagonist-art.md).
 
 ## 1. Qué pide el mundo
 
@@ -12,14 +12,14 @@ No es una lista escrita a mano: **sale de los datos de las cuatro salas** (`R1`�
 |---|---|---|---|---|
 | `solid` | `stone`, `earth` | **`fill`**, `cap` (borde superior), `edge-l`, `edge-r` | el suelo, las paredes y los bloques | R1–R4 |
 | `platform` | `wood` | **`body`**, `cap-l`, `cap-r` | las plataformas que se atraviesan saltando | R1–R3 |
-| `door` | `gate`, `seal` | **`body`**, `top`, `bottom` | las puertas (se **disuelven** en 0.6 s cuando se abren) | R1, R3, R4 |
+| `door` | `gate`, `seal` | **`body`**, `top`, `bottom`, `glow` (la luz del sello: un dibujo suave, aditivo, ajustado a toda la puerta) | las puertas (se **disuelven** en 0.6 s cuando se abren) | R1, R3, R4 |
 | `hazard` | `spikes` | **`cell`** | las espinas | R2 |
 | `backdrop` | `ruins` | **`far`**, **`mid`**, **`near`** | el fondo en tres capas de paralaje | R1–R4 |
 | `foreground` | `ruins` | `strip` | siluetas oscuras delante de la acción | R1–R4 |
 | `interactive` | `rest` (santuario), `pickup` | **una imagen** por clase | lo que se puede tomar o usar | R2–R4 |
 | `seal` | — | **una imagen** | el sigilo que el héroe debe golpear | R3 |
 | `light` | — | una imagen | el haz de luz sobre cada salida | R1–R4 |
-| `decor` | — | una imagen por objeto | objetos que no chocan con nada (ninguna sala los lista todavía) | — |
+| `decor` | — | una imagen por objeto | objetos que no chocan con nada: **los coloca una escena** (§6), en cualquier capa | R1 (la escena de R1) |
 
 ## 2. Cómo se declara
 
@@ -45,9 +45,9 @@ Un paquete de categoría **`environment`** en `art/` (índice y manifiesto: [ART
 | **El pivote donde empieza la repetición:** `[0, 0]` (esquina superior izquierda) para `solid` y `platform`; `[0, 1]` (abajo a la izquierda) para `door`, `hazard`, `backdrop` y `foreground`; `[0.5, 1]` (los pies) para `decor`, `interactive` y `light`; `[0.5, 0.5]` para `seal` | es el punto del mundo donde se coloca la imagen | **error** |
 | **Un clip `idle`** (una imagen quieta es un `idle` de un fotograma; un farol que parpadea, un `idle` de varios) | es el clip que todo set tiene | **error** |
 | **Prefijo de fotograma único** en todo el paquete (`stone_fill_00`, no `idle_00`) | un paquete nombra cada fotograma una vez | **error** |
-| **Una sola escala** (`artPxPerMeter`) por paquete | las piezas de un sitio comparten rejilla de píxeles, o sus costuras no encajan | aviso |
+| **Una sola escala por familia** (`artPxPerMeter`): las piezas que se **encuentran** (suelo, muros, plataformas, puertas, *props*) comparten malla de píxeles; cada capa de *parallax* y la luz son su propia familia | las piezas de un sitio comparten rejilla de píxeles, o sus costuras no encajan; una capa lejana no se encuentra con otra | aviso |
 | Dos *sprites* para la misma pieza | solo se puede dibujar una | aviso |
-| Faltan piezas **obligatorias** que el mundo pide | el *blockout* las dibuja en su lugar | **error** si el paquete es `final`; **aviso** si es `provisional` (lo normal mientras llega el arte) |
+| Faltan piezas **obligatorias** que el mundo pide (juzgado sobre **todos los paquetes de entorno juntos**) | el *blockout* las dibuja en su lugar | **error** si el paquete es `final`; **aviso** si es `provisional` (lo normal mientras llega el arte) |
 
 `npm run assets:check` (y por tanto `npm run build`) las comprueba **sin abrir un navegador** y dice la ruta y qué hacer.
 
@@ -82,3 +82,22 @@ Una capa con factor *f* se mueve *f* × la cámara, así que cubre **`f × (anch
 ## 6. Reversible
 
 Hoy el juego dibuja **siempre** el *blockout*, y entregar arte no cambia nada hasta que exista el dibujo con imágenes. Cuando exista, será **pieza a pieza** y con camino de vuelta, como el protagonista: lo entregado se dibuja con arte, lo que falte con el *blockout*, y quitar el paquete devuelve todo al *blockout* al instante. **Nada se rompe por tener menos arte.**
+
+## 6. Etiquetas de dibujo, atlas compartidos y escenas (fase B)
+
+**Cómo se dibuja una pieza** (etiquetas opcionales además de las de la §2):
+
+| Etiqueta | Qué dice |
+|---|---|
+| `grid:CxR` | los fotogramas del clip `idle` son **las celdas de un dibujo periódico** de C columnas por R filas (por filas): la celda de la columna *i*, fila *j* de una repetición es el fotograma `(i mod C) + C × (j mod R)`. Una pared de cien celdas sin costuras y sin repetir una dos veces seguidas (la guía del pintor corta un dibujo de 8 × 4 m en 4 × 2 celdas de 2 m) |
+| `rise:<m>` | metros de la imagen **por encima** de la línea sobre la que se apoya (las briznas de hierba por encima del borde de un bloque): la pieza se sube esa cantidad |
+| `reach:<m>` | metros de un borde o extremo **por fuera** del borde que viste (una raíz colgando más allá del lado de un bloque) |
+| `blend:add` | es **luz**, no materia: se dibuja aditiva |
+| `layer:<id>` | la capa para la que se hizo una pieza `decor` (`terrain`, `props-back`, `backdrop-far`, `backdrop-mid`, `backdrop-near`, `foreground`, `light-overlay`) |
+
+**Atlas compartidos.** Un paquete de escenario declara `"atlasMode": "shared"`: el empaquetador pone los fotogramas de **todos** sus *sprite sets* en las mismas páginas (cada set lista las páginas donde están los suyos). Con el modo por defecto (`sprite`) cada pieza tendría páginas propias y dibujar cien piezas distintas serían cien llamadas de dibujo.
+
+**Escenas.** Lo que **no** sale de los datos de la sala —arcos, columnas, helechos, raíces, bruma, hojas delante— lo coloca una **escena**: `"scenes": { "r1_gate": "scenes/r1_gate.json" }` en el manifiesto del paquete, y el archivo es
+`{ "sceneVersion": 1, "room": "r1_gate", "layers": { "terrain": [ { "sprite": "fern_a", "x": 12.4, "y": 0, "scale": 1.1, "flip": true } ] } }`: una lista de colocaciones por capa (`backdropFar`, `backdropMid`, `backdropNear`, `propsBack`, `terrain`, `foreground`, `lightOverlay`) con coordenadas **en el espacio de esa capa** (metros, +y arriba). Cada colocación puede llevar `scale`, `w` y `h` (para una pieza **suave**: un degradado, un resplandor), `flip`, `alpha`, `tint`, `frame` (qué variante) y `motion` (`sway`, `pulse`, `drift`: cosmética). El *build* comprueba que cada pieza **existe en su paquete** y que el fotograma pedido existe.
+
+**Cómo se sustituye una pieza del pintor por arte hecho a mano:** se deja el *sprite* con el **mismo `id`** y las **mismas etiquetas** en el manifiesto del paquete (`art/ruins-ground/ruins-ground.pack.json`) y se ponen los PNG propios en `art/ruins-ground/<id>/<id>_NN.png` (con la misma cuadrícula `grid` si la pieza la tiene); **se quita del `packs/ruins.ts` del pintor** para que `npm run art:build` no la vuelva a pintar. Nada más cambia: ni la vista, ni las escenas, ni el juego.

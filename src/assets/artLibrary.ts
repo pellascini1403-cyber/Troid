@@ -1,6 +1,7 @@
 import { atlasVariants, chooseAtlasVariant, parseArtAtlasRef, parseArtIndex, parseArtPack, toSpriteSetDefinition, artSetId, type ArtAtlas, type ArtIndexEntry, type ArtIssue, type ArtPack, type ArtSprite } from '@/presentation/artManifest';
 import { checkSpriteFrames, mergeFrameMeta, parseAtlasData, usedFrameNames, type AtlasData, type AtlasFrameJson, type AtlasPage } from '@/presentation/artAtlas';
 import { applyContract, type DroppedClip } from '@/presentation/artContract';
+import { parseRoomScene, sceneIssues, type RoomScene } from '@/presentation/roomScene';
 import type { SpriteSetDefinition } from '@/presentation/SpriteSetDefinition';
 import type { LoadedSpriteSet } from './SpriteAssetManager';
 
@@ -135,6 +136,8 @@ export class ArtLibrary<S, T> {
   private index: readonly ArtIndexEntry[] = [];
   private indexRequest: Promise<readonly ArtIndexEntry[]> | null = null;
   private readonly packs = new Map<string, Promise<ArtPackInfo | null>>();
+  /** The scenes read so far, by `pack/room`: `null` for one that is not there or not valid (it is not asked for again). */
+  private readonly scenes = new Map<string, Promise<RoomScene | null>>();
   private readonly packInfo = new Map<string, ArtPackInfo>();
   private readonly pages = new Map<string, PageEntry<S>>();
   /** The definition of each set at the variant first chosen for it: the same one for as long as the library lives. */
@@ -226,6 +229,54 @@ export class ArtLibrary<S, T> {
     const info: ArtPackInfo = { entry, pack: value, url, atlases: new Map(value.atlases.map((a) => [a.id, a])) };
     this.packInfo.set(id, info);
     return info;
+  }
+
+  /**
+   * The dressing pack `packId` gives to room `roomId` (`pack.scenes`), read and checked once: where its pieces stand in the room's layers. `null` when the pack has no
+   * scene for the room, the file cannot be had or it does not hold together (the reason is in the log): the room is then drawn from its own data alone.
+   */
+  scene(packId: string, roomId: string): Promise<RoomScene | null> {
+    const key = `${packId}/${roomId}`;
+    let request = this.scenes.get(key);
+    if (!request) {
+      request = this.readScene(packId, roomId);
+      this.scenes.set(key, request);
+    }
+    return request;
+  }
+
+  private async readScene(packId: string, roomId: string): Promise<RoomScene | null> {
+    const info = await this.pack(packId);
+    const rel = info?.pack.scenes[roomId];
+    if (!info || rel === undefined) return null;
+    const url = resolveUrl(rel, info.url);
+    let raw: unknown;
+    try {
+      raw = await this.getJson(url);
+    } catch (err) {
+      this.note(`the scene of "${roomId}" in pack "${packId}" could not be fetched (${message(err)})`);
+      return null;
+    }
+    const { value, issues } = parseRoomScene(raw);
+    this.report(url, issues);
+    if (!value) return null;
+    if (value.room !== roomId) {
+      this.note(`${url}: the file dresses "${value.room}", not "${roomId}"`);
+      return null;
+    }
+    const wrong = sceneIssues(value, info.pack);
+    this.report(url, wrong);
+    return wrong.some((i) => i.level === 'error') ? null : value;
+  }
+
+  /** The packs of a category the zone policy is holding now (read manifests: what a view that dresses a room asks for). */
+  heldPacks(category: ArtIndexEntry['category']): ArtPackInfo[] {
+    const out: ArtPackInfo[] = [];
+    for (const id of this.held.keys()) {
+      const info = this.packInfo.get(id);
+      if (info && info.entry.category === category) out.push(info);
+    }
+    return out;
   }
 
   // ------------------------------------------------------------------------------------------------------- sets
@@ -557,6 +608,7 @@ export class ArtLibrary<S, T> {
     for (const e of this.pages.values()) e.loaded?.image.dispose();
     this.pages.clear();
     this.packs.clear();
+    this.scenes.clear();
     this.packInfo.clear();
     this.defs.clear();
   }

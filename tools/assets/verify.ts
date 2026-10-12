@@ -4,8 +4,9 @@ import { ROOMS, WORLD } from '../../src/content';
 import { PLAYER_VISUAL } from '../../src/content/visuals';
 import { checkSpriteFrames, mergeFrameMeta, parseAtlasData, type AtlasPage } from '../../src/presentation/artAtlas';
 import { applyContract } from '../../src/presentation/artContract';
-import { atlasVariants, parseArtIndex, parseArtPack, toSpriteSetDefinition, type ArtAtlas, type ArtIndexEntry, type ArtIssue, type ArtPack, type ArtSprite } from '../../src/presentation/artManifest';
-import { environmentPackIssues, environmentSlots } from '../../src/presentation/environment';
+import { artClipFrames, atlasVariants, parseArtIndex, parseArtPack, toSpriteSetDefinition, type ArtAtlas, type ArtIndexEntry, type ArtIssue, type ArtPack, type ArtSprite } from '../../src/presentation/artManifest';
+import { environmentCoverageIssues, environmentPackIssues, environmentSlots } from '../../src/presentation/environment';
+import { parseRoomScene, sceneIssues } from '../../src/presentation/roomScene';
 import { lackedClips } from '../../src/presentation/visualSource';
 import { inspectPicture, pictureIssues } from './inspect';
 import { decodePng, readPngInfo } from './png';
@@ -70,7 +71,7 @@ function anchorIssues(label: string, sprite: ArtSprite, frames: Record<string, {
 }
 
 /** Checks one pack. `folder` is where its manifest is (relative to the art folder): every path in it is relative to that. */
-function verifyPack(entry: ArtIndexEntry, read: FileReader, issues: ArtIssue[]): VerifiedPack {
+function verifyPack(entry: ArtIndexEntry, read: FileReader, issues: ArtIssue[], environment: ArtPack[]): VerifiedPack {
   const label = entry.id;
   const folder = folderOf(entry.manifest);
   const result: VerifiedPack = { id: entry.id, status: 'unknown', dropped: {}, lacking: [] };
@@ -94,7 +95,11 @@ function verifyPack(entry: ArtIndexEntry, read: FileReader, issues: ArtIssue[]):
   if (pack.id !== entry.id || pack.category !== entry.category) issues.push({ level: 'error', path: label, message: `the manifest says it is "${pack.id}" (${pack.category}) but the index lists "${entry.id}" (${entry.category})` });
   if (pack.status === 'awaiting-art') return result; // declared, no images: nothing more to look at
   // the scenery says what it draws, the way the environment contract asks (part I): the pieces the world's rooms ask for are read from their data
-  if (pack.category === 'environment') issues.push(...tag(label, environmentPackIssues(pack, environmentSlots(WORLD.rooms.map((id) => ROOMS[id]!)))));
+  // (which pieces the world asks for and no pack has is judged over ALL the environment packs together, once, in `verifyArt`)
+  if (pack.category === 'environment') {
+    issues.push(...tag(label, environmentPackIssues(pack)));
+    environment.push(pack);
+  }
 
   // ---- every atlas: the files are there and are what the manifest says
   const pages = new Map<string, AtlasPage>();
@@ -136,6 +141,29 @@ function verifyPack(entry: ArtIndexEntry, read: FileReader, issues: ArtIssue[]):
     if (atlasData.value) pages.set(atlas.id, { atlas, data: atlasData.value });
   }
 
+  // ---- the scenes: where the pack puts its pieces in the rooms (every piece must be one of its own sprite sets, and a room that exists)
+  for (const [room, rel] of Object.entries(pack.scenes)) {
+    const where = `${label} scenes.${room}`;
+    if (!WORLD.rooms.includes(room) && !(room in ROOMS)) issues.push({ level: 'warn', path: where, message: `"${room}" is not a room of the game: the scene is never drawn` });
+    const sceneBytes = read(under(folder, rel));
+    if (!sceneBytes) {
+      issues.push({ level: 'error', path: where, message: `the scene file ${rel} is not there` });
+      continue;
+    }
+    let sceneRaw: unknown;
+    try {
+      sceneRaw = JSON.parse(sceneBytes.toString('utf8')) as unknown;
+    } catch (err) {
+      issues.push({ level: 'error', path: `${where} ${rel}`, message: `cannot be read as JSON (${err instanceof Error ? err.message : String(err)})` });
+      continue;
+    }
+    const scene = parseRoomScene(sceneRaw);
+    issues.push(...tag(`${where} ${rel}`, scene.issues));
+    if (!scene.value) continue;
+    if (scene.value.room !== room) issues.push({ level: 'error', path: where, message: `the file ${rel} dresses "${scene.value.room}", not "${room}"` });
+    issues.push(...tag(label, sceneIssues(scene.value, pack)));
+  }
+
   // ---- every sprite set, at every variant: what is in the pages, and what the game would do with it
   const atlasMap = new Map<string, ArtAtlas>(pack.atlases.map((a) => [a.id, a]));
   for (const sprite of pack.sprites) {
@@ -159,7 +187,9 @@ function verifyPack(entry: ArtIndexEntry, read: FileReader, issues: ArtIssue[]):
       }
       for (const m of contract.warnings) issues.push({ level: 'warn', path: at, message: m });
       // the picture: anchors in metres inside it, the character fits its canvas
-      const first = own.flatMap((p) => Object.values(p.data.frames))[0];
+      // the picture of THIS set: a page may be shared with other sets (`atlasMode: "shared"`), so its first frame is not necessarily one of ours
+      const ownFrames = new Set(Object.values(sprite.clips).flatMap((c) => (c ? artClipFrames(c) : [])));
+      const first = own.flatMap((p) => Object.entries(p.data.frames)).find(([name]) => ownFrames.has(name))?.[1];
       if (first && variant === variants[0]) {
         const size = first.sourceSize ?? { w: first.frame.w, h: first.frame.h };
         issues.push(...anchorIssues(at, sprite, meta.frames, size, variant.resolution));
@@ -198,7 +228,9 @@ export function verifyArt(read: FileReader): VerifyResult {
   }
   const index = parseArtIndex(raw);
   issues.push(...tag('index.json', index.issues));
-  for (const entry of index.value?.packs ?? []) packs.push(verifyPack(entry, read, issues));
+  const environment: ArtPack[] = [];
+  for (const entry of index.value?.packs ?? []) packs.push(verifyPack(entry, read, issues, environment));
+  if (environment.length > 0) issues.push(...tag('environment', environmentCoverageIssues(environment, environmentSlots(WORLD.rooms.map((id) => ROOMS[id]!)))));
   return { issues, packs, ok: index.value !== null && !issues.some((i) => i.level === 'error') };
 }
 

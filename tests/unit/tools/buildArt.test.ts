@@ -323,3 +323,122 @@ describe('building art', () => {
     }
   });
 });
+
+describe('scenery: one set of pages for the whole pack, and the scenes that place its pieces', () => {
+  const piece = (id: string, seed: number, w: number, h: number): RgbaImage => {
+    const rng = new Rng(seed);
+    const data = new Uint8Array(w * h * 4);
+    for (let i = 0; i < w * h; i++) data.set([rng.int(0, 256), rng.int(0, 256), rng.int(0, 256), 255], i * 4);
+    void id;
+    return { width: w, height: h, data };
+  };
+  const SIZES: Record<string, [number, number]> = { arch: [60, 90], fern: [30, 24], rock: [40, 20] };
+  const envSprite = (id: string): Record<string, unknown> => ({
+    id,
+    artPxPerMeter: 48,
+    pivot: [0.5, 1],
+    height: SIZES[id]![1] / 48,
+    tags: ['role:decor', 'layer:backdrop-near'],
+    clips: { idle: { frames: `${id}_`, count: 1 } },
+  });
+  /** A pack of scenery: three pieces, a scene that places two of them. */
+  function writeScenery(over: { manifest?: Record<string, unknown>; scene?: unknown; skipScene?: boolean } = {}): Map<string, RgbaImage> {
+    put(join(src, 'index.json'), json({ manifestVersion: 1, packs: [{ id: 'ruins', category: 'environment', load: 'zone', zones: ['r1_gate'], manifest: 'ruins/ruins.pack.json' }] }));
+    put(join(src, 'ruins', 'ruins.pack.json'), json({ manifestVersion: 1, id: 'ruins', category: 'environment', status: 'provisional', atlasMode: 'shared', scenes: { r1_gate: 'scenes/r1_gate.json' }, atlases: [], sprites: ['arch', 'fern', 'rock'].map(envSprite), ...over.manifest }));
+    const frames = new Map<string, RgbaImage>();
+    let seed = 1;
+    for (const [id, [w, h]] of Object.entries(SIZES)) {
+      const img = piece(id, seed++, w, h);
+      frames.set(`${id}_00`, img);
+      put(join(src, 'ruins', id, `${id}_00.png`), encodePng(img));
+    }
+    if (!over.skipScene) {
+      put(join(src, 'ruins', 'scenes', 'r1_gate.json'), json(over.scene ?? { sceneVersion: 1, room: 'r1_gate', layers: { backdropNear: [{ sprite: 'arch', x: 10, y: -1 }, { sprite: 'fern', x: 12, y: 0, flip: true }] } }));
+    }
+    return frames;
+  }
+
+  it('packs the frames of every set onto the SAME pages, and each set lists the pages its own frames are on', () => {
+    const frames = writeScenery();
+    const r = build();
+    expect(errors(r)).toEqual([]);
+    expect(r.ok).toBe(true);
+    const pack = parseArtPack(JSON.parse(readFileSync(join(out, 'ruins', 'ruins.pack.json'), 'utf8')) as unknown).value!;
+    // one page for all three pieces, named after the PACK, not after a sprite
+    expect(pack.atlases.map((a) => a.id)).toEqual(['ruins_0']);
+    expect(pack.sprites.map((s) => s.atlases)).toEqual([['ruins_0'], ['ruins_0'], ['ruins_0']]);
+    expect(r.written).toEqual(expect.arrayContaining(['ruins/ruins_0.png', 'ruins/ruins_0.json']));
+    expect(r.written.filter((f) => f.endsWith('.png'))).toEqual(['ruins/ruins_0.png']);
+    // and the frames are in it, bit for bit
+    const page = decodePng(readFileSync(join(out, 'ruins', 'ruins_0.png')));
+    const atlas = JSON.parse(readFileSync(join(out, 'ruins', 'ruins_0.json'), 'utf8')) as { frames: Record<string, AtlasFrameJson> };
+    for (const [name, original] of frames) {
+      const f = atlas.frames[name]!;
+      for (let y = 0; y < f.frame.h; y++) {
+        const got = page.data.subarray(((f.frame.y + y) * page.width + f.frame.x) * 4, ((f.frame.y + y) * page.width + f.frame.x + f.frame.w) * 4);
+        const want = original.data.subarray(y * original.width * 4, (y + 1) * original.width * 4);
+        expect(Buffer.from(got).equals(Buffer.from(want)), `${name} row ${y}`).toBe(true);
+      }
+    }
+  });
+
+  it('without the mode, each set keeps its own pages (what a character wants)', () => {
+    writeScenery({ manifest: { atlasMode: 'sprite' } });
+    const r = build();
+    expect(errors(r)).toEqual([]);
+    expect(r.written.filter((f) => f.endsWith('.png')).sort()).toEqual(['ruins/arch_0.png', 'ruins/fern_0.png', 'ruins/rock_0.png']);
+  });
+
+  it('ships the scenes the pack declares, byte for byte, and reads them against the pack', () => {
+    writeScenery();
+    const r = build();
+    expect(r.written).toContain('ruins/scenes/r1_gate.json');
+    expect(readFileSync(join(out, 'ruins', 'scenes', 'r1_gate.json'), 'utf8')).toBe(readFileSync(join(src, 'ruins', 'scenes', 'r1_gate.json'), 'utf8'));
+    const pack = parseArtPack(JSON.parse(readFileSync(join(out, 'ruins', 'ruins.pack.json'), 'utf8')) as unknown).value!;
+    expect(pack.scenes).toEqual({ r1_gate: 'scenes/r1_gate.json' });
+  });
+
+  it('refuses a scene that places a piece the pack does not have, one that is not there, and one that dresses another room', () => {
+    writeScenery({ scene: { sceneVersion: 1, room: 'r1_gate', layers: { terrain: [{ sprite: 'ghost', x: 0, y: 0 }] } } });
+    expect(errors(build()).join('\n')).toMatch(/"ghost" is not a sprite set of the pack/);
+    expect(existsSync(out)).toBe(false);
+
+    rmSync(src, { recursive: true, force: true });
+    writeScenery({ skipScene: true });
+    expect(errors(build()).join('\n')).toMatch(/ruins scenes\.r1_gate: the scene file scenes\/r1_gate\.json is not there/);
+
+    rmSync(src, { recursive: true, force: true });
+    writeScenery({ scene: { sceneVersion: 1, room: 'r2_hall', layers: {} } });
+    expect(errors(build()).join('\n')).toMatch(/dresses "r2_hall", not "r1_gate"/);
+  });
+
+  it('its pieces are read by the game\'s own library through the shared page, and the scene by the library too', async () => {
+    writeScenery();
+    expect(build().ok).toBe(true);
+    const toPath = (url: string): string => join(out, ...url.slice('http://art.test/art/'.length).split('/'));
+    const lib = new ArtLibrary<{ url: string }, { name: string }>({
+      indexUrl: 'http://art.test/art/index.json',
+      io: {
+        json: async (url) => JSON.parse(readFileSync(toPath(url), 'utf8')) as unknown,
+        image: async (url): Promise<ArtImage<{ url: string }>> => {
+          const img = decodePng(readFileSync(toPath(url)));
+          return { source: { url }, width: img.width, height: img.height, dispose: () => undefined };
+        },
+      },
+      textures: { make: (_s, fr) => new Map(Object.keys(fr).map((name) => [name, { name }])), destroy: () => undefined },
+      drawnPxPerMetre: () => 48,
+      note: (m) => {
+        throw new Error(`the library complained: ${m}`);
+      },
+    });
+    const arch = await lib.acquire('ruins', 'arch');
+    const fern = await lib.acquire('ruins', 'fern');
+    expect([...arch!.textures.keys()]).toEqual(['arch_00']);
+    expect([...fern!.textures.keys()]).toEqual(['fern_00']);
+    // both sets are drawn from ONE page: it is in memory once
+    expect(lib.stats().pages).toBe(1);
+    const scene = await lib.scene('ruins', 'r1_gate');
+    expect(scene!.layers.backdropNear).toHaveLength(2);
+    expect(await lib.scene('ruins', 'r9_nowhere')).toBeNull();
+  });
+});

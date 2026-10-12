@@ -2,6 +2,8 @@ import type { ImageSource, Texture } from 'pixi.js';
 import { ArtLibrary } from '@/assets/artLibrary';
 import { createBrowserArtIO, pixiArtTextures } from '@/assets/artIO';
 import { log } from '@/core/log';
+import type { Layers } from '@/render/layers';
+import { RoomArtView } from '@/render/RoomArtView';
 
 /**
  * THE ART, as the game starts it (docs/ART-PIPELINE-2D.md, part C): a chunk of its own that a page WITHOUT art never downloads. `Game2D` imports it only
@@ -31,4 +33,12 @@ export function createArt(host: ArtHost): Art {
     now: () => performance.now(),
     note: host.note ?? ((message) => (host.dev ? scope.warn(message) : scope.debug(message))),
   });
+}
+
+/**
+ * The view that dresses a room with the art of the zone (`render/RoomArtView`): it lives in this chunk too, so a page with no art never downloads it and the cold
+ * start does not grow by a byte of it.
+ */
+export function createRoomArt(layers: Layers, art: Art): RoomArtView {
+  return new RoomArtView(layers, art);
 }

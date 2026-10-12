@@ -45,6 +45,8 @@ export interface HookHost {
   readonly camera: CameraAdapter2D;
   readonly playerVisual: PlayerVisualSwitch;
   readonly roomView: RoomView2D;
+  /** What the art covers of the room now (`null`: the blockout draws all of it). */
+  roomArt(): { solids: ReadonlySet<string>; gates: ReadonlySet<string>; exits: ReadonlySet<string>; backdrop: ReadonlySet<string>; sprites: number; lacking: ReadonlyMap<string, readonly string[]>; notes: readonly string[] } | null;
   readonly entityViews: EntityViews;
   readonly touchControls: TouchControls;
   readonly touchSource: TouchSource;
@@ -214,6 +216,11 @@ export function createTestHooks(h: HookHost) {
         scene: Object.fromEntries(
           (['terrain', 'actors', 'fxNormal', 'fxWorld', 'backdropFar', 'backdropMid', 'backdropNear', 'foreground', 'lightOverlay'] as const).map((k) => [k, h.renderer.layers[k].children.length]),
         ),
+        // what the art draws of the room (S45): the solids and doors it covers, the sprites it made, what the blockout still draws
+        roomArt: (() => {
+          const c = h.roomArt();
+          return c ? { solids: [...c.solids], gates: [...c.gates], exits: [...c.exits], backdrop: [...c.backdrop], sprites: c.sprites, lacking: Object.fromEntries(c.lacking), notes: [...c.notes] } : null;
+        })(),
         room: session.room.id,
         flags: session.flags.list(),
         gates: Object.fromEntries((session.room.gates ?? []).map((g) => [g.id, { open: session.gateOpen(g.id), alpha: h.roomView.gateAlpha(g.id) ?? null }])),

@@ -88,3 +88,94 @@ prueba el arte real del repositorio.
 - **Animación real**: ciclo de caminar/correr, ataques de varios fotogramas, muerte, beber, interactuar, *dash*, agacharse (el contrato ya los pide; la guía de entrega dice cómo).
 - **Legibilidad**: el héroe es casi negro. Se resuelve en la composición de los escenarios (luz **detrás**, oscuridad **delante**, riesgo R14) y, si hace falta, con un borde de energía en tiempo de ejecución (fase I).
 - **Revisión artística** de la pose de lanzamiento (escalada ×1.3 y espejada) y de la estocada (una embestida baja frente a una caja de golpe que no cambió).
+
+## Fase B — R1 «Puerta de las Ruinas» vestida (S46)
+
+**Resultado en una frase:** la primera sala **se dibuja con arte pintado en el motor** —suelo, piedra, plataformas de madera, puerta del guardián, haz de luz de la salida, tres capas de parallax, hojas en primer plano, luces, bruma y los *props*
+colocados a mano y con semilla (108 colocaciones en tres escenas)— y **el bloqueo (los rectángulos) ya no se ve en R1**; sigue existiendo debajo como *fallback* por ranura. **Ese arte lo pinta código** (`tools/art`), no una mano: es una producción de tipo «pintura generativa» con una
+luz y una paleta únicas, **no** arte de un ilustrador, y necesita revisión artística (ver «Pendiente»). **R1 no se da por terminada del todo:** el Ink Slime sigue siendo procedural (fase G) y los VFX son los de la fase 7 (fase H).
+
+### Qué se hizo
+
+- **El contrato se amplió sin romper nada** (todo opcional y compatible hacia atrás; ver `docs/ART-PIPELINE-2D.md`, parte M):
+  paquetes con `atlasMode: "shared"` (los fotogramas de **todos** los *sprite sets* comparten páginas: 3 paquetes → 3 páginas, no 50 texturas) y `scenes` (la escena de cada sala); `role:decor` en todas las capas; etiquetas `grid:CxR` (teselas periódicas
+  sin costuras), `rise:`/`reach:` (cuánto sobresale una pieza de su caja), `blend:add` y `layer:`; la parte `glow` de las puertas.
+- **Dos módulos puros nuevos** en `presentation/`: `roomScene` (el formato de la escena de una sala, validado contra su paquete) y **`roomPlan`**, el planificador: reparte `RoomDefinition.solids` en teselas **enteras** más un resto **recortado** (nunca escalado),
+  remates solo en bordes **expuestos**, bordes en los lados abiertos, plataformas con extremos, columna de puerta y bandas de parallax con la altura exacta que pide la cámara; recorta lo que la cámara no ve. **La colisión sigue siendo `RoomDefinition.solids`:
+  el arte es una piel** (probado: el cuerpo, los colliders y las cuatro cajas del héroe no cambian con ni sin arte).
+- **`RoomArtView`** (en el *chunk* de arte, que una página sin arte no descarga) dibuja la sala **sobre el *blockout***; `RoomView2D.cover/uncover` le quita al bloqueo **solo** lo que el arte cubre (sólidos, puertas, salidas, fondos) y le deja el resto.
+  Las puertas se disuelven con su *gate* (0.6 s de tiempo real) y las dos animaciones —la del arte y la del bloqueo— van juntas.
+- **El pintor** (`tools/art`, `npm run art:build`): ~3 100 líneas de TypeScript sobre Canvas2D de Chromium y pasadas por píxel —una sola fuente de luz fría desde arriba y delante, ambiente azul profundo y borde de luz; siluetas con perfil cilíndrico y bisel;
+  ruido periódico (teselas sin costura); un canal emisivo para los brillos cian y violeta; runas **originales y abstractas** (sin letras, sin símbolos de ninguna referencia); paleta negro / azul-verdoso / cian, con el violeta **solo** para el sello y lo enemigo.
+  Todo se versiona ya pintado en `art/` y `public/art/`: **nadie necesita ejecutar el pintor para jugar**, y un artista puede sustituir cualquier PNG a mano (la guía `docs/guides/deliver-environment-art.md` lo explica).
+- **`tools/assets`** empaqueta con páginas compartidas, copia y **verifica** las escenas (rutas seguras, *sprites* y fotogramas que existen, el paquete correcto) y juzga la cobertura de ranuras sobre **todos** los paquetes de entorno a la vez.
+
+### Los activos (todo de `tools/art`, estado `provisional`)
+
+| Paquete | *Sprite sets* | Qué es |
+|---|---|---|
+| `ruins-ground` | 35 | tierra y piedra (relleno 4×2, remate, bordes), madera de plataforma (cuerpo + dos extremos), puerta (cuerpo, remate, base, **resplandor aditivo**), velo de suelo, helechos, hierba, escombros, setas, cristales, raíces, 3 columnas, piedra rúnica, efigie |
+| `ruins-back` | 8 | las **tres bandas** de parallax (lejos 1200×340, medio 1536×448, cerca 1536×691), 2 arcos colosales y 3 hojas de primer plano |
+| `ruins-light` | 7 | haz de la salida, 2 brillos (cian, violeta), 2 haces, banco de bruma, motas |
+| **Escena `r1_gate`** | **77 + 13 + 18 colocaciones** (terreno 68, *props* 9 / arcos 4, hojas 9 / haces 3 + 1, luces 14) | 539 *sprites* en pantalla en el peor encuadre |
+
+En disco: 2 491 KB (PNG sin pérdida; 2.14 MB las tres páginas de escenario + 0.35 MB del héroe). En memoria: **4 páginas, 22.4 MiB** (héroe 620×672 · suelo 1216×1216 · fondos 1728×1708 · luz 1008×1008) frente a un presupuesto propuesto de 32 MiB.
+
+### *Placeholders* quitados y los que quedan
+
+- **Quitados en R1** (con `?visual=auto`, el valor por defecto): los **rectángulos de suelo, muros, bloques, escaleras, techo del túnel y puerta**; el **haz de la salida** (un rectángulo con degradado) y las **cuatro capas de fondo** (franjas planas de color). Nada de eso se dibuja ya en R1.
+  El bloqueo sigue siendo el camino de vuelta (`?art=`) y el *fallback* por ranura (probado con un paquete sintético que solo tiene tierra: lo que tiene lo dibuja, lo que le falta sigue siendo el bloqueo).
+- **Quedan en R1:** el **Ink Slime** (procedural, fase G) y los VFX de ataque, impacto y aviso (fase H); los 8 *stand-ins* y la falta de animación del protagonista (fase A).
+- **Quedan en el mundo** (el empaquetador lo dice con 5 avisos, y la prueba `artRepo` los lista): cuerpo de la puerta del sello (R3), celda de las espinas (R2), objetos «recoger» (R2, R3, R4), santuario de descanso (R2, R4) y el sello (R3). **R2, R3 y R4 son todavía el bloqueo de siempre** a propósito:
+  los paquetes solo declaran `r1_gate` en sus zonas hasta que cada fase termine su sala (una sala no se «medio viste» con materiales que no se compusieron para ella; el aviso violeta del jefe, por ejemplo, se dibujó sobre un suelo desnudo y se juzgará sobre el escenario que le dé la fase E).
+
+### Archivos
+
+Nuevos: `src/presentation/{roomPlan,roomScene}.ts` · `src/render/RoomArtView.ts` · `tools/art/**` (`build`, `spec`, `packs/ruins`, `scenes/r1`, `painter/*` ×17) · `art/ruins-{ground,back,light}/**` (fotogramas, manifiestos, escenas) ·
+`public/art/ruins-*/**` (empaquetado) · `tests/unit/presentation/{roomPlan,roomScene}.test.ts` · `tools/e2e/scenarios/roomArt.ts`.
+Modificados: `src/presentation/{artManifest,environment}.ts` · `src/assets/artLibrary.ts` · `src/render/RoomView2D.ts` · `src/app/{Game2D,art,testHooks}.ts` · `tools/assets/{build,verify}.ts` · `tools/e2e/{run,scenario}.ts` · `package.json` (`art:build`) ·
+`art/index.json`, `public/art/index.json` · `docs/{ART-PIPELINE-2D,ARCHITECTURE-2D,ROADMAP,PROMPT8-LOG}.md`, `docs/guides/deliver-environment-art.md`, `README.md`.
+
+### Herramientas usadas
+
+`npm run art:build` (el pintor) + `assets:pack` / `assets:check`; capturas del juego real a 844×390 y 1920×1080 en seis puntos del recorrido; *scripts* que apilan cada capa por separado y miden luminancia (así se encontró el haz de la salida dibujado a 1 m/px y la luz que lavaba al héroe);
+`?lab=art-stress`; el escenario `room-art` (nuevo).
+
+### Verificación
+
+| | Resultado |
+|---|---|
+| `tsc` | limpio |
+| Pruebas unitarias y de integración | **2292 en 145 archivos** (eran 2257 en 143: +35: planificador 18, escenas 6, escenario del pintor y del empaquetador 5+…, entorno) |
+| E2E (desarrollo) | **44/44** (el nuevo `room-art`; ver los problemas de más abajo) |
+| Llamadas de dibujo | **R1 entera: 13 como máximo** en seis encuadres a tamaño teléfono (presupuesto 60); el resto del juego, sin cambios |
+| Memoria del arte residente | 22.4 MiB (4 páginas) |
+| Tiempo de carga de la zona (software GL, sin dispositivo real) | ≈ 0.2–0.3 s |
+| Arranque en frío (200 KB de presupuesto) | **192.7 KB gz** (antes 190.8: +1.9, el cargador de escenas y el contrato nuevo) |
+| *Chunk* de arte (perezoso) | 15.0 KB gz (antes 10.5) |
+
+> Nada de esto está medido en un dispositivo real: SwiftShader en Chromium no dice cómo irá un teléfono de gama media (riesgo R6).
+
+### Pruebas que se adaptaron (y por qué)
+
+`environment.test.ts` (la expresión de un mensaje cambió), `artRepo.test.ts` (×4: el repositorio ya trae **cuatro** paquetes, empaquetarlo tarda ~9 s —tiempo de espera explícito, una construcción compartida— y los 5 avisos honestos de «lo que sigue siendo bloqueo» se
+listan en `STILL_THE_BLOCKOUT` en vez de exigir «ningún aviso»; encoger esa lista es el progreso), `room.ts` (E2E: el violeta del aviso del slime se mide **alrededor del slime**, no en toda la pantalla, porque el escenario azul ya aporta violeta de fondo; sigue exigiendo que el aviso **añada** ≥ 40 px),
+`playerArt.ts` (E2E: la biblioteca lista cuatro paquetes) y `environment.ts` (E2E: el recuento de objetos por capa se hace **sin arte** —es el del bloqueo, la vara con la que se mide el arte— y una sección nueva prueba que **con arte** reconstruir la sala tres veces
+deja exactamente las mismas capas). Ninguna prueba se bajó ni se borró.
+
+### Problemas encontrados (y resueltos)
+
+1. **Luz que lavaba al héroe** (primera composición): los haces cayendo *delante* de la acción. Ahora caen detrás (en las capas de parallax, sumados a lo que hay), con alfa bajo, bruma con borde difuminado y motas más escasas.
+2. **Haz de la salida a 1 m/px** (inundaba la pantalla de cian): faltaba aplicar la escala de píxeles por metro al *sprite*.
+3. **Runas que parecían letras** (y una cara sonriente): rediseñadas como glifos abstractos.
+4. **Bandas de parallax demasiado bajas** para las cámaras de R3 y R4 (se veía el cielo por encima): la banda cercana pasa de 653 a 691 px (18.0 m; la cámara más exigente pide 17.5 m). Hoy esas salas no usan el arte, pero lo harán.
+5. **El aviso violeta del jefe pierde fuerza sobre el escenario azul** (el escenario `boss` lo detectó: 948 → 986 px de violeta, no ≥ +60). **No se «arregló» el aviso en esta fase**: R4 se queda como bloqueo hasta la fase E y el aviso se rediseña en las fases F/H. Queda
+   como **riesgo de legibilidad conocido**, hermano de R14 (fase I): el violeta de lo enemigo debe contrastar con el azul del escenario, y eso se resuelve con el propio VFX (más saturación, luminosidad y borde), no relajando la prueba.
+6. Un escenario (`environment`) contaba objetos por capa con el arte puesto; ver «Pruebas que se adaptaron».
+
+### Pendiente de la fase B (a propósito)
+
+- **Revisión artística.** Todo el escenario lo ha pintado código: las formas son repetitivas a ojo de ilustrador (las columnas, los arcos y los árboles comparten gramática), no hay fotogramas de animación (el movimiento es solo de *sway/pulse/drift* en tiempo de ejecución) y la paleta
+  se calibró en capturas del mismo motor, no en una pantalla real. Un artista puede sustituir cualquier PNG sin tocar código.
+- **Calibración en dispositivo real** (brillo y contraste en pantallas OLED/LCD de teléfono, ancho de banda de la carga, memoria de las 4 páginas).
+- **R2, R3 y R4 siguen en bloqueo** (fases C, D y E).
