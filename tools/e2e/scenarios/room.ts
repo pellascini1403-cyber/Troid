@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { ROOMS } from '@/content';
 import { runBot } from '../../../tests/helpers/bot';
 import { driver, type Driver } from '../../../tests/helpers/sim';
+import { whenDressed } from '../dressed';
 import { countPixels, decodePng, isVioletLight } from '../png';
 import { record, replay, type Recording } from '../replay';
 import type { GameState, Scenario } from '../scenario';
@@ -101,7 +102,8 @@ export const room: Scenario = {
 
     // =================================================================================================== run A · the win
     await ctx.open('paused=1', { width: 844, height: 390, dpr: 1 });
-    let s = await ctx.state();
+    // the art of R1 arrives after the first frame: the scene graph is only comparable once the room is dressed
+    let s = await whenDressed(ctx);
     assert.equal(s.room, 'r1_gate', 'a new game starts in R1');
     assert.equal(s.now, 0, 'not one tick has run: the replay starts from tick 0');
     const scene0 = { ...s.scene };
@@ -219,14 +221,14 @@ export const room: Scenario = {
     await ctx.shot('b-01-respawned');
 
     // ============================================================================================ rebuilds leave nothing
-    s = await ctx.state();
+    s = await whenDressed(ctx);
     const before = { views: s.views, scene: { ...s.scene }, pools: s.vfx?.poolCreated };
     await ctx.page.evaluate('window.__troid.session.death.cancel()');
     for (let i = 0; i < 20; i++) {
       await ctx.page.evaluate('window.__troid.session.loadRoom("r1_gate")');
       await ctx.step(30);
     }
-    s = await ctx.state();
+    s = await whenDressed(ctx);
     note(s);
     assert.equal(s.views, before.views, 'no view leaked');
     assert.deepEqual(s.scene, before.scene, 'no scene object leaked');

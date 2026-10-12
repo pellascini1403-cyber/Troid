@@ -99,6 +99,8 @@ export class Game2D {
   /** The art that dresses the room the hero is in (it arrives with the art library; the blockout draws what it does not cover). */
   private roomArt: RoomArtView | null = null;
   private roomArtCover: RoomArtCoverage | null = null;
+  /** Which build of the room's look the art is dressing: a dressing that finds a newer build has nothing to cover any more. */
+  private dressSerial = 0;
   /** The markers of the room's interactables (a floating card, a lever) and the DOM icon that floats over the one in reach. */
   private readonly interactableViews: InteractableViews;
   private readonly prompt: InteractionPrompt;
@@ -413,7 +415,8 @@ export class Game2D {
           await art.start();
           await art.enterZone(this.session.room.id);
           await this.attachPlayerArt(art, options.hooks || import.meta.env.DEV);
-          await this.dressRoom();
+          // the room was built before the art arrived: this is the first time there is anything to dress it with
+          await this.dressRoom(this.dressSerial);
         })
         .catch((err: unknown) => log.scope('art').debug(`the art could not start: ${String(err)}`));
     };
@@ -572,7 +575,7 @@ export class Game2D {
     this.roomArt?.clear();
     this.roomArtCover = null;
     this.roomView.build(room, (gateId) => this.session.gateOpen(gateId));
-    void this.dressRoom();
+    void this.dressRoom(++this.dressSerial);
     this.interactableViews.build(room.interactables ?? [], (id) => this.session.interaction.isAvailable(id), (id) => this.isCheckpoint(id));
     this.tools?.setRoom();
     this.camera.setRoom(room);
@@ -582,15 +585,16 @@ export class Game2D {
    * The art of the room the hero is in, over the blockout: what the art covers, the blockout lets go of. A room whose art is not (yet) in memory stays as the blockout and
    * is dressed the moment it is; a build overtaken by a newer room does nothing.
    */
-  private async dressRoom(): Promise<void> {
+  private async dressRoom(serial: number): Promise<void> {
     const art = this.art;
     const view = this.roomArt;
     if (!art || !view || this.closed) return;
     const room = this.session.room;
     await art.enterZone(room.id);
-    if (this.closed || this.session.room !== room) return;
+    if (this.closed || serial !== this.dressSerial) return;
     const cover = await view.build(room);
-    if (!cover || this.closed || this.session.room !== room) return;
+    // the look of the room may have been built again while the art was arriving (the same room reloaded, or another one): this cover is not for the blockout that is there now
+    if (!cover || this.closed || serial !== this.dressSerial) return;
     this.roomArtCover = cover;
     this.roomView.cover(cover, (id) => view.door(id));
     // a developer is told what the art got wrong (a strip too short for the camera); a player's console stays quiet

@@ -104,8 +104,9 @@ export class RoomArtView {
    * newer `build` overtook this one). The room's own pieces are drawn at once; the scene follows the moment its file is read.
    */
   async build(room: RoomDefinition): Promise<RoomArtCoverage | null> {
-    const mine = ++this.serial;
+    // clearing overtakes any build still in flight (it resolves with `null` and draws nothing more): the build that follows is the only one that counts
     this.clear();
+    const mine = ++this.serial;
     const packs = this.art.heldPacks('environment');
     if (packs.length === 0) return null;
 
@@ -221,8 +222,9 @@ export class RoomArtView {
     }
   }
 
-  /** Frees everything it drew and gives back every set it counted. */
+  /** Frees everything it drew and gives back every set it counted. A build that was still waiting for a scene is overtaken: it draws nothing more. */
   clear(): void {
+    this.serial++;
     for (const r of this.roots.splice(0)) r.destroy({ children: true });
     for (const t of this.crops.values()) t.destroy(false);
     this.crops.clear();
@@ -232,7 +234,6 @@ export class RoomArtView {
   }
 
   destroy(): void {
-    this.serial++;
     this.clear();
   }
 

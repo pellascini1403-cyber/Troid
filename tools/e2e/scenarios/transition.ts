@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { ROOMS } from '@/content';
+import { layerLabels, whenDressed } from '../dressed';
 import { frames } from '../frames';
 import { countPixels, decodePng } from '../png';
 import type { GameState, Scenario } from '../scenario';
@@ -153,15 +154,18 @@ export const transition: Scenario = {
 
     // ================================================================================================ C · nothing left behind
     const domBefore = (await ctx.page.evaluate('document.querySelectorAll("*").length')) as number;
-    const sceneThrough = (await state()).scene!;
-    const viewsThrough = (await state()).views;
+    // R1 is dressed with the art, which arrives after the room is built: the scene graph is only comparable once it has
+    const through = await whenDressed(ctx);
+    const sceneThrough = through.scene!;
+    const viewsThrough = through.views;
+    const labelsThrough = await layerLabels(ctx);
     await sess('s.loadRoom("r1_gate", "east")'); // the same room, loaded directly
     await ctx.step(3);
     await ctx.page.waitForTimeout(100);
-    const direct = await state();
+    const direct = await whenDressed(ctx);
     const { fxNormal: _a, fxWorld: _b, ...throughRest } = sceneThrough;
     const { fxNormal: _c, fxWorld: _d, ...directRest } = direct.scene!;
-    assert.deepEqual(throughRest, directRest, 'the scene graph of a room entered through a transition is the one of the same room loaded directly');
+    assert.deepEqual(throughRest, directRest, `the scene graph of a room entered through a transition is the one of the same room loaded directly (through: ${JSON.stringify(labelsThrough)}; directly: ${JSON.stringify(await layerLabels(ctx))})`);
     assert.equal(viewsThrough, direct.views);
     assert.ok(Math.abs(((await ctx.page.evaluate('document.querySelectorAll("*").length')) as number) - domBefore) <= 4, 'and the DOM did not grow');
     // eight more round trips R1 ⇄ R2 leave the scene as it was
@@ -172,7 +176,7 @@ export const transition: Scenario = {
       await ctx.step(40);
     }
     await ctx.page.waitForTimeout(100);
-    const after = await state();
+    const after = await whenDressed(ctx);
     assert.equal(after.room, 'r1_gate');
     const { fxNormal: _e, fxWorld: _f, ...afterRest } = after.scene!;
     assert.deepEqual(afterRest, directRest, 'sixteen transitions later the scene has the same number of objects in every layer');

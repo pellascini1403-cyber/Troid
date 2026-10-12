@@ -144,6 +144,8 @@ export class ArtLibrary<S, T> {
   private readonly defs = new Map<string, SpriteSetDefinition>();
   /** What the zone policy keeps loaded: the sets of every pack that boots with the game or belongs to the zone the hero is in. */
   private readonly held = new Map<string, SpriteSetDefinition[]>();
+  /** The packs being loaded for the policy right now, so that a second ask waits for the first instead of returning early. */
+  private readonly loading = new Map<string, Promise<void>>();
   private zone: string | null = null;
   private disposed = false;
   private readonly counters = { requests: 0, failures: 0, loadMs: 0, peakBytes: 0 };
@@ -524,11 +526,24 @@ export class ArtLibrary<S, T> {
     return entry.load === 'boot' || (entry.load === 'zone' && this.zone !== null && entry.zones.includes(this.zone));
   }
 
-  /** Loads every sprite set of a pack and keeps it (one count each) until the policy lets it go. */
-  private async hold(packId: string): Promise<void> {
-    if (this.held.has(packId)) return;
+  /**
+   * Loads every sprite set of a pack and keeps it (one count each) until the policy lets it go. Two asks for the same pack load it once, and BOTH resolve when it is in memory:
+   * a second ask that came back at once while the first was still fetching would let a view build with half the sets missing.
+   */
+  private hold(packId: string): Promise<void> {
+    const inflight = this.loading.get(packId);
+    if (inflight) return inflight;
+    if (this.held.has(packId)) return Promise.resolve();
+    const load = this.load(packId).finally(() => {
+      if (this.loading.get(packId) === load) this.loading.delete(packId);
+    });
+    this.loading.set(packId, load);
+    return load;
+  }
+
+  private async load(packId: string): Promise<void> {
     const defs: SpriteSetDefinition[] = [];
-    this.held.set(packId, defs); // claimed before anything is awaited: two asks for the same pack load it once
+    this.held.set(packId, defs); // claimed before anything is awaited
     const info = await this.pack(packId);
     if (!info) {
       this.held.delete(packId);
@@ -556,6 +571,8 @@ export class ArtLibrary<S, T> {
     const defs = this.held.get(packId);
     if (!defs) return;
     this.held.delete(packId);
+    // a load still in flight gives back what it acquires (it finds the claim gone); a later ask starts a load of its own
+    this.loading.delete(packId);
     for (const def of defs) this.release(def);
   }
 
@@ -602,6 +619,7 @@ export class ArtLibrary<S, T> {
   dispose(): void {
     this.disposed = true;
     this.held.clear();
+    this.loading.clear();
     for (const e of this.sets.values()) e.loaded?.dispose();
     this.sets.clear();
     this.droppedClips.clear();

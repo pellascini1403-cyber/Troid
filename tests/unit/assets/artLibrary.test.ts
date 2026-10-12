@@ -377,6 +377,48 @@ describe('when the art is in memory: the zone policy', () => {
     expect(lib.stats().sets).toBe(2);
   });
 
+  it('a second ask for the zone the hero is already entering waits for the sets to be in memory: a view that builds on it never finds half the pieces missing', async () => {
+    const w = world();
+    const { lib } = setup(w);
+    await lib.init();
+    const open = w.hold(w.urls('forest', 'main').image);
+    const first = lib.enterZone('r1_gate'); // the pack of the zone is slow…
+    await new Promise((r) => setTimeout(r, 5));
+    let second = false;
+    const again = lib.enterZone('r1_gate').then(() => (second = true)); // …and the room is built again (`room:loaded`) while it is in flight
+    await new Promise((r) => setTimeout(r, 5));
+    expect(second, 'the second ask has not come back while the sets are still on the way').toBe(false);
+    expect(lib.acquireLoaded('forest', 'hero')).toBeNull();
+    open();
+    await Promise.all([first, again]);
+    expect(second).toBe(true);
+    const mine = lib.acquireLoaded('forest', 'hero');
+    expect(mine, 'and when it does, they are all there').not.toBeNull();
+    lib.release(mine!.def);
+    expect(w.fetches(w.urls('forest', 'main').image), 'the pack was fetched once').toBe(1);
+  });
+
+  it('a zone entered, left and entered again while its pack is still loading ends up held once, with every count given back at the end', async () => {
+    const w = world();
+    const { lib } = setup(w);
+    await lib.init();
+    const open = w.hold(w.urls('forest', 'main').image);
+    const a = lib.enterZone('r1_gate');
+    await new Promise((r) => setTimeout(r, 5));
+    const away = lib.enterZone('r2_hall'); // gone…
+    await new Promise((r) => setTimeout(r, 5));
+    const back = lib.enterZone('r1_gate'); // …and back before anything arrived
+    open();
+    await Promise.all([a, away, back]);
+    expect(held(lib)).toEqual(['forest', 'player']);
+    const mine = lib.acquireLoaded('forest', 'hero');
+    expect(mine).not.toBeNull();
+    lib.release(mine!.def); // (looking is counted: give it back, so that the policy's own counts are what is checked at the end)
+    await lib.enterZone('r2_hall');
+    expect(held(lib)).toEqual(['cave', 'player']);
+    expect(resident(w)).toEqual(['cave', 'player']);
+  });
+
   it('keeps a set that someone still uses when the zone lets go of its pack', async () => {
     const w = world();
     const { lib } = setup(w);
