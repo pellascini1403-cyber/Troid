@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { frames } from '../frames';
-import { countPixels, decodePng, isVioletLight } from '../png';
+import { countPixels, decodePng, isCrimsonLight, isVioletLight } from '../png';
 import type { GameState, Scenario } from '../scenario';
 
 /**
  * HAZARDS in a real browser (docs/PROMPT6-LOG.md S25): the strip of spikes on the floor of R2's ditch (x 39.5 … 42). It looks like what
- * it is (violet-tipped thorns), walking into it with the real keyboard costs a point of life, throws the hero up and out, shakes the
+ * it is (thorns with a warning colour at their tips: the blockout's are violet, the art's a muted crimson), walking into it with the real keyboard costs a point of life, throws the hero up and out, shakes the
  * camera and starts the i-frames; a second touch during them does nothing and one after them hurts again; on the last point of life
  * they kill, and the hero comes back at the shrine; and a running jump over them touches nothing. The console stays clean (the runner
  * fails the scenario otherwise).
@@ -25,9 +25,11 @@ export const hazard: Scenario = {
       return s;
     };
     const dom = (id: string, attr: string): Promise<string | null> => ctx.page.locator(`[data-testid="${id}"]`).getAttribute(attr);
+    // the warning colour of the tips on screen: violet (the blockout) plus crimson (the art of R2)
     const violetOnScreen = async (): Promise<number> => {
       await ctx.page.waitForTimeout(100);
-      return countPixels(decodePng(await ctx.page.screenshot()), isVioletLight);
+      const img = decodePng(await ctx.page.screenshot());
+      return countPixels(img, isVioletLight) + countPixels(img, isCrimsonLight);
     };
 
     // ================================================================================================ to the ditch of R2
@@ -53,7 +55,7 @@ export const hazard: Scenario = {
     await ctx.step(30);
     await frames(ctx.page, 40);
     const violet = await violetOnScreen();
-    assert.ok(violet > 25, `the thorns show their violet tips on screen (${violet} px)`);
+    assert.ok(violet > 25, `the thorns show the warning colour of their tips on screen (${violet} px)`);
     await ctx.shot('a-01-the-spikes');
 
     // ================================================================================================ walking into them: damage, knockback, shake, i-frames

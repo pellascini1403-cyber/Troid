@@ -101,3 +101,18 @@ Hoy el juego dibuja **siempre** el *blockout*, y entregar arte no cambia nada ha
 `{ "sceneVersion": 1, "room": "r1_gate", "layers": { "terrain": [ { "sprite": "fern_a", "x": 12.4, "y": 0, "scale": 1.1, "flip": true } ] } }`: una lista de colocaciones por capa (`backdropFar`, `backdropMid`, `backdropNear`, `propsBack`, `terrain`, `foreground`, `lightOverlay`) con coordenadas **en el espacio de esa capa** (metros, +y arriba). Cada colocación puede llevar `scale`, `w` y `h` (para una pieza **suave**: un degradado, un resplandor), `flip`, `alpha`, `tint`, `frame` (qué variante) y `motion` (`sway`, `pulse`, `drift`: cosmética). El *build* comprueba que cada pieza **existe en su paquete** y que el fotograma pedido existe.
 
 **Cómo se sustituye una pieza del pintor por arte hecho a mano:** se deja el *sprite* con el **mismo `id`** y las **mismas etiquetas** en el manifiesto del paquete (`art/ruins-ground/ruins-ground.pack.json`) y se ponen los PNG propios en `art/ruins-ground/<id>/<id>_NN.png` (con la misma cuadrícula `grid` si la pieza la tiene); **se quita del `packs/ruins.ts` del pintor** para que `npm run art:build` no la vuelva a pintar. Nada más cambia: ni la vista, ni las escenas, ni el juego.
+
+## 7. Peligros, objetos y santuarios (fase C)
+
+Tres piezas de los datos de la sala que ya se dibujan con arte (R2 las usa; R3 y R4 las usarán):
+
+| Qué se dibuja | Etiquetas | Cómo se pone |
+|---|---|---|
+| **Una zona que hace daño** (`hazards`: las espinas) | `role:hazard`, `kind:spikes`, `part:cell`, y `grid:Cx1` si la tira es periódica | pivote **abajo a la izquierda** `[0, 1]`; una fila de celdas a lo largo de la zona **desde su suelo**, de ancho entero y la última recortada. La celda puede ser más alta que la zona (la zona es lo que hiere; el dibujo solo dice dónde). Hazla **periódica** (que el último borde empalme con el primero) |
+| **Un santuario o una palanca** (`interactables`: `rest`, `activate`…) | `role:interactive`, `kind:rest` (o `activate`) | pivote **abajo en el centro** `[0.5, 1]`, sobre el punto que nombra la sala. **Un segundo fotograma** es *cómo se ve encendido* (el santuario que es el *checkpoint*, la palanca que aún sirve): el juego lo muestra sobre el primero con un pulso |
+| **Un objeto** (`pickup`) | `role:interactive`, `kind:pickup`, y `variant:bottle`, `variant:card` o `variant:rune` | pivote `[0.5, 1]`; flota 0.85 m por encima del punto de la sala **centrado** (el juego sube el dibujo la mitad de su altura), sube y baja y desaparece al cogerlo. Una pieza **sin** variante sirve a todas; **por lo que da**: una ranura de botella es `bottle`, una habilidad `rune`, lo demás `card`. La capa que lo dibuja es **aditiva**: píntalo como luz (lo oscuro no se ve) |
+
+**Los pasos de siempre:** `npm run assets:missing` dice qué pieza se pide todavía y qué salas la usan; `npm run assets:check` valida las etiquetas (una variante en algo que no es un objeto se ignora y se avisa; dos dibujos para la misma variante «reclaman la misma pieza»); `npm run assets:pack` empaqueta. **Lo que no entregues sigue siendo el *blockout* de siempre**, ranura a ranura.
+
+**Una guarda del primer plano:** las piezas de `layer:foreground` cuelgan del borde alto de la pantalla. Que su **borde superior nunca se vea** (si la cámara más alta de la sala lo deja a la vista se verá un corte plano en el aire): `RoomArtView` lo avisa en desarrollo (`state().roomArt.notes`) y el escenario `room-art` lo exige vacío.
+

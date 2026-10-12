@@ -14,7 +14,7 @@ import { verifyArtFolder } from '../../../tools/assets/verify';
  * THE ART IN THE REPOSITORY (docs/ART-PIPELINE-2D.md, parts E, L and M): whatever `art/` declares must build, and whatever `public/art` ships must verify — the very check
  * `npm run build` runs before a browser is ever opened, held in the unit tests too so that a broken asset cannot be committed unnoticed. What is there today is the
  * protagonist, made from the user's own pose sheet (`art/player/source`), provisional: one frame per clip, eight of the fifteen clips stand-ins that reuse another
- * pose; and the scenery of the first room (the three `ruins-*` packs, painted by `tools/art`). The rest of the rooms' pieces, the enemies, the boss and the effects have no
+ * pose; and the scenery of the first two rooms (the four `ruins-*` packs, painted by `tools/art`). The rest of the rooms' pieces, the enemies, the boss and the effects have no
  * art in the repository yet, and that is said, not hidden: `STILL_THE_BLOCKOUT` lists what the world asks for and the art does not have, and shrinks as the phases deliver it.
  */
 const root = fileURLToPath(new URL('../../../', import.meta.url));
@@ -22,11 +22,10 @@ const root = fileURLToPath(new URL('../../../', import.meta.url));
 const PACKING = 120_000;
 /** What the rooms of the world ask of the environment and no pack has yet: the blockout draws each of these. Empty when the world is fully dressed. */
 const STILL_THE_BLOCKOUT = [
-  'warn environment ruins-ground + ruins-back + ruins-light: the world asks for the "body" of door "seal" (r3_chamber) and the pack does not have it: the blockout draws it',
-  'warn environment ruins-ground + ruins-back + ruins-light: the world asks for the "cell" of hazard "spikes" (r2_hall) and the pack does not have it: the blockout draws it',
-  'warn environment ruins-ground + ruins-back + ruins-light: the world asks for the interactive "pickup" (r2_hall, r3_chamber, r4_sanctum) and the pack does not have it: the blockout draws it',
-  'warn environment ruins-ground + ruins-back + ruins-light: the world asks for the interactive "rest" (r2_hall, r4_sanctum) and the pack does not have it: the blockout draws it',
-  'warn environment ruins-ground + ruins-back + ruins-light: the world asks for the seal (r3_chamber) and the pack does not have it: the blockout draws it',
+  'warn environment ruins-ground + ruins-back + ruins-light + ruins-roots: the world asks for the "body" of door "seal" (r3_chamber) and the pack does not have it: the blockout draws it',
+  'warn environment ruins-ground + ruins-back + ruins-light + ruins-roots: the world asks for the interactive "pickup" of variant "card" (r3_chamber) and the pack does not have it: the blockout draws it',
+  'warn environment ruins-ground + ruins-back + ruins-light + ruins-roots: the world asks for the interactive "pickup" of variant "rune" (r4_sanctum) and the pack does not have it: the blockout draws it',
+  'warn environment ruins-ground + ruins-back + ruins-light + ruins-roots: the world asks for the seal (r3_chamber) and the pack does not have it: the blockout draws it',
 ];
 
 /** One dry build of the repository's art, shared by the tests that only read it. */
@@ -61,6 +60,7 @@ describe('the art of the repository', () => {
       ['ruins-ground', 'provisional', true],
       ['ruins-back', 'provisional', true],
       ['ruins-light', 'provisional', true],
+      ['ruins-roots', 'provisional', true],
     ]);
     expect(existsSync(join(root, 'public', 'art', 'index.json')), 'the generated folder is committed: the game fetches it').toBe(true);
   }, PACKING);

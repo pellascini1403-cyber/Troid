@@ -26,6 +26,8 @@ export interface BlockoutCover {
   solids: ReadonlySet<string>;
   gates: ReadonlySet<string>;
   exits: ReadonlySet<string>;
+  /** The zones that hurt (thorns) the art draws. */
+  hazards: ReadonlySet<string>;
   /** `far`, `mid`, `near`, `front`: the blockout's backdrop layers the scene replaces. */
   backdrop: ReadonlySet<string>;
 }
@@ -44,6 +46,7 @@ export class RoomView2D {
   private readonly gates = new Map<string, GateView>();
   private readonly extras: Container[] = [];
   private readonly exitViews = new Map<string, Graphics>();
+  private readonly hazardViews = new Map<string, Graphics>();
   private readonly backdropViews = new Map<string, Graphics>();
 
   constructor(private readonly layers: Layers) {}
@@ -72,6 +75,7 @@ export class RoomView2D {
       spikes.label = `hazard:${h.id}`;
       this.layers.terrain.addChild(spikes);
       this.extras.push(spikes);
+      this.hazardViews.set(h.id, spikes);
     }
 
     for (const x of room.exits ?? []) {
@@ -133,6 +137,10 @@ export class RoomView2D {
       const shaft = this.exitViews.get(id);
       if (shaft) shaft.visible = false;
     }
+    for (const id of cover.hazards) {
+      const spikes = this.hazardViews.get(id);
+      if (spikes) spikes.visible = false;
+    }
     for (const layer of cover.backdrop) {
       const view = this.backdropViews.get(layer);
       if (view) view.visible = false;
@@ -148,6 +156,7 @@ export class RoomView2D {
       gate.graphics.renderable = true;
     }
     for (const v of this.exitViews.values()) v.visible = true;
+    for (const v of this.hazardViews.values()) v.visible = true;
     for (const v of this.backdropViews.values()) v.visible = true;
   }
 
@@ -187,6 +196,7 @@ export class RoomView2D {
     for (const g of this.gates.values()) g.graphics.destroy();
     this.gates.clear();
     this.exitViews.clear();
+    this.hazardViews.clear();
     this.backdropViews.clear();
     for (const e of this.extras.splice(0)) e.destroy();
   }

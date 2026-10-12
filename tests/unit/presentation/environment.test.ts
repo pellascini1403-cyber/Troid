@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { ROOMS, WORLD } from '@/content';
 import type { ArtSprite } from '@/presentation/artManifest';
 import {
-  axisPlan, ENV_CONTRACT, ENV_LAYERS, ENV_ROLES, environmentCoverageIssues, environmentPackIssues, environmentSlots, HALF_VIEW, layerSpan, PARALLAX_FACTOR, planTiles, readEnvLook, readEnvTags, slotKey, stripCover,
+  axisPlan, ENV_CONTRACT, ENV_LAYERS, ENV_ROLES, environmentCoverageIssues, environmentPackIssues, environmentSlots, HALF_VIEW, interactiveVariant, layerSpan, PARALLAX_FACTOR, PICKUP_FLOAT, planTiles, readEnvLook, readEnvTags, slotKey, stripCover,
   type EnvRoomLike, type EnvSlot,
 } from '@/presentation/environment';
 import { createLayers } from '@/render/layers';
@@ -116,11 +116,11 @@ describe('what the world asks of the art, read from the rooms\' data', () => {
   const find = (role: string, subject: string | null, part: string): EnvSlot | undefined => slots.find((s) => s.role === role && s.subject === subject && s.part === part);
   const required = slots.filter((s) => s.required).map((s) => slotKey(s.role, s.subject, s.part));
 
-  it('the twelve pieces without which the four rooms are not dressed — and no more', () => {
+  it('the fourteen pieces without which the four rooms are not dressed — and no more (a pickup is asked for by what it gives: a bottle, a card, a rune)', () => {
     expect(required.sort()).toEqual(
       [
         'solid:stone:fill', 'solid:earth:fill', 'platform:wood:body', 'door:gate:body', 'door:seal:body', 'hazard:spikes:cell',
-        'backdrop:ruins:far', 'backdrop:ruins:mid', 'backdrop:ruins:near', 'interactive:pickup:', 'interactive:rest:', 'seal::',
+        'backdrop:ruins:far', 'backdrop:ruins:mid', 'backdrop:ruins:near', 'interactive:pickup:bottle', 'interactive:pickup:card', 'interactive:pickup:rune', 'interactive:rest:', 'seal::',
       ].sort(),
     );
   });
@@ -137,6 +137,19 @@ describe('what the world asks of the art, read from the rooms\' data', () => {
     expect(find('door', 'gate', 'body')?.rooms).toEqual(['r1_gate', 'r4_sanctum']);
     expect(find('solid', 'stone', 'fill')!.uses).toBeGreaterThan(10);
     expect(find('interactive', 'rest', '')?.rooms).toEqual(['r2_hall', 'r4_sanctum']);
+    // the three pickups of the world: the fourth bottle in R2, the Spirit Bolt card in R3, the Air Dash rune in R4
+    expect(find('interactive', 'pickup', 'bottle')?.rooms).toEqual(['r2_hall']);
+    expect(find('interactive', 'pickup', 'card')?.rooms).toEqual(['r3_chamber']);
+    expect(find('interactive', 'pickup', 'rune')?.rooms).toEqual(['r4_sanctum']);
+  });
+
+  it('a pickup\'s variant is read from what it GIVES in the room\'s data, and nothing else has one', () => {
+    expect(interactiveVariant({ kind: 'pickup', actions: [{ type: 'addBottleSlot' }, { type: 'setFlag' }] })).toBe('bottle');
+    expect(interactiveVariant({ kind: 'pickup', actions: [{ type: 'unlockAbility' }, { type: 'setFlag' }] })).toBe('rune');
+    expect(interactiveVariant({ kind: 'pickup', actions: [{ type: 'acquireCard' }] })).toBe('card');
+    expect(interactiveVariant({ kind: 'pickup' })).toBe('card');
+    expect(interactiveVariant({ kind: 'rest', actions: [{ type: 'addBottleSlot' }] })).toBe('');
+    expect(PICKUP_FLOAT).toBeGreaterThan(0);
   });
 
   it('a gate is a door, not ground: the solid a gate holds is asked for as a door of its material', () => {
@@ -177,7 +190,8 @@ function completePack(): ReturnType<typeof pack> {
   return pack(
     slots.map((s) => {
       const spec = ENV_CONTRACT[s.role];
-      const tags = [`role:${s.role}`, ...(spec.subject ? [`${spec.subject}:${s.subject}`] : []), ...(s.part ? [`part:${s.part}`] : [])];
+      // an interactive's part is the variant of its picture
+      const tags = [`role:${s.role}`, ...(spec.subject ? [`${spec.subject}:${s.subject}`] : []), ...(s.part ? [s.role === 'interactive' ? `variant:${s.part}` : `part:${s.part}`] : [])];
       return sprite(`${s.role}_${s.subject ?? 'x'}_${s.part || 'x'}`.replace(/[^a-z0-9_]/g, '_'), tags, { pivot: [...spec.pivot] as [number, number] });
     }),
     'final',
@@ -253,7 +267,7 @@ describe('environmentPackIssues: does a pack say what it draws, the way the cont
     const final = environmentPackIssues(pack(only, 'final'), slots);
     const provisional = environmentPackIssues(pack(only, 'provisional'), slots);
     expect(final.length).toBe(provisional.length);
-    expect(final.length).toBe(11); // the twelve required, less the one it has
+    expect(final.length).toBe(13); // the fourteen required, less the one it has
     expect(final.every((i) => i.level === 'error')).toBe(true);
     expect(provisional.every((i) => i.level === 'warn')).toBe(true);
     expect(final.some((i) => /the world asks for the "cell" of hazard "spikes" \(r2_hall\) and the pack does not have it$/.test(i.message))).toBe(true);
@@ -268,12 +282,17 @@ describe('environmentPackIssues: does a pack say what it draws, the way the cont
 
 describe('how a piece says it is drawn (readEnvLook)', () => {
   it('reads the grid of cells, the rise above the line it stands on, the reach past an edge, the blend and the layer', () => {
-    expect(readEnvLook(['role:solid', 'grid:4x2', 'rise:0.34', 'reach:0.2', 'blend:add', 'layer:props-back'])).toEqual({ grid: { cols: 4, rows: 2 }, rise: 0.34, reach: 0.2, blend: 'add', layer: 'props-back', problems: [] });
-    expect(readEnvLook(['role:solid'])).toEqual({ grid: null, rise: 0, reach: 0, blend: 'normal', layer: null, problems: [] });
+    expect(readEnvLook(['role:solid', 'grid:4x2', 'rise:0.34', 'reach:0.2', 'blend:add', 'layer:props-back'])).toEqual({ grid: { cols: 4, rows: 2 }, rise: 0.34, reach: 0.2, blend: 'add', layer: 'props-back', variant: null, problems: [] });
+    expect(readEnvLook(['role:solid'])).toEqual({ grid: null, rise: 0, reach: 0, blend: 'normal', layer: null, variant: null, problems: [] });
   });
 
   it('says what a tag got wrong instead of guessing', () => {
     expect(readEnvLook(['grid:4by2', 'rise:lots', 'blend:multiply']).problems).toHaveLength(3);
+    expect(readEnvLook(['variant:potion']).problems).toEqual([expect.stringMatching(/"variant:potion" is not a variant of a picture/)]);
+  });
+
+  it('reads the variant of a picture of an interactive', () => {
+    expect(readEnvLook(['role:interactive', 'kind:pickup', 'variant:bottle']).variant).toBe('bottle');
   });
 });
 
@@ -311,7 +330,7 @@ describe('environmentPackIssues: pieces drawn by cells, and the scenery of a pla
     const slots = environmentSlots(worldRooms()).filter((s) => s.required);
     const spec = (s: (typeof slots)[number]): ArtSprite => {
       const c = ENV_CONTRACT[s.role];
-      const tags = [`role:${s.role}`, ...(c.subject ? [`${c.subject}:${s.subject}`] : []), ...(s.part ? [`part:${s.part}`] : [])];
+      const tags = [`role:${s.role}`, ...(c.subject ? [`${c.subject}:${s.subject}`] : []), ...(s.part ? [s.role === 'interactive' ? `variant:${s.part}` : `part:${s.part}`] : [])];
       return sprite(`${s.role}_${s.subject ?? 'x'}_${s.part || 'x'}`.replace(/[^a-z0-9_]/g, '_'), tags, { pivot: [...c.pivot] as [number, number] });
     };
     const backdrops = slots.filter((s) => s.role === 'backdrop').map(spec);
@@ -322,5 +341,30 @@ describe('environmentPackIssues: pieces drawn by cells, and the scenery of a pla
     expect(environmentCoverageIssues([a], slots).length).toBeGreaterThan(0);
     expect(environmentCoverageIssues([a], slots).every((i) => i.level === 'error')).toBe(true);
     expect(environmentCoverageIssues([{ ...a, status: 'provisional' }], slots).every((i) => i.level === 'warn')).toBe(true);
+  });
+});
+
+describe('interactives: a picture per kind, and per thing a pickup gives', () => {
+  const pickup = (id: string, tags: string[] = []): ArtSprite => sprite(id, ['role:interactive', 'kind:pickup', ...tags], { pivot: [0.5, 1] });
+  const slots = environmentSlots(worldRooms()).filter((s) => s.required && s.role === 'interactive');
+
+  it('a picture with a variant covers that variant only; one without a variant serves every variant of its kind', () => {
+    const bottle = environmentCoverageIssues([{ id: 'a', status: 'provisional', sprites: [pickup('vial', ['variant:bottle'])] }], slots).map((i) => i.message);
+    expect(bottle.join('\n')).not.toMatch(/variant "bottle"/);
+    expect(bottle.join('\n')).toMatch(/variant "card"/);
+    expect(bottle.join('\n')).toMatch(/variant "rune"/);
+    const any = environmentCoverageIssues([{ id: 'a', status: 'provisional', sprites: [pickup('thing')] }], slots).map((i) => i.message);
+    expect(any.join('\n')).not.toMatch(/pickup/);
+  });
+
+  it('a variant belongs to a pickup: anywhere else it is ignored, and said so', () => {
+    const msgs = messages(pack([sprite('shrine', ['role:interactive', 'kind:rest', 'variant:bottle'], { pivot: [0.5, 1] })]));
+    expect(msgs).toEqual([expect.stringMatching(/^warn sprites\.shrine: only a pickup has variants/)]);
+    expect(messages(pack([pickup('vial', ['variant:bottle'])]))).toEqual([]);
+  });
+
+  it('two pictures for the same variant of a pickup claim the same piece; two variants do not', () => {
+    expect(messages(pack([pickup('a', ['variant:bottle']), pickup('b', ['variant:bottle'])]))).toEqual([expect.stringMatching(/claims the same piece as a/)]);
+    expect(messages(pack([pickup('a', ['variant:bottle']), pickup('b', ['variant:rune'])]))).toEqual([]);
   });
 });

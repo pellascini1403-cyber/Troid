@@ -1,0 +1,240 @@
+{
+  "sceneVersion": 1,
+  "room": "r2_hall",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "root_arch_a",
+        "x": 10.5,
+        "y": -0.9,
+        "flip": false,
+        "scale": 0.98
+      },
+      {
+        "sprite": "root_arch_b",
+        "x": 31.5,
+        "y": -0.9,
+        "flip": true,
+        "scale": 1.06
+      },
+      {
+        "sprite": "root_arch_a",
+        "x": 52.5,
+        "y": -0.9,
+        "flip": true,
+        "scale": 0.94
+      },
+      {
+        "sprite": "root_arch_b",
+        "x": 73.5,
+        "y": -0.9,
+        "flip": false,
+        "scale": 0.94
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "root_curtain_a",
+        "x": 2.64,
+        "y": -0.6,
+        "flip": false,
+        "alpha": 0.9
+      },
+      {
+        "sprite": "root_curtain_a",
+        "x": 8.37,
+        "y": -0.6,
+        "flip": false,
+        "alpha": 0.85
+      },
+      {
+        "sprite": "root_curtain_b",
+        "x": 14.77,
+        "y": -0.6,
+        "flip": true,
+        "alpha": 0.97
+      },
+      {
+        "sprite": "root_curtain_b",
+        "x": 21.66,
+        "y": -0.6,
+        "flip": false,
+        "alpha": 0.96
+      },
+      {
+        "sprite": "root_curtain_a",
+        "x": 27.92,
+        "y": -0.6,
+        "flip": false,
+        "alpha": 0.9
+      },
+      {
+        "sprite": "root_curtain_a",
+        "x": 34.35,
+        "y": -0.6,
+        "flip": false,
+        "alpha": 0.96
+      },
+      {
+        "sprite": "root_curtain_a",
+        "x": 40.61,
+        "y": -0.6,
+        "flip": true,
+        "alpha": 0.91
+      }
+    ],
+    "propsBack": [
+      {
+        "sprite": "root_pillar_a",
+        "x": 7.4,
+        "y": 0,
+        "flip": false,
+        "scale": 1.06
+      },
+      {
+        "sprite": "root_pillar_b",
+        "x": 17.4,
+        "y": 0,
+        "flip": true,
+        "scale": 1
+      },
+      {
+        "sprite": "root_pillar_a",
+        "x": 66.6,
+        "y": 0,
+        "flip": true,
+        "scale": 1.06
+      },
+      {
+        "sprite": "root_pillar_b",
+        "x": 78.2,
+        "y": 0,
+        "flip": false,
+        "scale": 1.08
+      },
+      {
+        "sprite": "root_pillar_a",
+        "x": 24.6,
+        "y": 0,
+        "flip": false,
+        "scale": 1.02
+      }
+    ],
+    "terrain": [
+      {
+        "sprite": "root_crawl_a",
+        "x": 5.6,
+        "y": 0,
+        "flip": false,
+        "scale": 1.1
+      },
+      {
+        "sprite": "root_crawl_b",
+        "x": 19.8,
+        "y": 0,
+        "flip": true,
+        "scale": 1.04
+      },
+      {
+        "sprite": "root_crawl_c",
+        "x": 36.6,
+        "y": -3.2,
+        "flip": false,
+        "scale": 0.98
+      },
+      {
+        "sprite": "root_crawl_a",
+        "x": 47.4,
+        "y": -3.2,
+        "flip": true,
+        "scale": 0.98
+      },
+      {
+        "sprite": "root_crawl_b",
+        "x": 62.4,
+        "y": 0,
+        "flip": false,
+        "scale": 1.05
+      },
+      {
+        "sprite": "root_crawl_c",
+        "x": 74.4,
+        "y": 0,
+        "flip": true,
+        "scale": 1.09
+      },
+      {
+        "sprite": "root_crawl_a",
+        "x": 88,
+        "y": 0,
+        "flip": false,
+        "scale": 1.05
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "fore_roots_a",
+        "x": 3.25,
+        "y": 6.65,
+        "flip": true,
+        "scale": 1.46
+      },
+      {
+        "sprite": "fore_roots_b",
+        "x": 16.12,
+        "y": 8.12,
+        "flip": false,
+        "scale": 1.17
+      },
+      {
+        "sprite": "fore_roots_c",
+        "x": 25.99,
+        "y": 7.54,
+        "flip": false,
+        "scale": 1.3
+      },
+      {
+        "sprite": "fore_roots_a",
+        "x": 38.33,
+        "y": 6.86,
+        "flip": false,
+        "scale": 1.45
+      },
+      {
+        "sprite": "fore_roots_b",
+        "x": 54.55,
+        "y": 7.63,
+        "flip": false,
+        "scale": 1.34
+      },
+      {
+        "sprite": "fore_roots_c",
+        "x": 63.91,
+        "y": 6.4,
+        "flip": true,
+        "scale": 1.49
+      },
+      {
+        "sprite": "fore_roots_a",
+        "x": 78.94,
+        "y": 7.57,
+        "flip": false,
+        "scale": 1.21
+      },
+      {
+        "sprite": "fore_roots_b",
+        "x": 90.01,
+        "y": 6.95,
+        "flip": true,
+        "scale": 1.46
+      },
+      {
+        "sprite": "fore_roots_c",
+        "x": 103.12,
+        "y": 7.06,
+        "flip": false,
+        "scale": 1.33
+      }
+    ]
+  }
+}

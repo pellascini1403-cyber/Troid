@@ -1,0 +1,381 @@
+{
+  "manifestVersion": 1,
+  "id": "ruins-roots",
+  "category": "environment",
+  "status": "provisional",
+  "comment": "THE ROOTS of the Root Gallery: root arches, curtains, wound columns, roots on the ground, tendrils in the foreground, and the thorns, the shrine and the vial of that room. Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.",
+  "tags": [
+    "ruins",
+    "generated"
+  ],
+  "atlasMode": "shared",
+  "scenes": {
+    "r2_hall": "scenes/r2_hall.json"
+  },
+  "atlases": [],
+  "sprites": [
+    {
+      "id": "root_arch_a",
+      "artPxPerMeter": 48,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 10,
+      "frameSize": [
+        672,
+        480
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-near"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "root_arch_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "root_arch_b",
+      "artPxPerMeter": 48,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 10,
+      "frameSize": [
+        672,
+        480
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-near"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "root_arch_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "root_curtain_a",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 9,
+      "frameSize": [
+        128,
+        288
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-mid"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "root_curtain_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "root_curtain_b",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 9,
+      "frameSize": [
+        128,
+        288
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-mid"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "root_curtain_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "root_pillar_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 6.604,
+      "frameSize": [
+        230,
+        634
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "root_pillar_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "root_pillar_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 6.604,
+      "frameSize": [
+        230,
+        634
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "root_pillar_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "root_crawl_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.104,
+      "frameSize": [
+        326,
+        106
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "root_crawl_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "root_crawl_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.104,
+      "frameSize": [
+        326,
+        106
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "root_crawl_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "root_crawl_c",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.104,
+      "frameSize": [
+        326,
+        106
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "root_crawl_c_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "fore_roots_a",
+      "artPxPerMeter": 48,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4,
+      "frameSize": [
+        240,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:foreground"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "fore_roots_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "fore_roots_b",
+      "artPxPerMeter": 48,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4,
+      "frameSize": [
+        240,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:foreground"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "fore_roots_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "fore_roots_c",
+      "artPxPerMeter": 48,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4,
+      "frameSize": [
+        240,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:foreground"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "fore_roots_c_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "thorns_cell",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 0.75,
+      "frameSize": [
+        48,
+        72
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:hazard",
+        "kind:spikes",
+        "part:cell",
+        "grid:4x1"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "thorns_cell_",
+          "count": 4
+        }
+      }
+    },
+    {
+      "id": "shrine_rest",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3.698,
+      "frameSize": [
+        317,
+        355
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:interactive",
+        "kind:rest"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "shrine_rest_",
+          "count": 2
+        }
+      }
+    },
+    {
+      "id": "vial_bottle",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.198,
+      "frameSize": [
+        67,
+        115
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:interactive",
+        "kind:pickup",
+        "variant:bottle"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "vial_bottle_",
+          "count": 1
+        }
+      }
+    }
+  ]
+}

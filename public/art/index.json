@@ -15,7 +15,8 @@
       "category": "environment",
       "load": "zone",
       "zones": [
-        "r1_gate"
+        "r1_gate",
+        "r2_hall"
       ],
       "manifest": "ruins-ground/ruins-ground.pack.json",
       "tags": [
@@ -27,7 +28,8 @@
       "category": "environment",
       "load": "zone",
       "zones": [
-        "r1_gate"
+        "r1_gate",
+        "r2_hall"
       ],
       "manifest": "ruins-back/ruins-back.pack.json",
       "tags": [
@@ -39,9 +41,22 @@
       "category": "environment",
       "load": "zone",
       "zones": [
-        "r1_gate"
+        "r1_gate",
+        "r2_hall"
       ],
       "manifest": "ruins-light/ruins-light.pack.json",
+      "tags": [
+        "ruins"
+      ]
+    },
+    {
+      "id": "ruins-roots",
+      "category": "environment",
+      "load": "zone",
+      "zones": [
+        "r2_hall"
+      ],
+      "manifest": "ruins-roots/ruins-roots.pack.json",
       "tags": [
         "ruins"
       ]

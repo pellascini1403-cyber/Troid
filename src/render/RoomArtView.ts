@@ -2,11 +2,12 @@ import { Container, Rectangle, Sprite, Texture, type ImageSource } from 'pixi.js
 import type { Rect } from '@/core/math';
 import type { ArtLibrary } from '@/assets/artLibrary';
 import { HALF_VIEW, PARALLAX_FACTOR, readEnvLook, readEnvTags, slotKey, type EnvLook } from '@/presentation/environment';
-import { cropFrame, planStrip, planTerrain, type Draw, type PieceInfo, type PieceLookup } from '@/presentation/roomPlan';
+import { cropFrame, planHazards, planInteractables, planStrip, planTerrain, type Draw, type InteractablePlacement, type PieceInfo, type PieceLookup } from '@/presentation/roomPlan';
 import { SCENE_LAYERS, type Placement, type SceneLayer } from '@/presentation/roomScene';
 import type { SpriteSetDefinition } from '@/presentation/SpriteSetDefinition';
 import { viewY } from '@/presentation/worldTransform';
 import type { RoomDefinition } from '@/world/RoomDefinition';
+import type { InteractableArt } from './InteractableViews';
 import type { Layers } from './layers';
 
 type Art = ArtLibrary<ImageSource, Texture>;
@@ -25,6 +26,10 @@ export interface RoomArtCoverage {
   solids: ReadonlySet<string>;
   gates: ReadonlySet<string>;
   exits: ReadonlySet<string>;
+  /** The zones that hurt (thorns) the art draws. */
+  hazards: ReadonlySet<string>;
+  /** The shrines, pickups and levers the art draws, each with the handle that follows what the simulation says of it. */
+  interactables: ReadonlyMap<string, InteractableArt>;
   /** The blockout backdrops the scene replaces: `far`, `mid`, `near` and `front` (the foreground). */
   backdrop: ReadonlySet<string>;
   /** How many sprites it made. */
@@ -59,6 +64,7 @@ interface Motion {
 const LAYER_OF_BLOCKOUT: Readonly<Record<string, string>> = { backdropFar: 'far', backdropMid: 'mid', backdropNear: 'near', foreground: 'front' };
 /** The camera shows at most this much above and below the room's camera range. */
 const VIEW_MARGIN_Y = 10;
+const FOREGROUND_FACTOR = PARALLAX_FACTOR.foreground;
 
 const pad2 = (i: number): string => String(i).padStart(2, '0');
 
@@ -132,7 +138,8 @@ export class RoomArtView {
         const piece: Piece = { set, frames, look, mpp, w: first.orig.width * mpp, h: first.orig.height * mpp, pivot: set.def.pivot };
         byName.set(`${info.pack.id}/${sprite.id}`, piece);
         const { roles, subject, parts } = readEnvTags(sprite.tags);
-        if (roles.length === 1 && roles[0] !== 'decor') bySlot.set(slotKey(roles[0]!, subject, parts[0] ?? ''), piece);
+        // an interactive's piece is its variant (a pickup's bottle, card or rune); the others are named by their part
+        if (roles.length === 1 && roles[0] !== 'decor') bySlot.set(slotKey(roles[0]!, subject, roles[0] === 'interactive' ? (look.variant ?? '') : (parts[0] ?? '')), piece);
       }
     }
     const lookup: PieceLookup = (role, subject, part) => {
@@ -144,6 +151,7 @@ export class RoomArtView {
     const camera: Rect = room.camera?.bounds ?? room.bounds;
     const view: Rect = { x0: camera.x0 - HALF_VIEW, x1: camera.x1 + HALF_VIEW, y0: camera.y0 - VIEW_MARGIN_Y, y1: camera.y1 + VIEW_MARGIN_Y };
     const plan = planTerrain(room, lookup, view);
+    const info = (p: Piece | undefined): PieceInfo | null => (p ? ({ frames: p.frames.length, w: p.w, h: p.h, look: p.look } satisfies PieceInfo) : null);
     let sprites = 0;
     const terrain = this.root(this.layers.terrain, 'art:terrain');
     for (const d of plan.draws) sprites += this.draw(terrain, d, bySlot);
@@ -154,6 +162,29 @@ export class RoomArtView {
       this.roots.push(door);
       this.doors.set(gateId, door);
     }
+
+    // ---- the zones that hurt: a row of the art's cells along each (the zone is the room's data; the picture only says where)
+    const lacking = new Map(plan.lacking);
+    const hazards = planHazards(room.hazards ?? [], (kind) => info(bySlot.get(slotKey('hazard', kind, 'cell'))), view);
+    if (hazards.draws.length > 0) {
+      const root = this.root(this.layers.terrain, 'art:hazards');
+      for (const d of hazards.draws) sprites += this.draw(root, d, bySlot);
+    }
+    for (const [slot, ids] of hazards.lacking) lacking.set(slot, ids);
+
+    // ---- what can be used: the shrines, the pickups, the levers — each one a handle the views feed with what the simulation says
+    const interactables = new Map<string, InteractableArt>();
+    const items = planInteractables(room.interactables ?? [], (kind, variant) => info(bySlot.get(slotKey('interactive', kind, variant)) ?? bySlot.get(slotKey('interactive', kind, ''))));
+    for (const p of items.placements) {
+      const piece = bySlot.get(p.slot) ?? bySlot.get(slotKey('interactive', p.kind, ''));
+      if (!piece) continue;
+      const art = new ArtInteractable(piece, p);
+      this.layers[p.layer].addChild(art.root);
+      this.roots.push(art.root);
+      interactables.set(p.id, art);
+      sprites += art.sprites;
+    }
+    for (const [slot, ids] of items.lacking) lacking.set(slot, ids);
 
     // ---- the strips: the three seamless layers that scroll slower than the world (`backdrop` far, mid and near) — the base of the scenery, under the scene's own pieces
     const covered = new Set<string>();
@@ -196,18 +227,26 @@ export class RoomArtView {
     // ---- the scenes: where the packs put their pieces behind and in front of the action (read now, drawn when they arrive)
     const scenes = await Promise.all(packs.map((p) => this.art.scene(p.pack.id, room.id).then((scene) => ({ pack: p.pack.id, scene }))));
     if (mine !== this.serial) return null;
+    // a piece in front hangs from the top of the screen: its own top edge must stay above the highest view the camera can have, or it shows as a flat edge in the air
+    const tallest = FOREGROUND_FACTOR * (camera.y1 - viewHeight / 2) + viewHeight / 2;
     for (const { pack, scene } of scenes) {
       if (!scene) continue;
       for (const layer of SCENE_LAYERS) {
         const list = scene.layers[layer];
         if (!list || list.length === 0) continue;
         const root = this.root(this.layers[layer], `art:scene:${layer}`);
-        for (const p of list) sprites += this.place(root, byName.get(`${pack}/${p.sprite}`), p);
+        for (const p of list) {
+          const piece = byName.get(`${pack}/${p.sprite}`);
+          sprites += this.place(root, piece, p);
+          if (layer === 'foreground' && piece && p.y + piece.h * (p.scale ?? 1) < tallest) {
+            notes.push(`the foreground piece "${p.sprite}" at ${p.x} m ends ${(p.y + piece.h * (p.scale ?? 1)).toFixed(1)} m high and the camera of "${room.id}" can show up to ${tallest.toFixed(1)} m: its top edge can show`);
+          }
+        }
         const blockout = LAYER_OF_BLOCKOUT[layer];
         if (blockout) covered.add(blockout);
       }
     }
-    return { solids: plan.dressed, gates: new Set(plan.gates.keys()), exits, backdrop: covered, sprites, lacking: plan.lacking, notes };
+    return { solids: plan.dressed, gates: new Set(plan.gates.keys()), exits, hazards: hazards.dressed, interactables, backdrop: covered, sprites, lacking, notes };
   }
 
   /** The cosmetic motion of the pieces that have one (real seconds: scenery does not wait for a hit-stop). */
@@ -296,6 +335,46 @@ export class RoomArtView {
     root.addChild(s);
     if (p.motion) this.motions.push({ sprite: s, kind: p.motion, phase: (p.x * 1.7 + p.y * 0.9) % (Math.PI * 2), baseAlpha: p.alpha ?? 1, baseX: p.x });
     return 1;
+  }
+}
+
+/**
+ * One interactable drawn by the art: its resting picture and, when the piece has a second frame, the LIT one over it. It follows what the views tell it every frame and
+ * decides nothing — a floating pickup bobs and is gone once taken, a shrine pulses while it is the checkpoint, a lever dims once spent — the same behaviour as the blockout's mark.
+ */
+class ArtInteractable implements InteractableArt {
+  readonly root: Container;
+  readonly sprites: number;
+  private readonly lit: Sprite | null;
+  private readonly baseY: number;
+
+  constructor(
+    piece: Piece,
+    private readonly place: InteractablePlacement,
+  ) {
+    this.root = new Container({ label: `art:interactable:${place.id}` });
+    const rest = new Sprite(piece.frames[0]!);
+    this.lit = piece.frames.length > 1 ? new Sprite(piece.frames[1]!) : null;
+    for (const s of this.lit ? [rest, this.lit] : [rest]) {
+      s.anchor.set(piece.pivot[0], piece.pivot[1]);
+      s.scale.set(piece.mpp);
+      this.root.addChild(s);
+    }
+    if (this.lit) this.lit.alpha = 0;
+    if (piece.look.blend === 'add') for (const s of this.root.children) (s as Sprite).blendMode = 'add';
+    this.baseY = viewY(place.y);
+    this.root.position.set(place.x, this.baseY);
+    this.sprites = this.lit ? 2 : 1;
+  }
+
+  update(time: number, available: boolean, lit: boolean, phase: number): void {
+    const p = this.place;
+    if (p.floats) {
+      this.root.visible = available;
+      this.root.y = this.baseY + Math.sin(time * 2.2 + phase) * 0.06;
+      this.root.alpha = 0.88 + 0.12 * Math.sin(time * 3.1 + phase);
+    } else if (p.kind !== 'rest') this.root.alpha = available ? 1 : 0.35;
+    if (this.lit) this.lit.alpha = lit ? 0.85 + 0.15 * Math.sin(time * 2.4 + phase) : 0;
   }
 }
 

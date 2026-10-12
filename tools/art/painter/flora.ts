@@ -287,7 +287,7 @@ export function effigy(o: PropOptions): Surface {
   return finish(layer);
 }
 
-/** A colossal arch and its two broken piers, for the layers behind the action: bigger than a room. */
+/** A colossal arch and its two broken piers, for the layers behind the action: bigger than a room. The whole of it is inside the picture: a flat edge where the ring was cut would show. */
 export function ruinedArch(o: PropOptions): Surface {
   const { w, h, ppm, seed } = o;
   const rng = new Rng(seed);
@@ -297,7 +297,9 @@ export function ruinedArch(o: PropOptions): Surface {
   const span = (w - r * 6) / 2;
   const left = r * 2 + 0;
   const right = w - r * 2;
-  const hgt = h * 0.78;
+  // the piers are as tall as the picture lets the ring above them be: its top stays 0.4 m inside the edge
+  const ringReach = 0.88 * span + r + ppm * 0.9;
+  const hgt = Math.min(h * 0.78, foot - (ppm * 0.4 + ringReach) + r * 0.5);
   const l = column(rng, left, foot, foot - hgt, r, 'whole');
   const rr = column(rng, right, foot, foot - hgt * 0.72, r, 'broken');
   layer.add(l.draw, l.box, { round: r * 0.75, tone: 0.2, spread: 0.07, moss: 0.5, fade: [0.03, -0.02], flutes: { count: 9, depth: r * 0.06 } });
@@ -308,7 +310,9 @@ export function ruinedArch(o: PropOptions): Surface {
   layer.add(wall.draw, wall.box, { round: ppm * 0.2, tone: 0.16, spread: 0.06, moss: 0.5 });
   const v = vine(rng, left, top + r, ppm * 3, ppm * 0.09);
   layer.add(v.draw, v.box, { round: 2, tone: 0.12, spread: 0.04 });
-  const c = crown(rng, (left + right) / 2, top - span * 0.7, ppm * 2.6, ppm * 1.2);
+  // the crown of leaves over the top of the ring, inside the picture
+  const ringTop = top - 0.88 * span - r;
+  const c = crown(rng, (left + right) / 2, Math.max(ppm * 1.3, ringTop + ppm * 0.9), ppm * 2.6, ppm * 1.2);
   layer.add(c.draw, c.box, { round: ppm * 0.3, tone: 0.1, spread: 0.04 });
   return finish(layer, DAY);
 }

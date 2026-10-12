@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { readEnvLook } from '@/presentation/environment';
-import { cropFrame, exposedEdges, planStrip, planTerrain, subtractSpans, type PieceInfo, type PieceLookup, type PlanRoom } from '@/presentation/roomPlan';
+import { PICKUP_FLOAT } from '@/presentation/environment';
+import { cropFrame, exposedEdges, planHazards, planInteractables, planStrip, planTerrain, subtractSpans, type PieceInfo, type PieceLookup, type PlanRoom } from '@/presentation/roomPlan';
 import { rect } from '@/world/builders';
 import { R1_GATE_ROOM } from '@/content/rooms/r1Gate';
+import { R2_HALL_ROOM } from '@/content/rooms/r2Hall';
+import { R3_CHAMBER_ROOM } from '@/content/rooms/r3Chamber';
+import { R4_SANCTUM_ROOM } from '@/content/rooms/r4Sanctum';
 
 /**
  * WHAT TO DRAW OF A ROOM'S OWN DATA (docs/ART-PIPELINE-2D.md, part M): the pure plan that turns the room's solids and the size of each piece of art into rectangles.
@@ -205,5 +209,85 @@ describe('cropFrame: the clipped last cell keeps the packer\'s alignment', () =>
     const whole = cropFrame({ x: 0, y: 0, w: 40, h: 32 }, orig, null, { x0: 10, y0: 0, x1: 30, y1: 32 })!;
     expect(whole.frame).toEqual({ x: 10, y: 0, w: 20, h: 32 });
     expect(whole.trim).toEqual({ x: 0, y: 0, w: 20, h: 32 });
+  });
+});
+
+describe('planHazards: the zones that hurt', () => {
+  const spikes = (w: number, h: number, frames = 1, tags: string[] = []): PieceInfo => piece(w, h, tags, frames);
+
+  it('puts a row of the art\'s cells along the zone from its FLOOR, as big as the art says, whole cells then the clipped one (the left part of the frame, never scaled)', () => {
+    const plan = planHazards([{ id: 'ditch', kind: 'spikes', rect: rect(39.5, -3.2, 42, -2.6) }], () => spikes(0.5, 0.7));
+    expect(plan.draws).toHaveLength(5);
+    expect(plan.draws.map((d) => d.x)).toEqual([39.5, 40, 40.5, 41, 41.5]);
+    // the cell stands on the floor of the zone and is taller than the zone (the zone is what hurts; the picture only says where)
+    for (const d of plan.draws) expect([d.top, d.w, d.h, d.slot]).toEqual([-3.2 + 0.7, 0.5, 0.7, 'hazard:spikes:cell']);
+    expect([...plan.dressed]).toEqual(['ditch']);
+    const clipped = planHazards([{ id: 'z', kind: 'spikes', rect: rect(0, 0, 1.3, 0.6) }], () => spikes(0.5, 0.7)).draws;
+    expect(clipped.map((d) => [d.x, d.w, d.u1].map((n) => Math.round(n * 1e6) / 1e6))).toEqual([[0, 0.5, 1], [0.5, 0.5, 1], [1, 0.3, 0.6]]);
+  });
+
+  it('picks the cell of a grid by its place along the zone, so a long strip does not repeat one picture', () => {
+    const frames = planHazards([{ id: 'z', kind: 'spikes', rect: rect(0, 0, 3, 0.6) }], () => spikes(0.5, 0.7, 3, ['grid:3x1'])).draws.map((d) => d.frame);
+    expect(frames).toEqual([0, 1, 2, 0, 1, 2]);
+  });
+
+  it('a kind the art has no cell for is reported, and the blockout of that zone stays', () => {
+    const plan = planHazards([{ id: 'a', kind: 'spikes', rect: rect(0, 0, 2, 0.6) }, { id: 'b', kind: 'fire', rect: rect(5, 0, 7, 0.6) }], (k) => (k === 'spikes' ? spikes(0.5, 0.7) : null));
+    expect([...plan.dressed]).toEqual(['a']);
+    expect([...plan.lacking]).toEqual([['hazard:fire:cell', ['b']]]);
+  });
+
+  it('with a view, cells that can never be on screen are not made', () => {
+    const plan = planHazards([{ id: 'z', kind: 'spikes', rect: rect(0, 0, 100, 0.6) }], () => spikes(0.5, 0.7), rect(10, -5, 12, 5));
+    expect(plan.draws.length).toBeLessThanOrEqual(5);
+    expect(plan.draws.every((d) => d.x + d.w > 10 && d.x < 12)).toBe(true);
+    expect([...plan.dressed]).toEqual(['z']);
+  });
+
+  it('plans the real R2: its strip of spikes is dressed when the art has a cell for them', () => {
+    const plan = planHazards(R2_HALL_ROOM.hazards ?? [], () => spikes(0.5, 0.7));
+    expect([...plan.dressed]).toEqual(['spikes_ditch']);
+    expect(plan.draws).toHaveLength(5);
+  });
+});
+
+describe('planInteractables: the shrines, the pickups and the levers', () => {
+  const pieces: Record<string, PieceInfo> = {
+    'rest:': piece(1.6, 2.6, [], 2),
+    'pickup:bottle': piece(0.5, 0.8),
+    'pickup:': piece(0.6, 0.6),
+  };
+  const lookup = (kind: string, variant: string): PieceInfo | null => pieces[`${kind}:${variant}`] ?? pieces[`${kind}:`] ?? null;
+
+  it('a shrine stands on the spot its data names, behind the action, with the two frames it has (resting, lit)', () => {
+    const plan = planInteractables([{ id: 'shrine', kind: 'rest', x: 12, y: 0, actions: [{ type: 'checkpoint' }] }], lookup);
+    expect(plan.placements).toEqual([{ id: 'shrine', kind: 'rest', variant: '', slot: 'interactive:rest:', x: 12, y: 0, layer: 'propsBack', floats: false, frames: 2 }]);
+    expect([...plan.dressed]).toEqual(['shrine']);
+  });
+
+  it('a pickup floats: centred on the height its data names plus the float, in the light layer, by what it gives', () => {
+    const bottle = planInteractables([{ id: 'b', kind: 'pickup', x: 49.5, y: 4.8, actions: [{ type: 'addBottleSlot' }, { type: 'setFlag' }] }], lookup).placements[0]!;
+    expect([bottle.variant, bottle.layer, bottle.floats, bottle.x]).toEqual(['bottle', 'lightOverlay', true, 49.5]);
+    // the pivot is the bottom of the picture: its centre (0.8 m tall) is at 4.8 + the float
+    expect(bottle.y + 0.8 / 2).toBeCloseTo(4.8 + PICKUP_FLOAT, 10);
+    // a card has no variant of its own in this art: the picture with none serves it
+    const card = planInteractables([{ id: 'c', kind: 'pickup', x: 1, y: 0, actions: [{ type: 'acquireCard' }] }], lookup).placements[0]!;
+    expect([card.variant, card.slot, card.frames]).toEqual(['card', 'interactive:pickup:card', 1]);
+  });
+
+  it('what the art has no picture for is reported by its slot, and its blockout stays', () => {
+    const plan = planInteractables(
+      [{ id: 'lever', kind: 'activate', x: 3, y: 0 }, { id: 'rune', kind: 'pickup', x: 4, y: 0, actions: [{ type: 'unlockAbility' }] }],
+      (kind, variant) => (kind === 'pickup' && variant === 'rune' ? null : lookup(kind, variant)),
+    );
+    expect([...plan.lacking]).toEqual([['interactive:activate:', ['lever']], ['interactive:pickup:rune', ['rune']]]);
+    expect(plan.placements).toEqual([]);
+  });
+
+  it('plans the real world: R2 asks for a shrine and a bottle, R3 for a card, R4 for a shrine and a rune', () => {
+    const asks = (room: { interactables?: ReadonlyArray<{ id: string; kind: string; x: number; y: number; actions?: ReadonlyArray<{ type: string }> }> }): string[] => [...planInteractables(room.interactables ?? [], () => null).lacking.keys()].sort();
+    expect(asks(R2_HALL_ROOM)).toEqual(['interactive:pickup:bottle', 'interactive:rest:']);
+    expect(asks(R3_CHAMBER_ROOM)).toEqual(['interactive:pickup:card']);
+    expect(asks(R4_SANCTUM_ROOM)).toEqual(['interactive:pickup:rune', 'interactive:rest:']);
   });
 });

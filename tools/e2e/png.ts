@@ -38,6 +38,12 @@ export function countPixels(img: Image, test: PixelTest, region?: { x0: number; 
 export const isVioletLight: PixelTest = (r, g, b) => b >= 120 && r >= 70 && b - g >= 40 && r - g >= 8 && r < 235;
 
 /**
+ * The muted CRIMSON of what hurts without being an enemy — the thorns' tips in the art of R2 (docs/PROMPT8-LOG.md, phase C): red clearly above green and a step above blue, bright
+ * enough not to be the dark scenery. The cyan, the violet and the grey of the scenery are outside it.
+ */
+export const isCrimsonLight: PixelTest = (r, g, b) => r >= 90 && r - g >= 30 && r - b >= 10;
+
+/**
  * Bright cyan / white-hot LIGHT, the hero's energy (docs/GAME-SPEC-2D.md §3.2): blue and green both high, red a step lower
  * (cyan) or all of them very high (the white core). The dark scene, the grey scenery and violet light are outside it.
  */

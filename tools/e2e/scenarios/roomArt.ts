@@ -13,9 +13,12 @@ import type { Ctx, GameState, Scenario } from '../scenario';
  *   C · the door follows its gate: the art's container and the blockout's animation fade together, and once open the door is not drawn
  *   D · no art (`?art=`): the blockout draws everything, as it always did
  *   E · art that has only some of the materials (synthetic): what it has is drawn by it, what it lacks stays the blockout's, and the room is still whole
+ *   F · R2, the Root Gallery: the thorns of the ditch, the shrine (resting → lit when it is the checkpoint) and the vial of the fourth bottle (gone once taken) are drawn by the art,
+ *       the blockout lets go of exactly those, the room's own data is untouched, and the draw calls stay under the budget along the whole room
  */
 const PHONE = { width: 844, height: 390, dpr: 1 };
 const R1 = ROOMS['r1_gate']!;
+const R2 = ROOMS['r2_hall']!;
 /** The places of the walk and what each is (x of the hero's feet). */
 const PLACES: Array<[string, number]> = [['start', 6], ['chasm', 34], ['stairs', 44], ['crawl', 70], ['court', 98], ['gate', 106.6]];
 
@@ -135,5 +138,82 @@ export const roomArt: Scenario = {
     } finally {
       fixture.cleanup();
     }
+
+    // ================================================================================================ F · R2: the thorns, the shrine and the vial
+    await ctx.open('room=r2_hall&paused=1', PHONE);
+    const gallery = (await waitFor(ctx, 'R2 dressed with the art', (s) => s.roomArt !== null && s.roomArt !== undefined)).roomArt!;
+    assert.deepEqual([...gallery.solids].sort(), R2.solids.map((x) => x.id).sort(), 'every solid of R2 — the ground, the ditch, the five timber platforms — is drawn by the art');
+    assert.deepEqual(gallery.hazards, ['spikes_ditch'], 'the thorns of the ditch are drawn by the art too');
+    assert.deepEqual([...gallery.interactables].sort(), ['bottle_fourth', 'shrine'], 'and so are the shrine and the vial of the fourth bottle');
+    assert.deepEqual([...gallery.exits].sort(), ['east', 'west']);
+    assert.deepEqual(gallery.lacking, {}, 'the art lacks nothing R2 asks for');
+    assert.deepEqual(gallery.notes, [], 'and nothing it says about its strips or its foreground');
+    const terrainLabels = await labels(ctx, 'terrain');
+    assert.ok(terrainLabels.some((c) => c.label === 'art:hazards' && c.children >= 5), `the art's thorns are there (${JSON.stringify(terrainLabels.map((c) => c.label))})`);
+    // the blockout lets go of exactly what the art draws: its thorns are not drawn, nor its marks of the shrine and the pickup
+    const blockoutThorns = await ctx.page.evaluate(`(() => { const g = window.__troid.game.renderer.layers.terrain.children.find((c) => c.label === 'hazard:spikes_ditch'); return g ? g.visible : null; })()`);
+    assert.equal(blockoutThorns, false, 'the blockout\'s thorns are not drawn');
+    const covered = (await ctx.page.evaluate('window.__troid.game.interactableViews.covered')) as string[];
+    assert.deepEqual([...covered].sort(), ['bottle_fourth', 'shrine'], 'the blockout\'s marks of the shrine and the pickup are not drawn');
+    const interactive = (id: string, layer: string): Promise<{ visible: boolean; lit: number | null; alpha: number } | null> =>
+      ctx.page.evaluate(
+        `(() => { const c = window.__troid.game.renderer.layers.${layer}.children.find((x) => x.label === 'art:interactable:${id}'); return c ? { visible: c.visible, alpha: c.alpha, lit: c.children[1] ? c.children[1].alpha : null } : null; })()`,
+      ) as Promise<{ visible: boolean; lit: number | null; alpha: number } | null>;
+    // the shrine rests until it is the checkpoint; the vial floats until it is taken
+    await ctx.page.waitForTimeout(300);
+    const resting = await interactive('shrine', 'propsBack');
+    assert.ok(resting !== null && resting.lit !== null, 'the shrine has two frames: resting and lit');
+    assert.equal(resting!.lit, 0, 'it is not the checkpoint: the lit frame is off');
+    const vial = await interactive('bottle_fourth', 'lightOverlay');
+    assert.ok(vial !== null && vial.visible, 'the vial floats over its ledge');
+    await ctx.shot('f-00-gallery');
+    // resting at the shrine, with the real keyboard: it becomes the checkpoint and the lit frame comes on
+    await ctx.teleport(11.2, 0);
+    await ctx.step(8);
+    await ctx.page.keyboard.down('KeyE');
+    await ctx.step(1);
+    await ctx.page.keyboard.up('KeyE');
+    await ctx.step(14);
+    await ctx.page.waitForFunction(
+      `(() => { const c = window.__troid.game.renderer.layers.propsBack.children.find((x) => x.label === 'art:interactable:shrine'); return c && c.children[1].alpha > 0.7; })()`,
+      undefined,
+      { timeout: 8000 },
+    );
+    const lit = await interactive('shrine', 'propsBack');
+    assert.ok(lit!.lit! > 0.7, `the checkpoint is lit (${lit!.lit})`);
+    await ctx.shot('f-01-the-shrine-lit');
+    // taking the bottle writes its flag and the pickup is gone (the art follows what the simulation says)
+    await ctx.page.evaluate("window.__troid.session.flags.set('taken:bottle_fourth')");
+    await ctx.step(2);
+    await ctx.page.waitForFunction(
+      `(() => { const c = window.__troid.game.renderer.layers.lightOverlay.children.find((x) => x.label === 'art:interactable:bottle_fourth'); return c && !c.visible; })()`,
+      undefined,
+      { timeout: 8000 },
+    );
+    // the draw calls along the room: the way in, the shrine, the lip of the ditch, the thorns, the ledge, the way out
+    let worstGallery = 0;
+    for (const [name, x, y] of [['start', 4, 0], ['shrine', 12, 0], ['lip', 27, 0], ['thorns', 38, -3], ['ledge', 49, 4.9], ['east', 86, 0]] as const) {
+      await ctx.teleport(x, y);
+      await ctx.page.evaluate('window.__troid.settleCamera(5)');
+      await ctx.page.waitForTimeout(400);
+      const g = await ctx.state();
+      worstGallery = Math.max(worstGallery, g.drawsMax ?? 0);
+      assert.ok((g.drawsMax ?? 0) <= 60, `R2 ${name}: ${g.drawsMax} draw calls (budget 60)`);
+      await ctx.shot(`f-${name}`);
+    }
+    const lib2 = (await ctx.state()).art!;
+    console.log(`  room-art: R2 = ${gallery.sprites} sprites · worst ${worstGallery} draw calls (budget 60) · art ${lib2.pages} pages, ${(lib2.bytes / 1048576).toFixed(1)} MiB resident`);
+    assert.ok(lib2.bytes < 32 * 1048576, `R2's pages fit the proposed memory budget of 32 MiB (${(lib2.bytes / 1048576).toFixed(1)} MiB)`);
+    assert.deepEqual(ctx.warnings.filter((w) => w.includes('[art]')), [], 'the library had nothing to say about the art of R2');
+    // no art: the blockout draws the thorns and the marks, as it always did
+    await ctx.open('room=r2_hall&paused=1&art=', PHONE);
+    await ctx.page.waitForTimeout(800);
+    assert.equal((await ctx.state()).roomArt, null, 'no art: nothing dresses R2');
+    assert.equal(
+      await ctx.page.evaluate(`(() => { const g = window.__troid.game.renderer.layers.terrain.children.find((c) => c.label === 'hazard:spikes_ditch'); return g ? g.visible : null; })()`),
+      true,
+      'the blockout draws the thorns',
+    );
+    assert.deepEqual(await ctx.page.evaluate('window.__troid.game.interactableViews.covered'), [], 'and the shrine and the pickup');
   },
 };

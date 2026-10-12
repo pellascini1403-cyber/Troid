@@ -104,7 +104,17 @@ export const ENV_CONTRACT: Readonly<Record<EnvRole, EnvRoleSpec>> = {
   backdrop: { draws: '`art.backdrop` of a room: three seamless strips that scroll slower than the world', layers: ['backdropFar', 'backdropMid', 'backdropNear'], fill: 'strip', pivot: [0, 1], subject: 'backdrop', parts: ['far', 'mid', 'near'], required: ['far', 'mid', 'near'] },
   foreground: { draws: '`art.backdrop` of a room: dark silhouettes in front of the action', layers: ['foreground'], fill: 'strip', pivot: [0, 1], subject: 'backdrop', parts: ['strip'], required: [] },
   decor: { draws: 'pieces that collide with nothing — arches, columns, roots, ferns, statues, haze — placed by a SCENE file (`roomScene.ts`) in the layer it names', layers: ['backdropFar', 'backdropMid', 'backdropNear', 'propsBack', 'terrain', 'foreground', 'lightOverlay'], fill: 'none', pivot: [0.5, 1], subject: null, parts: [], required: [] },
-  interactive: { draws: 'the `interactables`, by kind: a shrine (`rest`), a pickup, a lever (`activate`), a door that opens (`open`)', layers: ['propsBack', 'lightOverlay'], fill: 'none', pivot: [0.5, 1], subject: 'kind', parts: [], required: [''] },
+  interactive: {
+    draws:
+      'the `interactables`, by kind: a shrine (`rest`), a pickup, a lever (`activate`), a door that opens (`open`). A pickup has one picture per thing it gives (`variant:bottle`, `variant:card`, `variant:rune`; a picture with no variant serves them all); ' +
+      'a piece with a second frame shows it LIT (the shrine that is the checkpoint, a lever that can still be used) over the first',
+    layers: ['propsBack', 'lightOverlay'],
+    fill: 'none',
+    pivot: [0.5, 1],
+    subject: 'kind',
+    parts: [],
+    required: [''],
+  },
   seal: { draws: 'the `seals`: the sigil the hero has to hit', layers: ['fxWorld'], fill: 'none', pivot: [0.5, 0.5], subject: null, parts: [], required: [''] },
   light: { draws: 'the `exits`: the shaft of light over a way out', layers: ['lightOverlay'], fill: 'none', pivot: [0.5, 1], subject: null, parts: [], required: [] },
 };
@@ -165,13 +175,29 @@ export function stripCover(bounds: Rect, factor: number, stripWidth: number): { 
 
 // ------------------------------------------------------------------------------------------------------------------------------------------------------- 4 · what the world asks for
 
+/** A floating pickup is drawn this far above the spot its room data names (metres): its centre, not its foot. Shared by the blockout and the art, so the one never moves against the other. */
+export const PICKUP_FLOAT = 0.85;
+
+/** The things a pickup can give, as its picture says (`variant:bottle`): what the blockout draws as a vial, a rune or a card. */
+export const PICKUP_VARIANTS = ['bottle', 'card', 'rune'] as const;
+
+/**
+ * The variant of an interactable's picture: a pickup is by what it GIVES — a bottle slot is a vial (the one of the HUD), an ability a rune, anything else (a card) a card — and
+ * nothing else has one (`''`). Read from the room's data, never from the art.
+ */
+export function interactiveVariant(i: { kind: string; actions?: ReadonlyArray<{ type: string }> }): string {
+  if (i.kind !== 'pickup') return '';
+  const types = (i.actions ?? []).map((a) => a.type);
+  return types.includes('addBottleSlot') ? 'bottle' : types.includes('unlockAbility') ? 'rune' : 'card';
+}
+
 /** The part of a room this module reads (a structural type: `RoomDefinition` fits it, and `presentation/` imports nothing of `world/`). */
 export interface EnvRoomLike {
   id: string;
   solids: ReadonlyArray<{ id: string; kind?: 'solid' | 'oneway'; material?: string }>;
   gates?: ReadonlyArray<{ id: string; solid: string }>;
   hazards?: ReadonlyArray<{ kind: string }>;
-  interactables?: ReadonlyArray<{ kind: string }>;
+  interactables?: ReadonlyArray<{ kind: string; actions?: ReadonlyArray<{ type: string }> }>;
   seals?: ReadonlyArray<unknown>;
   exits?: ReadonlyArray<unknown>;
   art?: { backdrop: string };
@@ -220,7 +246,8 @@ export function environmentSlots(rooms: readonly EnvRoomLike[]): EnvSlot[] {
       else addParts(room.id, s.kind === 'oneway' ? 'platform' : 'solid', material);
     }
     for (const h of room.hazards ?? []) addParts(room.id, 'hazard', h.kind);
-    for (const i of room.interactables ?? []) addParts(room.id, 'interactive', i.kind);
+    // a pickup is asked for by what it gives (`interactive:pickup:bottle`); the other kinds have one picture each
+    for (const i of room.interactables ?? []) add(room.id, 'interactive', i.kind, interactiveVariant(i), true);
     for (const _ of room.seals ?? []) addParts(room.id, 'seal', null);
     for (const _ of room.exits ?? []) addParts(room.id, 'light', null);
     if (room.art) {
@@ -267,6 +294,8 @@ export interface EnvLook {
   blend: 'normal' | 'add';
   /** `layer:<id>`: the layer a decor piece is made for, as a tag spells it (`backdrop-near`: tags are lowercase, see `layerTag`). */
   layer: string | null;
+  /** `variant:<name>`: which of the pictures of an interactive of one kind this is (a pickup's `bottle`, `card` or `rune`); `null`: it serves every variant. */
+  variant: string | null;
   /** What the tags got wrong (a number that is not one, a grid that is not CxR). */
   problems: string[];
 }
@@ -275,7 +304,7 @@ export interface EnvLook {
 export const layerTag = (id: string): string => id.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 
 export function readEnvLook(tags: readonly string[]): EnvLook {
-  const look: EnvLook = { grid: null, rise: 0, reach: 0, blend: 'normal', layer: null, problems: [] };
+  const look: EnvLook = { grid: null, rise: 0, reach: 0, blend: 'normal', layer: null, variant: null, problems: [] };
   for (const g of tagValues(tags, 'grid')) {
     const m = /^([1-9][0-9]?)x([1-9][0-9]?)$/.exec(g);
     if (m) look.grid = { cols: Number(m[1]), rows: Number(m[2]) };
@@ -293,6 +322,10 @@ export function readEnvLook(tags: readonly string[]): EnvLook {
     else look.problems.push(`"blend:${b}" must be "blend:add" or "blend:normal"`);
   }
   look.layer = tagValues(tags, 'layer')[0] ?? null;
+  for (const v of tagValues(tags, 'variant')) {
+    if ((PICKUP_VARIANTS as readonly string[]).includes(v)) look.variant = v;
+    else look.problems.push(`"variant:${v}" is not a variant of a picture (${PICKUP_VARIANTS.join(', ')})`);
+  }
   return look;
 }
 
@@ -361,9 +394,11 @@ export function environmentPackIssues(pack: Pick<ArtPack, 'id' | 'status' | 'spr
       if (repeat === 'tile-y' && look.grid.cols !== 1) out.push({ level: 'warn', path, message: `a ${role} piece repeats up one column: its grid should be "1xR" (columns ${look.grid.cols} are never drawn)` });
       if (repeat === 'none' || repeat === 'strip') out.push({ level: 'warn', path, message: `a ${role} is not repeated by cells: "grid" is ignored` });
     }
+    if (look.variant !== null && !(role === 'interactive' && subject === 'pickup')) out.push({ level: 'warn', path, message: `only a pickup has variants: "variant:${look.variant}" on a ${role}${subject ? ` "${subject}"` : ''} is ignored` });
     if (look.layer !== null && !spec.layers.map(layerTag).includes(look.layer)) out.push({ level: 'error', path, message: `a ${role} is drawn in ${spec.layers.map(layerTag).join(', ')}, not in "${look.layer}"` });
     if (look.blend === 'add' && !(role === 'decor' || role === 'light' || role === 'seal' || (role === 'door' && parts[0] === 'glow'))) out.push({ level: 'warn', path, message: `only light is additive: "blend:add" on a ${role} is ignored` });
-    const part = spec.parts.length > 0 ? (parts[0] ?? '') : '';
+    // an interactive's `part` is the variant of its picture
+    const part = role === 'interactive' ? (look.variant ?? '') : spec.parts.length > 0 ? (parts[0] ?? '') : '';
     const key = slotKey(role, spec.subject ? subject : null, part);
     // a decor piece is placed by name, so two of them never claim the same slot
     if (role !== 'decor') {
@@ -393,16 +428,19 @@ export function environmentCoverageIssues(packs: ReadonlyArray<Pick<ArtPack, 'id
       if (roles.length !== 1) continue;
       const spec = ENV_CONTRACT[roles[0] as EnvRole];
       if (!spec) continue;
-      have.add(slotKey(roles[0]!, spec.subject ? subject : null, spec.parts.length > 0 ? (parts[0] ?? '') : ''));
+      const variant = roles[0] === 'interactive' ? (readEnvLook(sprite.tags).variant ?? '') : null;
+      have.add(slotKey(roles[0]!, spec.subject ? subject : null, variant !== null ? variant : spec.parts.length > 0 ? (parts[0] ?? '') : ''));
     }
   }
   const statusOf = packs.some((p) => p.status === 'final') && packs.every((p) => p.status !== 'provisional') ? 'final' : 'provisional';
   const label = packs.map((p) => p.id).join(' + ');
-  for (const s of slots.filter((x) => x.required && !have.has(slotKey(x.role, x.subject, x.part)))) {
+  // a picture of an interactive with no variant serves every variant of its kind
+  const served = (x: EnvSlot): boolean => have.has(slotKey(x.role, x.subject, x.part)) || (x.role === 'interactive' && x.part !== '' && have.has(slotKey(x.role, x.subject, '')));
+  for (const s of slots.filter((x) => x.required && !served(x))) {
     out.push({
       level: statusOf === 'final' ? 'error' : 'warn',
       path: label,
-      message: `the world asks for the ${s.part ? `"${s.part}" of ` : ''}${s.role}${s.subject ? ` "${s.subject}"` : ''} (${s.rooms.join(', ')}) and the pack does not have it${statusOf === 'final' ? '' : ': the blockout draws it'}`,
+      message: `the world asks for the ${s.part && s.role !== 'interactive' ? `"${s.part}" of ` : ''}${s.role}${s.subject ? ` "${s.subject}"` : ''}${s.part && s.role === 'interactive' ? ` of variant "${s.part}"` : ''} (${s.rooms.join(', ')}) and the pack does not have it${statusOf === 'final' ? '' : ': the blockout draws it'}`,
     });
   }
   return out;

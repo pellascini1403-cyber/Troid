@@ -1,4 +1,5 @@
 import { R1_SCENES } from '../scenes/r1';
+import { R2_SCENES } from '../scenes/r2';
 import type { PackSpec, SpriteSpec } from '../spec';
 
 /**
@@ -13,7 +14,7 @@ import type { PackSpec, SpriteSpec } from '../spec';
  * done is never half-dressed with materials that were not composed for it (the boss's telegraph, for one, was drawn over a bare floor and is judged over the scenery that
  * phase gives it).
  */
-const DRESSED_ROOMS = ['r1_gate'];
+const DRESSED_ROOMS = ['r1_gate', 'r2_hall'];
 const SEED = 7;
 
 const solid = (material: 'earth' | 'stone'): SpriteSpec[] => {
@@ -108,7 +109,7 @@ export const RUINS_GROUND: PackSpec = {
     prop('rune_stone_a', 'runeStone', 7, [1.3, 3.2], 'props-back'),
     prop('effigy_a', 'effigy', 9, [1.6, 3.6], 'props-back'),
   ],
-  scenes: { r1_gate: R1_SCENES.ground },
+  scenes: { r1_gate: R1_SCENES.ground, r2_hall: R2_SCENES.ground },
 };
 
 export const RUINS_BACK: PackSpec = {
@@ -128,7 +129,7 @@ export const RUINS_BACK: PackSpec = {
     prop('fore_leaves_b', 'foreLeaves', 42, [5, 3.4], 'foreground', 48),
     prop('fore_leaves_c', 'foreLeaves', 43, [5, 3.4], 'foreground', 48),
   ],
-  scenes: { r1_gate: R1_SCENES.back },
+  scenes: { r1_gate: R1_SCENES.back, r2_hall: R2_SCENES.back },
 };
 
 export const RUINS_LIGHT: PackSpec = {
@@ -147,7 +148,42 @@ export const RUINS_LIGHT: PackSpec = {
     lightPiece('mist_bank', 'lightMist', 1024, 192, 32, 'decor', { seed: 3 }),
     lightPiece('motes_a', 'lightMotes', 512, 384, 32, 'decor', { seed: 8 }),
   ],
-  scenes: { r1_gate: R1_SCENES.light },
+  scenes: { r1_gate: R1_SCENES.light, r2_hall: R2_SCENES.light },
 };
 
-export const PACKS: readonly PackSpec[] = [RUINS_GROUND, RUINS_BACK, RUINS_LIGHT];
+/**
+ * THE ROOTS of the Root Gallery (R2): what the forest has done to the ruins there — an arch of roots over the hall, curtains hanging in the dark, columns wound round by them, roots that
+ * crawl on the ground, tendrils close to the eye — and the three small things that live in that room: the thorns of the ditch (the hazard `spikes`), the shrine where the hero rests
+ * (the interactive `rest`, two frames: resting and lit) and the vial of the fourth bottle (the pickup that gives a bottle). Only R2 fetches it.
+ */
+export const RUINS_ROOTS: PackSpec = {
+  id: 'ruins-roots',
+  zones: ['r2_hall'],
+  ppm: 96,
+  comment:
+    'THE ROOTS of the Root Gallery: root arches, curtains, wound columns, roots on the ground, tendrils in the foreground, and the thorns, the shrine and the vial of that room. ' +
+    'Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.',
+  sprites: [
+    prop('root_arch_a', 'rootArch', 51, [14, 10], 'backdrop-near', 48),
+    prop('root_arch_b', 'rootArch', 52, [14, 10], 'backdrop-near', 48),
+    prop('root_curtain_a', 'rootCurtain', 61, [4, 9], 'backdrop-mid', 32),
+    prop('root_curtain_b', 'rootCurtain', 62, [4, 9], 'backdrop-mid', 32),
+    prop('root_pillar_a', 'rootPillar', 71, [2.4, 6.6], 'props-back'),
+    prop('root_pillar_b', 'rootPillar', 72, [2.4, 6.6], 'props-back'),
+    prop('root_crawl_a', 'rootCrawl', 81, [3.4, 1.1], 'terrain'),
+    prop('root_crawl_b', 'rootCrawl', 82, [3.4, 1.1], 'terrain'),
+    prop('root_crawl_c', 'rootCrawl', 83, [3.4, 1.1], 'terrain'),
+    prop('fore_roots_a', 'rootCurtainFore', 91, [5, 4], 'foreground', 48),
+    prop('fore_roots_b', 'rootCurtainFore', 92, [5, 4], 'foreground', 48),
+    prop('fore_roots_c', 'rootCurtainFore', 93, [5, 4], 'foreground', 48),
+    // the thorns of the ditch: a periodic strip of four half-metre cells, from the floor of the zone up
+    { id: 'thorns_cell', tags: ['role:hazard', 'kind:spikes', 'part:cell', 'grid:4x1'], piece: 'thorns', params: { seed: SEED + 40, cols: 4 }, cols: 4, rows: 1, pivot: [0, 1] },
+    // the shrine of the hero's rest: two frames, resting and lit (the crystal burning), standing on the spot its data names
+    { id: 'shrine_rest', tags: ['role:interactive', 'kind:rest'], piece: 'shrine', params: { seed: SEED + 41 }, cols: 2, rows: 1, pivot: [0.5, 1] },
+    // the fourth bottle: a vial of light that floats over the spot its data names (the layer that draws it is additive)
+    { id: 'vial_bottle', tags: ['role:interactive', 'kind:pickup', 'variant:bottle'], piece: 'vial', params: { seed: SEED + 42 }, sizeM: [0.7, 1.2], pivot: [0.5, 1] },
+  ],
+  scenes: { r2_hall: R2_SCENES.roots },
+};
+
+export const PACKS: readonly PackSpec[] = [RUINS_GROUND, RUINS_BACK, RUINS_LIGHT, RUINS_ROOTS];

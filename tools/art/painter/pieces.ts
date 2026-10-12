@@ -7,6 +7,7 @@ import { MOSS, STONE, stone } from './masonry';
 import { door, edge, lit, platform } from './props';
 import { columnProp, crystals, effigy, ferns, foreLeaves, grass, hangingRoots, mushrooms, rubble, ruinedArch, runeStone } from './flora';
 import { beam, glow, mistBank, motes, shaft, veil } from './lights';
+import { rootArch, rootCrawl, rootCurtain, rootPillar, shrine, thorns, vial } from './roots';
 
 /**
  * The painter's catalogue: each piece is a function from parameters to a painted surface, deterministic (a seed in, the same pixels out). The build (`tools/art/build.ts`)
@@ -103,6 +104,23 @@ export const PIECES: Record<string, PieceMaker> = {
   effigy: prop(effigy, 1.6, 3.6),
   ruinedArch: prop(ruinedArch, 12, 9),
   foreLeaves: prop(foreLeaves, 5, 3.4),
+  rootArch: prop(rootArch, 14, 10),
+  rootCurtain: prop(rootCurtain, 4, 9),
+  rootCurtainFore: prop((o) => rootCurtain({ ...o, dark: true }), 5, 4),
+  rootPillar: prop(rootPillar, 2.4, 6.6),
+  rootCrawl: prop(rootCrawl, 3.4, 1.1),
+  /** The thorns of the ditch: `cols` cells of half a metre, a periodic strip. */
+  thorns: async (p) => {
+    const ppm = num(p, 'ppm', 96);
+    const cols = num(p, 'cols', 4);
+    return thorns({ w: Math.round(ppm * 0.5 * cols), h: Math.round(ppm * 0.75), ppm, seed: num(p, 'seed', 31), cols });
+  },
+  /** The shrine: two cells of 3.3 × 3.7 m (resting, lit). */
+  shrine: async (p) => {
+    const ppm = num(p, 'ppm', 96);
+    return shrine({ w: Math.round(ppm * 3.3) * 2, h: Math.round(ppm * 3.7), ppm, seed: num(p, 'seed', 31) });
+  },
+  vial: prop(vial, 0.7, 1.2),
   columnWhole: prop((o) => columnProp({ ...o, state: 'whole', heightM: 4.6 }), 1.6, 5.2),
   columnBroken: prop((o) => columnProp({ ...o, state: 'broken', heightM: 3.1 }), 1.6, 3.7),
   lightShaft: light(shaft, 192, 640),

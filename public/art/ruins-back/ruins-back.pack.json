@@ -10,15 +10,16 @@
   ],
   "atlasMode": "shared",
   "scenes": {
-    "r1_gate": "scenes/r1_gate.json"
+    "r1_gate": "scenes/r1_gate.json",
+    "r2_hall": "scenes/r2_hall.json"
   },
   "atlases": [
     {
       "id": "ruins-back_0",
       "source": "ruins-back_0.png",
       "data": "ruins-back_0.json",
-      "width": 1728,
-      "height": 1708,
+      "width": 1540,
+      "height": 1648,
       "resolution": 1
     }
   ],

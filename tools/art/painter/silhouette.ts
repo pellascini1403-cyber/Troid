@@ -5,6 +5,7 @@ import { MOSS, STONE } from './masonry';
 import type { Rgb } from './color';
 import { clamp01, mixRgb, smoothstep } from './color';
 import { fbm } from './noise';
+import type { Pt } from './shapes';
 
 /**
  * A layer of silhouettes — columns, trunks, arches, crowns of leaves — painted as shapes with a ROUNDNESS: each object brings its own path, a tone and a profile across
@@ -30,6 +31,19 @@ export interface Box {
   y0: number;
   x1: number;
   y1: number;
+}
+
+/** What a tube is made of: how dark it is, how much it varies, what grows on it. */
+export interface TubeOptions {
+  tone: number;
+  spread: number;
+  moss?: number;
+  /** A tone that changes along the tube: the value at its start and at its end, added to `tone`. */
+  fade?: readonly [number, number];
+  /** How much of a full cylinder the cross-section rises (1 = round, 0.5 = flat-backed). */
+  round?: number;
+  /** Bark: how deep the furrows that run along the tube cut, in pixels. */
+  grain?: number;
 }
 
 export class SilhouetteLayer {
@@ -93,6 +107,105 @@ export class SilhouetteLayer {
           }
           this.alpha.d[i] = a + (1 - a) * old;
         }
+      }
+    }
+  }
+
+  /**
+   * Paints a TUBE along a path — a root, a vine, a thorn: every point of the path stamps a disc of its own radius, and the height across the tube is that of a cylinder, so a strand
+   * that runs in ANY direction is lit as a round thing (`add` rounds a shape by its bounding box, which is right for a column and wrong for a root that curves). Where two tubes
+   * cross, the later one is in front. `radius(t)` is the radius in pixels at `t` ∈ [0, 1] along the path.
+   */
+  tube(path: ReadonlyArray<Pt>, radius: (t: number) => number, o: TubeOptions): void {
+    if (path.length < 2) return;
+    const lens = [0];
+    for (let i = 1; i < path.length; i++) lens.push(lens[i - 1]! + Math.hypot(path[i]!.x - path[i - 1]!.x, path[i]!.y - path[i - 1]!.y));
+    const total = lens[lens.length - 1]!;
+    if (total <= 0) return;
+    let rMax = 0;
+    for (let k = 0; k <= 12; k++) rMax = Math.max(rMax, radius(k / 12));
+    const pad = Math.ceil(rMax) + 3;
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    for (const p of path) {
+      x0 = Math.min(x0, p.x);
+      y0 = Math.min(y0, p.y);
+      x1 = Math.max(x1, p.x);
+      y1 = Math.max(y1, p.y);
+    }
+    const bx0 = Math.max(0, Math.floor(x0 - pad));
+    const by0 = Math.max(0, Math.floor(y0 - pad));
+    const bx1 = Math.min(this.w, Math.ceil(x1 + pad));
+    const by1 = Math.min(this.h, Math.ceil(y1 + pad));
+    const bw = bx1 - bx0;
+    const bh = by1 - by0;
+    if (bw <= 0 || bh <= 0) return;
+    const lh = new Float32Array(bw * bh);
+    const la = new Float32Array(bw * bh);
+    const lt = new Float32Array(bw * bh);
+    const lp = new Float32Array(bw * bh);
+    const lup = new Float32Array(bw * bh);
+    const round = o.round ?? 0.92;
+    let seg = 0;
+    const step = 0.45;
+    for (let s = 0; s <= total; s += step) {
+      while (seg < lens.length - 2 && lens[seg + 1]! < s) seg++;
+      const a = path[seg]!;
+      const b = path[seg + 1]!;
+      const span = Math.max(1e-6, lens[seg + 1]! - lens[seg]!);
+      const u = Math.min(1, Math.max(0, (s - lens[seg]!) / span));
+      const cx = a.x + (b.x - a.x) * u;
+      const cy = a.y + (b.y - a.y) * u;
+      const dl = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+      const tx = (b.x - a.x) / dl;
+      const ty = (b.y - a.y) / dl;
+      const t = s / total;
+      const r = Math.max(0.55, radius(t));
+      const ya = Math.max(by0, Math.floor(cy - r - 1));
+      const yb = Math.min(by1 - 1, Math.ceil(cy + r + 1));
+      const xa = Math.max(bx0, Math.floor(cx - r - 1));
+      const xb = Math.min(bx1 - 1, Math.ceil(cx + r + 1));
+      for (let py = ya; py <= yb; py++) {
+        for (let px = xa; px <= xb; px++) {
+          const ddx = px + 0.5 - cx;
+          const ddy = py + 0.5 - cy;
+          const d = Math.hypot(ddx, ddy);
+          if (d > r + 0.7) continue;
+          const cov = clamp01(r + 0.5 - d);
+          const k = Math.sqrt(Math.max(0, 1 - (d / r) * (d / r)));
+          const hv = round * r * k;
+          const i = (py - by0) * bw + (px - bx0);
+          if (cov > la[i]!) la[i] = cov;
+          if (hv >= lh[i]!) {
+            lh[i] = hv;
+            lt[i] = t;
+            // where across the tube (−1 … 1) and how much its surface faces up (0 … 1)
+            lp[i] = Math.max(-1, Math.min(1, (ddx * -ty + ddy * tx) / r));
+            lup[i] = clamp01(-ddy / r);
+          }
+        }
+      }
+    }
+    for (let y = by0; y < by1; y++) {
+      for (let x = bx0; x < bx1; x++) {
+        const li = (y - by0) * bw + (x - bx0);
+        const a = la[li]!;
+        if (a <= 0) continue;
+        const i = y * this.w + x;
+        const old = this.alpha.d[i]!;
+        if (a >= 0.5 || old < a) {
+          const t = lt[li]!;
+          const noise = fbm(x * 0.021, y * 0.021, this.noiseSeed, { octaves: 3 });
+          const furrow = o.grain ? (Math.cos(lp[li]! * Math.PI * 3.2 + noise * 5) - 1) * 0.5 * o.grain * lh[li]! * 0.18 : 0;
+          this.height.d[i] = Math.max(0, lh[li]! + furrow);
+          const fade = o.fade ? o.fade[0] + (o.fade[1] - o.fade[0]) * t : 0;
+          this.tone[i] = clamp01(o.tone + fade + (noise - 0.5) * o.spread);
+          const mossNoise = smoothstep(0.45, 0.7, fbm(x * 0.03, y * 0.05, this.noiseSeed + 9, { octaves: 3 }));
+          this.moss[i] = (o.moss ?? 0) * mossNoise * (0.25 + 0.75 * lup[li]!);
+        }
+        this.alpha.d[i] = a + (1 - a) * old;
       }
     }
   }

@@ -1,0 +1,341 @@
+{
+  "frames": {
+    "fore_roots_a_00": {
+      "frame": {
+        "x": 646,
+        "y": 2,
+        "w": 209,
+        "h": 158
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 31,
+        "y": 0,
+        "w": 209,
+        "h": 158
+      },
+      "sourceSize": {
+        "w": 240,
+        "h": 192
+      }
+    },
+    "fore_roots_b_00": {
+      "frame": {
+        "x": 319,
+        "y": 1045,
+        "w": 240,
+        "h": 172
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 240,
+        "h": 172
+      },
+      "sourceSize": {
+        "w": 240,
+        "h": 192
+      }
+    },
+    "fore_roots_c_00": {
+      "frame": {
+        "x": 563,
+        "y": 1045,
+        "w": 236,
+        "h": 166
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 236,
+        "h": 166
+      },
+      "sourceSize": {
+        "w": 240,
+        "h": 192
+      }
+    },
+    "root_arch_a_00": {
+      "frame": {
+        "x": 2,
+        "y": 451,
+        "w": 634,
+        "h": 480
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 38,
+        "y": 0,
+        "w": 634,
+        "h": 480
+      },
+      "sourceSize": {
+        "w": 672,
+        "h": 480
+      }
+    },
+    "root_arch_b_00": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 640,
+        "h": 445
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 35,
+        "w": 640,
+        "h": 445
+      },
+      "sourceSize": {
+        "w": 672,
+        "h": 480
+      }
+    },
+    "root_crawl_a_00": {
+      "frame": {
+        "x": 2,
+        "y": 967,
+        "w": 313,
+        "h": 106
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 4,
+        "y": 0,
+        "w": 313,
+        "h": 106
+      },
+      "sourceSize": {
+        "w": 326,
+        "h": 106
+      }
+    },
+    "root_crawl_b_00": {
+      "frame": {
+        "x": 319,
+        "y": 935,
+        "w": 313,
+        "h": 106
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 4,
+        "y": 0,
+        "w": 313,
+        "h": 106
+      },
+      "sourceSize": {
+        "w": 326,
+        "h": 106
+      }
+    },
+    "root_crawl_c_00": {
+      "frame": {
+        "x": 2,
+        "y": 1077,
+        "w": 313,
+        "h": 106
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 4,
+        "y": 0,
+        "w": 313,
+        "h": 106
+      },
+      "sourceSize": {
+        "w": 326,
+        "h": 106
+      }
+    },
+    "root_curtain_a_00": {
+      "frame": {
+        "x": 1108,
+        "y": 238,
+        "w": 128,
+        "h": 219
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 128,
+        "h": 219
+      },
+      "sourceSize": {
+        "w": 128,
+        "h": 288
+      }
+    },
+    "root_curtain_b_00": {
+      "frame": {
+        "x": 1108,
+        "y": 2,
+        "w": 128,
+        "h": 232
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 128,
+        "h": 232
+      },
+      "sourceSize": {
+        "w": 128,
+        "h": 288
+      }
+    },
+    "root_pillar_a_00": {
+      "frame": {
+        "x": 640,
+        "y": 451,
+        "w": 230,
+        "h": 512
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 122,
+        "w": 230,
+        "h": 512
+      },
+      "sourceSize": {
+        "w": 230,
+        "h": 634
+      }
+    },
+    "root_pillar_b_00": {
+      "frame": {
+        "x": 874,
+        "y": 2,
+        "w": 230,
+        "h": 512
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 122,
+        "w": 230,
+        "h": 512
+      },
+      "sourceSize": {
+        "w": 230,
+        "h": 634
+      }
+    },
+    "shrine_rest_00": {
+      "frame": {
+        "x": 874,
+        "y": 877,
+        "w": 317,
+        "h": 327
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 28,
+        "w": 317,
+        "h": 327
+      },
+      "sourceSize": {
+        "w": 317,
+        "h": 355
+      }
+    },
+    "shrine_rest_01": {
+      "frame": {
+        "x": 874,
+        "y": 518,
+        "w": 317,
+        "h": 355
+      },
+      "sourceSize": {
+        "w": 317,
+        "h": 355
+      }
+    },
+    "thorns_cell_00": {
+      "frame": {
+        "x": 636,
+        "y": 967,
+        "w": 48,
+        "h": 72
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 72
+      }
+    },
+    "thorns_cell_01": {
+      "frame": {
+        "x": 688,
+        "y": 967,
+        "w": 48,
+        "h": 72
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 72
+      }
+    },
+    "thorns_cell_02": {
+      "frame": {
+        "x": 740,
+        "y": 967,
+        "w": 48,
+        "h": 72
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 72
+      }
+    },
+    "thorns_cell_03": {
+      "frame": {
+        "x": 1195,
+        "y": 461,
+        "w": 48,
+        "h": 72
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 72
+      }
+    },
+    "vial_bottle_00": {
+      "frame": {
+        "x": 803,
+        "y": 967,
+        "w": 67,
+        "h": 90
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 8,
+        "w": 67,
+        "h": 90
+      },
+      "sourceSize": {
+        "w": 67,
+        "h": 115
+      }
+    }
+  },
+  "meta": {
+    "app": "troid-assets",
+    "version": "1",
+    "image": "ruins-roots_0.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1248,
+      "h": 1220
+    },
+    "scale": "1"
+  }
+}

@@ -146,8 +146,8 @@ Modificados: `src/presentation/{artManifest,environment}.ts` · `src/assets/artL
 | | Resultado |
 |---|---|
 | `tsc` | limpio |
-| Pruebas unitarias y de integración | **2292 en 145 archivos** (eran 2257 en 143: +35: planificador 18, escenas 6, escenario del pintor y del empaquetador 5+…, entorno) |
-| E2E (desarrollo) | **44/44** (el nuevo `room-art`; ver los problemas de más abajo) |
+| Pruebas unitarias y de integración | **2294 en 145 archivos** (eran 2257 en 143: +37: planificador 18, escenas 6, pintor y empaquetador 5, entorno, y 2 de la biblioteca de arte tras el fallo de la zona) |
+| E2E | **44/44 en producción** con el código final (44 escenarios: el nuevo `room-art`) y **44/44 en desarrollo** (pasada completa + repetición dirigida de 15 escenarios tras los arreglos) |
 | Llamadas de dibujo | **R1 entera: 13 como máximo** en seis encuadres a tamaño teléfono (presupuesto 60); el resto del juego, sin cambios |
 | Memoria del arte residente | 22.4 MiB (4 páginas) |
 | Tiempo de carga de la zona (software GL, sin dispositivo real) | ≈ 0.2–0.3 s |
@@ -172,6 +172,11 @@ deja exactamente las mismas capas). Ninguna prueba se bajó ni se borró.
 5. **El aviso violeta del jefe pierde fuerza sobre el escenario azul** (el escenario `boss` lo detectó: 948 → 986 px de violeta, no ≥ +60). **No se «arregló» el aviso en esta fase**: R4 se queda como bloqueo hasta la fase E y el aviso se rediseña en las fases F/H. Queda
    como **riesgo de legibilidad conocido**, hermano de R14 (fase I): el violeta de lo enemigo debe contrastar con el azul del escenario, y eso se resuelve con el propio VFX (más saturación, luminosidad y borde), no relajando la prueba.
 6. Un escenario (`environment`) contaba objetos por capa con el arte puesto; ver «Pruebas que se adaptaron».
+7. **Un fallo real de carga de zona, encontrado por la pasada de producción** (`room` y `transition` rojos solo allí). Al entrar en R1 por una transición, `enterZone` se pedía dos veces
+   (`transition:started` y `room:loaded`) y la **segunda volvía de inmediato** mientras la primera aún descargaba las páginas: la sala se vestía **con medio paquete** (suelo sí; puerta,
+   bandas y haz de la salida no) hasta la siguiente reconstrucción. El diagnóstico salió de imprimir las etiquetas de cada capa cuando dos grafos de escena difieren. Arreglo en tres puntos
+   (commit aparte, `a65aeea`): la biblioteca devuelve **la carga en curso** a la segunda petición; `RoomArtView.clear()` anula cualquier construcción en vuelo; y `Game2D.dressRoom` ignora un
+   recubrimiento que ya no es para el bloqueo que hay. Dos pruebas unitarias lo fijan (la primera falla sin el arreglo).
 
 ### Pendiente de la fase B (a propósito)
 
@@ -179,3 +184,72 @@ deja exactamente las mismas capas). Ninguna prueba se bajó ni se borró.
   se calibró en capturas del mismo motor, no en una pantalla real. Un artista puede sustituir cualquier PNG sin tocar código.
 - **Calibración en dispositivo real** (brillo y contraste en pantallas OLED/LCD de teléfono, ancho de banda de la carga, memoria de las 4 páginas).
 - **R2, R3 y R4 siguen en bloqueo** (fases C, D y E).
+
+## Fase C — R2 «Galería de Raíces» (S47)
+
+**Resultado en una frase:** la segunda sala **se dibuja con arte pintado en el motor** —las mismas teselas, fondos y luz de R1, más un paquete propio de R2 (`ruins-roots`): arco de raíces sobre el vestíbulo, cortinas de raíces, columnas tomadas por el bosque,
+raíces que reptan por el suelo, zarcillos en primer plano, **las espinas del foso, el santuario donde se descansa y el frasco de la cuarta botella**—, y el motor aprende a dibujar con arte **tres cosas que antes solo dibujaba el *blockout***: las zonas que
+hacen daño, los santuarios/palancas y los objetos. R2 no se da por terminada del todo: el Ink Slime sigue siendo procedural (fase G) y los VFX son los de siempre (fase H).
+
+### Qué se hizo
+
+- **Contrato:** `role:hazard · kind:spikes · part:cell` (una fila de celdas desde el suelo de la zona), `role:interactive · kind:rest|pickup|activate` con **segundo fotograma = encendido**, y `variant:bottle|card|rune` para los objetos (un `pickup` se pide **por lo que da**,
+  leído de los datos de la sala: una ranura de botella → frasco, una habilidad → runa, lo demás → carta). Las ranuras obligatorias pasan de **12 a 14**. Todo opcional y compatible hacia atrás.
+- **Planificador puro** (`roomPlan`): `planHazards` y `planInteractables` (con pruebas: celdas enteras, recorte de la última, `grid` por posición, flotación del objeto con la misma constante `PICKUP_FLOAT` que usa el *blockout*, lo que falta se reporta por ranura).
+- **Vistas:** `RoomArtView` dibuja las espinas y cada interactuable (un `ArtInteractable` que **sigue lo que dice la simulación**: presente/ausente y encendido, con el mismo pulso y balanceo que tenía la marca del *blockout*); `RoomView2D` e `InteractableViews`
+  ceden **solo** lo que el arte cubre. La colisión, el daño y la interacción son los de siempre.
+- **El pintor aprendió a pintar «tubos»** (`SilhouetteLayer.tube`): una raíz redonda se ilumina como cilindro **vaya por donde vaya** (antes se redondeaba por la caja del objeto, bien para una columna y mal para una raíz curva). Con eso: raíces trenzadas con
+  surcos de corteza, nudos, ramas y nódulos de luz cian; espinas negras con la punta de un **carmín apagado** (lo único cálido de la sala, pequeño); un santuario de dos celdas (reposo / encendido, con un charco de luz); un frasco pintado como luz.
+- **Una guarda nueva del primer plano** (`notes`): sus piezas cuelgan del borde alto de la pantalla y su borde superior **no puede verse** con la cámara más alta de la sala; los compositores cuelgan las piezas desde `foregroundTop(sala)`.
+- **Zonas:** los tres paquetes compartidos declaran `r1_gate` **y** `r2_hall`; `ruins-roots`, solo `r2_hall` (se descarga al entrar y se suelta al salir).
+
+### Los activos nuevos (todo de `tools/art`, estado `provisional`)
+
+| Paquete | *Sprite sets* | Qué es |
+|---|---|---|
+| `ruins-roots` (nuevo) | 15 | 2 arcos de raíces (14 × 10 m), 2 cortinas, 2 columnas con raíces, 3 raíces de suelo, 3 zarcillos de primer plano, **espinas** (4 celdas), **santuario** (2 fotogramas), **frasco** |
+| Escena `r2_hall` | **124 colocaciones** (suelo y *props* 67, raíces 32 —arcos, cortinas, columnas, raíces de suelo y zarcillos—, luz 24, fondos 1) | 444 *sprites* en pantalla |
+
+### *Placeholders* quitados y los que quedan
+
+- **Quitados en R2** (con `?visual=auto`): los **rectángulos de suelo, foso, escalones y plataformas**; los **triángulos violeta de las espinas**; la **columna con cristal del santuario** (dibujada con `Graphics`); el **frasco de la cuarta botella** (idem); los **haces de las salidas** y las **cuatro capas de fondo planas**.
+- **Quedan en R2:** el **Ink Slime** (procedural, fase G) y los VFX de ataque/impacto/aviso (fase H); la **variedad de gran escala del suelo** del foso (la misma tierra que la de fuera: sin charcos ni estratos).
+- **Quedan en el mundo** (4 avisos del empaquetador, listados en `STILL_THE_BLOCKOUT` de `artRepo.test`): cuerpo de la puerta del sello (R3), el sello (R3), la carta (R3) y la runa (R4). **R3 y R4 siguen siendo el bloqueo de siempre.**
+
+### Archivos
+
+Nuevos: `tools/art/painter/roots.ts`, `tools/art/scenes/{common,r2}.ts`, `art/ruins-roots/**`, `art/ruins-*/scenes/r2_hall.json`, `public/art/ruins-roots/**`. Modificados: `src/presentation/{environment,roomPlan}.ts`, `src/render/{RoomArtView,RoomView2D,InteractableViews}.ts`,
+`src/app/{Game2D,testHooks}.ts`, `tools/art/{packs/ruins,painter/{silhouette,flora,pieces},scenes/r1}.ts`, `art/index.json`, `public/art/index.json`, 6 archivos de pruebas, `tools/e2e/{png,scenario}.ts` y 3 escenarios, la documentación.
+
+### Verificación
+
+| | Resultado |
+|---|---|
+| `tsc` | limpio |
+| Pruebas unitarias y de integración | **2308 en 145 archivos** (2294 al cerrar la fase B: +14: planificador de espinas y objetos, variantes del contrato) |
+| E2E | **44/44 en producción** y **44/44 en desarrollo** (la pasada completa de desarrollo tuvo `hud` —un fallo por tiempo— y `hazard` —una prueba que medía el *blockout*— en rojo, y los dos en verde después: ver los problemas) |
+| Llamadas de dibujo | R2 entera: **11 como máximo** en seis puntos del recorrido (presupuesto 60); R1, 13 |
+| Memoria del arte en R2 | **26.6 MiB** residentes (5 páginas; presupuesto propuesto 32 MiB: el paquete de R2 añade 5.5 MiB) |
+| Arranque en frío (200 KB) | **193.1 KB gz** (192.7 antes: +0.4) · *chunk* de arte 16.0 KB gz · primera sesión 224.3 KB gz |
+
+> Sigue sin medirse nada en un dispositivo real.
+
+### Pruebas que se adaptaron (y por qué)
+
+`environment.test` (los pickups se piden por variante: 14 piezas), `missing.test` ×2 (12 → 14), `verifyArt.test` (el generador de paquetes completos etiqueta con `variant:`), `artRepo.test` (cinco paquetes y la lista honesta `STILL_THE_BLOCKOUT`, ahora de 4),
+`playerArt` (E2E: cinco paquetes en la biblioteca) y `hazard` (E2E: medía las **puntas violeta** del *blockout*; ahora mide el color de aviso de las puntas —violeta del *blockout* **o** carmín del arte— con el mismo umbral). Ninguna prueba se bajó ni se borró.
+
+### Problemas encontrados (y resueltos)
+
+1. **Un corte plano a la vista** (la lámina negra en lo alto de la pantalla): las piezas del primer plano cuelgan del borde de la pantalla y, con la cámara más alta de R2 (el héroe sobre una repisa), su borde superior se veía. Guarda nueva + los compositores cuelgan desde `foregroundTop`. **Arreglaba también a R1** (sus hojas colgaban demasiado bajas).
+2. **Los arcos colosales estaban cortados por el borde del dibujo** (desde la fase B): la parte alta del anillo caía fuera del lienzo. Ahora el anillo cabe entero (con su copa de hojas encima); R1 cambia un poco, a mejor.
+3. **El santuario se perdía** (oscuro y pequeño al lado del arco): rediseñado un cuarto más grande, con el cristal en reposo visible, raíces más claras con nódulos de luz y un charco de luz en el fotograma encendido.
+4. **Una raíz del suelo tapaba las espinas** (la escena la puso encima de la zona): movida fuera de 39.5 … 42.
+5. **`hazard` medía el color del *blockout*** (violeta); ahora mide el aviso de las puntas sea cual sea el dibujo.
+6. **`hud` rojo una vez en la pasada completa** («el segmento perdido deja un fantasma») y verde las demás veces: es una transitoria del HUD medida en tiempo real, sensible a la carga; no tiene que ver con el arte (pasó solo, y en la repetición dirigida). Queda anotado como **flaky por tiempo**, no como arreglado.
+
+### Pendiente de la fase C (a propósito)
+
+- **Revisión artística**: las raíces comparten una gramática (trenzas + nudos + ramas) que a ojo de ilustrador se repite; el santuario en reposo y las espinas son pequeños al lado del arco; el suelo del foso necesita charcos y estratos.
+- **Calibración en dispositivo real**: legibilidad de las puntas carmín y del santuario en pantallas pequeñas.
+- **R3, R4**: fases D y E.

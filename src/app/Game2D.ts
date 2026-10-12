@@ -597,6 +597,7 @@ export class Game2D {
     if (!cover || this.closed || serial !== this.dressSerial) return;
     this.roomArtCover = cover;
     this.roomView.cover(cover, (id) => view.door(id));
+    this.interactableViews.cover(cover.interactables);
     // a developer is told what the art got wrong (a strip too short for the camera); a player's console stays quiet
     if (import.meta.env.DEV) for (const n of cover.notes) log.scope('art').warn(n);
   }

@@ -1,5 +1,5 @@
 import type { Rect } from '@/core/math';
-import { axisPlan, ENV_CONTRACT, planTiles, slotKey, stripCover, type EnvLook } from './environment';
+import { axisPlan, ENV_CONTRACT, interactiveVariant, PICKUP_FLOAT, planTiles, slotKey, stripCover, type EnvLook } from './environment';
 
 /**
  * WHAT TO DRAW OF A ROOM'S OWN DATA (docs/ART-PIPELINE-2D.md, part M): the pure half of the view that replaces the blockout with pictures. Given the room's solids
@@ -255,6 +255,105 @@ function oneEnd(slot: string, piece: PieceInfo, x: number, top: number, view: Re
 /** The roles the plan reads, so a test can hold the plan and the contract together. */
 export const PLANNED_ROLES = ['solid', 'platform', 'door'] as const;
 export const plannedParts = (role: (typeof PLANNED_ROLES)[number]): readonly string[] => ENV_CONTRACT[role].parts;
+
+// ------------------------------------------------------------------------------------------------------------------------------------------------------- the zones that hurt
+
+export interface PlanHazard {
+  id: string;
+  kind: string;
+  rect: Rect;
+}
+
+/** The piece (one cell) a kind of hazard is drawn with, or `null` when the art has none. */
+export type HazardLookup = (kind: string) => PieceInfo | null;
+
+export interface HazardPlan {
+  draws: Draw[];
+  /** The hazards the art draws: their blockout can go. */
+  dressed: Set<string>;
+  /** `slot → hazards` the art has no piece for: the blockout keeps drawing those. */
+  lacking: Map<string, string[]>;
+}
+
+/**
+ * The cells of the art over each zone that hurts: one row along the zone from its floor, the cell as big as the art says (it may stand taller than the zone: the zone is what
+ * hurts, the picture only says where), the last one clipped to what is left of the zone's width. The zone is the truth — what it takes from the hero is the room's data —
+ * and the art is cut to its width, never scaled.
+ */
+export function planHazards(hazards: ReadonlyArray<PlanHazard>, piece: HazardLookup, view?: Rect): HazardPlan {
+  const draws: Draw[] = [];
+  const dressed = new Set<string>();
+  const lacking = new Map<string, string[]>();
+  for (const h of hazards) {
+    const slot = slotKey('hazard', h.kind, 'cell');
+    const cell = piece(h.kind);
+    if (!cell) {
+      const list = lacking.get(slot) ?? [];
+      list.push(h.id);
+      lacking.set(slot, list);
+      continue;
+    }
+    rowDraws(slot, cell, h.rect.x0, h.rect.x1, h.rect.y0 + cell.h, 0, view, draws);
+    dressed.add(h.id);
+  }
+  return { draws, dressed, lacking };
+}
+
+// ------------------------------------------------------------------------------------------------------------------------------------------------------- what can be used
+
+export interface PlanInteractable {
+  id: string;
+  kind: string;
+  x: number;
+  y: number;
+  actions?: ReadonlyArray<{ type: string }>;
+}
+
+/** The picture of a kind of interactable and, for a pickup, of the thing it gives; `null` when the art has none. */
+export type InteractiveLookup = (kind: string, variant: string) => PieceInfo | null;
+
+export interface InteractablePlacement {
+  id: string;
+  kind: string;
+  variant: string;
+  slot: string;
+  /** Where the picture's PIVOT stands (bottom centre), metres, +y up. A floating pickup is centred on the height its data names plus `PICKUP_FLOAT`. */
+  x: number;
+  y: number;
+  /** The layer it lives in: a floating pickup is light (`lightOverlay`), everything else stands behind the action (`propsBack`). */
+  layer: 'propsBack' | 'lightOverlay';
+  floats: boolean;
+  /** The pictures it has: the first is how it rests, the second (if any) how it looks lit. */
+  frames: number;
+}
+
+export interface InteractablePlan {
+  placements: InteractablePlacement[];
+  dressed: Set<string>;
+  lacking: Map<string, string[]>;
+}
+
+/** Where the art puts the shrines, pickups and levers of a room. Never moves what the hero can reach: the spot is the room's data and the picture is placed on it. */
+export function planInteractables(items: ReadonlyArray<PlanInteractable>, piece: InteractiveLookup): InteractablePlan {
+  const placements: InteractablePlacement[] = [];
+  const dressed = new Set<string>();
+  const lacking = new Map<string, string[]>();
+  for (const i of items) {
+    const variant = interactiveVariant(i);
+    const slot = slotKey('interactive', i.kind, variant);
+    const p = piece(i.kind, variant);
+    if (!p) {
+      const list = lacking.get(slot) ?? [];
+      list.push(i.id);
+      lacking.set(slot, list);
+      continue;
+    }
+    const floats = i.kind === 'pickup';
+    placements.push({ id: i.id, kind: i.kind, variant, slot, x: i.x, y: floats ? i.y + PICKUP_FLOAT - p.h / 2 : i.y, layer: floats ? 'lightOverlay' : 'propsBack', floats, frames: p.frames });
+    dressed.add(i.id);
+  }
+  return { placements, dressed, lacking };
+}
 
 export interface StripPlan {
   /** Where the bottom of the strip is, in the layer's own coordinates (metres, +y up), and the left edge of each copy. */

@@ -306,7 +306,7 @@ describe('environment art', () => {
     return {
       id,
       clips: { idle: { count: 1, extra: { frames: `${id}_` } } }, // (a pack names each frame once: the still picture of each sprite has its own prefix)
-      extra: { pivot: [...spec.pivot], tags: [`role:${s.role}`, ...(spec.subject ? [`${spec.subject}:${s.subject}`] : []), ...(s.part ? [`part:${s.part}`] : [])] },
+      extra: { pivot: [...spec.pivot], tags: [`role:${s.role}`, ...(spec.subject ? [`${spec.subject}:${s.subject}`] : []), ...(s.part ? [s.role === 'interactive' ? `variant:${s.part}` : `part:${s.part}`] : [])] },
     };
   };
   const scenery = (over: Partial<SourcePack> = {}, only: (s: (typeof slots)[number]) => boolean = () => true): SourcePack => ({

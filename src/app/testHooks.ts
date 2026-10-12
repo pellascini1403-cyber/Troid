@@ -46,7 +46,7 @@ export interface HookHost {
   readonly playerVisual: PlayerVisualSwitch;
   readonly roomView: RoomView2D;
   /** What the art covers of the room now (`null`: the blockout draws all of it). */
-  roomArt(): { solids: ReadonlySet<string>; gates: ReadonlySet<string>; exits: ReadonlySet<string>; backdrop: ReadonlySet<string>; sprites: number; lacking: ReadonlyMap<string, readonly string[]>; notes: readonly string[] } | null;
+  roomArt(): { solids: ReadonlySet<string>; gates: ReadonlySet<string>; exits: ReadonlySet<string>; hazards: ReadonlySet<string>; interactables: ReadonlyMap<string, unknown>; backdrop: ReadonlySet<string>; sprites: number; lacking: ReadonlyMap<string, readonly string[]>; notes: readonly string[] } | null;
   readonly entityViews: EntityViews;
   readonly touchControls: TouchControls;
   readonly touchSource: TouchSource;
@@ -219,7 +219,12 @@ export function createTestHooks(h: HookHost) {
         // what the art draws of the room (S45): the solids and doors it covers, the sprites it made, what the blockout still draws
         roomArt: (() => {
           const c = h.roomArt();
-          return c ? { solids: [...c.solids], gates: [...c.gates], exits: [...c.exits], backdrop: [...c.backdrop], sprites: c.sprites, lacking: Object.fromEntries(c.lacking), notes: [...c.notes] } : null;
+          return c
+            ? {
+                solids: [...c.solids], gates: [...c.gates], exits: [...c.exits], hazards: [...c.hazards], interactables: [...c.interactables.keys()], backdrop: [...c.backdrop],
+                sprites: c.sprites, lacking: Object.fromEntries(c.lacking), notes: [...c.notes],
+              }
+            : null;
         })(),
         room: session.room.id,
         flags: session.flags.list(),

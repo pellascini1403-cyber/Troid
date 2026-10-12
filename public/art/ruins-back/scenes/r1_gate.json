@@ -36,63 +36,63 @@
       {
         "sprite": "fore_leaves_a",
         "x": 3.98,
-        "y": 6.21,
+        "y": 8.55,
         "flip": true,
         "scale": 1.18
       },
       {
         "sprite": "fore_leaves_b",
         "x": 20.25,
-        "y": 6.08,
+        "y": 7.9,
         "flip": true,
         "scale": 1.33
       },
       {
         "sprite": "fore_leaves_c",
         "x": 40.31,
-        "y": 6.48,
+        "y": 8.58,
         "flip": true,
         "scale": 1.25
       },
       {
         "sprite": "fore_leaves_a",
         "x": 54.1,
-        "y": 6.66,
+        "y": 9.27,
         "flip": true,
         "scale": 1.1
       },
       {
         "sprite": "fore_leaves_b",
         "x": 73.62,
-        "y": 6.07,
+        "y": 8.24,
         "flip": true,
         "scale": 1.23
       },
       {
         "sprite": "fore_leaves_c",
         "x": 88.91,
-        "y": 6.07,
+        "y": 7.63,
         "flip": false,
         "scale": 1.41
       },
       {
         "sprite": "fore_leaves_a",
         "x": 106.46,
-        "y": 6.62,
+        "y": 8.61,
         "flip": true,
         "scale": 1.28
       },
       {
         "sprite": "fore_leaves_b",
         "x": 119.93,
-        "y": 6.68,
+        "y": 9.12,
         "flip": true,
         "scale": 1.15
       },
       {
         "sprite": "fore_leaves_c",
         "x": 133.6,
-        "y": 6.67,
+        "y": 8.53,
         "flip": false,
         "scale": 1.32
       }

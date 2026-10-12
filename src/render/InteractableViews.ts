@@ -1,8 +1,17 @@
 import { Container, Graphics } from 'pixi.js';
 import type { InteractableDef } from '@/interaction/Interactable';
+import { PICKUP_FLOAT } from '@/presentation/environment';
 import { PALETTE } from '@/presentation/palette';
 import { viewY } from '@/presentation/worldTransform';
 import type { Layers } from './layers';
+
+/**
+ * What the art draws of an interactable instead of the blockout's mark (`RoomArtView`): it is told the same two answers of the simulation, once per rendered frame — is the thing
+ * there, is it lit — and moves itself (a pickup bobs, a shrine pulses). It decides nothing.
+ */
+export interface InteractableArt {
+  update(time: number, available: boolean, lit: boolean, phase: number): void;
+}
 
 interface Marker {
   readonly def: InteractableDef;
@@ -13,6 +22,8 @@ interface Marker {
   readonly floats: boolean;
   /** A shrine: the crystal that is bright while the hero's checkpoint is here and dim while it is elsewhere. */
   readonly crystal?: Container;
+  /** The art that draws this one: the mark above is then not drawn. */
+  art?: InteractableArt;
 }
 
 /**
@@ -37,7 +48,7 @@ export class InteractableViews {
       // dash), anything else a card
       const gives = def.actions.some((a) => a.type === 'addBottleSlot') ? drawVial : def.actions.some((a) => a.type === 'unlockAbility') ? drawRune : drawCard;
       const root = shrine ? shrine.root : floats ? gives() : drawPost();
-      root.position.set(def.x, viewY(def.y + (floats ? 0.85 : 0)));
+      root.position.set(def.x, viewY(def.y + (floats ? PICKUP_FLOAT : 0)));
       root.label = `interactable:${def.id}`;
       (floats ? this.layers.lightOverlay : this.layers.propsBack).addChild(root);
       this.markers.set(def.id, { def, root, phase: i * 1.7, floats, ...(shrine ? { crystal: shrine.crystal } : {}) });
@@ -50,13 +61,17 @@ export class InteractableViews {
     this.time += dt;
     for (const m of this.markers.values()) {
       const on = isAvailable(m.def.id);
+      if (m.art) {
+        m.art.update(this.time, on, isLit(m.def.id), m.phase);
+        continue;
+      }
       if (m.crystal) {
         m.crystal.alpha = isLit(m.def.id) ? 0.85 + 0.15 * Math.sin(this.time * 2.4 + m.phase) : 0.3;
         continue;
       }
       if (m.floats) {
         m.root.visible = on;
-        m.root.y = viewY(m.def.y + 0.85) + Math.sin(this.time * 2.2 + m.phase) * 0.06;
+        m.root.y = viewY(m.def.y + PICKUP_FLOAT) + Math.sin(this.time * 2.2 + m.phase) * 0.06;
         m.root.alpha = 0.8 + 0.2 * Math.sin(this.time * 3.1 + m.phase);
       } else {
         m.root.alpha = on ? 1 : 0.35;
@@ -66,6 +81,21 @@ export class InteractableViews {
 
   get count(): number {
     return this.markers.size;
+  }
+
+  /** The art draws these interactables (`RoomArtView.build`): their blockout marks go, and the art follows what the simulation says of each. */
+  cover(art: ReadonlyMap<string, InteractableArt>): void {
+    for (const [id, a] of art) {
+      const m = this.markers.get(id);
+      if (!m) continue;
+      m.art = a;
+      m.root.visible = false;
+    }
+  }
+
+  /** Which interactables the art draws (E2E and debug). */
+  get covered(): string[] {
+    return [...this.markers.values()].filter((m) => m.art).map((m) => m.def.id);
   }
 
   clear(): void {

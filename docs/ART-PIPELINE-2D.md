@@ -825,7 +825,7 @@ Diez clases de arte, cada una con **qué dato de la sala dibuja**, **en qué cap
 
 `environmentSlots(salas)` lee los datos de las salas y da **una pieza por (rol, sujeto, parte)**: cada material de cada sólido, cada puerta, cada tipo de peligro y de objeto, los sellos, las salidas y el fondo. **Hoy (R1–R4): 26 piezas, 12 obligatorias** —`solid` `stone` y `earth` (`fill`), `platform` `wood` (`body`), `door` `gate` y `seal` (`body`), `hazard` `spikes` (`cell`), `backdrop` `ruins` (`far`, `mid`, `near`), `interactive` `rest` y `pickup`, `seal`— y sale sola: una sala con un material nuevo pide piezas nuevas. Las salas de pruebas (`moss`) no son del mundo y no cuentan.
 
-`npm run assets:missing` la imprime (`0 of 12 required pieces` hoy) con las salas que usan cada una; `--strict` falla mientras falte algo.
+`npm run assets:missing` la imprime (`N of 14 required pieces`: los pickups se piden por lo que dan, una pieza por variante) con las salas que usan cada una; `--strict` falla mientras falte algo.
 
 ## I.6 Cómo se entrega y qué comprueba el *build*
 
@@ -1177,10 +1177,29 @@ Una escena (`presentation/roomScene.ts`; `scenes/<sala>.json`) es **solo datos**
 
 1. **Todo el escenario es de un pintor, no de una mano.** Necesita **revisión artística** pieza a pieza: la mampostería, la silueta de los troncos y las copas, los arcos, el efigie y los helechos se leen bien a 844 × 390 y a 1920 × 1080, pero **no tienen el trabajo de una ilustradora**. Cualquiera de ellas se sustituye entregando un PNG con las mismas etiquetas en `art/`.
 2. **Los fondos son estáticos** salvo la deriva de la bruma y las motas, el pulso de los resplandores y el balanceo de lo que lo declare. No hay follaje que responda al héroe, ni luz que cambie con el combate (fases H–I).
-3. **R2, R3 y R4 solo tienen la ropa del contrato** (suelo, muros, plataformas y fondos del paquete); les faltan sus escenas y sus piezas propias: las raíces de R2, el sello de R3, el santuario de R4 y los pinchos, el santuario de descanso y la recogida del contrato (`assets:missing` lo lista).
+3. **R3 y R4 siguen sin su ropa** (a propósito: una sala entra en las zonas de los paquetes en la fase que la termina). R2 la tiene desde la fase C (§M.9); a R3 le faltan el cuerpo de la puerta del sello, el sello y la carta, y a R4 el santuario grande y la runa de la recompensa.
 4. **El suelo** (el relleno ciclópeo de la tierra) es oscuro y plano a propósito —para que el héroe, casi negro, se lea sobre un fondo más claro (R14)—; falta **variación a gran escala** (estratos visibles, raíces gruesas, charcos).
 5. **Sin calibrar en un dispositivo real**: la densidad (96 px/m en el suelo, menos en los fondos) y la memoria están pensadas para un teléfono, **no medidas en uno**.
 
 ## M.8 Probado (S45–S46)
 
 `roomPlan.test.ts` (celdas, recortes, bordes expuestos, plataformas, puertas, tiras, `cropFrame`), `roomScene.test.ts` (leer y comprobar escenas), ampliaciones de `environment.test.ts` (etiquetas, malla por familia, cobertura entre paquetes) y de `buildArt.test.ts` (**páginas compartidas**, las escenas se empaquetan y se leen contra su paquete, la biblioteca las lee por una página común), y el escenario E2E **`room-art`**: R1 con el arte (cada sólido, la puerta y la salida las dibuja el arte; ≤ 60 llamadas en seis puntos del recorrido; memoria bajo el presupuesto), la puerta se desvanece con su compuerta, **sin arte** el *blockout* lo dibuja todo, y **con arte de solo la tierra** lo demás sigue siendo del *blockout*.
+
+## M.9 R2, «Galería de Raíces» (fase C): lo que el contrato aprendió
+
+R2 se viste como R1 —las mismas teselas, los mismos fondos y la misma luz de los tres paquetes compartidos— y añade un cuarto paquete **solo de R2** (`ruins-roots`, `zones: ["r2_hall"]`: se descarga al entrar y se suelta al salir): el arco de raíces que cubre el vestíbulo, las cortinas que cuelgan de la oscuridad, las columnas que el bosque se ha tomado, las raíces que reptan por el suelo, los zarcillos del primer plano, **las espinas del foso, el santuario y el frasco de la cuarta botella**.
+
+**Tres piezas de los datos de la sala que antes solo dibujaba el *blockout*:**
+
+- **Las zonas que hacen daño** (`hazards`): `roomPlan.planHazards` reparte una fila de celdas de la pieza `role:hazard · kind:spikes · part:cell` a lo largo de la zona **desde su suelo**, de ancho entero y con la última recortada (nunca escalada), tan alta como diga el arte (la zona es lo que hiere; el dibujo solo dice dónde). `grid:4x1` da la variedad de una tira periódica. La vista le quita al *blockout* **solo** esas zonas (`BlockoutCover.hazards`).
+- **Lo que se usa** (`interactables`): `planInteractables` coloca una pieza `role:interactive · kind:<tipo>` sobre el punto que nombran los datos: un **santuario** (`rest`) detrás de la acción, un **objeto** (`pickup`) flotando `PICKUP_FLOAT` (0.85 m, la misma constante que usa el *blockout*) por encima en la capa de luz. Una pieza con **segundo fotograma** lo muestra *encendido* sobre el primero (el santuario que es el *checkpoint*, la palanca que aún sirve). Cada interactuable lo dibuja un `ArtInteractable` que **sigue lo que dice la simulación** —está/ no está, encendido— en el mismo gancho del *blockout* (`InteractableViews.cover`); la vista **no decide nada**.
+- **La variante de un objeto** (`variant:bottle|card|rune`): un `pickup` se pide **por lo que da** (una ranura de botella es un frasco, una habilidad una runa, lo demás una carta), leído de los datos de la sala (`interactiveVariant`). Una pieza sin variante sirve a todas. Así el slice pide **14 piezas obligatorias** (eran 12): la cuarta botella llega en R2, la carta en R3 y la runa en R4, cada una en su fase.
+
+**Una guarda nueva para el primer plano.** Las piezas del primer plano cuelgan del borde alto de la pantalla; si su borde superior queda a la vista (la cámara más alta de la sala, el héroe en la repisa más alta) se ve un corte plano en el aire. `RoomArtView` avisa (`notes`, y el escenario `room-art` exige que no haya ninguno) y los compositores de escenas cuelgan las piezas desde `foregroundTop(sala)`. Esto **corrigió R1** también: sus hojas colgaban demasiado bajas para la cámara más alta, y el **arco colosal** estaba cortado por el borde del dibujo (ahora cabe entero).
+
+**El pintor aprendió a pintar tubos** (`SilhouetteLayer.tube`): cada punto del camino estampa un disco de su radio y la altura es la de un cilindro, así que una raíz que va en **cualquier** dirección se ilumina como algo redondo (`add` redondea por la caja, bien para una columna y mal para una raíz curva). Con eso: raíces trenzadas con surcos de corteza, nudos, ramas y nódulos de luz cian; las espinas (negras, curvas, con la punta de un carmín apagado: lo único cálido de la sala y pequeño, para que el peligro se lea antes que se entienda); el santuario (un altar que se abre en copa, raíces que lo cierran como dedos y un cristal; **dos celdas**: en espera y encendido, con un charco de luz en el suelo); el frasco (luz pintada, para la capa aditiva).
+
+**Medido** (GL por software; sin dispositivo real): R2 = 444 *sprites*, 10 llamadas de dibujo como máximo (presupuesto 60), 5 páginas residentes en R2 (≈ 26.6 MiB descomprimidas con el héroe; el paquete de R2 añade 5.5 MiB), arte de R2 ≈ 0.9 MB en disco.
+
+**Lo que falta de R2 y necesita revisión artística:** el santuario en reposo y las espinas son pequeños comparados con el arco (se leen, pero piden el ojo de un artista); las raíces comparten una gramática (trenzas + nudos + ramas) que a ojo de ilustrador se repite; el suelo del foso es la misma tierra que la de fuera (le faltan charcos y estratos); el Ink Slime sigue procedural (fase G).
+

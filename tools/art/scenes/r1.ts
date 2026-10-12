@@ -1,9 +1,8 @@
 import { R1_GATE_ROOM } from '../../../src/content/rooms/r1Gate';
-import { exposedEdges, type PlanSolid } from '../../../src/presentation/roomPlan';
 import type { Placement, RoomScene, SceneLayer } from '../../../src/presentation/roomScene';
-import { SCENE_VERSION } from '../../../src/presentation/roomScene';
 import { Rng } from '../painter/rng';
 import { sizeOf, type PackSpec } from '../spec';
+import { choose, foregroundTop, push, round2, sceneOf, surfacesOf, type Layers } from './common';
 
 /**
  * THE DRESSING OF R1, «Puerta de las Ruinas» (docs/GAME-SPEC-2D.md §14.4): which pieces of the packs stand where. A room is a walk — the open way in under the old trees, the
@@ -11,34 +10,8 @@ import { sizeOf, type PackSpec } from '../spec';
  * low and cold in the chasm, close and dark in the tunnel, and violet at the gate. The scatter is seeded, so a rebuild changes nothing; the landmarks are placed by hand.
  */
 const ROOM = R1_GATE_ROOM;
-const solids = ROOM.solids as unknown as PlanSolid[];
-const blocks = solids.filter((s) => s.kind !== 'oneway' && !ROOM.gates?.some((g) => g.solid === s.id));
-const surfaces = (): Array<{ solid: PlanSolid; a: number; b: number; y: number }> => {
-  const out: Array<{ solid: PlanSolid; a: number; b: number; y: number }> = [];
-  for (const s of blocks) {
-    if (s.id.startsWith('wall_')) continue;
-    for (const [a, b] of exposedEdges(s, blocks).top) if (b - a >= 1.1) out.push({ solid: s, a, b, y: s.rect.y1 });
-  }
-  return out;
-};
-
-type Layers = Partial<Record<SceneLayer, Placement[]>>;
-const push = (layers: Layers, layer: SceneLayer, p: Placement): void => {
-  (layers[layer] ??= []).push(p);
-};
-const scene = (layers: Layers): RoomScene => ({ sceneVersion: SCENE_VERSION, room: ROOM.id, layers });
-const round2 = (n: number): number => Math.round(n * 100) / 100;
-
-/** Weighted choice. */
-const choose = <T>(rng: Rng, items: ReadonlyArray<readonly [T, number]>): T => {
-  const total = items.reduce((n, [, w]) => n + w, 0);
-  let r = rng.next() * total;
-  for (const [item, w] of items) {
-    r -= w;
-    if (r <= 0) return item;
-  }
-  return items[items.length - 1]![0];
-};
+const surfaces = (): ReturnType<typeof surfacesOf> => surfacesOf(ROOM);
+const scene = (layers: Layers): RoomScene => sceneOf(ROOM, layers);
 
 function ground(pack: PackSpec): RoomScene {
   const rng = new Rng(101);
@@ -101,13 +74,20 @@ function ground(pack: PackSpec): RoomScene {
 function back(pack: PackSpec): RoomScene {
   const rng = new Rng(202);
   const layers: Layers = {};
-  void pack;
   // ---- the colossal ruins behind the walk (layer coordinates: 0.75 × the world's x where the hero will be)
   const arches: Array<[string, number, boolean]> = [['arch_grand_a', 0.75 * 12, false], ['arch_grand_b', 0.75 * 46, true], ['arch_grand_a', 0.75 * 88, true], ['arch_grand_b', 0.75 * 120, false]];
   for (const [sprite, x, flip] of arches) push(layers, 'backdropNear', { sprite, x: round2(x), y: -0.9, flip, scale: round2(rng.range(0.9, 1.1)) });
   // ---- leaves in front: hung from the top of the screen, never lower than the hero's head
   const refs = [4, 18, 33, 47, 60, 73, 88, 101, 112];
-  refs.forEach((ref, i) => push(layers, 'foreground', { sprite: `fore_leaves_${'abc'[i % 3]}`, x: round2(1.2 * ref + rng.range(-3, 3)), y: round2(rng.range(6.0, 6.7)), flip: rng.chance(0.5), scale: round2(rng.range(1, 1.5)) }));
+  const leaves = sizeOf(pack, 'fore_leaves_a');
+  refs.forEach((ref, i) => {
+    const x = round2(1.2 * ref + rng.range(-3, 3));
+    const lift = rng.range(0, 0.7);
+    const flip = rng.chance(0.5);
+    const scale = round2(rng.range(1, 1.5));
+    // hung from above the highest view the camera can have, so the flat top of the picture never shows; the fringe hangs 0 … 0.7 m below the lowest it can reach
+    push(layers, 'foreground', { sprite: `fore_leaves_${'abc'[i % 3]}`, x, y: round2(foregroundTop(ROOM) - leaves.h * scale + lift), flip, scale });
+  });
   return scene(layers);
 }
 
