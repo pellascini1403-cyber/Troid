@@ -199,6 +199,8 @@ export async function startPlayerLab(host: HTMLElement, params: URLSearchParams)
     const frame = names[index] ?? null;
     const tex = frame ? set.textures.get(frame) : undefined;
     const def = set.def;
+    // a frame may be drawn at its own size (a sheet of poses drawn at different scales): the picture and its bounds follow it, like the game's
+    const frameScale = (frame ? set.meta.frames[frame]?.scale : undefined) ?? 1;
     const anchors: CellInfo['anchors'] = {};
     for (const id of ANCHOR_IDS) {
       const a = resolveAnchor(def, set.meta, frame, id);
@@ -217,9 +219,9 @@ export async function startPlayerLab(host: HTMLElement, params: URLSearchParams)
       clip: clipStateOf(set, clip),
       phase: phaseOf(c, index),
       artPxPerMeter: def.artPxPerMeter,
-      visualScale: (def.visualScale ?? 1) * scale,
-      canvas: tex ? canvasRect({ ...def, visualScale: (def.visualScale ?? 1) * scale }, tex.orig.width, tex.orig.height) : null,
-      visible: tex ? visibleRect({ ...def, visualScale: (def.visualScale ?? 1) * scale }, { width: tex.orig.width, height: tex.orig.height }, tex.trim ? { x: tex.trim.x, y: tex.trim.y, width: tex.trim.width, height: tex.trim.height } : null) : null,
+      visualScale: (def.visualScale ?? 1) * scale * frameScale,
+      canvas: tex ? canvasRect({ ...def, visualScale: (def.visualScale ?? 1) * scale * frameScale }, tex.orig.width, tex.orig.height) : null,
+      visible: tex ? visibleRect({ ...def, visualScale: (def.visualScale ?? 1) * scale * frameScale }, { width: tex.orig.width, height: tex.orig.height }, tex.trim ? { x: tex.trim.x, y: tex.trim.y, width: tex.trim.width, height: tex.trim.height } : null) : null,
       anchors,
       gripFromHand: hand && grip && !hand.fallback && !grip.fallback ? Math.hypot(grip.x - hand.x, grip.y - hand.y) : null,
     };
@@ -263,7 +265,7 @@ export async function startPlayerLab(host: HTMLElement, params: URLSearchParams)
       const tex = set.textures.get(names[c.index]!);
       if (tex) cell.sprite.texture = tex;
       cell.sprite.anchor.set(def.pivot[0], def.pivot[1]);
-      cell.sprite.scale.set(metresPerArtPixel({ ...def, visualScale: (def.visualScale ?? 1) * scale }));
+      cell.sprite.scale.set(metresPerArtPixel({ ...def, visualScale: (def.visualScale ?? 1) * scale * (set.meta.frames[names[c.index]!]?.scale ?? 1) }));
       cell.sprite.position.set(0, 0);
 
       if (flags.grid) {

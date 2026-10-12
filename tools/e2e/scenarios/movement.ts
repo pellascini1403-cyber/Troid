@@ -5,7 +5,7 @@ import type { Scenario } from '../scenario';
 export const movement: Scenario = {
   name: 'movement',
   async run(ctx) {
-    await ctx.open('room=movement_test&unlock=dash');
+    await ctx.open('room=movement_test&unlock=dash&visual=placeholder'); // the frames asserted below are the placeholder's: the art has its own scenarios (player-art, player-r1)
     const { page } = ctx;
 
     await ctx.step(30);

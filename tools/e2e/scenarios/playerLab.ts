@@ -39,7 +39,7 @@ interface LabState {
 
 const lab = async (ctx: Ctx): Promise<LabState> => (await ctx.page.evaluate('window.__playerLab.state()')) as LabState;
 const open = async (ctx: Ctx, fixture: Fixture | null, query = ''): Promise<void> => {
-  await ctx.open(`lab=player${query ? `&${query}` : ''}${fixture ? '&art=art-test' : ''}`, { ...SIZE, prepare: async (context: BrowserContext) => (fixture ? fixture.serve(context, 'art-test') : undefined) });
+  await ctx.open(`lab=player${query ? `&${query}` : ''}&art=${fixture ? 'art-test' : ''}`, { ...SIZE, prepare: async (context: BrowserContext) => (fixture ? fixture.serve(context, 'art-test') : undefined) });
   await ctx.page.waitForFunction('window.__playerLab && window.__playerLab.ready', undefined, { timeout: 30000 });
 };
 const tid = (id: string): string => `[data-testid="${id}"]`;

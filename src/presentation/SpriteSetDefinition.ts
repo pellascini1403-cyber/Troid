@@ -62,6 +62,11 @@ export interface SpriteSetDefinition {
 export interface FrameMeta {
   /** Character height in art pixels in this frame (feet to top of the head, no weapon): scale validation. */
   heightPx?: number;
+  /**
+   * Visual size of THIS frame about the feet, as a multiplier of the set's (default 1): for art whose poses were not all drawn at the same size (a sheet of single
+   * poses). An integration knob like `visualScale` — it changes what is drawn and never what happens. Anchors written in the manifest are metres AFTER it.
+   */
+  scale?: number;
   /** Per-frame anchors: the sword moves with the animation, so do `hand_r`, `weapon_grip` and `weapon_tip`. */
   anchors?: Partial<Record<AnchorId, AnchorPoint>>;
 }

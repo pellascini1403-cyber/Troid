@@ -9,7 +9,7 @@ import type { Scenario } from '../scenario';
 export const crouch: Scenario = {
   name: 'crouch',
   async run(ctx) {
-    await ctx.open('room=crouch_test&unlock=dash');
+    await ctx.open('room=crouch_test&unlock=dash&visual=placeholder'); // the frames asserted below are the placeholder's
     const { page } = ctx;
     await ctx.step(30);
     let s = await ctx.state();

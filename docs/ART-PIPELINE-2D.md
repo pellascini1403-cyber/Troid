@@ -1019,3 +1019,88 @@ Nada del Prompt 7 se ha visto ni medido en un **iPhone, un iPad ni un Android re
 | Arranque en frío (KB gzip; presupuesto 200) | 198.4 | **190.7** (34 *scripts*) |
 | Primera sesión entera (KB gzip) | — | 205.9 |
 | `tsc` | limpio | limpio |
+
+---
+
+# Parte L — El protagonista del usuario: de su hoja de poses a los fotogramas (Prompt 8, fase A)
+
+> **Estado, sin letra pequeña.** El protagonista del juego **ya no es la cápsula**: se dibuja con **los píxeles de tu hoja de poses** (`art/player/source/hero-sheet.png`, el PNG que entregaste, guardado **bit a bit**). Pero la hoja es una **hoja de concepto** —**una pose por acción**, sobre fondo casi blanco, con sombras de suelo, líneas de velocidad, polvo y energía **roja** dibujados alrededor—, no una hoja de *sprites*: de ella salen **7 de los 15 clips con arte propio** (de **un solo fotograma** cada uno) y **8 estados que enseñan la pose de otro clip** (*stand-ins*, marcados y contados como **NO entregados**). **No hay animación**: no hay fotogramas intermedios, y **no se ha dibujado ninguno**. Lo que falta está dicho en L.6.
+
+## L.1 Qué se hizo —y qué no— con tus imágenes
+
+`tools/assets/poses.ts` convierte **un rectángulo de la hoja** en **un fotograma con alfa**, con operaciones **solo técnicas**:
+
+| Se hace | Cómo | Qué garantiza |
+|---|---|---|
+| **Fondo transparente** | se buscan los píxeles seguros de la figura (oscuros —es negra y azul marino— o de brillo cian) y se crece unos píxeles hacia lo que no es casi blanco; lo que no toca la figura no es la figura | donde la figura es sólida, **su píxel es el de tu hoja, sin cambio**: colores, brillos y contorno |
+| **Borde sin halo blanco** | el contorno de un píxel era una mezcla de la figura y del blanco sobre el que se dibujó; se resuelve cuánto de cada uno y se separa el color | el borde no lleva un fleco blanco sobre un fondo oscuro (una prueba lo comprueba) |
+| **Lo que no es la figura se deja fuera** | la sombra del suelo, las líneas de velocidad, el polvo y la **energía roja** (otra capa del dibujo: el juego pinta sus propios efectos, en cian) | pero **el rojo que toca la figura** —el filo de una hoja que brilla— **se queda** |
+| **Los huecos que la figura cierra** | el blanco dentro de los ojos es de la figura; el hueco blanco entre una antena y la cabeza **no** | los ojos conservan sus tres reflejos |
+| **Espejo** | una pose que la hoja dibuja mirando a la izquierda (la 12) se refleja: el contrato pide el arte mirando a la derecha | el espejo mueve píxeles y no cambia ninguno |
+| **Traslación entera al lienzo común** | cada pose se coloca con sus pies sobre el pivote: un desplazamiento en píxeles enteros | **nada se remuestrea** |
+
+**Lo que no se hace jamás:** dibujar, redibujar, recolorear, suavizar, cambiar proporciones, silueta, cabeza, ojos, capa, armadura ni espada; inventar una pose; pasar nada por un filtro. Si una pose **no se puede separar** de su energía roja sin llevarse la figura, **no se usa** (L.2).
+
+Todo lo que es una **decisión de una persona** —qué rectángulo es qué pose, dónde están sus pies, dónde está la empuñadura y la punta de la espada— es **dato**, en `art/player/source/hero.poses.json`, y se **comprueba mirando el resultado** en `?lab=player`. `npm run assets:poses` regenera los fotogramas y el manifiesto; `npm run assets:poses -- --check` dice si lo versionado es lo que la hoja y ese archivo producen (y lo repite una prueba: **nadie los dibujó ni los tocó**).
+
+## L.2 Las doce poses de la hoja
+
+| # | Pose de la hoja | Se usa para | Notas |
+|---|---|---|---|
+| 1 | de pie, tranquilo | `idle` (y de *stand-in* de `drink` e `interact`) | |
+| 2 | de pie, tres cuartos, en guardia | — | ningún estado la pide todavía |
+| 3 | la carrera, inclinado | `walk` (el juego usa el mismo clip para andar y correr) y de *stand-in* del `dash` | |
+| 4 | subiendo | `jump` | sus líneas de velocidad se dejan fuera |
+| 5 | cayendo de cabeza | `fall` | sus líneas de velocidad se dejan fuera |
+| 6 | el aterrizaje, agachado | `land` y, de *stand-in*, `crouch` | su polvo se deja fuera |
+| 7 | el tajo bajo, espada al frente | `attack1` y, de *stand-in*, `attack2`, `attackAir` y `attackCrouch` | el arco rojo se deja fuera |
+| 8 | el segundo tajo | — | **no se usa**: la espada y su arco rojo son **un solo dibujo**; el arco es el efecto y no se puede sacar sin llevarse la hoja |
+| 9 | la carga | — | **no se usa**: las llamas rojas cubren la figura |
+| 10 | el *dash* | — | **no se usa**: la figura **es** una estela roja |
+| 11 | golpeado, lanzado hacia atrás | `hurt` y, de *stand-in*, `death` | sus chispas rojas se dejan fuera |
+| 12 | la espada en alto | `cast` (a ×1.3: está dibujada más pequeña) | **reflejada**: la hoja la dibuja mirando a la izquierda |
+
+## L.3 Los clips
+
+**Con arte propio (7 de los 15, un fotograma cada uno):** `idle`, `walk`, `jump`, `fall`, `attack1`, `hurt`, `cast` — y `land`, un octavo que la hoja trae y que la entrega no pedía.
+
+**Estados con la pose de otro clip (8; etiqueta `stand-in` y un comentario con el porqué en el manifiesto):**
+
+| Estado | Enseña | Por qué no tiene arte propio |
+|---|---|---|
+| `dash` | la carrera (3) | la pose del *dash* de la hoja es una estela roja, no una figura |
+| `attack2` | el primer tajo (7) | el segundo tajo de la hoja no se puede separar de su arco rojo |
+| `attackAir` | el primer tajo (7) | la hoja no tiene un tajo en el aire |
+| `crouch` | el aterrizaje agachado (6) | la hoja no tiene un agachado |
+| `attackCrouch` | el primer tajo, que ya es una estocada baja (7) | la hoja no tiene un tajo agachado |
+| `death` | el golpe (11) | la hoja no tiene una muerte |
+| `drink` | de pie (1) | la hoja no tiene beber |
+| `interact` | de pie (1) | la hoja no tiene interactuar |
+
+**Qué cuenta `npm run assets:missing`:** *«Delivered: 7 of 15 clips of its own. 8 more are drawn with ANOTHER clip's pose»*, y `--strict` **falla** mientras quede un *stand-in*. Con ellos **ningún estado cae ya al *placeholder***, y **ninguno de ellos es arte entregado**: cuando llegue un clip de verdad, se quita la etiqueta y el *stand-in* desaparece.
+
+## L.4 Escala, pivote, anclas
+
+- **Un lienzo para todo el *sprite set***: 344 × 320 px, los pies en el pivote (140, 306) y **130 px de arte por metro**: la figura de pie mide ≈ 1.64 m de los pies a lo alto de la cabeza (el cuerpo de colisión mide 1.7) y ≈ 2.25 m con las antenas. Todos los fotogramas dejan margen a la izquierda, la derecha y arriba (el *build* lo comprueba).
+- **La escala de un fotograma** (`FrameMeta.scale`, **nueva en este paso**): las poses de una hoja no se dibujaron todas al mismo tamaño. La 12 está dibujada al 77 % de la 1 (su cabeza mide 100 px frente a 132), así que se dibuja a **×1.3** *alrededor de los pies*. Es una palanca de integración como `visualScale`: **cambia lo que se ve y nunca lo que pasa**; las anclas del manifiesto están en metros **ya con ella**. El laboratorio, el juego y los límites del dibujo (`bounds`) la aplican igual. Las demás se dibujaron entre ×0.93 y ×1.07 de la 1 (por el ancho de la cabeza; la caída y el aterrizaje, con la cabeza inclinada, no son comparables) y **no se tocan**: «lo que entregas es lo que se dibuja».
+- **La espada en la mano:** en el único golpe con arte propio (`attack1`) la **empuñadura está en la mano** (0.00 m, el contrato pide ≤ 4 cm) y la punta **al frente**; sus anclas (`hand_r`, `weapon_grip`, `weapon_tip`, `hit_origin`, `vfx_origin`) están **medidas sobre el dibujo** con una cuadrícula y las heredan los tres golpes que lo reusan. `cast` lleva `hand_r` y `projectile_origin`. **El golpe visible es una estocada baja: la punta llega a ras de suelo**, mientras la *hitbox* del juego (datos de `combat/`, que **no cambian**) cubre de 0.3 a 1.4 m de altura: el dibujo y la zona de daño no coinciden del todo, y **eso es de la *hitbox*, no del dibujo** (§A.7).
+- **Las cuatro cajas** siguen separadas (S40): `state().boxes` publica lo que se ve, lo que choca, lo que se hiere y lo que golpea, y cambiar el arte no mueve ninguna de las tres últimas: lo hace cumplir la regla de arquitectura (la simulación no importa nada de lo que se dibuja) y lo prueban, bit a bit, `player-art` y `world-art` (con arte sintético).
+
+## L.5 Medido
+
+| | |
+|---|---|
+| Fotogramas | 16 (8 distintos: los 8 *stand-ins* repiten los píxeles de otra pose y el empaquetador los guarda una vez) |
+| Página de atlas | 1 de 1627.5 KB descomprimida (≈ 1.6 MiB), 343 KB en disco |
+| Carga | `boot` (después del primer fotograma): el arranque en frío **no crece** (el arte son imágenes, no JavaScript) |
+| Llamadas de dibujo | **las mismas** con el arte real que antes con la cápsula: la suite completa, con el héroe ya dibujado por el arte, da `r1` 12, `room` 14, `world` 15, `boss` 15, `finale` 15, el *soak* 22 (presupuesto 60) |
+
+## L.6 Lo que falta y lo que necesita revisión artística
+
+1. **Animación.** Cada clip es **un fotograma**: el héroe **posa**, no se anima. No hay ciclo de andar, ni respiración al estar quieto, ni anticipación del golpe. Los fotogramas de verdad los tiene que dibujar quien dibujó la hoja (o quien él decida): la guía de entrega ([deliver-protagonist-art](guides/deliver-protagonist-art.md)) dice cómo.
+2. **Los ocho *stand-ins*.** Un agachado, una muerte, un beber, un interactuar, un tajo en el aire, un tajo agachado, un segundo tajo y un *dash* **propios**.
+3. **El tajo.** Una sola pose de ataque, y baja (L.4).
+4. **La espada.** En la hoja es **larga**; el encargo la quería **pequeña**. Es el dibujo del usuario y **no se ha tocado**: decide quien posee el diseño.
+5. **El rojo.** Las poses con energía roja (8, 9, 10) no se usan y los efectos rojos de las que sí se usan **se han dejado fuera**: la paleta del juego es cian/azul. Los detalles rojos **de la figura** (el filo de la hoja, unos puntos en las botas) **se conservan**.
+6. **Legibilidad.** El héroe es casi negro (luminancia ≈ 0.006): sobre un fondo oscuro **solo se leen los ojos y las líneas cian** (riesgo R14 del GAME-SPEC). Es un problema **de los escenarios y de la luz** (fases B–I), no del dibujo.
+7. **Un detalle de la hoja, no del juego:** el reflejo blanco de los ojos es **tres puntos**; en la pose 12 hay una marca roja junto a la boca que no está en el retrato. Se conservan tal cual.

@@ -10,17 +10,18 @@ Este repositorio contiene la base técnica y, en construcción, la *vertical sli
 > táctiles por gestos** se ejercitan con toques reales del protocolo DevTools en R1 entera, en cada botón y en el último tramo de R4 (**no se ha peleado con el jefe a toques**). Moverse, saltar, agacharse, atacar, hacer dash; **vida (5), magia (100) y cartas** en un HUD en DOM; **botellas de energía** (3, y una
 > **cuarta** en R2 para quien elige el camino alto); **peligros** (pinchos); el **Spirit Bolt** en R3, que **rompe un sello de tinta** que cierra el camino; **santuarios** (checkpoints) donde se
 > descansa; **guardado de progreso** automático (sobrevive a recargar la página); **cámara** con zonas; y **el Custodio de Tinta**, un jefe original con dos ataques avisados en violeta, dos fases y una
-> recompensa (el **Air Dash**). **Menú de pausa** con idioma (es/en), volumen (preparado: todavía no suena nada), calidad, teclas y disposición táctil. Todo con *placeholders* abstractos: **no hay
-> arte final** y el protagonista sigue siendo la **cápsula abstracta con espada** de los Prompts 3/4, sin rediseñar.
+> recompensa (el **Air Dash**). **Menú de pausa** con idioma (es/en), volumen (preparado: todavía no suena nada), calidad, teclas y disposición táctil. **El protagonista se dibuja con tu hoja de poses** (Prompt 8, fase A: provisional, un fotograma por clip, sin animación; ver abajo); lo demás —las salas, los enemigos, el jefe y los efectos— sigue siendo
+> *placeholder* abstracto: **no hay arte final** de ellos.
 > ⚠ **Nada se ha verificado ni calibrado en un iPhone, un iPad ni un Android reales** (ni con un mando físico): lo táctil se prueba con toques del protocolo DevTools y con la geometría, el mando con uno
 > abstracto. Qué se verificó y qué falta: [MOBILE-CALIBRATION](docs/MOBILE-CALIBRATION.md). Qué se hizo, qué se midió y qué queda: [bitácora del Prompt 7](docs/PROMPT7-LOG.md), [del 6](docs/PROMPT6-LOG.md) (y de los
 > [Prompt 5](docs/PROMPT5-LOG.md) y [Prompt 4](docs/PROMPT4-LOG.md)).
 >
-> **Arte (Prompt 7): el arte final del protagonista NO está en el repositorio.** Lo que hay es el **pipeline** que lo recibirá de forma limpia, eficiente y reversible: el manifiesto de datos, el empaquetador de atlas
-> **sin pérdida**, la carga diferida (el arranque en frío **no crece**), la validación en el *build* (el arte roto no compila), el conmutador *placeholder* ↔ arte **estado por estado**, un laboratorio (`?lab=player`), los
-> contratos de VFX, de audio y de entorno y una escena de estrés medida. **No se ha generado, dibujado ni imitado ningún arte** y el protagonista sigue siendo la cápsula con espada. `npm run assets:missing` dice exactamente qué
-> falta (hoy: **0 de 15 clips** del protagonista y **0 de 12 piezas** obligatorias del entorno). Documento técnico: [ART-PIPELINE-2D](docs/ART-PIPELINE-2D.md) · cómo entregarlo:
-> [protagonista](docs/guides/deliver-protagonist-art.md) y [entorno](docs/guides/deliver-environment-art.md). Lo siguiente es entregar el arte, pulir y probar en dispositivos reales ([ROADMAP](docs/ROADMAP.md)).
+> **Arte.** *Prompt 7:* el **pipeline** que recibe el arte de forma limpia, eficiente y reversible: el manifiesto de datos, el empaquetador de atlas **sin pérdida**, la carga diferida (el arranque en frío **no crece**), la validación en el *build*
+> (el arte roto no compila), el conmutador *placeholder* ↔ arte **estado por estado**, un laboratorio (`?lab=player`), los contratos de VFX, de audio y de entorno y una escena de estrés medida.
+> *Prompt 8, fase A:* **el protagonista ya se dibuja con los píxeles de tu hoja de poses** (`art/player/source/hero-sheet.png`, guardada bit a bit), solo con operaciones técnicas (fondo transparente; **nada dibujado, recoloreado ni suavizado**).
+> La hoja es de **concepto** —una pose por acción—: **7 de los 15 clips tienen arte propio, de un fotograma cada uno, y 8 enseñan la pose de otro clip** (*stand-ins*, contados como no entregados); **no hay animación** y **no se ha dibujado ningún
+> fotograma**. `npm run assets:missing` dice exactamente qué falta (hoy: **7 de 15 clips** con arte propio y **0 de 12 piezas** obligatorias del entorno). Documento técnico: [ART-PIPELINE-2D](docs/ART-PIPELINE-2D.md) (parte L) · cómo entregar lo que falta:
+> [protagonista](docs/guides/deliver-protagonist-art.md) y [entorno](docs/guides/deliver-environment-art.md). Lo siguiente (Prompt 8, fases B–J): las salas, el jefe, los enemigos y los efectos ([ROADMAP](docs/ROADMAP.md)).
 
 > **Documentación vigente:** [GAME-SPEC-2D](docs/GAME-SPEC-2D.md) (qué se construye) · [ARCHITECTURE-2D](docs/ARCHITECTURE-2D.md) (cómo) ·
 > [MIGRATION-2D](docs/MIGRATION-2D.md) (orden, riesgos, criterios) · [ADR-0003](docs/adr/0003-arquitectura-2d-definitiva.md) (decisiones) ·
@@ -48,6 +49,7 @@ npm run bench:bundle                                       # qué descarga un ar
 npm run assets:missing                                     # qué arte falta exactamente (protagonista y entorno); --strict falla mientras falte algo
 npm run assets:check                                       # valida el arte de art/ sin escribir nada (lo ejecuta `build`: el arte roto no compila)
 npm run assets:pack                                        # empaqueta art/ → public/art/ (atlas sin pérdida); assets:verify comprueba lo empaquetado
+npm run assets:poses                                       # los fotogramas del protagonista desde la hoja de poses del usuario (--check: ¿son los que la hoja produce?)
 ```
 
 ### Jugar
@@ -79,7 +81,7 @@ Laboratorios (solo desarrollo, cargados aparte): `?lab=sprites` (hoja de contact
 src/        código (módulos por responsabilidad; ver docs/ARCHITECTURE-2D.md §2)
 tests/      unit · integration
 tools/      arnés E2E (Playwright: escenarios, decodificador de PNG, grabación y reproducción de partidas) · medición del bundle · assets/ (empaquetador y validador del arte)
-art/        el arte AUTORAL: índice y manifiestos (hoy solo el hueco del protagonista, `awaiting-art`; ver docs/ART-PIPELINE-2D.md)
+art/        el arte AUTORAL: índice, manifiestos y fuentes (hoy el protagonista, desde la hoja de poses del usuario en art/player/source; ver docs/ART-PIPELINE-2D.md)
 public/     assets estáticos (icono, manifiesto web) y, tras `assets:pack`, `art/` (generado: no se edita a mano)
 docs/       arquitectura, ADR, dirección de arte, guías
 ```

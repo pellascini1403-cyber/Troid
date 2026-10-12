@@ -203,6 +203,15 @@ describe('what the loader takes from the pages', () => {
     expect(merged['idle_02']).toEqual({ heightPx: 141 });
   });
 
+  it('carries the scale of a frame from the manifest, and does NOT scale it with the resolution of the image (it is a size in the world, not in pixels)', () => {
+    const raw = hash() as { meta: Record<string, unknown> };
+    raw.meta['troid'] = { frames: { idle_00: { heightPx: 140, scale: 1.1 } } };
+    const sprite = spriteOf({ frames: { idle_00: { scale: 1.3 }, idle_01: { scale: 0.9 } } });
+    expect(mergeFrameMeta(sprite, [page('a0', raw)])['idle_00']).toEqual({ heightPx: 140, scale: 1.3 }); // the manifest wins
+    expect(mergeFrameMeta(sprite, [page('a0', raw)])['idle_01']).toEqual({ scale: 0.9 });
+    expect(mergeFrameMeta(sprite, [page('a0', raw)], 0.5)['idle_00']).toEqual({ heightPx: 70, scale: 1.3 });
+  });
+
   it('measures the height in pixels of the master image: a smaller variant scales it, the anchors (metres) stay', () => {
     const raw = hash() as { meta: Record<string, unknown> };
     raw.meta['troid'] = { frames: { idle_00: { heightPx: 140, anchors: { hand_r: [0.4, 0.9] } } } };

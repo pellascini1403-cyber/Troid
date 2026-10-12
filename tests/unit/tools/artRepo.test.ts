@@ -1,4 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -6,11 +7,14 @@ import { PLAYER_VISUAL } from '@/content/visuals';
 import { parseArtPack } from '@/presentation/artManifest';
 import { buildArt } from '../../../tools/assets/build';
 import { readDelivery } from '../../../tools/assets/missing';
+import { decodePng } from '../../../tools/assets/png';
+import { verifyArtFolder } from '../../../tools/assets/verify';
 
 /**
- * THE ART IN THE REPOSITORY (docs/ART-PIPELINE-2D.md, part E): whatever `art/` declares must build, and whatever `public/art` ships must verify — the very check
- * `npm run build` runs before a browser is ever opened, held in the unit tests too so that a broken asset cannot be committed unnoticed. With no art in the
- * repository there is nothing to check, and that is the honest state of it today.
+ * THE ART IN THE REPOSITORY (docs/ART-PIPELINE-2D.md, parts E and L): whatever `art/` declares must build, and whatever `public/art` ships must verify — the very check
+ * `npm run build` runs before a browser is ever opened, held in the unit tests too so that a broken asset cannot be committed unnoticed. What is there today is the
+ * protagonist, made from the user's own pose sheet (`art/player/source`), provisional: one frame per clip, eight of the fifteen clips stand-ins that reuse another
+ * pose. The environment, the enemies, the boss and the effects have no art in the repository yet, and that is said, not hidden.
  */
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 
@@ -21,25 +25,63 @@ describe('the art of the repository', () => {
     expect(r.ok).toBe(true);
   });
 
-  it('declares the slot of the protagonist\'s art — the sprite set `player/hero` with exactly the fifteen clips the game asks of it — and ships nothing while the art is awaited', () => {
-    const raw = JSON.parse(readFileSync(join(root, 'art', 'player', 'player.pack.json'), 'utf8')) as unknown;
-    const { value, issues } = parseArtPack(raw);
+  it('declares the protagonist\'s sprite set `player/hero` — the fifteen clips the game asks of it, and the landing — as a provisional pack that ships', () => {
+    const raw = JSON.parse(readFileSync(join(root, 'art', 'player', 'player.pack.json'), 'utf8')) as Record<string, unknown>;
+    // read the way the packer reads a source manifest: the atlases are what the packer writes
+    const sprites = (raw['sprites'] as Array<Record<string, unknown>>).map((sp) => ({ ...sp, atlases: [] }));
+    const { value, issues } = parseArtPack({ ...raw, status: 'awaiting-art', atlases: [], sprites });
     expect(issues.filter((i) => i.level === 'error')).toEqual([]);
-    expect(value).toMatchObject({ id: PLAYER_VISUAL.art.pack, category: 'player', status: 'awaiting-art' });
+    expect(raw['status']).toBe('provisional');
+    expect(value).toMatchObject({ id: PLAYER_VISUAL.art.pack, category: 'player' });
     const hero = value!.sprites.find((s) => s.id === PLAYER_VISUAL.art.sprite)!;
-    expect(Object.keys(hero.clips).sort()).toEqual([...PLAYER_VISUAL.required].sort());
+    // the clips of the delivery (the manifest says `aerialAttack` and `crouchAttack`; the engine reads them as `attackAir` and `attackCrouch`), plus the landing the sheet has a pose for
+    expect(Object.keys(hero.clips).sort()).toEqual([...PLAYER_VISUAL.required, 'land'].sort());
     expect(hero.height).toBe(1.7);
     // the six to validate first are tagged as such in the declaration, and the four blows carry the sword
     expect(Object.entries(hero.clips).filter(([, c]) => c!.tags.includes('first')).map(([s]) => s).sort()).toEqual([...PLAYER_VISUAL.first].sort());
     expect(Object.entries(hero.clips).filter(([, c]) => c!.tags.includes('sword')).map(([s]) => s).sort()).toEqual(['attack1', 'attack2', 'attackAir', 'attackCrouch']);
     const r = buildArt({ srcDir: join(root, 'art'), outDir: join(root, 'public', 'art'), write: false });
-    expect(r.packs.map((p) => [p.id, p.status, p.shipped])).toEqual([['player', 'awaiting-art', false]]);
-    expect(existsSync(join(root, 'public', 'art')), 'no art ships: the game asks for no file').toBe(false);
+    expect(r.packs.map((p) => [p.id, p.status, p.shipped])).toEqual([['player', 'provisional', true]]);
+    expect(existsSync(join(root, 'public', 'art', 'index.json')), 'the generated folder is committed: the game fetches it').toBe(true);
   });
 
-  it('says exactly what is missing: today, all of the protagonist\'s fifteen clips (the real art has not been delivered)', () => {
+  it('says exactly what is missing: of the fifteen clips, seven have art of their own (the sheet\'s poses); the other eight show another clip\'s pose; none is the placeholder', () => {
     const d = readDelivery(join(root, 'art'));
-    expect(d).toMatchObject({ pack: 'player', sprite: 'hero', status: 'awaiting-art', delivered: 0, total: 15 });
-    expect(d.rows.every((row) => row.prefix !== null && !row.delivered)).toBe(true);
+    expect(d).toMatchObject({ pack: 'player', sprite: 'hero', status: 'provisional', delivered: 7, standIns: 8, total: 15 });
+    expect(d.rows.filter((row) => row.delivered).map((row) => row.state).sort()).toEqual(['attack1', 'cast', 'fall', 'hurt', 'idle', 'jump', 'walk']);
+    expect(d.rows.filter((row) => row.standIn).map((row) => row.state).sort()).toEqual(['attack2', 'attackAir', 'attackCrouch', 'crouch', 'dash', 'death', 'drink', 'interact']);
+    expect(d.rows.every((row) => row.prefix !== null && row.missing.length === 0)).toBe(true);
+    expect(d.rows.filter((row) => row.standIn).every((row) => (row.standInReason ?? '').length > 0), 'every stand-in says what it reuses and why').toBe(true);
+  });
+
+  it('ships what `npm run assets:pack` writes from `art/`: nobody forgot to pack, nobody edited the generated folder', () => {
+    const base = mkdtempSync(join(tmpdir(), 'troid-pack-'));
+    const tmp = join(base, 'art');
+    try {
+      const r = buildArt({ srcDir: join(root, 'art'), outDir: tmp, write: true });
+      expect(r.issues.filter((i) => i.level === 'error').map((i) => `${i.path}: ${i.message}`)).toEqual([]);
+      expect(r.ok).toBe(true);
+      const files = (dir: string, base = ''): string[] => readdirSync(dir).flatMap((f) => (statSync(join(dir, f)).isDirectory() ? files(join(dir, f), `${base}${f}/`) : [`${base}${f}`]));
+      const wanted = files(tmp).sort();
+      expect(files(join(root, 'public', 'art')).sort()).toEqual(wanted);
+      for (const f of wanted) {
+        const a = readFileSync(join(tmp, f));
+        const b = readFileSync(join(root, 'public', 'art', f));
+        if (f.endsWith('.png')) {
+          const pa = decodePng(a);
+          const pb = decodePng(b);
+          expect({ f, w: pb.width, h: pb.height }).toEqual({ f, w: pa.width, h: pa.height });
+          expect(Buffer.compare(Buffer.from(pa.data), Buffer.from(pb.data)), `${f} is not what the packer writes`).toBe(0);
+        } else expect(b.toString('utf8'), `${f} is not what the packer writes`).toBe(a.toString('utf8'));
+      }
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
+  });
+
+  it('verifies: what the game fetches is a valid art folder, with no warning', () => {
+    const v = verifyArtFolder(join(root, 'public', 'art'));
+    expect(v.issues.filter((i) => i.level !== 'info').map((i) => `${i.level} ${i.path}: ${i.message}`)).toEqual([]);
+    expect(v.ok).toBe(true);
   });
 });

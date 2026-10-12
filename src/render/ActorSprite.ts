@@ -37,6 +37,8 @@ export class ActorSprite {
   private set!: LoadedSpriteSet<Texture>;
   private _presenter!: ActorPresenter;
   private shown: string | null = null;
+  /** Metres per art pixel of the set (`visualScale / artPxPerMeter`); a frame may scale it further (`FrameMeta.scale`). */
+  private baseScale = 1;
   private disposed = false;
   private readonly warn = log.scope('sprite');
 
@@ -73,10 +75,10 @@ export class ActorSprite {
   setSpriteSet(set: LoadedSpriteSet<Texture>): void {
     this.set = set;
     this._presenter = new ActorPresenter(set.def, set.meta, { blinkHz: this.options.blinkHz, quietFallbacks: this.options.quietFallbacks });
-    const s = (set.def.visualScale ?? 1) / set.def.artPxPerMeter;
+    this.baseScale = (set.def.visualScale ?? 1) / set.def.artPxPerMeter;
     for (const sprite of [this.body, this.flash]) {
       sprite.anchor.set(set.def.pivot[0], set.def.pivot[1]);
-      sprite.scale.set(s);
+      sprite.scale.set(this.baseScale);
     }
     this.shown = null;
     this.show(this._presenter.pose.frame);
@@ -125,7 +127,7 @@ export class ActorSprite {
     }
     const trim = texture.trim;
     const local = visibleRect(
-      this.set.def,
+      { ...this.set.def, visualScale: (this.set.def.visualScale ?? 1) * this.frameScale(this.shown) },
       { width: texture.orig.width, height: texture.orig.height },
       trim ? { x: trim.x, y: trim.y, width: trim.width, height: trim.height } : null,
     );
@@ -150,6 +152,14 @@ export class ActorSprite {
     }
     this.body.texture = texture;
     this.flash.texture = texture;
+    const s = this.baseScale * this.frameScale(frame);
+    this.body.scale.set(s);
+    this.flash.scale.set(s);
     this.shown = frame;
+  }
+
+  /** The size of this frame about the feet as a multiplier of the set's: 1 unless the art says its poses were drawn at different sizes. */
+  private frameScale(frame: string | null): number {
+    return (frame !== null ? this.set.meta.frames[frame]?.scale : undefined) ?? 1;
   }
 }

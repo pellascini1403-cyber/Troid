@@ -56,7 +56,8 @@ export const assets: Scenario = {
     try {
       // ===================================================================================================== A · a page with no art
       const stray: string[] = [];
-      await ctx.open('', {
+      // `?art=` (empty) says "no art at all": the repository has the protagonist's art now (the default page loads it), and a page without art is still a page the game must handle
+      await ctx.open('art=', {
         ...SIZE,
         prepare: async (context) => {
           context.on('request', (r) => {

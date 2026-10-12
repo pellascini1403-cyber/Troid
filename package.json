@@ -22,6 +22,7 @@
     "assets:check": "tsx tools/assets/cli.ts --check",
     "assets:verify": "tsx tools/assets/cli.ts --verify",
     "assets:missing": "tsx tools/assets/cli.ts --missing",
+    "assets:poses": "tsx tools/assets/poses-cli.ts",
     "check": "npm run typecheck && npm test"
   },
   "dependencies": {

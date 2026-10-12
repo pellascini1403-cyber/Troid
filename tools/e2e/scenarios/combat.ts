@@ -9,7 +9,7 @@ import type { Scenario } from '../scenario';
 export const combat: Scenario = {
   name: 'combat',
   async run(ctx) {
-    await ctx.open('room=crouch_test&unlock=dash');
+    await ctx.open('room=crouch_test&unlock=dash&visual=placeholder'); // the phase-driven frames asserted below are the placeholder's; the art's are in player-art and player-r1
     const { page } = ctx;
     const hooks = (expr: string): Promise<unknown> => page.evaluate(`window.__troid.${expr}`);
     await ctx.teleport(30, 0);

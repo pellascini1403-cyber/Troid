@@ -30,6 +30,10 @@ export interface DeliveryRow {
   /** Frames the manifest says it has (nominal 1 while the pack awaits its art), and the names of those that are not there. */
   wanted: number;
   missing: string[];
+  /** The clip is drawn with another clip's pose (tag `stand-in`): it has frames, so the game draws it with the art, but they are not art OF ITS OWN — it is not delivered. */
+  standIn: boolean;
+  /** What the manifest says about the stand-in (which pose it reuses and why), or `null`. */
+  standInReason: string | null;
   delivered: boolean;
 }
 
@@ -39,7 +43,10 @@ export interface DeliveryReport {
   /** The status of the pack in the manifest, or `none` when there is no `art/` declaration of it at all. */
   status: string;
   rows: DeliveryRow[];
+  /** Clips with art of their own. */
   delivered: number;
+  /** Clips drawn with another clip's pose: not delivered, but not the placeholder either. */
+  standIns: number;
   total: number;
 }
 
@@ -64,9 +71,10 @@ export function readDelivery(srcDir: string): DeliveryReport {
     sprite,
     status,
     rows: PLAYER_VISUAL.required.map((state) => ({
-      state, alsoCalled: aliasesOf(state), first: PLAYER_VISUAL.first.includes(state), sword: SWORD_STATES.includes(state), once: ONE_SHOT_STATES.has(state), prefix: null, wanted: 0, missing: [], delivered: false,
+      state, alsoCalled: aliasesOf(state), first: PLAYER_VISUAL.first.includes(state), sword: SWORD_STATES.includes(state), once: ONE_SHOT_STATES.has(state), prefix: null, wanted: 0, missing: [], standIn: false, standInReason: null, delivered: false,
     })),
     delivered: 0,
+    standIns: 0,
     total: PLAYER_VISUAL.required.length,
   });
   try {
@@ -81,16 +89,23 @@ export function readDelivery(srcDir: string): DeliveryReport {
     const declared = parsed?.sprites.find((s) => s.id === sprite);
     if (!declared) return empty(status);
     const files = framesPresent(srcDir, entry.manifest, sprite, rawSprites.find((s) => s['id'] === sprite));
+    const rawClips = (rawSprites.find((s) => s['id'] === sprite)?.['clips'] ?? {}) as Record<string, { comment?: unknown }>;
+    const reasonOf = (state: AnimState): string | null => {
+      for (const [key, v] of Object.entries(rawClips)) if ((CLIP_ALIASES[key] ?? key) === state && typeof v?.comment === 'string') return v.comment;
+      return null;
+    };
     const rows: DeliveryRow[] = PLAYER_VISUAL.required.map((state) => {
       const clip = declared.clips[state];
       const names = clip ? artClipFrames(clip) : [];
       const missing = names.filter((n) => !files.has(n));
+      const standIn = clip?.tags.includes('stand-in') ?? false;
       return {
         state, alsoCalled: aliasesOf(state), first: PLAYER_VISUAL.first.includes(state), sword: SWORD_STATES.includes(state), once: ONE_SHOT_STATES.has(state),
-        prefix: clip?.frames ?? null, wanted: names.length, missing, delivered: status !== 'awaiting-art' && clip !== undefined && missing.length === 0,
+        prefix: clip?.frames ?? null, wanted: names.length, missing, standIn, standInReason: standIn ? reasonOf(state) : null,
+        delivered: status !== 'awaiting-art' && clip !== undefined && missing.length === 0 && !standIn,
       };
     });
-    return { pack, sprite, status, rows, delivered: rows.filter((r) => r.delivered).length, total: rows.length };
+    return { pack, sprite, status, rows, delivered: rows.filter((r) => r.delivered).length, standIns: rows.filter((r) => r.standIn && r.missing.length === 0).length, total: rows.length };
   } catch {
     return empty('none');
   }
@@ -100,13 +115,20 @@ export function readDelivery(srcDir: string): DeliveryReport {
 export function formatDelivery(r: DeliveryReport): string {
   const lines: string[] = [];
   lines.push(`The protagonist's art — pack "${r.pack}", sprite set "${r.sprite}" (${r.status === 'none' ? 'not declared in art/' : `status: ${r.status}`})`);
-  lines.push(`Delivered: ${r.delivered} of ${r.total} clips. ${r.delivered === r.total ? 'The game draws the protagonist entirely with it.' : 'The game draws the rest with its placeholder.'}`);
+  const rest = r.total - r.delivered - r.standIns;
+  lines.push(
+    `Delivered: ${r.delivered} of ${r.total} clips of its own.` +
+      (r.standIns > 0 ? ` ${r.standIns} more are drawn with ANOTHER clip's pose (stand-ins: art is still to be delivered for them).` : '') +
+      (rest > 0 ? ` The game draws the other ${rest} with its placeholder.` : r.delivered === r.total ? ' The game draws the protagonist entirely with it.' : ' Nothing is drawn with the placeholder.'),
+  );
   lines.push('');
   lines.push(`  ${'clip'.padEnd(14)}${'also called'.padEnd(25)}${'kind'.padEnd(6)}${'sword'.padEnd(7)}${'first'.padEnd(7)}state`);
   for (const row of r.rows) {
     const state = row.delivered
       ? `delivered (${row.wanted} frame${row.wanted === 1 ? '' : 's'})`
-      : row.prefix === null
+      : row.standIn && row.missing.length === 0
+        ? `STAND-IN, no art of its own: ${row.standInReason ?? 'shows another clip\'s pose'}`
+        : row.prefix === null
         ? 'NOT DECLARED in the manifest'
         : row.missing.length === 0 && r.status === 'awaiting-art'
           ? 'frames are there but the manifest still says awaiting-art'

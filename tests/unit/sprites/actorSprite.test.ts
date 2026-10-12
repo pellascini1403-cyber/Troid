@@ -248,6 +248,44 @@ describe('ActorSprite (port of CharacterModel + ActorVisual)', () => {
   });
 });
 
+describe('the scale of a frame: poses drawn at different sizes, brought to one (an integration knob, like the visual scale)', () => {
+  const DEF: SpriteSetDefinition = { id: 'poses', atlas: 'x', artPxPerMeter: 60, pivot: [0.5, 1], height: 1.7, clips: { idle: { frames: 'idle_', count: 1 }, cast: { frames: 'cast_', count: 1 } } };
+  const view = (anim: string) => Object.assign(createActorViewState(), { x: 4, prevX: 4, y: 1, prevY: 1, facing: 1, anim });
+  const set = (scale?: number): FakeSet => fakeSet(DEF, { frames: scale === undefined ? {} : { cast_00: { scale } } }, [120, 144]);
+
+  it('draws a frame with its own scale about the feet — body AND hit flash — and every other frame as the set says', () => {
+    const a = new ActorSprite(set(1.3));
+    a.sync(view('idle'), 0, 0);
+    expect(body(a).scale.x).toBeCloseTo(1 / 60, 12);
+    a.sync(view('cast'), 0, 0);
+    expect(a.frame).toBe('cast_00');
+    expect(body(a).scale.x).toBeCloseTo(1.3 / 60, 12);
+    expect(flash(a).scale.x).toBeCloseTo(1.3 / 60, 12); // the flash is the same picture, so it grows with it
+    expect(body(a).height).toBeCloseTo(1.3 * 2.4, 9);
+    a.sync(view('idle'), 0, 0);
+    expect(body(a).scale.x, 'back to the set\'s own size').toBeCloseTo(1 / 60, 12);
+  });
+
+  it('multiplies the visual scale of the set rather than replacing it', () => {
+    const a = new ActorSprite(fakeSet({ ...DEF, visualScale: 1.25 }, { frames: { cast_00: { scale: 1.2 } } }, [120, 144]));
+    a.sync(view('cast'), 0, 0);
+    expect(body(a).scale.x).toBeCloseTo((1.25 * 1.2) / 60, 12);
+  });
+
+  it('is the size of the PICTURE: its bounds follow it about the feet, and the position of the actor does not change', () => {
+    const plain = new ActorSprite(set());
+    const big = new ActorSprite(set(1.3));
+    plain.sync(view('cast'), 0, 0);
+    big.sync(view('cast'), 0, 0);
+    const a = plain.bounds();
+    const b = big.bounds();
+    for (const k of ['x0', 'x1'] as const) expect(b[k] - 4).toBeCloseTo(1.3 * (a[k] - 4), 9);
+    for (const k of ['y0', 'y1'] as const) expect(b[k] - 1).toBeCloseTo(1.3 * (a[k] - 1), 9);
+    expect([big.root.position.x, big.root.position.y]).toEqual([plain.root.position.x, plain.root.position.y]);
+    expect(big.anchorWorld('feet')).toEqual(plain.anchorWorld('feet'));
+  });
+});
+
 describe('bounds: the rectangle the picture covers — what is SEEN, and nothing the simulation reads', () => {
   /** 60 px per metre, feet at the bottom centre: a 120 × 144 px canvas is 2 × 2.4 m. */
   const DEF: SpriteSetDefinition = { id: 'bounds', atlas: 'x', artPxPerMeter: 60, pivot: [0.5, 1], height: 1.7, clips: { idle: { frames: 'idle_', count: 2 } } };

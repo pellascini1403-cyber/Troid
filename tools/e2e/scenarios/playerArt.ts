@@ -31,7 +31,7 @@ const REQUIRED = ['idle', 'walk', 'jump', 'fall', 'dash', 'attack1', 'attack2', 
 const PROVIDED = ['attack1', 'idle', 'walk'];
 
 const open = (ctx: Ctx, fixture: Fixture | null, query = ''): Promise<void> =>
-  ctx.open(`${ROOM}${query ? `&${query}` : ''}${fixture ? '&art=art-test' : ''}`, { ...SIZE, prepare: async (context: BrowserContext) => (fixture ? fixture.serve(context, 'art-test') : undefined) });
+  ctx.open(`${ROOM}${query ? `&${query}` : ''}&art=${fixture ? 'art-test' : ''}`, { ...SIZE, prepare: async (context: BrowserContext) => (fixture ? fixture.serve(context, 'art-test') : undefined) });
 const waitFor = async (ctx: Ctx, what: string, test: (s: GameState) => boolean, ms = 20000): Promise<GameState> => {
   const t0 = Date.now();
   for (;;) {
@@ -296,5 +296,107 @@ export const playerArt: Scenario = {
     } finally {
       traced.cleanup();
     }
+
+    // ======================================================================================================= E · the art OF THE REPOSITORY, as a player gets it by opening the game
+    // No fixture, no `?art=`: the page reads the folder the build found in `public/art` — the protagonist made from the user's own pose sheet (docs/ART-PIPELINE-2D.md part L).
+    // Here the hero is judged where it is meant to be seen: drawn by the art in EVERY state (no capsule anywhere), on the ground, the sword in the hand.
+    await ctx.open(ROOM, SIZE);
+    let s = await waitFor(ctx, 'the repository\'s art on the hero', (x) => x.visual?.art === 'player/hero');
+    assert.deepEqual(s.visual!.lacks, [], 'nothing is left to the placeholder: every clip of the delivery is declared, as art or as a stand-in');
+    for (const clip of REQUIRED) assert.ok(s.visual!.provides.includes(clip), `the set has a clip for ${clip}`);
+    assert.ok(s.visual!.provides.includes('land'), 'and the landing the sheet has a pose for');
+    const lib = s.art!;
+    assert.deepEqual({ state: lib.state, failures: lib.failures, packs: lib.packList.map((p) => `${p.id}:${p.status}`) }, { state: 'ready', failures: 0, packs: ['player:provisional'] });
+    assert.equal(ctx.warnings.filter((w) => w.includes('[art]') || w.includes('[sprite]')).length, 0, 'the art of the repository has nothing to say, even in development');
+    assert.equal((await ctx.state()).boxes!.hitbox, null);
+
+    const frames = new Map<string, Set<string>>(); // state → the frames the art drew for it
+    const sampled = new Set<string>();
+    const watch = (x: GameState): void => {
+      assert.deepEqual({ shows: x.visual!.shows, set: x.sprite!.set }, { shows: 'art', set: 'player/hero' }, `tick ${x.tick}: ${x.anim} is drawn by the art, never by the placeholder`);
+      assert.ok(x.sprite!.visible, `tick ${x.tick}: the hero is drawn`);
+      frames.set(x.anim, (frames.get(x.anim) ?? new Set()).add(x.sprite!.frame ?? 'none'));
+      sampled.add(x.anim);
+    };
+    await ctx.step(30);
+    s = await ctx.state();
+    watch(s);
+    assert.equal(s.sprite!.frame, 'idle_00');
+    // standing: the picture rests on the ground (the lowest pixel the art keeps is at the feet of the body), centred over it, and is wider and taller than the body — a picture is not a box
+    const feet = s.boxes!.body.y0;
+    assert.ok(Math.abs(s.boxes!.visual.y0 - feet) < 0.06, `the picture stands on the ground: its lowest pixel is ${(s.boxes!.visual.y0 - feet).toFixed(3)} m from the feet`);
+    assert.ok((s.boxes!.visual.x0 + s.boxes!.visual.x1) / 2 > s.boxes!.body.x0 - 0.5 && (s.boxes!.visual.x0 + s.boxes!.visual.x1) / 2 < s.boxes!.body.x1 + 0.5, 'and sits over the body');
+    assert.ok(s.boxes!.visual.y1 - s.boxes!.visual.y0 > 1.7, 'with its antennae it is taller than the body it stands for');
+    await ctx.shot('e-01-idle');
+
+    // run, jump, fall, land
+    await ctx.page.keyboard.down('KeyD');
+    for (let i = 0; i < 6; i++) {
+      await ctx.step(4);
+      watch(await ctx.state());
+    }
+    assert.equal((await ctx.state()).sprite!.frame, 'walk_00', 'the gaits are the art\'s walk');
+    await ctx.page.keyboard.down('Space');
+    await ctx.step(2);
+    await ctx.page.keyboard.up('Space');
+    for (let i = 0; i < 70; i++) {
+      await ctx.step(2);
+      const x = await ctx.state();
+      watch(x);
+      if (x.grounded && i > 12) break;
+    }
+    await ctx.page.keyboard.up('KeyD');
+    await ctx.step(25);
+    for (const [state, frame] of [['jump', 'jump_00'], ['fall', 'fall_00'], ['land', 'land_00']] as const) assert.deepEqual([...(frames.get(state) ?? [])], [frame], `${state} is the art's ${frame}`);
+
+    // the blows: the sword is in the hand in every one, pointing forward; the air and the crouch have their own stand-in, never the capsule
+    await ctx.page.keyboard.down('KeyJ');
+    await ctx.step(1);
+    await ctx.page.keyboard.up('KeyJ');
+    let blow = false;
+    for (let i = 0; i < 16; i++) {
+      await ctx.step(1);
+      const x = await ctx.state();
+      watch(x);
+      if (x.anim === 'attack') {
+        blow = true;
+        assert.equal(x.sprite!.frame, 'attack1_00');
+        assert.ok(Math.hypot(x.sprite!.grip.x - x.sprite!.hand.x, x.sprite!.grip.y - x.sprite!.hand.y) <= 0.04, 'the sword is in the hand');
+        assert.ok(x.sprite!.tip.x > x.sprite!.grip.x + 0.5, 'and points forward');
+      }
+    }
+    assert.ok(blow, 'the hero struck');
+    await ctx.step(25);
+    await ctx.page.keyboard.down('KeyS');
+    await ctx.step(14);
+    s = await ctx.state();
+    watch(s);
+    assert.equal(s.anim, 'crouch');
+    assert.equal(s.sprite!.frame, 'crouch_00');
+    assert.ok(s.boxes!.visual.y1 - s.boxes!.visual.y0 < 2.0, 'crouched, the picture is lower than standing');
+    await ctx.shot('e-02-crouch');
+    await ctx.page.keyboard.down('KeyJ');
+    await ctx.step(1);
+    await ctx.page.keyboard.up('KeyJ');
+    for (let i = 0; i < 10; i++) {
+      await ctx.step(1);
+      const x = await ctx.state();
+      watch(x);
+      if (x.anim === 'attackCrouch') assert.equal(x.sprite!.frame, 'crouchAttack_00');
+    }
+    await ctx.page.keyboard.up('KeyS');
+    await ctx.step(30);
+
+    // struck: the hit pose
+    await ctx.page.evaluate('window.__troid.strikePlayer(1)');
+    for (let i = 0; i < 6; i++) {
+      await ctx.step(2);
+      watch(await ctx.state());
+    }
+    assert.ok(frames.get('hurt')?.has('hurt_00'), 'struck, the hero is the art\'s hurt pose');
+    await ctx.shot('e-03-hurt');
+    for (const state of ['idle', 'run', 'jump', 'fall', 'land', 'attack', 'crouch', 'hurt']) assert.ok(sampled.has(state), `${state} was seen`);
+    assert.equal(ctx.errors.length, 0);
+    assert.equal(ctx.warnings.filter((w) => w.includes('[art]') || w.includes('[sprite]')).length, 0);
   },
 };

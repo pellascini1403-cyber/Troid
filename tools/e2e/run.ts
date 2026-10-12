@@ -3,6 +3,7 @@
  * the outcome. Screenshots land in .shots/e2e/ (gitignored).
  *   npm run test:e2e                 all scenarios
  *   npm run test:e2e -- movement     scenarios whose name contains "movement"
+ *   npm run test:e2e -- --only=hazard,soak   exactly the scenarios with those names (a long run can then be resumed where it was cut)
  *   add --prod to run against the production build (run `npm run build` first)
  */
 import { mkdirSync } from 'node:fs';
@@ -53,8 +54,14 @@ import { world, worldArt } from './scenarios/world';
 
 const ALL: Scenario[] = [assets, playerArt, playerLab, playerR1, audioCues, environment, artPerformance, movement, crouch, combat, slime, r1, room, death, render, camera, sprites, vfx, stress, touch, gamepad, hud, magic, bolt, bottles, bottle4, progression, interaction, devtools, language, vertical, transition, world, worldArt, boss, bossDeath, checkpoint, save, settings, hazard, mobile, finale, soak];
 const filter = process.argv.slice(2).find((a) => !a.startsWith('--'));
+const only = process.argv.find((a) => a.startsWith('--only='))?.slice('--only='.length).split(',').filter((n) => n !== '');
 const prod = process.argv.includes('--prod');
-const selected = ALL.filter((s) => !filter || s.name.includes(filter));
+const selected = ALL.filter((s) => (!filter || s.name.includes(filter)) && (!only || only.includes(s.name)));
+const unknown = (only ?? []).filter((n) => !ALL.some((s) => s.name === n));
+if (unknown.length > 0) {
+  console.error(`unknown scenario(s): ${unknown.join(', ')}`);
+  process.exit(2);
+}
 
 mkdirSync('.shots/e2e', { recursive: true });
 const server = prod ? await startPreview() : await startServer();

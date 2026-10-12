@@ -1,0 +1,319 @@
+{
+  "frames": {
+    "aerialAttack_00": {
+      "frame": {
+        "x": 180,
+        "y": 2,
+        "w": 269,
+        "h": 219
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 48,
+        "y": 88,
+        "w": 269,
+        "h": 219
+      },
+      "sourceSize": {
+        "w": 344,
+        "h": 320
+      }
+    },
+    "attack1_00": {
+      "frame": {
+        "x": 180,
+        "y": 2,
+        "w": 269,
+        "h": 219
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 48,
+        "y": 88,
+        "w": 269,
+        "h": 219
+      },
+      "sourceSize": {
+        "w": 344,
+        "h": 320
+      }
+    },
+    "attack2_00": {
+      "frame": {
+        "x": 180,
+        "y": 2,
+        "w": 269,
+        "h": 219
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 48,
+        "y": 88,
+        "w": 269,
+        "h": 219
+      },
+      "sourceSize": {
+        "w": 344,
+        "h": 320
+      }
+    },
+    "cast_00": {
+      "frame": {
+        "x": 427,
+        "y": 235,
+        "w": 191,
+        "h": 220
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 21,
+        "y": 87,
+        "w": 191,
+        "h": 220
+      },
+      "sourceSize": {
+        "w": 344,
+        "h": 320
+      }
+    },
+    "crouchAttack_00": {
+      "frame": {
+        "x": 180,
+        "y": 2,
+        "w": 269,
+        "h": 219
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 48,
+        "y": 88,
+        "w": 269,
+        "h": 219
+      },
+      "sourceSize": {
+        "w": 344,
+        "h": 320
+      }
+    },
+    "crouch_00": {
+      "frame": {
+        "x": 383,
+        "y": 459,
+        "w": 170,
+        "h": 209
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 62,
+        "y": 98,
+        "w": 170,
+        "h": 209
+      },
+      "sourceSize": {
+        "w": 344,
+        "h": 320
+      }
+    },
+    "dash_00": {
+      "frame": {
+        "x": 204,
+        "y": 225,
+        "w": 219,
+        "h": 223
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 84,
+        "w": 219,
+        "h": 223
+      },
+      "sourceSize": {
+        "w": 344,
+        "h": 320
+      }
+    },
+    "death_00": {
+      "frame": {
+        "x": 204,
+        "y": 459,
+        "w": 175,
+        "h": 210
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 47,
+        "y": 97,
+        "w": 175,
+        "h": 210
+      },
+      "sourceSize": {
+        "w": 344,
+        "h": 320
+      }
+    },
+    "drink_00": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 174,
+        "h": 294
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 59,
+        "y": 13,
+        "w": 174,
+        "h": 294
+      },
+      "sourceSize": {
+        "w": 344,
+        "h": 320
+      }
+    },
+    "fall_00": {
+      "frame": {
+        "x": 453,
+        "y": 2,
+        "w": 127,
+        "h": 229
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 84,
+        "y": 78,
+        "w": 127,
+        "h": 229
+      },
+      "sourceSize": {
+        "w": 344,
+        "h": 320
+      }
+    },
+    "hurt_00": {
+      "frame": {
+        "x": 204,
+        "y": 459,
+        "w": 175,
+        "h": 210
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 47,
+        "y": 97,
+        "w": 175,
+        "h": 210
+      },
+      "sourceSize": {
+        "w": 344,
+        "h": 320
+      }
+    },
+    "idle_00": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 174,
+        "h": 294
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 59,
+        "y": 13,
+        "w": 174,
+        "h": 294
+      },
+      "sourceSize": {
+        "w": 344,
+        "h": 320
+      }
+    },
+    "interact_00": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 174,
+        "h": 294
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 59,
+        "y": 13,
+        "w": 174,
+        "h": 294
+      },
+      "sourceSize": {
+        "w": 344,
+        "h": 320
+      }
+    },
+    "jump_00": {
+      "frame": {
+        "x": 2,
+        "y": 300,
+        "w": 198,
+        "h": 276
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 69,
+        "y": 31,
+        "w": 198,
+        "h": 276
+      },
+      "sourceSize": {
+        "w": 344,
+        "h": 320
+      }
+    },
+    "land_00": {
+      "frame": {
+        "x": 383,
+        "y": 459,
+        "w": 170,
+        "h": 209
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 62,
+        "y": 98,
+        "w": 170,
+        "h": 209
+      },
+      "sourceSize": {
+        "w": 344,
+        "h": 320
+      }
+    },
+    "walk_00": {
+      "frame": {
+        "x": 204,
+        "y": 225,
+        "w": 219,
+        "h": 223
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 84,
+        "w": 219,
+        "h": 223
+      },
+      "sourceSize": {
+        "w": 344,
+        "h": 320
+      }
+    }
+  },
+  "meta": {
+    "app": "troid-assets",
+    "version": "1",
+    "image": "hero_0.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 620,
+      "h": 672
+    },
+    "scale": "1"
+  }
+}

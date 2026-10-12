@@ -335,7 +335,7 @@ function readClip(r: Reader, v: unknown, path: string, awaitingArt: boolean): Ar
   return clip;
 }
 
-/** The per-frame data (`heightPx`, `anchors`) by frame name: written in the pack manifest, or exported by the artist's tool next to the atlas (`meta.troid`). */
+/** The per-frame data (`heightPx`, `scale`, `anchors`) by frame name: written in the pack manifest, or exported by the artist's tool next to the atlas (`meta.troid`). */
 export function readFrameMetaMap(r: Reader, v: unknown, path: string): Record<string, FrameMeta> | undefined {
   const fo = r.object(v, path);
   if (!fo) return undefined;
@@ -348,11 +348,15 @@ export function readFrameMetaMap(r: Reader, v: unknown, path: string): Record<st
     }
     const m = r.object(raw, fp);
     if (!m) continue;
-    r.known(m, fp, ['heightPx', 'anchors']);
+    r.known(m, fp, ['heightPx', 'scale', 'anchors']);
     const meta: FrameMeta = {};
     if (m['heightPx'] !== undefined) {
       const h = r.number(m['heightPx'], `${fp}.heightPx`, { min: 0, exclusiveMin: true, max: 8192 });
       if (h !== null) meta.heightPx = h;
+    }
+    if (m['scale'] !== undefined) {
+      const sc = r.number(m['scale'], `${fp}.scale`, { min: 0.25, max: 4 });
+      if (sc !== null) meta.scale = sc;
     }
     const a = readAnchors(r, m['anchors'], `${fp}.anchors`);
     if (a) meta.anchors = a;

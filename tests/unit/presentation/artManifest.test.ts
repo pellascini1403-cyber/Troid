@@ -309,6 +309,18 @@ describe('parseArtPack: what the reader refuses, with the path of the field', ()
     expect(parseArtPack(raw).value!.sprites[0]!.frames!['idle_00']).toEqual({ heightPx: 270, anchors: { head: [0, 1.6] } });
   });
 
+  it('a frame may carry its own scale (poses drawn at different sizes): a sensible number, read as given, refused when absurd or not a number', () => {
+    const raw = valid() as { sprites: Array<Record<string, unknown>> };
+    raw.sprites[0]!['anchors'] = { hand_r: [0.3, 0.9], weapon_grip: [0.3, 0.9], weapon_tip: [0.9, 1.1] };
+    raw.sprites[0]!['frames'] = { idle_00: { scale: 1.3, anchors: { head: [0, 1.6] } }, idle_01: { scale: 0.25 }, idle_02: { scale: 4 } };
+    expect(errors(raw)).toEqual([]);
+    expect(parseArtPack(raw).value!.sprites[0]!.frames!['idle_00']).toEqual({ scale: 1.3, anchors: { head: [0, 1.6] } });
+    for (const bad of [0, -1, 0.1, 5, 'big', null, NaN]) {
+      raw.sprites[0]!['frames'] = { idle_00: { scale: bad } };
+      expect(errors(raw).join('\n'), String(bad)).toMatch(/frames\.idle_00\.scale: must be/);
+    }
+  });
+
   it('collects EVERY problem in one pass (a person fixes them together), and never returns a half-read pack', () => {
     const raw = valid() as { atlases: Array<Record<string, unknown>>; sprites: Array<{ clips: Record<string, unknown> }> };
     raw.atlases[0]!['width'] = 0;

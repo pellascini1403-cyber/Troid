@@ -49,7 +49,7 @@ interface Sample {
 }
 
 const open = (ctx: Ctx, fixture: Fixture | null, query: string): Promise<void> =>
-  ctx.open(`${query}${fixture ? `${query ? '&' : ''}art=art-test` : ''}`, { ...SIZE, prepare: async (context: BrowserContext) => (fixture ? fixture.serve(context, 'art-test') : undefined) });
+  ctx.open(`${query}${query ? '&' : ''}art=${fixture ? 'art-test' : ''}`, { ...SIZE, prepare: async (context: BrowserContext) => (fixture ? fixture.serve(context, 'art-test') : undefined) });
 const waitFor = async (ctx: Ctx, what: string, test: (s: GameState) => boolean, ms = 20000): Promise<GameState> => {
   const t0 = Date.now();
   for (;;) {
@@ -226,7 +226,8 @@ export const playerR1: Scenario = {
     try {
       // ===================================================================================================== A · R1, with the whole art
       await open(ctx, complete, '');
-      let s = await waitFor(ctx, 'the art on the hero', (x) => x.visual?.art === 'player/hero');
+      let s = // attached AND drawn: `shows` follows the last rendered frame, so a sample taken between the attach and the next frame would still say "placeholder"
+      await waitFor(ctx, 'the art on the hero', (x) => x.visual?.art === 'player/hero' && x.visual?.shows === 'art');
       assert.equal(s.room, 'r1_gate', 'a new game starts in R1');
       assert.deepEqual([...s.visual!.provides].sort(), [...PLAYER_VISUAL.required].sort(), 'the art has the fifteen clips');
       assert.deepEqual(s.visual!.lacks, [], 'and nothing is left to draw: the placeholder has no state of its own to show');
@@ -256,7 +257,8 @@ export const playerR1: Scenario = {
       checkBoxes(bare, 'no art');
 
       await open(ctx, complete, '');
-      await waitFor(ctx, 'the art on the hero', (x) => x.visual?.art === 'player/hero');
+      // attached AND drawn: `shows` follows the last rendered frame, so a sample taken between the attach and the next frame would still say "placeholder"
+      await waitFor(ctx, 'the art on the hero', (x) => x.visual?.art === 'player/hero' && x.visual?.shows === 'art');
       const withArt = await play(ctx);
       let worstDraws = 0;
       for (const { state: x } of withArt) worstDraws = Math.max(worstDraws, x.drawsMax ?? 0);
@@ -319,7 +321,8 @@ export const playerR1: Scenario = {
 
       // ===================================================================================================== D · the interaction, and the way back mid-pose
       await open(ctx, complete, 'room=interaction_test&unlock=dash');
-      await waitFor(ctx, 'the art on the hero', (x) => x.visual?.art === 'player/hero');
+      // attached AND drawn: `shows` follows the last rendered frame, so a sample taken between the attach and the next frame would still say "placeholder"
+      await waitFor(ctx, 'the art on the hero', (x) => x.visual?.art === 'player/hero' && x.visual?.shows === 'art');
       await ctx.teleport(4, 0);
       await ctx.step(30);
       await ctx.page.keyboard.down('KeyD');

@@ -1,15 +1,16 @@
 # Cómo entregar el arte del protagonista (y qué falta exactamente)
 
-> **Estado (Prompt 7, S38): el arte final del protagonista NO está en el repositorio.** Se ha comprobado: no hay ni un *sprite* del protagonista en `art/`, `public/` ni en
-> ningún otro sitio versionado (las únicas imágenes versionadas son `docs/img/camera-study.png`, una captura del *placeholder* para el estudio de cámara, y el icono SVG; las imágenes de
-> referencia que se compartieron en la conversación son ilustraciones de concepto sin canal alfa, están fuera del repositorio y **no son *sprites***). **No se ha generado, dibujado, recortado de esas ilustraciones ni imitado nada**: el juego sigue dibujando al héroe con el *placeholder* abstracto, y todo lo que
-> hay hecho es lo necesario para que **tu arte entre limpio, rápido y reversible** cuando exista.
+> **Estado (Prompt 8, fase A): el protagonista se dibuja ya con tu hoja de poses —provisional—, y esta guía dice qué falta para que sea arte completo.**
+> Tu hoja (`art/player/source/hero-sheet.png`, guardada bit a bit) es una hoja de **concepto**: **una pose por acción**, sobre fondo casi blanco, con sombras, líneas de velocidad, polvo y energía roja alrededor.
+> De ella salen, **solo con operaciones técnicas** (fondo transparente, nada dibujado, recoloreado ni suavizado: [ART-PIPELINE-2D](../ART-PIPELINE-2D.md) parte L), **7 de los 15 clips con arte propio —de un fotograma cada uno—** y
+> **8 estados que enseñan la pose de otro clip** (*stand-ins*: `dash`, `attack2`, `attackAir`, `crouch`, `attackCrouch`, `death`, `drink`, `interact`). `npm run assets:missing` los cuenta como **no entregados**.
+> **No hay animación**: ni un fotograma intermedio, y no se ha dibujado ninguno. Lo que sigue (§1 y §4) es lo que falta y cómo entregarlo; un clip que llegue **sustituye** a su *stand-in*.
 >
-> Esta guía dice **exactamente qué falta** y **cómo se entrega**. Para el detalle técnico: [ART-PIPELINE-2D.md](../ART-PIPELINE-2D.md) (partes B–F). Para sustituir el arte de otros personajes: [replace-sprites.md](replace-sprites.md).
+> Esta guía dice **exactamente qué falta** y **cómo se entrega**. Para el detalle técnico: [ART-PIPELINE-2D.md](../ART-PIPELINE-2D.md) (partes B–F y L). Para sustituir el arte de otros personajes: [replace-sprites.md](replace-sprites.md).
 
 ## 1. Qué falta, exactamente: 15 clips
 
-El juego pide al protagonista **un solo *sprite set*** — el paquete `player`, el set `hero` (el hueco está declarado en `art/player/player.pack.json`, con `status: "awaiting-art"`) — con estos **15 clips**.
+El juego pide al protagonista **un solo *sprite set*** — el paquete `player`, el set `hero` (declarado en `art/player/player.pack.json`, hoy `status: "provisional"`) — con estos **15 clips**.
 Cada clip es una **secuencia de fotogramas** (cuántos, lo decide el arte: de 1 a 96). `npm run assets:missing` te dice **en cada momento** cuáles están entregados y cuáles no.
 
 | # | Clip | Otros nombres válidos | Qué es | Tipo | Espada | Validar primero |
@@ -75,6 +76,8 @@ Un clip de golpe cuya espada **no esté en la mano** (o sin anclas) **se deja fu
 5. `npm run assets:pack` — escribe `public/art/` (recorte exacto de alfa 0, sin pérdida; el fotograma reconstruido es **idéntico bit a bit**).
 6. **Reinicia `npm run dev`**: el héroe usa el arte solo, estado por estado. **`?visual=placeholder` vuelve al *placeholder* al instante**, `?visual=art` enseña solo el arte.
 7. Para ver cada clip con las anclas dibujadas: el laboratorio `?lab=player` (S39).
+
+> **Hoy el manifiesto y los fotogramas de `art/player/` los escribe `npm run assets:poses`** a partir de tu hoja y de `art/player/source/hero.poses.json` (parte L): una prueba comprueba que lo versionado es exactamente eso, así que **no se editan a mano mientras se usen**. Cuando entregues fotogramas de verdad para un clip: ponlos en `art/player/hero/` con su prefijo, declara el clip **sin** la etiqueta `stand-in` en el manifiesto y quita del `hero.poses.json` el fotograma que reusaba una pose; el día que ya no quede ningún *stand-in*, el manifiesto pasa a ser tuyo y `assets:poses` deja de hacer falta.
 
 ## 4 bis. Qué hace el motor con tu arte — y qué NO
 

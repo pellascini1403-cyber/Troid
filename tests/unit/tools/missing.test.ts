@@ -65,10 +65,38 @@ describe('readDelivery', () => {
     expect(row(r, 'walk')).toMatchObject({ delivered: false, wanted: 3, missing: ['walk_01'] });
     expect(r.delivered).toBe(1);
     const text = formatDelivery(r);
-    expect(text).toMatch(/Delivered: 1 of 15 clips\. The game draws the rest with its placeholder\./);
+    expect(text).toMatch(/Delivered: 1 of 15 clips of its own\. The game draws the other 14 with its placeholder\./);
     expect(text).toMatch(/idle .*delivered \(2 frames\)/);
     expect(text).toMatch(/walk .*MISSING 1 of 3: walk_01/);
     expect(text).toMatch(/jump .*NOT DECLARED in the manifest/);
+  });
+
+  it('a clip tagged `stand-in` has frames and the game draws its state with the art — but it is NOT delivered: it shows another clip\'s pose, and the report says so and why', () => {
+    declare('provisional', {
+      idle: { frames: 'idle_' },
+      crouch: { frames: 'crouch_', tags: ['stand-in'], comment: 'reuses the landing crouch' },
+      aerialAttack: { frames: 'aerialAttack_', tags: ['sword', 'stand-in'] },
+    });
+    for (const f of ['idle_00', 'crouch_00', 'aerialAttack_00']) frame(f);
+    const r = readDelivery(src);
+    expect(row(r, 'idle')).toMatchObject({ delivered: true, standIn: false, standInReason: null });
+    expect(row(r, 'crouch')).toMatchObject({ delivered: false, standIn: true, standInReason: 'reuses the landing crouch', missing: [] });
+    expect(row(r, 'attackAir')).toMatchObject({ delivered: false, standIn: true, standInReason: null });
+    expect(r).toMatchObject({ delivered: 1, standIns: 2, total: 15 });
+    const text = formatDelivery(r);
+    expect(text).toMatch(/Delivered: 1 of 15 clips of its own\. 2 more are drawn with ANOTHER clip's pose/);
+    expect(text).toMatch(/The game draws the other 12 with its placeholder/);
+    expect(text).toMatch(/crouch .*STAND-IN, no art of its own: reuses the landing crouch/);
+    expect(text).toMatch(/attackAir .*STAND-IN, no art of its own: shows another clip's pose/);
+  });
+
+  it('a stand-in with a frame missing is a missing clip, not a stand-in: nothing is hidden by the tag', () => {
+    declare('provisional', { idle: { frames: 'idle_' }, crouch: { frames: 'crouch_', tags: ['stand-in'] } });
+    frame('idle_00');
+    const r = readDelivery(src);
+    expect(row(r, 'crouch')).toMatchObject({ delivered: false, standIn: true, missing: ['crouch_00'] });
+    expect(r.standIns).toBe(0);
+    expect(formatDelivery(r)).toMatch(/crouch .*MISSING 1 of 1: crouch_00/);
   });
 
   it('the cells of a sheet the manifest cuts count as frames', () => {
@@ -88,7 +116,7 @@ describe('readDelivery', () => {
     declare('final', Object.fromEntries(PLAYER_VISUAL.required.map((s) => [s, { frames: `${s}_`, count: 1 }])));
     for (const s of PLAYER_VISUAL.required) frame(`${s}_00`);
     const done = readDelivery(src);
-    expect(done).toMatchObject({ delivered: 15, total: 15 });
+    expect(done).toMatchObject({ delivered: 15, standIns: 0, total: 15 });
     expect(formatDelivery(done)).toMatch(/The game draws the protagonist entirely with it\./);
     put(join(src, 'player', 'player.pack.json'), '{ broken');
     expect(() => readDelivery(src)).not.toThrow();
