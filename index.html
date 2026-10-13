@@ -45,11 +45,57 @@
         inset: 0;
         pointer-events: none;
       }
+      /* The boot curtain (docs/PROMPT8-LOG.md, phase J): the page is the dark of the game from the very first paint, and stays so until the art of the first room is in
+         (src/app/curtain.ts lifts it): a cold start never shows the technical blockout on its way to the produced look. */
+      #boot-curtain {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        display: grid;
+        place-items: center;
+        background: #03070b;
+        transition: opacity 0.8s ease;
+      }
+      #boot-curtain[data-state='lifting'] {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #boot-curtain i {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(170, 240, 255, 0.95), rgba(60, 200, 255, 0) 70%);
+        animation: boot-breath 1.8s ease-in-out infinite alternate;
+      }
+      @keyframes boot-breath {
+        from {
+          opacity: 0.25;
+          transform: scale(0.8);
+        }
+        to {
+          opacity: 0.95;
+          transform: scale(1.6);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #boot-curtain i {
+          animation: none;
+          opacity: 0.6;
+        }
+      }
     </style>
   </head>
   <body>
     <div id="app"></div>
     <div id="ui"></div>
+    <div id="boot-curtain" aria-hidden="true"><i></i></div>
+    <script>
+      // Whatever happens to the game (a script that never arrives, a download that hangs), the player is never kept behind the curtain for good.
+      setTimeout(function () {
+        var c = document.getElementById('boot-curtain');
+        if (c) c.remove();
+      }, 20000);
+    </script>
     <script type="module" src="/src/app/main.ts"></script>
   </body>
 </html>

@@ -27,6 +27,8 @@ const server = prod ? await startPreview() : await startServer();
 const browser = await launchBrowser();
 try {
   const { page, errors } = await openPage(browser, `${server.url}/${query}`, { width, height, dpr });
+  // a player's page (no `hooks=1`) waits behind the boot curtain for the art of its first room: the shot is of what is behind it
+  await page.waitForFunction("!document.getElementById('boot-curtain')", undefined, { timeout: 30000 }).catch(() => undefined);
   if (ready) await page.waitForFunction(ready, undefined, { timeout: 30000 });
   await page.waitForTimeout(waitMs);
   mkdirSync(dirname(out), { recursive: true });

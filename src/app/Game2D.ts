@@ -70,6 +70,7 @@ import { listen } from './dom';
 import { createStorage } from './storage';
 import type { DevTools } from './devTools';
 import { GameLoop } from './GameLoop';
+import { CURTAIN_TIMEOUT_MS, curtainUp, liftCurtain, wantsCurtain, type CurtainReason } from './curtain';
 import { afterIdle } from './dom';
 import type { Art } from './art';
 import type { CueLog } from '@/audio/AudioDirector';
@@ -120,6 +121,8 @@ export class Game2D {
   private effectsRequest: Promise<void> | null = null;
   /** What the sound of a later version would be told (docs/ART-PIPELINE-2D.md part H): written down in a development build and under `?hooks=1`, nowhere else. It outlives a rebuild of the effects. */
   private cueLog: CueLog | null = null;
+  /** The boot curtain is up (docs/PROMPT8-LOG.md, phase J): the world waits, still, until the art of the first room is in — a cold start never shows the blockout on its way to the produced look. */
+  private veiled = false;
   /** Builds the effects again with the budgets of the profile in force (set once their chunk has arrived). */
   private rebuildEffects: (() => void) | null = null;
   /** What the lights of the world read each frame (made once, filled in place: nothing is allocated while the game runs). */
@@ -397,7 +400,7 @@ export class Game2D {
     // a door dissolves when the flag that opens it is set (the simulation already switched its collider off)
     this.lifecycle.add(this.session.bus.on('gate:changed', ({ gateId, open }) => this.roomView.setGateOpen(gateId, open)));
     // The effects (pooled, budgeted, event-driven, real time) are cosmetic and a tenth of the first download: the page fetches them once the
-    // first frame is up and it has a moment, 2 s after it at the latest idle — or at once under `?hooks=1`, so a test never waits for them by luck.
+    // first frame is up and it has a moment, 2 s after it at the latest idle — or at once under `?hooks=1` (so a test never waits for them by luck) and behind the boot curtain (nothing is seen yet: the sooner they are in, the sooner it lifts).
     const body = this.session.player.body;
     const loadEffects = (): Promise<void> =>
       (this.effectsRequest ??= import('./effects').then(({ createEffects, createCueLog }) => {
@@ -430,6 +433,13 @@ export class Game2D {
     // The art that comes from files: its code is fetched with the effects, once the first frame is up, and only when there is an index to read — a page with
     // no art never downloads it, asks for no file and can fail on none. The zone follows the hero: a room's art is fetched while the fade hides the change.
     const artUrl = artIndexUrl(options.art, __TROID_ART_INDEX__, document.baseURI);
+    // A player's page waits behind the curtain for the art it can fetch; a test, a lab, a paused page or a game with no art waits for nothing (and its curtain, if there is one, goes at once)
+    this.veiled = wantsCurtain({ present: curtainUp(), art: artUrl !== null, hooks: options.hooks, paused: options.paused });
+    if (this.veiled) {
+      const giveUp = window.setTimeout(() => this.unveil('timeout'), CURTAIN_TIMEOUT_MS);
+      this.lifecycle.add(() => window.clearTimeout(giveUp));
+    } else liftCurtain(options.hooks ? 'hooks' : 'no-art', true);
+    this.lifecycle.add(() => liftCurtain('disposed', true));
     const startArt = (): void => {
       if (!artUrl || this.artRequest) return;
       this.artRequest = import('./art')
@@ -451,8 +461,13 @@ export class Game2D {
           await this.attachPlayerArt(art, options.hooks || import.meta.env.DEV);
           // the room was built before the art arrived: this is the first time there is anything to dress it with
           await this.dressRoom(this.dressSerial);
+          // `art`: the first room is dressed — what the player sees when the curtain lifts is the produced look; `no-art`: the art had nothing for it (it starts as the blockout)
+          this.unveil(this.roomArtCover ? 'art' : 'no-art');
         })
-        .catch((err: unknown) => log.scope('art').debug(`the art could not start: ${String(err)}`));
+        .catch((err: unknown) => {
+          log.scope('art').debug(`the art could not start: ${String(err)}`);
+          this.unveil('art-failed');
+        });
     };
     this.lifecycle.add(() => {
       this.roomArt?.destroy();
@@ -461,11 +476,14 @@ export class Game2D {
     this.lifecycle.add(this.session.bus.on('transition:started', (e) => void this.art?.enterZone(e.to.room).then(() => this.roomArt?.prepare(e.to.room))));
     this.lifecycle.add(this.session.bus.on('room:loaded', (e) => void this.art?.enterZone(e.roomId)));
     const loadCosmetics = (): void => {
+      // the moment the game asks for its cosmetic parts: what it had fetched before is the code of its first frame (the bundle bench reads this mark)
+      performance.mark('troid:cosmetics');
       void loadEffects();
       loadBossViews().catch(() => undefined);
       startArt();
     };
-    if (options.hooks) loadCosmetics();
+    // behind the curtain nothing is seen, so the art does not wait for an idle moment: the sooner it is in, the sooner the curtain lifts
+    if (options.hooks || this.veiled) loadCosmetics();
     else this.lifecycle.add(afterIdle(loadCosmetics, EFFECTS_DELAY_MS));
     this.buildRoomView();
     this.setupDebug();
@@ -479,11 +497,13 @@ export class Game2D {
       this.debug.set('paused', true);
       this.loop.paused = true;
     }
+    // behind the curtain the world does not begin: not one tick runs until it lifts
+    if (this.veiled) this.loop.paused = true;
     // A pause takes effect NOW, not at the end of the next frame: a frame that comes late (software GL, a texture upload, a busy page) would otherwise first run, with the loop still
     // unpaused, the ticks it was owed (up to five) — in the middle of whatever a test or a developer was doing with the simulation stopped.
     this.lifecycle.add(
       this.debug.changed.on('change', ({ key, value }) => {
-        if (key === 'paused') this.loop.paused = value === true || this.menuOpen;
+        if (key === 'paused') this.loop.paused = value === true || this.menuOpen || this.veiled;
       }),
     );
 
@@ -508,6 +528,13 @@ export class Game2D {
 
   start(): void {
     this.loop.start();
+  }
+
+  /** The art of the first room is in (or there will be none, or the wait ran out): the world begins and the curtain lifts. Once. */
+  private unveil(reason: CurtainReason): void {
+    if (!this.veiled) return;
+    this.veiled = false;
+    liftCurtain(reason);
   }
 
   /**
@@ -541,7 +568,7 @@ export class Game2D {
       this.toggleMenu(); // Escape / P / Start: that press is spent here, it does not also act in the game
       return;
     }
-    if (this.menuOpen) return; // a paused game does not advance, whoever asks (the game loop, a test hook)
+    if (this.menuOpen || this.veiled) return; // a paused game does not advance, whoever asks (the game loop, a test hook); nor does one that is still behind the curtain
     this.session.tick(frame);
   }
 
@@ -691,7 +718,7 @@ export class Game2D {
     this.updatePrompt(); // after the camera: the icon follows the object with THIS frame's transform
 
     this.loop.timeScale = this.debug.get('timeScale');
-    this.loop.paused = this.debug.get('paused') || this.menuOpen;
+    this.loop.paused = this.debug.get('paused') || this.menuOpen || this.veiled;
     // the game is paused, so no tick samples the input: the menu watches for the pause key / button itself
     if (this.menuOpen && this.input.sample().pausePressed) this.closeMenu();
     this.session.godMode = this.debug.get('godMode');

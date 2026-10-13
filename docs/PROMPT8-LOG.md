@@ -639,7 +639,7 @@ Medido sobre capturas del juego real a 844 × 390 (1×), con la luz del héroe y
 | R3 Cámara | x = 8 m: 1.32 → **2.13** | x = 48 m: 1.49 → **2.28** |
 | R4 Santuario | x = 15 m: 2.13 → **3.24** | x = 30 m: 1.31 → **2.06** |
 
-**Los ocho puntos suben; tres de los ocho superan el 2.5 : 1** (los demás siguen por debajo del aviso, sobre todo R2, cuyo fondo es el más oscuro). La lectura del héroe en esos sitios descansa en lo que ya tenía —los ojos y las líneas cian de su figura— y **no se le ha puesto una luz de borde (*rim light*)**: cambiaría los bordes de la imagen de referencia del usuario (ver «Pendiente»).
+**Los ocho puntos suben; solo dos de los ocho superan el 2.5 : 1** (R1 a 98 m y R4 a 15 m; los otros seis siguen por debajo del aviso, sobre todo R2, cuyo fondo es el más oscuro). La lectura del héroe en esos sitios descansa en lo que ya tenía —los ojos y las líneas cian de su figura— y **no se le ha puesto una luz de borde (*rim light*)**: cambiaría los bordes de la imagen de referencia del usuario (ver «Pendiente»).
 
 ### *Placeholders* quitados y los que quedan
 
@@ -686,6 +686,152 @@ Ninguna prueba existente se bajó ni se borró. `options.test` (+2: `?light=off`
 ### Pendiente de la fase I (a propósito)
 
 - **Revisión artística:** las luces son **correctas y legibles pero no bonitas**: charcos suaves, sin forma ni dirección; la viñeta no respira; las motas son un campo de generador, no un diseño de atmósfera; **hace falta un director de arte que decida si la luz del héroe debe ser un aura, un rim o ninguna de las dos** (la regla del protagonista impide decidirlo aquí).
-- **Calibración en dispositivo real:** el brillo de una pantalla OLED y de una LCD no tiene nada que ver con SwiftShader; **si el contraste del anillo (3 de 8 puntos ≥ 2.5 : 1) basta en un teléfono bajo el sol**, y **el coste de relleno de unas 8 luces aditivas grandes** (radios de 3 a 7 m: ocupan buena parte de la pantalla) **en una GPU móvil** son lo primero que un dispositivo debe confirmar. Lo medido hoy son llamadas de dibujo, no milisegundos de GPU.
+- **Calibración en dispositivo real:** el brillo de una pantalla OLED y de una LCD no tiene nada que ver con SwiftShader; **si el contraste del anillo (2 de 8 puntos ≥ 2.5 : 1) basta en un teléfono bajo el sol**, y **el coste de relleno de unas 8 luces aditivas grandes** (radios de 3 a 7 m: ocupan buena parte de la pantalla) **en una GPU móvil** son lo primero que un dispositivo debe confirmar. Lo medido hoy son llamadas de dibujo, no milisegundos de GPU.
 - **Sin oclusión de la luz** (una luz atraviesa los muros) y **sin luz dinámica de las fuentes pintadas** (cristales, runas, el ojo del muro): ampliar el libro de luces con las fuentes del escenario es el siguiente paso natural.
 - **Sin audio** (preparado) ni *bloom* de pantalla (descartado: un filtro permanente cuesta en móvil; el brief lo desaconseja).
+
+## Fase J — integración y regresión completa (S54)
+
+**Resultado en una frase:** la regresión completa pasa y, al probar el juego **como lo recibe un jugador** —sin ganchos de pruebas, con un navegador vacío—, apareció el fallo de integración más visible de todo el prompt: **un arranque en frío enseñaba el *blockout* técnico** (rectángulos planos y una cápsula con espada) **durante unos 3 s en una línea rápida y unos 8 s a 600 KB/s**, antes de que llegara el aspecto producido. Ahora la página es **el negro del juego desde el primer pintado**, el mundo espera quieto tras un telón hasta que el arte de la primera sala está dentro, y **no se ve un solo fotograma del *blockout***. Además quedan como pruebas permanentes que **cada piel se puede quitar** (`?art=`, `?visual=placeholder`, `?vfx=procedural`, `?light=off`) y que **la partida acaba exactamente igual con todas puestas o con ninguna**.
+
+### Qué se hizo
+
+- **Auditoría de integración en el navegador** (en el laboratorio, fuera del repositorio): **la matriz de interruptores** —las cuatro salas × seis combinaciones (por defecto, cada interruptor solo, `?art=` y todos a la vez)—: ≤ 18 llamadas de dibujo, consola limpia y el héroe se mueve, corre, salta y ataca, **en las 24**. Capturas de R4 a 568 × 320 (un móvil pequeño), 1024 × 768 (4:3), 1000 × 430 (21:9) y 1920 × 1080: viñeta, luz, barras y HUD encajan en todas. **El primer minuto de producción**, sin ganchos: primer lienzo entre 0.5 y 1.1 s, **3.0 MB** descargados (39 *scripts* 250 KB, 7 PNG 2746 KB, 18 JSON 20 KB), consola limpia — y la captura a 1.5 s era **el *blockout***.
+- **El telón de arranque** (`index.html`, `app/curtain.ts`, `Game2D`): la página es `#03070b` con **una luz cian que respira** (CSS puro: nada de JavaScript para pintarlo) desde el primer pintado. El juego se construye detrás pero **el mundo no empieza** (`veiled`: ni un *tick*) hasta que el arte de la primera sala está dentro (`dressRoom`) —o no hay arte que esperar, o falla, o pasan **10 s** (`CURTAIN_TIMEOUT_MS`)—, y entonces el telón se desvanece en 0.8 s y **deja en `<html data-boot="…">` lo que lo levantó** (`art` · `no-art` · `art-failed` · `timeout`). **Detrás del telón nada se ve, así que los efectos y el arte se piden al instante** en lugar de esperar 2 s en reposo: el aspecto producido llega **antes** que antes (a los **0.9–1.9 s** en local; con la red a 600 KB/s a los **6.4–7.8 s** frente a los 8.7 s). Un **seguro** en la página (`index.html`, 20 s) lo quita pase lo que pase —un *script* que no llega— y `main.ts` lo quita en los laboratorios y si el juego no se puede construir. Los **ganchos** (`?hooks=1`), `?paused=1` y un juego sin arte **no tienen telón**: las 46 pruebas anteriores corren como siempre.
+- **El escenario E2E `fallbacks`** (48 en total): en las cuatro salas y con la misma mano en el teclado (correr, saltar, atacar), **tres aspectos** —todo puesto, `?art=` (ningún arte de archivos) y **nada** (`?art=&visual=placeholder&vfx=procedural&light=off`: el juego de antes del Prompt 8)—: cada sala carga, **dibuja una imagen** (no una pantalla en blanco), el héroe corre, ≤ 60 llamadas de dibujo, consola limpia, el arte es el que se pidió **y lo que ocurre es lo mismo**: la posición, la velocidad, la vida, la magia, los enemigos y el jefe al final de la partida **coinciden dígito a dígito** entre los tres aspectos (una piel cambia lo que se VE, nunca lo que PASA). Se comprobó **por mutación**: un tick de más en uno de los aspectos lo rompe.
+- **El escenario E2E `boot`** (sin ganchos, **cuatro arranques en frío**, cada uno en un contexto de navegador vacío y mirando la pantalla cada ~100 ms): **(1) línea rápida**: el primer cuadro es el negro del juego (no una página en blanco), **ningún cuadro es el *blockout*** (se mide el suelo plano del *blockout* en cada captura: < 2 %), el telón se levanta por `art` y, una vez levantado, el juego **juega** (correr un segundo cambia la imagen); **(2) línea lenta** (cada archivo del arte llega 700 ms tarde): el telón **espera** (> 2.5 s) con la imagen en negro, sin un cuadro del *blockout*; **(3) arte rechazado** (una compilación rota): el telón no espera lo que no va a llegar (`no-art` a ~1–2 s) y el juego empieza como *blockout*; **(4) arte que no llega nunca** (la descarga se cuelga): **el telón se rinde a los 10 s** (`timeout`) y el juego empieza como *blockout*, entero y jugable.
+- **`bench:bundle` mide ahora lo que mide el presupuesto**: «el arranque en frío» ya no es *lo que se descarga hasta que aparece el HUD* (con el telón los *chunks* diferidos se piden al instante y caían dentro de esa ventana: el número saltó a 236.9 KB sin que el código del primer fotograma cambiara) sino **lo que el juego había pedido antes de pedir sus partes cosméticas**: el juego deja una marca (`performance.mark('troid:cosmetics')`) y el *bench* reparte los *scripts* por ella. Resultado: el arranque en frío **195.8 KB gz** (35 *scripts*; presupuesto 200), lo cosmético que se pide detrás del telón **41.1 KB** (efectos, partículas, vistas del jefe, arte), la primera sesión **236.9 KB**, y —por primera vez— **lo que espera la primera imagen del juego: 7 PNG de arte, 2746 KB** (los pesos de las imágenes los da el propio navegador: las respuestas de `fetch` las consume la página antes de que el *script* pueda leerlas).
+- `npm run shot` espera a que el telón se levante antes de fotografiar.
+
+### Los activos nuevos
+
+Ninguno: la fase J no pinta nada. **Once paquetes** (5561.7 KB en disco, 42 116.8 KB descomprimidos), sin cambios.
+
+### *Placeholders* quitados y los que quedan
+
+- **Quitado:** **la primera impresión del juego**: los 3–8 s de rectángulos planos y cápsula de cada arranque en frío (`blockout` como primera imagen). Queda el *blockout* solo como respaldo cuando el arte no llega (a los 10 s, o si falla).
+- **Quedan:** todos los de las fases anteriores (ver el informe final, más abajo).
+
+### Archivos
+
+Nuevos: `src/app/curtain.ts`, `tests/unit/app/curtain.test.ts` (9), `tools/e2e/scenarios/{fallbacks,boot}.ts`. Modificados: `index.html` (el telón, su estilo y su seguro), `src/app/{main,Game2D}.ts`, `tools/bench/bundle.ts`, `tools/e2e/{run,shot}.ts`, la documentación.
+
+### Herramientas usadas
+
+La matriz de interruptores y los arranques en frío del laboratorio (`tools/e2e/.lab/{fallbacks,first-minute,boot-timeline,curtain-time,curtain-refused,curtain-shots}.ts`: todo con un navegador vacío, sin ganchos, con la red limitada por CDP cuando hacía falta), `npm run bench:bundle`, `npm run shot`.
+
+### Verificación
+
+| | Resultado |
+|---|---|
+| `tsc` | limpio |
+| Pruebas unitarias y de integración | **2504 en 158 archivos** (2495 en 157 al cerrar la fase I: **+9**, las del telón) |
+| E2E | **48/48** en desarrollo y **48/48** en producción, sobre el código final, con la consola limpia (48 escenarios: los dos nuevos, `fallbacks` y `boot`; el único aviso de consola es el de `assets`, que provoca a propósito arte roto) |
+| Llamadas de dibujo | **25 como máximo** en la cadena de desarrollo y **23** en la de producción (`soak`: 1600 rondas de juego aleatorio con 300 partículas: el peor fotograma depende de dónde caiga la partida; 22 la pelea con el jefe, 20 en R4, 18 en `fallbacks`); presupuesto 60 |
+| Memoria del arte | R1 23.7 · R2 29.5 · R3 27.4 · **R4 30.6 MiB** residentes (propuesto: ≤ 32 por zona; sin cambio) |
+| Arranque en frío (200 KB) | **195.8 KB gz** (195.2 antes: +0.6, el telón y su lógica) · lo cosmético que se pide detrás del telón 41.1 KB gz · primera sesión **236.9 KB gz** · la primera imagen espera 7 PNG de arte (**2746 KB**) |
+| Primer cuadro del jugador | el negro del juego desde el primer pintado; el aspecto producido a los **0.9–1.9 s** en local (antes el *blockout* hasta los ~3.5 s) y a los 6.4–7.8 s con 600 KB/s (antes 8.7 s con el *blockout* a la vista) |
+
+> Sigue sin medirse nada en un dispositivo real.
+
+### Pruebas que se adaptaron (y por qué)
+
+Ninguna: las pruebas existentes no cambian (los ganchos y `?paused=1` no tienen telón). Nuevas: `curtain.test` (9: el telón y lo que lo levanta, que se levanta una sola vez, que se puede quitar al instante, que sin telón no pasa nada, quién espera detrás de él y que la espera máxima es de 10 s), y los escenarios E2E `fallbacks` y `boot`.
+
+### Problemas encontrados (y resueltos)
+
+1. **El *blockout* se veía en cada arranque en frío** (lo encontró la prueba del primer minuto, no el E2E: **todo el E2E usa ganchos, que piden el arte al instante**). Antes los efectos y el arte se pedían 2 s después del primer fotograma «en reposo» (es lo que decía el Prompt 7 para mantener el arranque en frío bajo 200 KB) y los 2.8 MB del arte tardaban lo que tardara la red. Era el diseño, y a la vez **la peor primera impresión posible** para una slice «producida». Arreglo: el telón.
+2. **El primer intento del *bench* de *bundle* dio 236.9 KB de «arranque en frío»**: con el telón los *chunks* diferidos se piden en el acto y caen en la ventana de «hasta que aparece el HUD». No era una regresión del código del primer fotograma (195.8 KB) sino de **cómo se medía**: se midió por una marca que deja el juego, y las dos cifras (el primer fotograma y la primera imagen) se informan por separado.
+3. **El escenario `boot` iba lento y daba tiempos falsos**: una página que se deja abierta sigue dibujando fotogramas con la CPU que los arranques en frío necesitan (tres veces más lento); y una captura cada ~100 ms en un navegador con GL por software tarda más de un segundo. Se aparca la primera página y los arranques que solo miden *cuándo* leen el estado de la página sin fotografiarla.
+4. **La matriz del laboratorio marcó cuatro «problemas» que no lo eran**: con `?art=` no se pinta nada de lo que viene de archivos, ni siquiera los efectos ni el héroe (el interruptor es «ningún arte»), y mi guion esperaba efectos pintados.
+5. **El telón no puede encerrar a nadie**: se pensó contra el caso de un *script* que no llega (el seguro de 20 s en la propia página), de un juego que no se puede construir (`main.ts` lo quita), de un laboratorio (lo quita) y de una descarga que se cuelga (10 s). Cada uno tiene su prueba o su comprobación.
+
+### Pendiente de la fase J (a propósito)
+
+- **Dispositivo real:** el telón es CSS y DOM y no se ha visto en ningún teléfono; la espera máxima (10 s) y el parpadeo de la luz (1.8 s) son **decisiones sin medir**; en una red de 3G (~100 KB/s) la primera imagen tardaría ~30 s y el telón se rendiría a los 10 s mostrando el *blockout*: **si la slice debe jugarse en redes así, hace falta una variante de media resolución de los paquetes** (el contrato la admite; el empaquetador escribe una).
+- **Un jugador que vuelve con partida guardada en R4** (3.8 MB para la primera imagen) espera más que uno de R1 (2.7 MB): no está medido con un guardado.
+- La barra de carga: el telón no dice cuánto falta; es **una luz que respira**, no una interfaz (la interfaz no se rehace en este prompt).
+
+---
+
+# Informe final del Prompt 8 — de la slice técnica a una slice producida
+
+> **Qué se puede decir y qué no.** La slice **se ve producida** —las cuatro salas, el jefe, el enemigo, los efectos, la luz y el primer segundo de cada arranque—, **funciona** (2504 pruebas, 48 escenarios E2E en desarrollo y en producción, todos los presupuestos) y **se puede mejorar sin tocar código** (cada pieza de arte es un archivo que se sustituye; cada piel se quita con un interruptor y el juego sigue). **No es arte final**: todo lo que no es el protagonista lo pintó código (`tools/art`) y lleva la etiqueta `provisional`; el protagonista **no está animado**; y **nada se ha visto ni medido en un dispositivo real**. Que compile y pase las pruebas no es lo que decide que algo esté terminado: lo decide lo que sigue.
+
+## Qué *placeholder* se quitó en cada zona
+
+| Fase | Zona | *Placeholder* quitado | Lo que lo sustituye hoy |
+|---|---|---|---|
+| A | Protagonista | la cápsula con espada | los píxeles de la hoja de poses del usuario (7 de 15 clips con arte propio y 8 con la pose de otro), sin retocar |
+| B | R1 «Puerta de las Ruinas» | rectángulos de colores y fondos por formas | suelo, piedra, plataformas, puertas, tres fondos con *parallax*, luz y *props* pintados |
+| C | R2 «Galería de Raíces» | ídem, espinas y santuario de formas | raíces, espinas, santuario, frasco, fondos propios |
+| D | R3 «Cámara del Sello» | ídem, el sello y la carta de formas | la puerta y el sigilo del sello, la carta, el altar, el portal, los relieves |
+| E | R4 «Santuario» | ídem | el salón monumental, los guardianes de piedra, el muro con un ojo que arde en la pelea, la runa del Air Dash; **14 de 14 piezas obligatorias** del entorno |
+| F | Custodio de Tinta | las formas del jefe | el cuerpo, el ojo, la corona en tres estados, las esquirlas y el charco, por partes |
+| G | Ink Slime | la cúpula con dos ojos | una criatura encorvada con un sigilo en el pecho y una cerda que sube con el aviso |
+| H | Efectos | ocho formas dibujadas por código; los avisos del jefe como geometría | diez formas y doce secuencias pintadas: el corte, el golpe, el *Spirit Bolt* por etapas, la tinta, el pilar, la runa |
+| I | Luz y pantalla | la escena igual de iluminada pase lo que pase; sin atmósfera | la luz del mundo, la viñeta de cada sala y los pulsos de borde |
+| J | El arranque | el *blockout* como primera imagen del juego | un telón: el negro del juego y una luz que respira hasta que el arte está dentro |
+
+## Los números finales (todos de Chromium sin cabeza con GL por software)
+
+| | |
+|---|---|
+| Pruebas unitarias y de integración | **2504 en 158 archivos** (2430 al cerrar la fase H: +74 en las fases I y J; ninguna se bajó ni se borró) |
+| E2E | **48/48** en desarrollo y **48/48** en producción (48 escenarios), con la consola limpia; el escenario `fallbacks` prueba que la partida acaba igual con todas las pieles y con ninguna, y `boot` que un arranque en frío no enseña el *blockout* |
+| `tsc` · `build` · `assets:check` · `assets:verify` | limpios · limpio · en verde · en verde |
+| Llamadas de dibujo (presupuesto 60) | **25 como máximo** (partida aleatoria de 1600 rondas con 300 partículas; 23 en la cadena de producción); 22 la pelea con el jefe; 16 / 14 / 13 / 20 en las cuatro salas |
+| Memoria del arte por zona (propuesto ≤ 32 MiB) | R1 23.7 · R2 29.5 · R3 27.4 · **R4 30.6 MiB** |
+| Arte | **11 paquetes**, 5561.7 KB en disco, 42 116.8 KB descomprimidos; el entorno 14 de 14 piezas obligatorias |
+| Arranque en frío (presupuesto 200 KB gz) | **195.8 KB gz**; lo cosmético que se pide detrás del telón 41.1 KB; la primera sesión 236.9 KB gz; y la primera imagen espera 7 PNG (**2746 KB**) |
+| Protagonista | **7 de 15 clips con arte propio**, 8 con la pose de otro, **ningún clip con más de un fotograma** |
+
+## 1 · Lo que está visualmente terminado
+
+*Terminado = se dibuja con arte del *pipeline* (no con rectángulos ni cápsulas), con la dirección del brief, dentro de los presupuestos y con su respaldo.* **No = arte final.**
+
+- **Las cuatro salas jugables, de punta a punta** (R1 → R2 → R3 → R4): ninguna superficie que el jugador ve es un rectángulo del *blockout* cuando el arte está; la composición (siluetas, planos de profundidad, luz de las salidas, composición de la arena) responde a la estructura de Hollow Knight que pedía el brief; el entorno está entregado entero (14 de 14).
+- **El Custodio de Tinta y el Ink Slime**, por partes y con identidad propia; sus avisos violetas se leen (el E2E mide los píxeles violeta del aviso en la pelea).
+- **La energía**: el corte, el golpe, el *Spirit Bolt* en cinco etapas, la tinta, el pilar de un lugar que despierta, la runa de un poder ganado, los avisos y la columna de tinta del jefe; **la luz del mundo** que ilumina el lugar y recorta la silueta oscura del héroe; la viñeta de cada sala y los pulsos de borde (el contraste de la silueta sube en los ocho puntos medidos).
+- **El primer segundo de cada arranque**: el telón y la entrada de la sala vestida, sin un cuadro del *blockout*.
+- **La arquitectura que lo hace sustituible**: los contratos del arte (`assets:check`), la biblioteca y sus respaldos por capa, los interruptores (`?art=`, `?visual=`, `?vfx=`, `?light=`) y **la prueba de que ninguna piel cambia lo que pasa** (`fallbacks`).
+- **El protagonista**, en lo que es suyo: se dibuja con **los píxeles de tu imagen**, sin una sola modificación, y no existe un protagonista alternativo.
+
+## 2 · Lo que sigue siendo *placeholder*
+
+- **La animación del protagonista.** Ocho clips (`dash`, `attack2`, `attackAir`, `crouch`, `attackCrouch`, `death`, `drink`, `interact`) enseñan **la pose de otro clip**, y los quince son **un solo fotograma**: el héroe salta entre poses, no se mueve entre ellas; no hay ciclo de carrera, ni muerte, ni agacharse, ni beber. **Es lo único que la regla absoluta impide completar** sin material nuevo tuyo (`npm run assets:missing` lo cuenta).
+- **Todo el arte que no es el protagonista es `provisional`**: lo pintan los generadores de `tools/art` (once paquetes), no una persona. Sirven de contrato, de composición y de calibración; **no sustituyen al arte hecho a mano**.
+- **Un solo cuerpo de Slime para las dos salas** (R1 y R2 son idénticos) y **el jefe se mueve entero**, sin poses propias de embestida, aturdimiento ni muerte.
+- **Las luces** son charcos planos y aditivos (sin oclusión, sin luz de las fuentes pintadas del escenario); la viñeta es estática; no hay *bloom*. **Las partículas son datos** (cuentas, vidas, gravedad) hechos de formas pintadas: ningún efecto está diseñado a mano.
+- **La interfaz** (HUD, menús, controles táctiles) **no se rehizo**: es la de los Prompts 5 y 6 (decisión del brief).
+- **El sonido**: hay una capa de señales preparada (`presentation/audioCues`: los eventos del juego que un motor de sonido leería) y **ningún motor ni ningún sonido**.
+
+## 3 · Lo que necesita revisión artística
+
+- **Todo lo que pintó código es «de generador»**: simetrías perfectas, repetición (los relieves, los collares de runas, los guardianes casi gemelos), siluetas de curva y no de mano, sin imperfección. El brief pedía producción: el pintor deja el **contrato, la composición y los tamaños** hechos; lo que falta es **la mano**.
+- **No hay un lenguaje de runas**: las del escenario, las del sello y las de los efectos son tres familias que no se hablan.
+- **La luz del héroe**: aura, luz de borde o ninguna. Hoy es un charco cian detrás de él; **la luz de borde no se ha puesto** (cambiaría los bordes de tu imagen) y es **la forma más barata de subir el contraste donde falta** (**6 de los 8** puntos medidos están por debajo del 2.5 : 1 del spec; R2 es el más oscuro, 1.6 : 1).
+- **El carmín** se usa atenuado y solo en el pulso de herida; el violeta del enemigo y el cian del héroe son los de la paleta del brief: **conviene verlos en una pantalla de verdad**.
+- **Los efectos que tapan al héroe** (el fogonazo del *dash* y del impacto, unos fotogramas); la corona irregular de la columna de tinta del jefe, que parece cristal más que tinta.
+- **El telón**: una luz que respira sobre un negro. Es lo primero que se ve; **no es una pantalla de carga diseñada**.
+- **La banda de primer plano** (la única pieza *opcional* del entorno sin entregar).
+
+## 4 · Lo que necesita calibración en un dispositivo real (nada se ha medido en uno)
+
+- **Rendimiento**: los fotogramas por segundo, la temperatura y la batería en un móvil de gama baja y en uno medio; **el coste de relleno de las luces aditivas** (hasta 8 charcos de 3 a 7 m de radio, 4 pulsos y una viñeta a pantalla completa) y de ~50 *sprites* aditivos de efectos a la vez —medimos llamadas de dibujo, no milisegundos de GPU—; **la decodificación de 2.7 MB de PNG** al arrancar y **la memoria** (R4: 30.6 MiB de arte residente; 42 MB descomprimidos todos los paquetes) en un Safari de iOS.
+- **Legibilidad**: a **29 px por metro** (un teléfono apaisado a 1×) el Slime mide **29 px de ancho** y las formas finas de los efectos se pierden; el contraste de la silueta (**2 de 8** puntos sobre el 2.5 : 1) **al sol**; el brillo de una pantalla **OLED** frente a una **LCD**, y el **banding** de los degradados oscuros (la viñeta, la bruma) a 8 bits.
+- **Red**: la espera máxima del telón (10 s) y lo que pasa con 3G (la primera imagen necesita 2.7 MB: ~30 s a 100 KB/s); **una variante de media resolución de los paquetes** (el contrato la admite; el empaquetador escribe una).
+- **El telón y la entrada del primer cuadro** en Safari y en Chrome para Android (la barra de direcciones, las áreas seguras).
+- **Los controles táctiles**, ya listados en `docs/MOBILE-CALIBRATION.md`, y la **sección 7 nueva** (calibración visual), que dice qué mirar y cómo anotarlo.
+
+## 5 · Lo que falta
+
+1. **Animar al protagonista**: la hoja de poses es de concepto (una pose por acción). Hacen falta fotogramas de carrera, salto, caída, ataques, *dash*, agacharse, muerte, beber e interactuar **dibujados por ti o por una ilustradora a partir de tu imagen** (la regla absoluta impide hacerlos aquí). El motor ya los espera: `docs/guides/deliver-protagonist-art.md`.
+2. **Sustituir el arte provisional por arte de mano**, paquete a paquete (`docs/guides/deliver-environment-art.md`): cada archivo entregado sustituye al generado sin tocar código y `assets:check` dice si cumple el contrato.
+3. **Un director de arte** que decida lo que hoy decide una regla: la luz del héroe, el lenguaje de runas, la paleta final, el telón.
+4. **Probar en dispositivos** (sección 4) y **ajustar los datos** que mandan (`content/lights`, `content/atmosphere`, `CURTAIN_TIMEOUT_MS`, los presupuestos del perfil) **editando datos, no algoritmos**.
+5. **El motor de audio** y los sonidos (las señales ya están).
+6. **El aviso de «gira el dispositivo»** (la bandera existe), la variante de media resolución y el empaquetado nativo (Capacitor).
+7. **Más allá de la slice** (más salas, enemigos, jefes): no era del Prompt 8.
+
+> **Cómo seguir sin romper nada:** `npm run assets:missing` dice qué falta; `npm run art:build` regenera lo pintado por código; `npm run assets:check` valida contra el contrato; `npm run test:e2e` (48 escenarios) y `-- --prod` prueban que el juego sigue siendo el juego, con arte y sin él.

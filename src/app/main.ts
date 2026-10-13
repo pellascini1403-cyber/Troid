@@ -1,8 +1,13 @@
+import { liftCurtain } from './curtain';
+
 const host = document.getElementById('app');
 if (!host) throw new Error('#app host element is missing from index.html');
 
 const params = new URLSearchParams(location.search);
 const lab = params.get('lab');
+
+// the boot curtain (index.html) waits for the art of the game's first room: a lab has nothing to wait for
+if (lab) liftCurtain('lab', true);
 
 if (lab === 'sprites') {
   // Dev tooling is code-split: it never loads (nor weighs) in a normal session.
@@ -31,7 +36,11 @@ if (lab === 'sprites') {
   await startStressLab(host, params);
 } else {
   const { Game2D } = await import('./Game2D');
-  const game = await Game2D.create(host, params);
+  // a game that cannot be made (no WebGL, a broken build) must not stay behind the curtain: the page says what it can
+  const game = await Game2D.create(host, params).catch((err: unknown) => {
+    liftCurtain('failed', true);
+    throw err;
+  });
   game.start();
 
   // Hot-reload friendliness: dispose the previous instance so GPU resources and listeners never stack up.

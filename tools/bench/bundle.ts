@@ -22,30 +22,40 @@ page.on('response', async (res) => {
   const body = await res.body();
   loaded.push({ url: res.url().replace(server.url, ''), raw: body.length, gz: gzipSync(body, { level: 9 }).length });
 });
-// A player's page: no `?hooks=1` (the test hooks are for the E2E; they load the effects at once). It is "up" when the game's HUD is in the
-// page and a canvas is drawing; the 500 ms that follow are what the first frames download.
+// A player's page: no `?hooks=1` (the test hooks are for the E2E; they load the effects at once). It is "up" when the boot curtain has lifted — the art of the first room is in and the
+// first picture is the game's — and a second more is given to whatever is still on its way.
+const t0 = Date.now();
 await page.goto(`${server.url}/`);
-await page.waitForSelector('[data-testid="hud"]', { timeout: 30000 });
-await page.waitForFunction('document.querySelector("canvas") !== null', undefined, { timeout: 30000 });
-await page.waitForTimeout(500);
-const first = loaded.length;
+await page.waitForFunction('document.documentElement.dataset.boot !== undefined', undefined, { timeout: 60000 });
+const pictureAt = Date.now() - t0;
+await page.waitForTimeout(1500);
+// The game marks the moment it asks for its cosmetic parts (the effects, the art, the views of the boss): the scripts it had requested before are the code of its first frame — the cold start
+// the budget is about — and the rest are what it fetches while the curtain is up (they are lazy chunks: the code of the first frame does not change with them).
+const timing = (await page.evaluate(
+  `({ mark: (performance.getEntriesByName('troid:cosmetics')[0] || {}).startTime ?? null, how: document.documentElement.dataset.boot, js: performance.getEntriesByType('resource').filter((r) => r.name.endsWith('.js')).map((r) => [r.name, r.startTime]), img: performance.getEntriesByType('resource').filter((r) => /\\.(png|webp|jpg|jpeg)$/i.test(r.name)).map((r) => r.transferSize || r.encodedBodySize || 0) })`,
+)) as { mark: number | null; how: string; js: Array<[string, number]>; img: number[] };
+if (timing.mark === null) throw new Error('the game never marked the moment it asks for its cosmetic parts (troid:cosmetics)');
+const startOf = new Map(timing.js.map(([name, at]) => [name.replace(server.url, ''), at]));
+const coldList = loaded.filter((f) => (startOf.get(f.url) ?? 0) < timing.mark!);
+const laterList = loaded.filter((f) => (startOf.get(f.url) ?? 0) >= timing.mark!);
 const sum = (list: typeof loaded): { raw: number; gz: number } => list.reduce((n, f) => ({ raw: n.raw + f.raw, gz: n.gz + f.gz }), { raw: 0, gz: 0 });
-const cold = sum(loaded.slice(0, first));
-for (const f of [...loaded.slice(0, first)].sort((a, b) => b.gz - a.gz)) console.log(`${(f.gz / 1024).toFixed(1).padStart(7)} KB gz  ${(f.raw / 1024).toFixed(1).padStart(7)} KB raw  ${f.url}`);
-console.log(`\nloaded by a cold start of R1: ${first} scripts, ${(cold.gz / 1024).toFixed(1)} KB gz (${(cold.raw / 1024).toFixed(1)} KB raw)`);
+const cold = sum(coldList);
+for (const f of [...coldList].sort((a, b) => b.gz - a.gz)) console.log(`${(f.gz / 1024).toFixed(1).padStart(7)} KB gz  ${(f.raw / 1024).toFixed(1).padStart(7)} KB raw  ${f.url}`);
+console.log(`\nloaded by a cold start of R1 (the code of its first frame): ${coldList.length} scripts, ${(cold.gz / 1024).toFixed(1)} KB gz (${(cold.raw / 1024).toFixed(1)} KB raw)`);
 
-// then what the page fetches by itself once it is idle (the effects): the cold start does not wait for it, but a player downloads it
-await page.waitForTimeout(5000);
-const later = loaded.slice(first);
-const rest = sum(later);
-console.log(`fetched afterwards, when idle (not needed to play the first minute): ${later.length} scripts, ${(rest.gz / 1024).toFixed(1)} KB gz (${(rest.raw / 1024).toFixed(1)} KB raw)${later.map((f) => `\n${(f.gz / 1024).toFixed(1).padStart(7)} KB gz  ${f.url}`).join('')}`);
-console.log(`the whole first session: ${loaded.length} scripts, ${((cold.gz + rest.gz) / 1024).toFixed(1)} KB gz`);
+// then what the game fetches by itself once its first frame is up (the effects, the art, the views of the boss): behind the boot curtain, at once
+const rest = sum(laterList);
+console.log(`fetched next, while the curtain is up (the effects, the art, the boss's views: lazy chunks): ${laterList.length} scripts, ${(rest.gz / 1024).toFixed(1)} KB gz (${(rest.raw / 1024).toFixed(1)} KB raw)${laterList.map((f) => `\n${(f.gz / 1024).toFixed(1).padStart(7)} KB gz  ${f.url}`).join('')}`);
+console.log(`the whole first session: ${loaded.length} scripts, ${((cold.gz + rest.gz) / 1024).toFixed(1)} KB gz — the first picture of the game (the curtain lifted: "${timing.how}") came ${pictureAt} ms after the request on this machine, with a local server`);
 const kindOf = (url: string): string => (/\.(png|webp|jpg|jpeg|svg)$/i.test(url) ? 'images' : /\.json$/i.test(url) ? 'data (json)' : 'page and manifest');
 const groups = new Map<string, { n: number; bytes: number }>();
 for (const f of others) {
   const g = groups.get(kindOf(f.url)) ?? { n: 0, bytes: 0 };
   groups.set(kindOf(f.url), { n: g.n + 1, bytes: g.bytes + f.bytes });
 }
-console.log(`not JavaScript: ${others.length} files, ${(others.reduce((n, f) => n + f.bytes, 0) / 1024).toFixed(1)} KB${[...groups].map(([k, g]) => `\n${(g.bytes / 1024).toFixed(1).padStart(7)} KB  ${g.n} ${k}`).join('')}`);
+// the art's images come with `fetch` and are consumed by the page before this script can read their bodies: their size is the browser's own account of what it transferred
+const artImages = timing.img.reduce((n, b) => n + b, 0);
+console.log(`the art's images, which the first picture waits for: ${timing.img.length} files, ${(artImages / 1024).toFixed(0)} KB`);
+console.log(`not JavaScript (what this script could read): ${others.length} files, ${(others.reduce((n, f) => n + f.bytes, 0) / 1024).toFixed(1)} KB${[...groups].map(([k, g]) => `\n${(g.bytes / 1024).toFixed(1).padStart(7)} KB  ${g.n} ${k}`).join('')}`);
 await browser.close();
 await server.close();

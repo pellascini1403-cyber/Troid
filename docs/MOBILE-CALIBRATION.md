@@ -129,3 +129,42 @@ Para **cada** dispositivo (iPhone con Safari, iPad con Safari, Android con Chrom
 - **Sonido:** no hay; el volumen del menú está preparado, no suena nada.
 - **Rendimiento:** medido solo con Chromium dibujando por software (`bench:bundle` mide **bytes**, no fotogramas). Un móvil de gama baja puede necesitar el perfil Bajo; **«Auto» no mide el dispositivo** (es el perfil equilibrado).
 - **Safari / Chrome para Android:** el juego usa `env(safe-area-inset-*)` y el tamaño del contenedor, no `100vh`; no se ha visto cómo se comportan los dos con la barra de direcciones que aparece y desaparece. Pendiente de dispositivo.
+
+---
+
+## 7. Calibración visual del Prompt 8 — **SIN MEDIR**
+
+Lo anterior es la geometría de los controles. El Prompt 8 añadió arte, luz y un telón de arranque, y **nada de ello se ha visto en un dispositivo real**: todo lo medido (contraste, llamadas de dibujo, bytes, tiempos) es de Chromium sin cabeza con GL por software. Estos son los datos que mandan en lo que se ve; **calibrarlos es editar un objeto, no un algoritmo**.
+
+| Dato | Valor hoy | Dónde | Síntoma de que está mal | Qué probar |
+|---|---|---|---|---|
+| luz del héroe | `0.2 → 0.46` según la magia, radio 3.8 m (tope 0.5) | `content/lights.ts` (`LIGHT_STRENGTH.hero`, `LIGHT_RECIPES.hero`) | el héroe se pierde en R2 (el anillo de 1 m está a 1.6 : 1) o la luz lo quema | verlo en R2 (la sala más oscura) en interior y al sol, con el brillo del teléfono al 50 % y al 100 % |
+| charco del suelo | `0.12 → 0.24`, radio 3.2 m | ídem (`floor`) | el suelo se ve como una mancha, o no se ve dónde se pisa | caminar por una pasarela fina y por el suelo de R3 |
+| el aviso violeta bajo la luz del héroe | la luz cede hasta 0.6 (tope 0.75) | ídem (`duck`) | no se lee el aviso del Slime (el E2E mide 1498 px violeta con luz y 868 sin ella) | un Slime que carga en R1 y el Custodio en R4, con y sin `?light=off` |
+| viñeta de cada sala | esquinas 0.5 / 0.52 / 0.52 / 0.62, pelea 0.7; mitad de un borde ≤ 0.34 | `content/atmosphere.ts` (`ROOM_MOODS`, `FIGHT_MOOD`) | una plataforma de lo alto de un salto desaparece, o se ve **banding** (escalones) en los degradados oscuros | saltar al borde de la pantalla en R2 y en R4; mirar la viñeta en una LCD y en una OLED |
+| pulsos de borde | herida 0.3 / 0.42 s · poder 0.26 · descanso 0.18 · jefe 0.26 · caída 0.34 | ídem (`EDGE_PULSES`) | el rojo de la herida molesta o no se nota | recibir un golpe del Slime a 1× |
+| capacidad de luces y pulsos por perfil | 3 / 6 / 8 y 2 / 3 / 4 | `presentation/lighting.ts` (`LIGHT_CONTRACT.capacity`, `PULSE_CONTRACT.capacity`) | caída de fotogramas en la pelea del Custodio (la luz del jefe, un charco de 6.8 m) | la pelea en R4 con la calidad en Baja y en Alta |
+| presupuesto de efectos por perfil | partículas 150 / 300 / 400 · *sprites* 24 / 40 / 64 | `presentation/vfx.ts` (`PARTICLE_BUDGET`, `SPRITE_FX_BUDGET`) | caída de fotogramas o se pierden efectos | el momento más cargado: una pelea con *Spirit Bolt*, golpes y el jefe |
+| espera máxima del telón | 10 s | `app/curtain.ts` (`CURTAIN_TIMEOUT_MS`) | en una red lenta el juego empieza como *blockout* y salta al arte | arrancar en frío con datos móviles flojos (3G, 4G a mitad de barras) |
+| tamaño de lo que se lee | el Slime mide 29 px de ancho a 1× (29 px/m); las formas finas de los efectos son 2 px | las piezas de `art/` (`tools/art`) | no se distingue la silueta del Slime del suelo, o los efectos finos desaparecen | R1 y R2 con el Slime, a 1× y a la escala de un móvil pequeño |
+| contraste de la silueta | 2.5 : 1 (aviso del spec); medido 1.6–3.25 : 1 (**2 de 8** puntos lo superan) | `docs/GAME-SPEC-2D.md` §3.3 | no se ve al héroe sobre el fondo | los 8 puntos de `PROMPT8-LOG` (fase I) sobre el aparato |
+
+### Protocolo (para quien tenga un dispositivo)
+
+1. **Anotar**: modelo, versión del sistema y del navegador, tipo de pantalla (OLED / LCD), brillo, densidad, red.
+2. **Arranque en frío sin caché** (cerrar el navegador, limpiar los datos del sitio): ¿se ve **el telón** (negro y una luz que respira)? ¿Cuánto tarda en aparecer la primera sala (cronómetro)? ¿Se ve **algún cuadro de rectángulos planos o de una cápsula**? (no debe verse ninguno). Repetir con la red lenta.
+3. **Recorrer R1 → R4** con `?debug=1` y anotar los fotogramas medios y los peores: en R2 (raíces, espinas), en R3 (el sello y el rayo) y en la pelea con el Custodio.
+4. **Mirar al héroe**: en R2 y en la sala más oscura de R4, ¿se le ve de pie contra el fondo? Con `?light=off` en la misma pantalla, ¿cuánto empeora?
+5. **Los avisos violetas**: el Slime que carga y los avisos del Custodio (lluvia, embestida) con la luz del héroe encendida: ¿se leen a la distancia a la que se juega?
+6. **Los bordes de la pantalla**: la viñeta en una pantalla clara y en una oscura; el pulso rojo de la herida; ¿se ve *banding*?
+7. **Calidad**: los fotogramas con la calidad en Baja, Equilibrada y Alta, y si el teléfono se calienta tras 10 minutos.
+8. **Escribir lo observado en la tabla de abajo con lo que se vio, no con lo que se esperaba.** Si un dato cambia, cambiar el dato y anotar el valor viejo y el nuevo.
+
+### Resultados en dispositivo — **SIN MEDIR**
+
+| Dispositivo | Pantalla y red | Primera imagen (s) | Datos cambiados (antes → después) | Héroe legible (R2 / R4) | Avisos legibles | Fotogramas (peor momento) | Notas |
+|---|---|---|---|---|---|---|---|
+| iPhone — *sin medir* | | | | | | | |
+| iPad — *sin medir* | | | | | | | |
+| Android — *sin medir* | | | | | | | |
+| Android de gama baja — *sin medir* | | | | | | | |
