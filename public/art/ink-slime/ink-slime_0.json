@@ -1,0 +1,224 @@
+{
+  "frames": {
+    "slime_body_00": {
+      "frame": {
+        "x": 160,
+        "y": 103,
+        "w": 153,
+        "h": 96
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 10,
+        "y": 42,
+        "w": 153,
+        "h": 96
+      },
+      "sourceSize": {
+        "w": 211,
+        "h": 139
+      }
+    },
+    "slime_body_01": {
+      "frame": {
+        "x": 188,
+        "y": 2,
+        "w": 154,
+        "h": 97
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 10,
+        "y": 41,
+        "w": 154,
+        "h": 97
+      },
+      "sourceSize": {
+        "w": 211,
+        "h": 139
+      }
+    },
+    "slime_body_02": {
+      "frame": {
+        "x": 2,
+        "y": 218,
+        "w": 153,
+        "h": 95
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 10,
+        "y": 43,
+        "w": 153,
+        "h": 95
+      },
+      "sourceSize": {
+        "w": 211,
+        "h": 139
+      }
+    },
+    "slime_body_03": {
+      "frame": {
+        "x": 2,
+        "y": 20,
+        "w": 154,
+        "h": 94
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 10,
+        "y": 44,
+        "w": 154,
+        "h": 94
+      },
+      "sourceSize": {
+        "w": 211,
+        "h": 139
+      }
+    },
+    "slime_eyes_00": {
+      "frame": {
+        "x": 272,
+        "y": 252,
+        "w": 66,
+        "h": 39
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 15,
+        "y": 5,
+        "w": 66,
+        "h": 39
+      },
+      "sourceSize": {
+        "w": 96,
+        "h": 48
+      }
+    },
+    "slime_flash_00": {
+      "frame": {
+        "x": 2,
+        "y": 118,
+        "w": 153,
+        "h": 96
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 10,
+        "y": 42,
+        "w": 153,
+        "h": 96
+      },
+      "sourceSize": {
+        "w": 211,
+        "h": 139
+      }
+    },
+    "slime_pool_00": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 182,
+        "h": 14
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 5,
+        "y": 14,
+        "w": 182,
+        "h": 14
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 29
+      }
+    },
+    "slime_sigil_00": {
+      "frame": {
+        "x": 159,
+        "y": 285,
+        "w": 80,
+        "h": 80
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 3,
+        "y": 3,
+        "w": 80,
+        "h": 80
+      },
+      "sourceSize": {
+        "w": 86,
+        "h": 86
+      }
+    },
+    "slime_spines_00": {
+      "frame": {
+        "x": 272,
+        "y": 203,
+        "w": 96,
+        "h": 45
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 48,
+        "y": 39,
+        "w": 96,
+        "h": 45
+      },
+      "sourceSize": {
+        "w": 211,
+        "h": 139
+      }
+    },
+    "slime_spines_01": {
+      "frame": {
+        "x": 2,
+        "y": 317,
+        "w": 89,
+        "h": 52
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 47,
+        "y": 32,
+        "w": 89,
+        "h": 52
+      },
+      "sourceSize": {
+        "w": 211,
+        "h": 139
+      }
+    },
+    "slime_spines_02": {
+      "frame": {
+        "x": 159,
+        "y": 203,
+        "w": 109,
+        "h": 78
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 35,
+        "y": 12,
+        "w": 109,
+        "h": 78
+      },
+      "sourceSize": {
+        "w": 211,
+        "h": 139
+      }
+    }
+  },
+  "meta": {
+    "app": "troid-assets",
+    "version": "1",
+    "image": "ink-slime_0.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 372,
+      "h": 372
+    },
+    "scale": "1"
+  }
+}

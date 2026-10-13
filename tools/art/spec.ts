@@ -22,6 +22,8 @@ export interface SpriteSpec {
   ppm?: number;
   /** The size of a prop in metres (the painter makes it at the pack's density): the scenes need it to place the piece. */
   sizeM?: [number, number];
+  /** Anchors the art declares (metres from the feet, +x forward, +y up): for a creature's body, `head` is where its eyes stand and `vfx_origin` where its sigil does. */
+  anchors?: Partial<Record<'head' | 'vfx_origin', readonly [number, number]>>;
   comment?: string;
 }
 

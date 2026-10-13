@@ -21,6 +21,8 @@ import type { Ctx, GameState, Scenario } from '../scenario';
  *       is not there until the Warden has fallen, nothing of the environment is left to the blockout, and the draw calls stay under the budget from the portal to the way out
  *   I · the Ink Warden and the arena that answers it (phase F): the boss is drawn by the parts of its art (and by its shapes with `?art=`), the eye of the wall burns while the fight is on and closes
  *       once the Warden has fallen, the reward lights up when it falls, the scenery only READS the flags, and a room that opens with the Warden fallen does not fade its dead eye in
+ *   J · the Ink Slimes (phase G): the one of R1 and the one of R2 are drawn by the parts of their art (and by their shapes with `?art=`, or in a room whose art has none), the bristle rises as one winds up, and
+ *       the art follows the zone: it is let go when the hero leaves the rooms that hold it
  */
 const PHONE = { width: 844, height: 390, dpr: 1 };
 const R1 = ROOMS['r1_gate']!;
@@ -59,6 +61,25 @@ const bossOf = (ctx: Ctx): Promise<{ found: boolean; shapes: number; sprites: nu
     // (a node is told by how it is rendered, not by its class name: a production build has no class names)
     return { found: true, shapes: nodes.filter((c) => c.renderPipeId === 'graphics' && c.visible).length, sprites: nodes.filter((c) => c.renderPipeId === 'sprite').length };
   })()`) as Promise<{ found: boolean; shapes: number; sprites: number }>;
+
+/** The Ink Slime's view, read from the scene graph: whether it has one, how many of its shapes (Graphics) are drawn and how many sprites it has (the art's parts, and the soft lights). */
+const slimeOf = (ctx: Ctx): Promise<{ found: boolean; shapes: number; sprites: number; spines: boolean }> =>
+  ctx.page.evaluate(`(() => {
+    const find = (c, label) => (c.label === label ? c : (c.children || []).map((k) => find(k, label)).find(Boolean));
+    const root = find(window.__troid.game.renderer.layers.actors, 'procedural');
+    if (!root) return { found: false, shapes: 0, sprites: 0, spines: false };
+    const shape = find(root, 'shape');
+    const all = (c) => [c, ...(c.children || []).flatMap(all)];
+    const nodes = all(root).filter((c) => c !== root);
+    // (a node is told by how it is rendered, not by its class name: a production build has no class names)
+    return {
+      found: true,
+      shapes: nodes.filter((c) => c.renderPipeId === 'graphics' && c.visible).length,
+      sprites: nodes.filter((c) => c.renderPipeId === 'sprite').length,
+      // (dressed, the second child of the shape is the bristle, over the body)
+      spines: !!shape && !!shape.children[1] && shape.children[1].renderPipeId === 'sprite' && shape.children[1].visible,
+    };
+  })()`) as Promise<{ found: boolean; shapes: number; sprites: number; spines: boolean }>;
 
 const PARTIAL: FixturePack[] = [
   {
@@ -414,5 +435,51 @@ export const roomArt: Scenario = {
     await ctx.page.waitForTimeout(250);
     assert.deepEqual(await levels('eye_dead'), [1], 'rebuilt with the Warden fallen: the eye is closed at once, not fading in');
     assert.deepEqual(await levels('eye_awake'), [0], 'and the burning eye is not there');
+
+    // ================================================================================================ J · the Ink Slimes
+    for (const room of ['r1_gate', 'r2_hall']) {
+      await ctx.open(`room=${room}&paused=1`, PHONE);
+      const st = await waitFor(ctx, `${room} dressed with the art`, (x) => x.roomArt !== null && x.roomArt !== undefined);
+      assert.deepEqual(st.roomArt!.creatures, ['ink_slime'], `${room}: the art has every part of the Ink Slime`);
+      assert.deepEqual(st.roomArt!.lacking, {}, `${room}: and the art lacks nothing`);
+      await ctx.page.waitForTimeout(300);
+      const slime = await slimeOf(ctx);
+      assert.equal(slime.found, true, `${room}: the Slime has a view`);
+      assert.equal(slime.shapes, 0, `${room}: drawn by the parts of its art: none of its shapes is on`);
+      assert.ok(slime.sprites >= 8, `${room}: and its parts are there: pool, body, bristle, sigil, eyes, flash and the soft lights (${slime.sprites} sprites)`);
+      assert.equal(slime.spines, false, `${room}: the bristle is down while it sleeps`);
+      const draws = (await ctx.state()).drawsMax ?? 99;
+      assert.ok(draws <= 60, `${room}: ${draws} draw calls with the Slime dressed`);
+    }
+    // the bristle rises as it winds up: the Slime of R1 meets the hero and the warning builds
+    await ctx.open('room=r1_gate&paused=1', PHONE);
+    await waitFor(ctx, 'R1 dressed with the art', (x) => x.roomArt !== null && x.roomArt !== undefined);
+    await ctx.page.evaluate('window.__troid.game.debug.set("godMode", true)');
+    await ctx.teleport(91, 0);
+    await ctx.page.evaluate('window.__troid.settleCamera(5)');
+    let wound = false;
+    for (let i = 0; i < 160 && !wound; i++) {
+      await ctx.step(2);
+      const e = (await ctx.state()).enemies?.[0];
+      if (e?.state === 'telegraph' && e.phaseT > 0.85) {
+        await ctx.page.waitForTimeout(80);
+        wound = (await slimeOf(ctx)).spines;
+        if (wound) await ctx.shot('j-00-the-slime-winds-up');
+      }
+    }
+    assert.equal(wound, true, 'the bristle is up as the Slime is about to strike');
+    await ctx.page.evaluate('window.__troid.game.debug.set("godMode", false)');
+    // with the blockout (`?art=`) the Slime is drawn by its shapes, as ever
+    await ctx.open('room=r1_gate&paused=1&art=', PHONE);
+    await ctx.page.waitForTimeout(800);
+    assert.equal((await ctx.state()).roomArt, null, 'no art: nothing dresses R1');
+    const naked = await slimeOf(ctx);
+    assert.equal(naked.found, true);
+    assert.ok(naked.shapes >= 3, `and the Slime is drawn by its shapes (${naked.shapes})`);
+    // R3 has no Slime and holds none of its art: the pack follows the zone, and the art of a zone that has let go is not drawn
+    await ctx.open('room=r3_chamber&paused=1', PHONE);
+    const hall = await waitFor(ctx, 'R3 dressed with the art', (x) => x.roomArt !== null && x.roomArt !== undefined);
+    assert.deepEqual(hall.roomArt!.creatures, [], 'R3 holds no Slime art');
+    assert.equal(((await ctx.state()).art?.packList ?? []).find((p) => p.id === 'ink-slime') !== undefined, true, 'the pack is in the library');
   },
 };

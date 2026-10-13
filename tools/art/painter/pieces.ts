@@ -9,6 +9,7 @@ import { columnProp, crystals, effigy, ferns, foreLeaves, grass, hangingRoots, m
 import { beam, glow, mistBank, motes, shaft, veil } from './lights';
 import { rootArch, rootCrawl, rootCurtain, rootPillar, shrine, thorns, vial } from './roots';
 import { cardSpirit, lintel, paving, pedestal, pilaster, relief, runeCircle, runePath, sealSigil } from './seal';
+import { slimeBody, slimeEyes, slimeFlash, slimePool, slimeSigil, slimeSpines } from './slime';
 import { wardenBody, wardenCrest, wardenEye, wardenPool, wardenShard } from './warden';
 import { airRune, arenaRing, banner, eyeAwake, eyeDead, colossalColumn, colossus, dais, eyeWall, inkPool, portalGrand, sanctumPaving, sanctumShrine } from './sanctum';
 
@@ -207,6 +208,22 @@ export const PIECES: Record<string, PieceMaker> = {
   },
   wardenShard: prop(wardenShard, 0.9, 1.2),
   wardenPool: prop(wardenPool, 4.6, 0.8),
+  /** The Ink Slime, in parts (docs/PROMPT8-LOG.md phase G): the body in four boiling frames and its flash, the eyes, the sigil, the bristle in three states, the pool. */
+  slimeBody: async (p) => {
+    const ppm = num(p, 'ppm', 96);
+    return slimeBody({ w: Math.round(ppm * 2.2), h: Math.round(ppm * 1.45), ppm, seed: num(p, 'seed', 5) });
+  },
+  slimeFlash: async (p) => {
+    const ppm = num(p, 'ppm', 96);
+    return slimeFlash({ w: Math.round(ppm * 2.2), h: Math.round(ppm * 1.45), ppm, seed: num(p, 'seed', 5) });
+  },
+  slimeEyes: prop(slimeEyes, 1.0, 0.5),
+  slimeSigil: prop(slimeSigil, 0.9, 0.9),
+  slimeSpines: async (p) => {
+    const ppm = num(p, 'ppm', 96);
+    return slimeSpines({ w: Math.round(ppm * 2.2), h: Math.round(ppm * 1.45), ppm, seed: num(p, 'seed', 5) });
+  },
+  slimePool: prop(slimePool, 2.0, 0.3),
   columnWhole: prop((o) => columnProp({ ...o, state: 'whole', heightM: 4.6 }), 1.6, 5.2),
   columnBroken: prop((o) => columnProp({ ...o, state: 'broken', heightM: 3.1 }), 1.6, 3.7),
   lightShaft: light(shaft, 192, 640),

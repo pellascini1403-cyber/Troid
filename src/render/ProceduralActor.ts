@@ -14,6 +14,44 @@ export interface ProceduralActorOptions {
   glow: Texture;
 }
 
+/** One picture of a creature as the art gives it: its frames, how big a pixel of it is in the world and where its pivot is. */
+export interface CreatureArtPart {
+  readonly frames: readonly Texture[];
+  /** Metres per art pixel. */
+  readonly mpp: number;
+  readonly pivot: readonly [number, number];
+}
+
+/**
+ * An ink creature as the art draws it, in PARTS (`presentation/enemyArt`): the body (several frames are a loop: the surface of the ink "boils"), the white flash of a hit, the eyes, the sigil in its chest, the bristle
+ * (none, some, all) and the pool it rides in and melts into. The pose is still the simulation's state, read the same way: the art only gives the shapes their pictures.
+ */
+export interface CreatureArt {
+  readonly body: CreatureArtPart;
+  readonly flash: CreatureArtPart;
+  readonly eyes: CreatureArtPart;
+  readonly sigil: CreatureArtPart;
+  readonly spines: CreatureArtPart;
+  readonly pool: CreatureArtPart;
+  /** Where the eyes and the sigil stand on the body (metres from the feet, +x forward, +y up): the `head` and `vfx_origin` anchors of the art's body. */
+  readonly eyesAt: readonly [number, number];
+  readonly sigilAt: readonly [number, number];
+}
+
+/** What the art adds to the view while it is dressed: the sprites that stand where the shapes were. */
+interface CreatureNodes {
+  art: CreatureArt;
+  pool: Sprite;
+  body: Sprite;
+  spines: Sprite;
+  flash: Sprite;
+  sigil: Sprite;
+  eyes: Sprite;
+}
+
+/** How often the surface of the ink changes its picture (Hz): a slow boil, a hand-drawn thing kept alive. */
+const BOIL_HZ = 6;
+
 /** Texture size of the glow frame in pixels (the VFX atlas draws it 96 × 96). */
 const GLOW_PX = 96;
 /**
@@ -44,6 +82,7 @@ export class ProceduralActor implements EntityView {
   private readonly flash = new Graphics();
   private readonly pose = createProceduralPose();
   private time = 0;
+  private nodes: CreatureNodes | null = null;
 
   constructor(
     private readonly look: ProceduralLook,
@@ -103,8 +142,62 @@ export class ProceduralActor implements EntityView {
     this.root.addChild(this.aura, this.shape);
   }
 
+  /**
+   * The art draws the creature from now on (or, with `null`, its shapes do again): its sprites take the place of the shapes, which are not drawn. The aura and the bloom of the eyes — soft light shared with the effects —
+   * stay what they are. The pose and everything the simulation says are untouched: this changes what the creature LOOKS like, never what it does.
+   */
+  dress(art: CreatureArt | null): void {
+    if (this.nodes) {
+      for (const n of [this.nodes.pool, this.nodes.body, this.nodes.spines, this.nodes.flash, this.nodes.sigil, this.nodes.eyes]) n.destroy();
+      this.nodes = null;
+    }
+    const shapes = art === null;
+    for (const g of [this.body, this.eyes, this.flash]) g.visible = shapes;
+    this.glowR.visible = shapes;
+    if (!art) {
+      // the shapes' own eyes are where the look puts them
+      const { width: w, eyes: e } = this.look;
+      const spread = (w * e.spread) / 2;
+      this.glowL.position.set(w * e.forward + (-spread), -this.look.height * e.y);
+      this.glowL.scale.set((e.height * 3.4) / GLOW_PX);
+      return;
+    }
+    const sprite = (part: CreatureArtPart, frame = 0): Sprite => {
+      const s = new Sprite(part.frames[Math.min(frame, part.frames.length - 1)]!);
+      s.anchor.set(part.pivot[0], part.pivot[1]);
+      s.scale.set(part.mpp);
+      return s;
+    };
+    const pool = sprite(art.pool);
+    const body = sprite(art.body);
+    const spines = sprite(art.spines);
+    spines.visible = false;
+    const flash = sprite(art.flash);
+    flash.blendMode = 'add';
+    flash.alpha = 0;
+    const sigil = sprite(art.sigil);
+    sigil.blendMode = 'add';
+    sigil.position.set(art.sigilAt[0], -art.sigilAt[1]);
+    const eyes = sprite(art.eyes);
+    eyes.blendMode = 'add';
+    eyes.position.set(art.eyesAt[0], -art.eyesAt[1]);
+    // one bloom over both slits (the shared glow, added to the painted halos)
+    const bloom = Math.max(eyes.texture.orig.width * art.eyes.mpp * 0.6, 0.3);
+    this.glowL.position.set(art.eyesAt[0], -art.eyesAt[1]);
+    this.glowL.scale.set(bloom / GLOW_PX);
+    this.root.addChildAt(pool, 0);
+    this.shape.addChildAt(body, 0);
+    this.shape.addChildAt(spines, 1);
+    this.shape.addChildAt(sigil, 2);
+    this.shape.addChildAt(eyes, 3);
+    this.shape.addChild(flash);
+    this.nodes = { art, pool, body, spines, flash, sigil, eyes };
+  }
+
   /** `alpha` ∈ [0,1): interpolation between ticks. `dt`: animation seconds (frozen by pause and hit-stop). */
   sync(alpha: number, dt: number): void {
+    // the art was let go of (the zone changed under it): the shapes are the creature again
+    if (this.nodes && this.nodes.art.body.frames[0]!.destroyed) this.dress(null);
     const v = this.source.view;
     this.time += dt;
     const x = v.prevX + (v.x - v.prevX) * alpha;
@@ -123,7 +216,7 @@ export class ProceduralActor implements EntityView {
     // the eyes close from the top and bottom (squint) and light up
     this.eyes.scale.y = Math.max(0.08, 1 - p.squint * 0.92) / UNITS_PER_METRE;
     const glow = Math.min(1, Math.max(0, p.eyeGlow - 0.55) / 1.2);
-    this.glowL.alpha = this.glowR.alpha = glow * v.opacity;
+    this.glowL.alpha = this.glowR.alpha = glow * v.opacity * (this.nodes ? 0.7 : 1);
     this.eyes.alpha = Math.min(1, 0.55 + p.eyeGlow * 0.55);
 
     this.aura.alpha = p.aura * v.opacity;
@@ -131,6 +224,29 @@ export class ProceduralActor implements EntityView {
     this.aura.position.set(p.shakeX, -this.look.height * 0.5 * p.scaleY);
 
     this.flash.alpha = v.flash * v.opacity;
+
+    const n = this.nodes;
+    if (n) {
+      // the art's parts stand where the shapes stand, and take the same numbers
+      const frames = n.art.body.frames;
+      n.body.texture = frames[Math.floor(this.time * BOIL_HZ) % frames.length]!;
+      // the eyes close from the top and bottom and light up
+      n.eyes.scale.y = n.art.eyes.mpp * Math.max(0.08, 1 - p.squint * 0.92);
+      n.eyes.alpha = Math.min(1, 0.5 + p.eyeGlow * 0.55);
+      // the sigil: an ember while it sleeps, white-hot as it winds up, with a slow heartbeat
+      const heat = Math.min(1, Math.max(0, (p.eyeGlow - 0.3) / 1.4));
+      n.sigil.alpha = Math.min(1, 0.16 + p.eyeGlow * 0.5) * (0.93 + 0.07 * Math.sin(this.time * 3.4));
+      n.sigil.scale.set(n.art.sigil.mpp * (1 + 0.14 * heat));
+      // the bristle rises with the warning: the telegraph is in the silhouette before it is in the colour
+      const level = p.aura < 0.2 ? 0 : p.aura < 0.55 ? 1 : 2;
+      n.spines.visible = level > 0;
+      if (level > 0) n.spines.texture = n.art.spines.frames[Math.min(level, n.art.spines.frames.length - 1)]!;
+      n.flash.alpha = v.flash * v.opacity;
+      // the pool it rides in: wider as the body squashes and as it melts, and the last of it to go when it falls
+      const dying = v.anim === 'death';
+      n.pool.alpha = dying ? 1 - v.phaseT ** 4 : v.opacity;
+      n.pool.scale.x = n.art.pool.mpp * Math.min(1.4, Math.max(0.85, 0.94 + 0.32 * (p.scaleX - 1)));
+    }
   }
 
   destroy(): void {

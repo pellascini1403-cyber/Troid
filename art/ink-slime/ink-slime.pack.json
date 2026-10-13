@@ -1,0 +1,172 @@
+{
+  "manifestVersion": 1,
+  "id": "ink-slime",
+  "category": "enemies",
+  "status": "provisional",
+  "comment": "THE INK SLIME, in parts: a low hunched creature of wet ink with its hood-peak thrown back and its cloak dragging behind it, a splinter of the seal burning in its chest, two slanted slits for eyes and a bristle that rises as it winds up to strike. Original: the same ink as the Warden it leaked from. Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.",
+  "tags": [
+    "enemy",
+    "generated"
+  ],
+  "atlasMode": "shared",
+  "atlases": [],
+  "sprites": [
+    {
+      "id": "slime_body",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.448,
+      "frameSize": [
+        211,
+        139
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "enemy:ink_slime",
+        "part:body"
+      ],
+      "anchors": {
+        "head": [
+          0.27,
+          0.45
+        ],
+        "vfx_origin": [
+          -0.12,
+          0.38
+        ]
+      },
+      "clips": {
+        "idle": {
+          "frames": "slime_body_",
+          "count": 4
+        }
+      }
+    },
+    {
+      "id": "slime_flash",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.448,
+      "frameSize": [
+        211,
+        139
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "enemy:ink_slime",
+        "part:flash",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "slime_flash_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "slime_eyes",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "height": 0.5,
+      "frameSize": [
+        96,
+        48
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "enemy:ink_slime",
+        "part:eyes",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "slime_eyes_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "slime_sigil",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "height": 0.896,
+      "frameSize": [
+        86,
+        86
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "enemy:ink_slime",
+        "part:sigil",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "slime_sigil_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "slime_spines",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.448,
+      "frameSize": [
+        211,
+        139
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "enemy:ink_slime",
+        "part:spines"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "slime_spines_",
+          "count": 3
+        }
+      }
+    },
+    {
+      "id": "slime_pool",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.302,
+      "frameSize": [
+        192,
+        29
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "enemy:ink_slime",
+        "part:pool"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "slime_pool_",
+          "count": 1
+        }
+      }
+    }
+  ]
+}

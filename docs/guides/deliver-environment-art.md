@@ -143,3 +143,25 @@ Cuatro piezas de los datos de la sala que ya se dibujan con arte (R2 usa las tre
 **Sustituir el arte del Custodio por uno hecho a mano:** se deja cada *sprite* con el **mismo `id`** y las mismas etiquetas en `art/ink-warden/ink-warden.pack.json`, se ponen los PNG en `art/ink-warden/<id>/<id>_NN.png` y **se quita del `packs/ruins.ts` del pintor** (`INK_WARDEN`) para que `art:build` no lo vuelva a pintar. Ni la vista, ni la escena, ni el juego cambian.
 
 **Una colocación de escena puede contestar a una bandera del mundo** (`whenSet` / `whenClear`): `{ "sprite": "eye_awake", "x": 44.5, "y": 2.7, "whenSet": "~fight:r4_boss", "whenClear": "defeated:r4_boss" }` se ve **mientras** la pelea está en marcha y **hasta** que el jefe cae. Entra en 0.9 s y sale en 0.6 s; la primera vez que se evalúa se pone en su destino sin fundido (una sala que se abre con el jefe ya caído no enciende despacio su ojo apagado). Nombres de bandera: minúsculas con `:`, `.`, `_` y `-`; una `~` delante es una bandera volátil. **El decorado solo las lee**: ninguna escena puede poner una bandera. Es lo que usa R4 para el ojo del muro (arde en la pelea y se cierra para siempre), el anillo de la arena (una capa más en la pelea) y la luz de la recompensa (se enciende al caer el Custodio).
+
+## 9. Una criatura de tinta (fase G): el enemigo ordinario, por partes
+
+Como el jefe (§8), **un enemigo ordinario se entrega por partes** en un paquete de la categoría **`enemies`** con `zones` de las salas donde vive (el Ink Slime: `["r1_gate", "r2_hall"]`): se descarga al entrar y se suelta al salir. Su pose es el estado de la simulación y es **la vista** quien la lee (aplasta el cuerpo sobre los pies, estira, inclina; abre y cierra los ojos; enciende el sigilo; levanta la cerda): el arte pone las **imágenes** y no decide nada. Dos etiquetas en cada *sprite set* dicen **de quién** y **cuál**:
+
+| Etiqueta | Qué dice |
+|---|---|
+| `enemy:<lookId>` | de quién es la parte: el `proceduralId` de la definición del enemigo (`ink_slime`) |
+| `part:<nombre>` | cuál: `body`, `flash`, `eyes`, `sigil`, `spines` o `pool` |
+
+| Parte | Fotogramas (clip `idle`) | Pivote | Notas |
+|---|---|---|---|
+| `body` | **uno o más**: son **un bucle** (el Slime lleva 4: la superficie «hierve» a 6 Hz) | `[0.5, 1]` (los pies) | mira a la **derecha** (la vista lo refleja con su orientación) y su masa cabe en el cuerpo que el juego pelea (1.1 × 0.9 m). **Lleva las anclas `head` (dónde están los ojos) y `vfx_origin` (dónde está el sigilo)**, en metros desde los pies, +x delante: `"anchors": { "head": [0.27, 0.45], "vfx_origin": [-0.12, 0.38] }` |
+| `flash` | 1, `blend:add` | `[0.5, 1]` | **la misma silueta en blanco**, en el marco del cuerpo: el destello de un golpe |
+| `eyes` | 1, `blend:add` | `[0.5, 0.5]` | se coloca en `head`; la vista los cierra con el parpadeo y los enciende |
+| `sigil` | 1, `blend:add` | `[0.5, 0.5]` | se coloca en `vfx_origin`; brasa dormido, blanco incandescente al prepararse |
+| `spines` | **3** (nada, algunas, todas), en el **marco del cuerpo** | `[0.5, 1]` | la cerda que se levanta mientras el aviso crece: es lo que hace que **el aviso se lea en la silueta** |
+| `pool` | 1 | `[0.5, 1]` | el charco en el que va; se ensancha al aplastarse y es lo último en irse al morir |
+
+**Todas las partes (y las dos anclas) o ninguna:** con algo sin entregar el juego sigue dibujando la criatura con las formas de siempre y `assets:check` avisa de qué falta. Las reglas del lienzo son las de un paquete `enemies`: fondo transparente; los píxeles **no tocan** el lado izquierdo, el derecho ni el borde alto (deja margen para la cerda y el halo); el de abajo sí, si el pivote está abajo. `part:` lo comparten el escenario, los jefes y los enemigos: **solo `boss:` o `enemy:` dice de qué es la parte**.
+
+**Sustituir el arte del Slime por uno hecho a mano:** se deja cada *sprite* con el **mismo `id`** y las mismas etiquetas (y las anclas del cuerpo) en `art/ink-slime/ink-slime.pack.json`, se ponen los PNG en `art/ink-slime/<id>/<id>_NN.png` y **se quita del `packs/ruins.ts` del pintor** (`INK_SLIME`) para que `art:build` no lo vuelva a pintar. Ni la vista, ni la escena, ni el juego cambian.

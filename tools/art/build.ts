@@ -82,6 +82,7 @@ async function paintPack(pack: PackSpec, page: import('playwright-core').Page): 
       frameSize: [w, h],
       missingClips: 'placeholder',
       tags: spec.tags,
+      ...(spec.anchors ? { anchors: spec.anchors } : {}),
       clips: { idle: { frames: `${spec.id}_`, count: painted.frames.length } },
       ...(spec.comment ? { comment: spec.comment } : {}),
     });

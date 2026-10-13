@@ -2,6 +2,7 @@ import { R1_SCENES } from '../scenes/r1';
 import { R2_SCENES } from '../scenes/r2';
 import { R3_SCENES } from '../scenes/r3';
 import { R4_SCENES } from '../scenes/r4';
+import { SLIME_EYES, SLIME_SIGIL } from '../painter/slime';
 import type { PackSpec, SpriteSpec } from '../spec';
 
 /**
@@ -304,4 +305,30 @@ export const INK_WARDEN: PackSpec = {
   ],
 };
 
-export const PACKS: readonly PackSpec[] = [RUINS_GROUND, RUINS_BACK, RUINS_LIGHT, RUINS_ROOTS, RUINS_SEAL, RUINS_SANCTUM, INK_WARDEN];
+/**
+ * THE INK SLIME (docs/PROMPT8-LOG.md phase G): the ordinary enemy of the slice, painted in PARTS because the game moves them — the pose is the simulation's state, read by the view: the body in four frames that "boil" (the
+ * surface of the ink never rests), its white flash, the eyes, the sigil in its chest, the bristle that rises along its back as it winds up (three states) and the pool it rides in. A pack of the `enemies` category (drawn over the world,
+ * with a transparent background), fetched with R1 and R2 — the two rooms where one lives — and let go when the hero leaves them. The body says where its eyes and its sigil stand with its `head` and `vfx_origin` anchors.
+ * Painted by the generator, not by a person: provisional until an artist reviews or replaces it.
+ */
+export const INK_SLIME: PackSpec = {
+  id: 'ink-slime',
+  category: 'enemies',
+  tags: ['enemy'],
+  zones: ['r1_gate', 'r2_hall'],
+  ppm: 96,
+  comment:
+    'THE INK SLIME, in parts: a low hunched creature of wet ink with its hood-peak thrown back and its cloak dragging behind it, a splinter of the seal burning in its chest, two slanted slits for eyes and a bristle that rises as it winds up to strike. ' +
+    'Original: the same ink as the Warden it leaked from. Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.',
+  sprites: [
+    // where the eyes (`head`) and the sigil (`vfx_origin`) stand on the body: the numbers the painter draws them for (`painter/slime.ts`)
+    { id: 'slime_body', tags: ['enemy:ink_slime', 'part:body'], piece: 'slimeBody', params: { seed: SEED + 110 }, cols: 4, rows: 1, pivot: [0.5, 1], anchors: { head: SLIME_EYES, vfx_origin: SLIME_SIGIL } },
+    { id: 'slime_flash', tags: ['enemy:ink_slime', 'part:flash', 'blend:add'], piece: 'slimeFlash', params: { seed: SEED + 110 }, pivot: [0.5, 1] },
+    { id: 'slime_eyes', tags: ['enemy:ink_slime', 'part:eyes', 'blend:add'], piece: 'slimeEyes', params: { seed: SEED + 111 }, sizeM: [1.0, 0.5], pivot: [0.5, 0.5] },
+    { id: 'slime_sigil', tags: ['enemy:ink_slime', 'part:sigil', 'blend:add'], piece: 'slimeSigil', params: { seed: SEED + 112 }, sizeM: [0.9, 0.9], pivot: [0.5, 0.5] },
+    { id: 'slime_spines', tags: ['enemy:ink_slime', 'part:spines'], piece: 'slimeSpines', params: { seed: SEED + 113 }, cols: 3, rows: 1, pivot: [0.5, 1] },
+    { id: 'slime_pool', tags: ['enemy:ink_slime', 'part:pool'], piece: 'slimePool', params: { seed: SEED + 114 }, sizeM: [2.0, 0.3], pivot: [0.5, 1] },
+  ],
+};
+
+export const PACKS: readonly PackSpec[] = [RUINS_GROUND, RUINS_BACK, RUINS_LIGHT, RUINS_ROOTS, RUINS_SEAL, RUINS_SANCTUM, INK_WARDEN, INK_SLIME];

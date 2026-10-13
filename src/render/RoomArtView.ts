@@ -4,12 +4,14 @@ import type { ArtLibrary } from '@/assets/artLibrary';
 import { HALF_VIEW, PARALLAX_FACTOR, readEnvLook, readEnvTags, slotKey, type EnvLook } from '@/presentation/environment';
 import { cropFrame, planHazards, planInteractables, planSeals, planStrip, planTerrain, type Draw, type InteractablePlacement, type PieceInfo, type PieceLookup, type SealPlacement } from '@/presentation/roomPlan';
 import { GUARDIAN_PARTS, bossParts } from '@/presentation/bossArt';
+import { ENEMY_PARTS, enemyParts, type EnemyPartName } from '@/presentation/enemyArt';
 import { SCENE_LAYERS, placementShown, type Placement, type SceneLayer } from '@/presentation/roomScene';
 import type { SpriteSetDefinition } from '@/presentation/SpriteSetDefinition';
 import { viewY } from '@/presentation/worldTransform';
 import type { RoomDefinition } from '@/world/RoomDefinition';
 import type { GuardianArt, GuardianArtPart } from './GuardianView';
 import type { InteractableArt } from './InteractableViews';
+import type { CreatureArt, CreatureArtPart } from './ProceduralActor';
 import type { Layers } from './layers';
 import type { SealArt } from './SealView';
 
@@ -37,6 +39,8 @@ export interface RoomArtCoverage {
   seals: ReadonlyMap<string, SealArt>;
   /** The bosses the art draws, by the `lookId` of their definition: each guardian's own view takes the parts and moves them (and keeps drawing itself with its shapes when the art has no parts for it). */
   guardians: ReadonlyMap<string, GuardianArt>;
+  /** The ink creatures the art draws, by the `proceduralId` of their definition: each enemy's own view takes the parts and moves them (and keeps drawing itself with its shapes when the art has no parts for it). */
+  creatures: ReadonlyMap<string, CreatureArt>;
   /** The blockout backdrops the scene replaces: `far`, `mid`, `near` and `front` (the foreground). */
   backdrop: ReadonlySet<string>;
   /** How many sprites it made. */
@@ -250,6 +254,35 @@ export class RoomArtView {
       }
     }
 
+    // ---- the creatures: the parts of each ordinary enemy the zone holds art for (an enemy is an entity: its own view takes the parts and moves them). Every part, or none: a creature is never half-painted
+    const creatures = new Map<string, CreatureArt>();
+    for (const info of this.art.heldPacks('enemies')) {
+      for (const [look, names] of enemyParts(info.pack.sprites)) {
+        if (ENEMY_PARTS.some((p) => !names.has(p))) continue;
+        const got: Partial<Record<EnemyPartName, CreatureArtPart>> = {};
+        let eyesAt: readonly [number, number] | null = null;
+        let sigilAt: readonly [number, number] | null = null;
+        for (const part of ENEMY_PARTS) {
+          const set = this.art.acquireLoaded(info.pack.id, names.get(part)!);
+          if (!set) break;
+          this.taken.push(set.def);
+          const frames = idleFrames(set);
+          if (!frames) break;
+          const mpp = (set.def.visualScale ?? 1) / set.def.artPxPerMeter;
+          got[part] = { frames, mpp, pivot: set.def.pivot };
+          // the body says where its eyes (`head`) and its sigil (`vfx_origin`) stand
+          if (part === 'body') {
+            const k = set.def.visualScale ?? 1;
+            const head = set.def.anchors?.head;
+            const origin = set.def.anchors?.vfx_origin;
+            if (head) eyesAt = [head[0] * k, head[1] * k];
+            if (origin) sigilAt = [origin[0] * k, origin[1] * k];
+          }
+        }
+        if (ENEMY_PARTS.every((p) => got[p]) && eyesAt && sigilAt) creatures.set(look, { ...(got as Record<EnemyPartName, CreatureArtPart>), eyesAt, sigilAt });
+      }
+    }
+
     // ---- the strips: the three seamless layers that scroll slower than the world (`backdrop` far, mid and near) — the base of the scenery, under the scene's own pieces
     const covered = new Set<string>();
     const notes: string[] = [];
@@ -310,7 +343,7 @@ export class RoomArtView {
         if (blockout) covered.add(blockout);
       }
     }
-    return { solids: plan.dressed, gates: new Set(plan.gates.keys()), exits, hazards: hazards.dressed, interactables, seals, guardians, backdrop: covered, sprites, lacking, notes };
+    return { solids: plan.dressed, gates: new Set(plan.gates.keys()), exits, hazards: hazards.dressed, interactables, seals, guardians, creatures, backdrop: covered, sprites, lacking, notes };
   }
 
   /**

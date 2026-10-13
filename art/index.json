@@ -102,6 +102,19 @@
       "tags": [
         "boss"
       ]
+    },
+    {
+      "id": "ink-slime",
+      "category": "enemies",
+      "load": "zone",
+      "zones": [
+        "r1_gate",
+        "r2_hall"
+      ],
+      "manifest": "ink-slime/ink-slime.pack.json",
+      "tags": [
+        "enemy"
+      ]
     }
   ]
 }

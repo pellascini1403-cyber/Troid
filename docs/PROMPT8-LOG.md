@@ -458,3 +458,70 @@ Modificados: `src/app/{Game2D,testHooks}.ts`, `src/presentation/roomScene.ts`, `
 - **Revisión artística:** el Custodio es **correcto y coherente** pero «de generador»: simetría casi perfecta, un dobladillo que gotea siempre igual, la costura de glifos repetida; **no tiene un animador que le dé peso**: se mueve entero (se hunde, se inclina, se levanta), sin deformarse ni cambiar de fotograma salvo la cresta. Un ilustrador debería darle una silueta más reconocible en la oscuridad y un par de poses propias (el aviso y el golpe).
 - **Los avisos violeta, la lluvia de tinta, los impactos y la muerte** (fase H). Con el Custodio y la arena ya vestidos, los avisos del suelo —`Graphics` planos— son lo que más desentona en R4.
 - **Calibración en dispositivo real:** que el Custodio (casi negro) se lea sobre el suelo de la arena en una pantalla pequeña, y que los avisos violeta ganen al ojo y a la corona.
+
+## Fase G — el Ink Slime (S51)
+
+**Resultado en una frase:** el enemigo ordinario **se dibuja con arte pintado en el motor y con identidad propia**: ya no es una cúpula de tinta con dos ojos (la *baba* de todos los juegos) sino **una criatura baja y encorvada, hermana pequeña del Custodio** —el lomo alto con la cresta echada hacia atrás como la punta de una capucha, un hueco donde estaría el cuello, una cabeza baja con la frente sobre dos rendijas pálidas e inclinadas, la capa arrastrando por el suelo—, con **un sigilo violeta ardiendo en el pecho** (una astilla del sello: brasa mientras duerme, blanco incandescente cuando se prepara) y **una cerda de espinas de tinta que se levanta por el lomo mientras el aviso crece** (el *telegraph* se lee en la silueta antes que en el color). **La lógica no cambia** (3 de vida, la FSM, el aviso de 24 ticks, la embestida, la ventana de castigo, la muerte en 40 ticks): la vista lee el mismo estado y **las poses son las mismas cifras** con arte y sin él (una prueba lo exige).
+
+### Qué se hizo
+
+- **La decisión de contrato:** el arte va **por partes** (como el Custodio, §M.12) y no por clips, porque la simulación da al Slime un estado «agotado tras la embestida» (`idle` con `phase: 'recovery'`) que el vocabulario de clips del héroe no tiene, y la pose procedural ya sabe aplastarse, estirarse y desplomarse a lo largo de los 24 + 10 + 36 ticks de un ataque. El arte pone **las imágenes**; la vista conserva **la pose**.
+- **El pintor** (`tools/art/painter/slime.ts`, más `ink.ts`, el material de tinta que ahora comparten el Custodio y el Slime —refactor sin cambiar un píxel del Custodio: el paquete se repinta idéntico—): el cuerpo en **cuatro fotogramas que «hierven»** (la superficie nunca descansa: el truco de la animación dibujada a mano para mantener viva la tinta; el ruido viaja en un círculo del espacio de ruido, así que el bucle cierra), su destello blanco, las dos rendijas, el sigilo (un rombo en un anillo con cuatro marcas), la cerda en tres estados (con un hilo de violeta en el borde y la punta caliente) y el charco con sus tentáculos. Iluminado desde arriba (el Slime se refleja con su orientación: su luz no puede venir de un lado).
+- **El paquete** (`tools/art/packs/ruins.ts#INK_SLIME`): `category: "enemies"`, `zones: ["r1_gate", "r2_hall"]` (las dos salas donde vive uno), 96 px/m, seis *sprite sets*; las posiciones de los ojos y del sigilo viajan como **anclas del cuerpo** (`head` y `vfx_origin`), con una sola fuente (`SLIME_EYES`, `SLIME_SIGIL`, que el pintor y el paquete comparten; una prueba lo guarda).
+- **El contrato** (`src/presentation/enemyArt.ts`, puro, gemelo de `bossArt`): `enemy:<lookId>` y `part:<body|flash|eyes|sigil|spines|pool>`; `enemyArtIssues` (que usa `assets:check`) exige un `idle`, avisa de la cerda con menos de tres estados, de dos imágenes para la misma parte, de las partes que faltan y de un cuerpo **sin las anclas**. **Todas las partes (y las dos anclas) o ninguna.** (`part:` lo comparten el escenario, los jefes y los enemigos: ahora cada lector solo mira los *sprites* que nombran a los suyos con `boss:` o `enemy:`.)
+- **El motor:** `RoomArtView` entrega las criaturas completas por `lookId` en `RoomArtCoverage.creatures`; `ProceduralActor.dress(art | null)` cuelga los *sprites* donde estaban las formas (se ocultan, **no se destruyen**) y los alimenta con los números de la pose: el cuerpo cambia de fotograma a su ritmo (congelado en un *hit-stop*), los ojos se cierran con el parpadeo, el sigilo sube con el brillo de los ojos, la cerda con el aviso (nada por debajo de 0.2, algunas hasta 0.55, todas desde ahí), el charco se ensancha al aplastarse y es lo último en irse al morir; `Game2D` lo viste al vestir la sala y al nacer la vista.
+
+### Los activos nuevos (todo de `tools/art`, estado `provisional`)
+
+| Paquete | *Sprite sets* | Qué es |
+|---|---|---|
+| `ink-slime` (nuevo, categoría `enemies`, 96 px/m) | 6 | `slime_body` (4 fotogramas: el hervor, con las anclas), `slime_flash`, `slime_eyes`, `slime_sigil`, `slime_spines` (3 estados), `slime_pool` |
+
+El paquete pesa ≈ 0.1 MB en disco (0.53 MiB descomprimido); entre los nueve paquetes: 5262.7 KB en disco y 39646.8 KB descomprimidos.
+
+### *Placeholders* quitados y los que quedan
+
+- **Quitados** (con `?visual=auto`, y solo mientras el arte de la zona está en memoria): **la cúpula de `Graphics`** (cuerpo, borde violeta y brillo), **las dos cápsulas de los ojos** y **el destello del golpe** dibujados con formas. Las formas quedan solo como **respaldo** (una criatura nunca queda a medio pintar).
+- **Quedan:** el **aura** violeta del aviso (un resplandor suave genérico compartido con los efectos), y **los efectos del aviso, de los golpes y de la muerte** (el anillo que se cierra, las motas, la tinta que salpica, el arco del tajo que tapa al Slime al golpearlo): **fase H**.
+- **Quedan en el mundo:** los **efectos** (H) y, de la iluminación y el paralaje, lo que la fase I pula. Del entorno, los enemigos y los jefes, **nada** es ya una forma de `Graphics` salvo como respaldo.
+
+### Archivos
+
+Nuevos: `src/presentation/enemyArt.ts`, `tools/art/painter/{ink,slime}.ts`, `tests/unit/presentation/enemyArt.test.ts`, `tests/unit/tools/slimeArt.test.ts`, `art/ink-slime/**`, `public/art/ink-slime/**`.
+Modificados: `src/app/{Game2D,testHooks}.ts`, `src/presentation/bossArt.ts` (solo lee los `part:` de quien nombra un jefe), `src/render/{ProceduralActor,RoomArtView}.ts` (5 archivos de `src/`), `tools/art/{build,spec}.ts` (`anchors` en el *sprite set*), `tools/art/packs/ruins.ts`, `tools/art/painter/{pieces,warden}.ts` (el Custodio importa la tinta compartida), `tools/assets/verify.ts`, `tools/e2e/scenario.ts` y 2 escenarios, `art/index.json`, `public/art/index.json`, `tests/unit/render/proceduralActor.test.ts`, `tests/unit/tools/artRepo.test.ts`, la documentación.
+
+### Herramientas usadas
+
+`npm run art:build -- --pack ink-slime`, `assets:check` / `assets:pack`, hojas de contacto y un compositor de estados del laboratorio de la sesión (el Slime en reposo, alerta, aviso, embestida y herido, a 1× y a la densidad de un teléfono), capturas de la pelea con la cámara de R1 a 1× y a 2×, `?visual=art|placeholder|auto`, `window.__troid.state().roomArt.creatures`, `npm run bench:bundle`.
+
+### Verificación
+
+| | Resultado |
+|---|---|
+| `tsc` | limpio |
+| Pruebas unitarias y de integración | **2361 en 149 archivos** (2339 al cerrar la fase F: +22 — `enemyArt` 11, la vista del enemigo vestida 8, el paquete del Slime 3) |
+| E2E | **44/44 en desarrollo** (la cadena se interrumpió en el escenario 31 por un reinicio del entorno y se reanudó: los 30 anteriores y los 14 restantes, todos en verde) y **44/44 en producción** |
+| Llamadas de dibujo | `slime` 5 (7 en el peor momento) · `r1` 15 en la peor del recorrido · `boss` 19, `boss-death` 20, `finale` 20, `world-art` 15 · `soak` 22 y 300 partículas (presupuesto 60) |
+| Memoria del arte | R1 **21.3 MiB** (20.8 antes: +0.5) y R2 **27.1 MiB** (26.6): el paquete del Slime es **una página** de 0.53 MiB que solo se retiene en esas dos salas; R3 y R4, sin cambios |
+| Arranque en frío (200 KB) | **193.9 KB gz** (193.3 antes: +0.6, el `dress` de `ProceduralActor` y la lectura de las criaturas en `RoomArtView`) · *chunk* de arte 17.2 KB gz · primera sesión 226.9 KB gz |
+
+> Sigue sin medirse nada en un dispositivo real.
+
+### Pruebas que se adaptaron (y por qué)
+
+`artRepo.test` (nueve paquetes: el del Slime, `provisional` y empaquetado), `playerArt` (E2E: nueve paquetes en la biblioteca) y `roomArt` (E2E: sección **J** —los dos Slimes, el de R1 y el de R2, los dibuja el arte (sus seis partes, ninguna forma), la cerda está abajo mientras duerme y **sube cuando el aviso está a punto de cumplirse**, ≤ 60 llamadas, con `art=` el Slime vuelve a ser el de formas y R3, que no guarda su arte, no lo dibuja—). Pruebas nuevas: `enemyArt.test` (11: leer las etiquetas, agrupar las partes, validar el paquete y que un jefe y un enemigo no se confundan), `proceduralActor.test` (+8: las partes se cuelgan donde estaban las formas, el cuerpo «hierve», la cerda sube con el aviso, el sigilo es brasa o blanco, el charco, **las mismas cifras de pose con arte y sin él en nueve estados**, el arte que se suelta, el que se retira bajo la vista) y `slimeArt.test` (3: las anclas del paquete son las del pintor y el paquete que se publica es una criatura entera). Ninguna prueba se bajó ni se borró.
+
+### Problemas encontrados (y resueltos)
+
+1. **El lector de etiquetas del jefe habría rechazado el arte del Slime** (visto al leer la comprobación contra el paquete nuevo, antes de ejecutarla): `readBossTags` leía `part:eyes` de un *sprite* que no nombra ningún jefe y lo daba por «parte que no es de un jefe» (un **error**). Ahora cada lector (`bossArt`, `enemyArt`) solo mira los *sprites* que nombran a los suyos (`boss:` / `enemy:`), con una prueba de regresión cruzada.
+2. **La primera silueta no se leía como una criatura**: con un solo pico y una pendiente larga era una colina (o la aleta de un tiburón). Se le dio **cabeza** (un lóbulo bajo con la frente sobre los ojos) y **un hueco de cuello** entre el lomo y la cabeza; el pico quedó como el único gesto de la capucha.
+3. **Los ojos se salían de la cabeza** (la rendija de delante sobresalía de la silueta y flotaba en el aire): se movieron dentro y se hicieron más gruesos y más inclinados.
+4. **Las puntas de la cerda parecían puntos sueltos** (el hilo de las espinas era oscuro y solo se veían los brillos de las puntas): ahora cada espina lleva su hilo de violeta en el borde y las puntas son más pequeñas; y **tocaban el borde alto del lienzo** (el aviso de `assets:check`): el lienzo pasó de 1.3 a 1.45 m.
+5. **El charco no sobrevivía lo bastante al cuerpo al morir** (lo cazó la prueba de pose: `1 − t³` solo le daba 0.14 de ventaja sobre la opacidad del cuerpo a mitad de la muerte): `1 − t⁴`.
+6. **Un reinicio del entorno mató la cadena de E2E a media pasada** (escenario 31 de 44): el *script* es reanudable (salta lo ya hecho) y se repitió desde ahí; no es un fallo del juego ni de una prueba.
+
+### Pendiente de la fase G (a propósito)
+
+- **Revisión artística:** el Slime es **correcto y coherente** pero «de generador»: su silueta es una curva y no el dibujo de una ilustradora; el «hervor» son cuatro variaciones de ruido, no un animador; **los dos Slimes son idénticos** (R1 y R2); no tiene poses propias de la embestida ni del aturdimiento (se aplasta y se estira entero).
+- **Los efectos que lo rodean** (fase H): el anillo violeta que se cierra, las motas, la tinta que salpica al morir (hoy unas bolas violetas con un anillo oscuro que desentonan) y el arco blanco del tajo, que al golpearlo **tapa al Slime entero** (lo vio la pelea capturada a 1× y a 2×).
+- **Calibración en dispositivo real:** el Slime mide 1.1 m y a 1× son ≈ 29 px de ancho: que el sigilo, la cerda y los ojos se lean en un teléfono pequeño —y que **la silueta encorvada se distinga del suelo** de R1 y R2— es lo primero que un dispositivo debe confirmar.

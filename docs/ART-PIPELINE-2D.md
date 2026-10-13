@@ -1272,3 +1272,41 @@ El jefe del Santuario deja de ser un montón de `Graphics`. Se pinta con arte en
 **Medido** (GL por software; sin dispositivo real): R4 con el jefe y las capas de reacción = **414 *sprites*, 17 llamadas de dibujo como máximo** (presupuesto 60), 6 páginas residentes (**28.2 MiB** con el héroe; el paquete del jefe añade 1.35 MiB descomprimidos y ≈ 190 KB en disco); en la transición R3 → R4 conviven los paquetes de las dos salas (≈ 32 MiB, bajo el techo propuesto de 96 MiB para todo lo residente). El arranque en frío no cambia (el jefe es del *chunk* perezoso de R4).
 
 **Lo que falta del Custodio y necesita revisión artística:** el cuerpo es una silueta correcta y legible pero **de generador** (simetría, un dobladillo que gotea siempre igual, la costura de glifos repetida); no tiene un animador que le dé peso: las poses son las del cuerpo moviéndose entero (hundirse, inclinarse), sin deformarse. Sus **avisos violeta, la lluvia de tinta, los impactos y la muerte** (el charco que se lo traga) siguen siendo los efectos de siempre: son la **fase H**. La barra de vida del jefe es de la interfaz (no se rehace en este prompt).
+
+## M.13 El Ink Slime (fase G): una criatura de tinta, por partes y con identidad propia
+
+El enemigo ordinario de la slice deja de ser una cúpula de `Graphics` con dos ojos. Se pinta con arte en **un octavo paquete, `ink-slime`** (`category: "enemies"`, `zones: ["r1_gate", "r2_hall"]` —las dos salas donde vive uno—, 96 px/m, 0.53 MiB descomprimido): se descarga al entrar en R1 o R2 y se suelta al salir. **La lógica no cambia** (3 de vida, la FSM del *slime*, el aviso de 24 ticks, la embestida, la ventana de castigo, la muerte en 40 ticks): la vista lee el mismo estado y las poses son **las mismas cifras** con arte y sin él.
+
+**Por qué por partes y no un clip.** Es el mismo razonamiento del Custodio (§M.12) con una razón más: el vocabulario de animación del héroe no tiene un estado «agotado tras la embestida» (la simulación lo da como `idle` con `phase: 'recovery'`), y la pose procedural ya sabe aplastarse, estirarse y desplomarse a lo largo de los 24 + 10 + 36 ticks de un ataque. Un clip de fotogramas habría perdido eso o habría tenido que reinventarlo. Así que el arte pone **las imágenes** y la vista conserva **la pose**: `ProceduralActor` deforma el cuerpo pintado sobre los pies (aplasta, estira, inclina) exactamente como deformaba la cúpula.
+
+**La identidad** (hecha para leerse a ≈ 26 px/m en un teléfono a 1×, y a 78 con densidad 3×):
+
+- una **criatura baja y encorvada**, no una cúpula: lomo alto con **la cresta echada hacia atrás como la punta de una capucha**, un hueco donde estaría el cuello, una cabeza baja con la frente sobre los ojos y la capa arrastrando por el suelo. Es la misma tinta y el mismo borde violeta frío que el Custodio (que es de donde gotea): ambos pintados con **`painter/ink.ts`**, el material compartido;
+- **dos rendijas pálidas e inclinadas** por ojos (un ceño, no una mirada fija);
+- **el sigilo**: un rombo en un anillo violeta, una astilla del sello, que arde en el pecho (brasa mientras duerme, blanco incandescente cuando se prepara, con un latido lento);
+- **la cerda**: espinas de tinta que se levantan por el lomo **mientras el aviso crece** (tres estados: nada, algunas, todas). **El *telegraph* se lee en la silueta antes que en el color**, que es lo que un jugador ve antes en una pantalla pequeña.
+
+**Las seis partes** (cada una un *sprite set*; dos etiquetas en cada uno: `enemy:<lookId>` —el `proceduralId` de la definición: `ink_slime`— y `part:<nombre>`):
+
+| Parte | Fotogramas (clip `idle`) | Pivote | Qué es |
+|---|---|---|---|
+| `body` | **4** (cualquier número ≥ 1: son **un bucle**) | `[0.5, 1]` (los pies) | la tinta; los cuatro fotogramas «hierven» a 6 Hz (la superficie nunca descansa: el truco de la animación dibujada a mano para mantener viva la tinta). **Lleva las anclas `head` y `vfx_origin`**: dónde están los ojos y el sigilo en el cuerpo (metros desde los pies, +x delante) |
+| `flash` | 1 (aditivo) | `[0.5, 1]` | la misma silueta en blanco: el destello de un golpe |
+| `eyes` | 1 (aditivo) | `[0.5, 0.5]` | las dos rendijas con su halo; la vista las cierra con el parpadeo |
+| `sigil` | 1 (aditivo) | `[0.5, 0.5]` | el rombo en el anillo |
+| `spines` | **3** (nada, algunas, todas), en el marco del cuerpo | `[0.5, 1]` | la cerda |
+| `pool` | 1 | `[0.5, 1]` | el charco en el que va y en el que se deshace |
+
+`presentation/enemyArt` (puro) lee las etiquetas y valida el paquete (`enemyArtIssues`, que usa `assets:check`): **error** si una parte dice dos criaturas o dos partes, nombra una que no existe o no tiene clip `idle`; **aviso** si dos *sprites* reclaman la misma parte, si la cerda tiene menos de tres estados, si sobran fotogramas (un destello de dos fotogramas), si al cuerpo le falta `head` o `vfx_origin`, o si falta alguna parte de una criatura. **Todas las partes (y las dos anclas) o ninguna**: sin ellas, la vista sigue dibujando la criatura con sus formas. *(Una regla de lectura que esta fase dejó escrita: `part:` lo comparten el escenario, los jefes y los enemigos; solo la etiqueta `boss:` o `enemy:` dice de qué es la parte. Un lector no mira los *sprites* que no nombran a los suyos.)*
+
+**El motor** (una vista, sin tocar la simulación):
+
+- `RoomArtView` toma de `heldPacks('enemies')` las partes de cada criatura y las entrega en `RoomArtCoverage.creatures` (por `lookId`), con las posiciones de los ojos y del sigilo leídas de las anclas del cuerpo.
+- `ProceduralActor.dress(art | null)` cuelga los *sprites* donde estaban las formas (se ocultan, **no se destruyen**: con `dress(null)` —la sala se reconstruyó o el arte se soltó bajo la vista— el *slime* vuelve a ser el de formas en el mismo fotograma) y los alimenta con los mismos números de la pose: el cuerpo cambia de fotograma a su ritmo (congelado en un *hit-stop* o una pausa, como la respiración), los ojos se cierran con `squint`, el sigilo sube con `eyeGlow`, la cerda con `aura` (nada por debajo de 0.2, algunas hasta 0.55, todas desde ahí: sube **a lo largo de los 24 ticks del aviso**), el charco se ensancha con el aplastamiento y es **lo último en irse al morir**. El aura y el brillo de los ojos —luz suave compartida con los efectos— siguen siendo lo que eran.
+- `Game2D` lo viste en dos momentos (como el sello y el jefe): al vestir la sala (`dressRoom`) y al **nacer** la vista de un enemigo (uno que se coloca cuando el arte de la zona ya está en memoria).
+
+**Pintado** (`tools/art/painter/slime.ts`, determinista: una semilla, los mismos píxeles): el cuerpo con el mismo `SilhouetteLayer`/`bevel`/`shade` que el Custodio, iluminado desde arriba (`SLIME_LOOK`: el *slime* se refleja con su orientación, así que su luz no puede venir de un lado), con dos destellos de lo mojado y burbujas que crecen y se hunden a lo largo del bucle; la cerda con su hilo de violeta en el borde y la punta caliente; las anclas están **una sola vez** en el pintor (`SLIME_EYES`, `SLIME_SIGIL`) y el paquete las importa.
+
+**Medido** (GL por software; sin dispositivo real): *sprites* y llamadas de dibujo de R1/R2 con el *slime* vestido, memoria (+0.5 MiB: una página), *bundle* y E2E — ver el registro de la fase.
+
+**Lo que falta del *slime* y necesita revisión artística:** es **correcto y coherente pero de generador** (la silueta es una curva, no el dibujo de una ilustradora; el «hervor» son cuatro variaciones de ruido, no un animador); **un solo cuerpo para las dos salas** (los dos *slimes* son idénticos); no tiene poses propias de la embestida ni del aturdimiento (se estira y se aplasta entero). **Los efectos de su aviso, su muerte y sus golpes** (el anillo violeta que se cierra, las motas, la tinta que salpica) siguen siendo los de siempre: **fase H**.

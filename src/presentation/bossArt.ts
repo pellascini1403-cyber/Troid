@@ -32,15 +32,17 @@ export interface BossTags {
 export function readBossTags(tags: readonly string[]): BossTags {
   const out: BossTags = { look: null, part: null, problems: [] };
   const looks = tags.filter((t) => t.startsWith('boss:')).map((t) => t.slice(5));
+  // (a set with no `boss:` tag says nothing of a boss: its `part:` tags may be an enemy's — `presentation/enemyArt` — or the scenery's)
+  if (looks.length === 0) return out;
   const parts = tags.filter((t) => t.startsWith('part:')).map((t) => t.slice(5));
   if (looks.length > 1) out.problems.push(`names ${looks.length} bosses (${looks.join(', ')}): it is a part of exactly one`);
-  if (looks.length > 0) out.look = looks[0]!;
+  out.look = looks[0]!;
   if (parts.length > 1) out.problems.push(`names ${parts.length} parts (${parts.join(', ')}): it is exactly one`);
   if (parts.length > 0) {
     if (PART_SET.has(parts[0]!)) out.part = parts[0] as GuardianPartName;
     else out.problems.push(`"part:${parts[0]}" is not a part of a boss (${GUARDIAN_PARTS.join(', ')})`);
   }
-  if (out.look !== null && parts.length === 0) out.problems.push(`is a part of "${out.look}" but says no "part:<name>" (${GUARDIAN_PARTS.join(', ')})`);
+  if (parts.length === 0) out.problems.push(`is a part of "${out.look}" but says no "part:<name>" (${GUARDIAN_PARTS.join(', ')})`);
   return out;
 }
 

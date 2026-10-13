@@ -345,7 +345,12 @@ export class Game2D {
       enemy: (e) => {
         const view = (e as Enemy).def.view;
         const look = 'proceduralId' in view ? PROCEDURAL_LOOKS[view.proceduralId] : undefined;
-        return look ? new ProceduralActor(look, e as Enemy, { glow: vfxAtlas.frames.glow }) : null;
+        if (!look) return null;
+        const actor = new ProceduralActor(look, e as Enemy, { glow: vfxAtlas.frames.glow });
+        // the art of the zone may already be in memory (an enemy that is placed after the room was dressed): it takes the parts at once
+        const art = this.roomArtCover?.creatures.get(look.id);
+        if (art) actor.dress(art);
+        return actor;
       },
       // a skill's projectile (the Spirit Bolt) is light: it is drawn in the additive layer with the effects
       projectile: (e) => new ProjectileView(e as unknown as ProjectileLike, vfxAtlas),
@@ -609,6 +614,11 @@ export class Game2D {
     // the seals are entities: each hangs the art's sigil on its own view (or keeps the blockout's shapes when the art has none)
     // (the art knows a seal by the id its room's data gives it, which is not the id the simulation gives its entity)
     this.entityViews.each('seal', (entity, view) => (view as unknown as SealView).dress(cover.seals.get((entity as Seal).def.id) ?? null));
+    // an ordinary enemy is an entity too: its own view takes the parts of the art of its look (or keeps its shapes when the art has none for it)
+    this.entityViews.each('enemy', (entity, view) => {
+      const def = (entity as Enemy).def.view;
+      if ('proceduralId' in def && view instanceof ProceduralActor) view.dress(cover.creatures.get(def.proceduralId) ?? null);
+    });
     // the boss is an entity too: its own view takes the parts of the art (or keeps its shapes when the art has none for it). Its code may still be on the way (a `LateView`): it is dressed when it arrives
     this.entityViews.each('guardian', (entity, view) => {
       const inner = view instanceof LateView ? view.view : view;
