@@ -17,6 +17,12 @@ const ROOM = R4_SANCTUM_ROOM;
 const surfaces = (): ReturnType<typeof surfacesOf> => surfacesOf(ROOM);
 const scene = (layers: Layers): RoomScene => sceneOf(ROOM, layers);
 
+/** The flags the scenery answers (it only reads them): the fight is on (volatile), and the Warden has fallen (for good). */
+const FIGHT = '~fight:r4_boss';
+const FALLEN = 'defeated:r4_boss';
+/** Where the pieces that lie over the eye of the wall stand (they are 8.4 m tall and stand on their foot): the centre of the eye is 6.9 m up — the wall stands from −0.9 and the eye is 5.2 m under the head of a wall 13 m tall. */
+const EYE_Y = 6.9 - 4.2;
+
 /** Where the things the room's data names stand. */
 const SHRINE_X = 14;
 const DAIS_X = 84;
@@ -80,6 +86,7 @@ function sanctum(_pack: PackSpec): RoomScene {
   strip('paving_double', 67.1, 99);
   // ---- the ring of cold light on the floor of the arena
   hall('lightOverlay', 'ring_arena', 46, -0.18, { alpha: 0.6, motion: 'pulse' });
+  hall('lightOverlay', 'ring_arena', 46, -0.18, { alpha: 0.35, motion: 'pulse', whenSet: FIGHT, whenClear: FALLEN });
   // ---- the dais of the reward, and the ink of the Warden: seeping out under its door, and pooled at its bed
   hall('propsBack', 'dais_reward', DAIS_X, 0);
   for (const [sprite, x, k] of [['ink_pool_a', 22.4, 0.9], ['ink_pool_b', 24, 0.7], ['ink_pool_c', 56, 1], ['ink_pool_a', 60.2, 1.1], ['ink_pool_b', 62.6, 0.7], ['ink_pool_c', 34.2, 0.6]] as const) {
@@ -89,6 +96,9 @@ function sanctum(_pack: PackSpec): RoomScene {
   // at the shrine (camera ≈ 15) it is 4 m further on, in the arena (camera ≈ 46) 11.5 m. The pieces are spaced in the layer's own metres so that none hides another, and the places the eye must find are left free:
   // behind the shrine and the dais (nothing dark where the light is), and in the middle of the arena (the wall with the eye, and the Warden in front of it).
   hall('backdropNear', 'eye_wall', 44.5, -0.9, { alpha: 0.88 });
+  // the eye of the wall answers the fight (its centre is 7.8 m over the foot of the wall): it burns while the Warden is awake, and closes once it has fallen
+  hall('backdropNear', 'eye_awake', 44.5, EYE_Y, { alpha: 0.75, whenSet: FIGHT, whenClear: FALLEN });
+  hall('backdropNear', 'eye_dead', 44.5, EYE_Y, { w: 8.4, h: 8.4, alpha: 0.9, whenSet: FALLEN });
   hall('backdropNear', 'colossus_a', 23.6, -0.9, { alpha: 0.85 });
   hall('backdropNear', 'colossus_b', 52.8, -0.9, { alpha: 0.85, flip: true });
   hall('backdropNear', 'portal_grand', 2.2, -0.9, { alpha: 0.92 });
@@ -140,9 +150,10 @@ function light(pack: PackSpec): RoomScene {
   centred('glow_violet', WARDEN_X, 1.5, 1.6, { alpha: 0.14, motion: 'pulse' });
   over('motes_a', 46, 0.4, { alpha: 0.4, motion: 'drift' });
   // ---- the reward: a column of light on the dais, its glow, and at the end the way out
-  over('beam_a', DAIS_X, -0.2, { alpha: 0.4, scale: 0.7 });
-  centred('glow_cyan', DAIS_X, 1.3, 1.8, { alpha: 0.4, motion: 'pulse' });
-  centred('glow_cyan', EAST_PORTAL_X, 3.6, 2.2, { alpha: 0.4, motion: 'pulse' });
+  // (it comes on when the Warden falls: the column of light on the dais, the glow of the rune, the way out)
+  over('beam_a', DAIS_X, -0.2, { alpha: 0.4, scale: 0.7, whenSet: FALLEN });
+  centred('glow_cyan', DAIS_X, 1.3, 1.8, { alpha: 0.4, motion: 'pulse', whenSet: FALLEN });
+  centred('glow_cyan', EAST_PORTAL_X, 3.6, 2.2, { alpha: 0.4, motion: 'pulse', whenSet: FALLEN });
   over('mist_bank', 90, -0.2, { alpha: 0.24, scale: 0.8, motion: 'drift' });
   over('motes_a', 80, 0.4, { alpha: 0.36, motion: 'drift' });
   return scene(layers);

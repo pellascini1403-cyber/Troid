@@ -1,0 +1,167 @@
+{
+  "frames": {
+    "warden_body_00": {
+      "frame": {
+        "x": 2,
+        "y": 53,
+        "w": 231,
+        "h": 327
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 30,
+        "y": 6,
+        "w": 231,
+        "h": 327
+      },
+      "sourceSize": {
+        "w": 291,
+        "h": 336
+      }
+    },
+    "warden_body_01": {
+      "frame": {
+        "x": 237,
+        "y": 53,
+        "w": 231,
+        "h": 327
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 30,
+        "y": 6,
+        "w": 231,
+        "h": 327
+      },
+      "sourceSize": {
+        "w": 291,
+        "h": 336
+      }
+    },
+    "warden_crest_00": {
+      "frame": {
+        "x": 166,
+        "y": 384,
+        "w": 160,
+        "h": 160
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 4,
+        "y": 21,
+        "w": 160,
+        "h": 160
+      },
+      "sourceSize": {
+        "w": 168,
+        "h": 202
+      }
+    },
+    "warden_crest_01": {
+      "frame": {
+        "x": 330,
+        "y": 384,
+        "w": 160,
+        "h": 160
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 4,
+        "y": 21,
+        "w": 160,
+        "h": 160
+      },
+      "sourceSize": {
+        "w": 168,
+        "h": 202
+      }
+    },
+    "warden_crest_02": {
+      "frame": {
+        "x": 2,
+        "y": 384,
+        "w": 160,
+        "h": 170
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 4,
+        "y": 19,
+        "w": 160,
+        "h": 170
+      },
+      "sourceSize": {
+        "w": 168,
+        "h": 202
+      }
+    },
+    "warden_eye_00": {
+      "frame": {
+        "x": 166,
+        "y": 548,
+        "w": 147,
+        "h": 54
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 5,
+        "y": 20,
+        "w": 147,
+        "h": 54
+      },
+      "sourceSize": {
+        "w": 157,
+        "h": 78
+      }
+    },
+    "warden_pool_00": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 505,
+        "h": 47
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 5,
+        "y": 43,
+        "w": 505,
+        "h": 47
+      },
+      "sourceSize": {
+        "w": 515,
+        "h": 90
+      }
+    },
+    "warden_shard_00": {
+      "frame": {
+        "x": 511,
+        "y": 2,
+        "w": 69,
+        "h": 105
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 15,
+        "w": 69,
+        "h": 105
+      },
+      "sourceSize": {
+        "w": 101,
+        "h": 134
+      }
+    }
+  },
+  "meta": {
+    "app": "troid-assets",
+    "version": "1",
+    "image": "ink-warden_0.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 584,
+      "h": 604
+    },
+    "scale": "1"
+  }
+}

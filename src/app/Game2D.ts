@@ -16,6 +16,7 @@ import { DrawCallCounter } from '@/debug/DrawCallCounter';
 import { FpsMeter } from '@/debug/FpsMeter';
 import { CATALOGS, chooseLocale, createTranslator, FALLBACK_LOCALE, SUPPORTED_LOCALES, type Translator } from '@/i18n';
 import { Enemy } from '@/enemies/Enemy';
+import type { Guardian } from '@/enemies/Guardian';
 import type { EnemyDefinition } from '@/enemies/EnemyDefinition';
 import { TrainingDummy } from '@/enemies/TrainingDummy';
 import { restoreFromProgress } from '@/gameplay/progress';
@@ -43,7 +44,7 @@ import { PlayerVisualSwitch } from '@/render/PlayerVisual';
 import { CameraAdapter2D } from '@/render/CameraAdapter2D';
 import { DummyView, type DummyLike } from '@/render/DummyView';
 import { EntityViews, type EntityView } from '@/render/EntityViews';
-import type { GuardianLike } from '@/render/GuardianView';
+import type { GuardianArt, GuardianLike } from '@/render/GuardianView';
 import { LateView } from '@/render/LateView';
 import { SealView, type SealLike } from '@/render/SealView';
 import { InteractableViews } from '@/render/InteractableViews';
@@ -353,7 +354,13 @@ export class Game2D {
       // the boss (S29): an abstract column of ink with a violet crest, and the warnings of its attacks on the floor
       // (its code is a chunk of its own: a boss that wakes before it has arrived is drawn the moment it does)
       guardian: (e) => {
-        const make = (m: BossViews) => (): EntityView => new m.GuardianView(e as unknown as GuardianLike, { glow: vfxAtlas.frames.glow });
+        const make = (m: BossViews) => (): EntityView => {
+          const view = new m.GuardianView(e as unknown as GuardianLike, { glow: vfxAtlas.frames.glow });
+          // the art of the zone may already be in memory (a boss that wakes after the room was dressed): it takes the parts at once
+          const art = this.roomArtCover?.guardians.get((e as Guardian).def.view.lookId);
+          if (art) view.dress(art);
+          return view;
+        };
         return this.bossViews ? make(this.bossViews)() : new LateView(loadBossViews().then(make));
       },
     }, renderer.layers.fxWorld);
@@ -602,6 +609,11 @@ export class Game2D {
     // the seals are entities: each hangs the art's sigil on its own view (or keeps the blockout's shapes when the art has none)
     // (the art knows a seal by the id its room's data gives it, which is not the id the simulation gives its entity)
     this.entityViews.each('seal', (entity, view) => (view as unknown as SealView).dress(cover.seals.get((entity as Seal).def.id) ?? null));
+    // the boss is an entity too: its own view takes the parts of the art (or keeps its shapes when the art has none for it). Its code may still be on the way (a `LateView`): it is dressed when it arrives
+    this.entityViews.each('guardian', (entity, view) => {
+      const inner = view instanceof LateView ? view.view : view;
+      (inner as unknown as { dress(art: GuardianArt | null): void } | null)?.dress(cover.guardians.get((entity as Guardian).def.view.lookId) ?? null);
+    });
     // a developer is told what the art got wrong (a strip too short for the camera); a player's console stays quiet
     if (import.meta.env.DEV) for (const n of cover.notes) log.scope('art').warn(n);
   }
@@ -630,7 +642,8 @@ export class Game2D {
     this.effects?.director.update();
     this.effects?.system.update(vfxDt);
     this.roomView.update(realDt);
-    this.roomArt?.update(realDt);
+    // the scenery that answers the world reads its flags (never writes one)
+    this.roomArt?.update(realDt, (flag) => this.session.flags.has(flag));
     this.interactableViews.update(realDt, (id) => this.session.interaction.isAvailable(id), (id) => this.isCheckpoint(id));
     this.deathOverlay.update(this.session.deathSnapshot);
     this.transitionOverlay.update(this.session.transitionSnapshot);
@@ -822,6 +835,7 @@ export class Game2D {
       playerVisual: this.playerVisual,
       roomView: this.roomView,
       roomArt: () => this.roomArtCover,
+      roomArtGates: () => this.roomArt?.gated() ?? [],
       entityViews: this.entityViews,
       touchControls: this.touchControls,
       touchSource: this.touchSource,

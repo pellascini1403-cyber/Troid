@@ -1177,7 +1177,7 @@ Una escena (`presentation/roomScene.ts`; `scenes/<sala>.json`) es **solo datos**
 
 1. **Todo el escenario es de un pintor, no de una mano.** Necesita **revisión artística** pieza a pieza: la mampostería, la silueta de los troncos y las copas, los arcos, el efigie y los helechos se leen bien a 844 × 390 y a 1920 × 1080, pero **no tienen el trabajo de una ilustradora**. Cualquiera de ellas se sustituye entregando un PNG con las mismas etiquetas en `art/`.
 2. **Los fondos son estáticos** salvo la deriva de la bruma y las motas, el pulso de los resplandores y el balanceo de lo que lo declare. No hay follaje que responda al héroe, ni luz que cambie con el combate (fases H–I).
-3. **R3 y R4 siguen sin su ropa** (a propósito: una sala entra en las zonas de los paquetes en la fase que la termina). R2 la tiene desde la fase C (§M.9); a R3 le faltan el cuerpo de la puerta del sello, el sello y la carta, y a R4 el santuario grande y la runa de la recompensa.
+3. ~~**R3 y R4 siguen sin su ropa**~~ **Resuelto**: las cuatro salas están vestidas (R1 fase B, R2 fase C §M.9, R3 fase D §M.10, R4 fase E §M.11) y el jefe tiene su arte desde la fase F (§M.12). Lo que sigue siendo procedural está en la lista de cada fase (los enemigos, fase G; los efectos, fase H).
 4. **El suelo** (el relleno ciclópeo de la tierra) es oscuro y plano a propósito —para que el héroe, casi negro, se lea sobre un fondo más claro (R14)—; falta **variación a gran escala** (estratos visibles, raíces gruesas, charcos).
 5. **Sin calibrar en un dispositivo real**: la densidad (96 px/m en el suelo, menos en los fondos) y la memoria están pensadas para un teléfono, **no medidas en uno**.
 
@@ -1238,3 +1238,37 @@ R4 se viste con los mismos tres paquetes compartidos (suelo, fondos, luz: ahora 
 **Medido** (GL por software; sin dispositivo real): R4 = **411 *sprites*, 17 llamadas de dibujo como máximo** (18 en la pelea del jefe; presupuesto 60), 5 páginas residentes (**26.4 MiB** con el héroe), el paquete de R4 ≈ 0.8 MB en disco y 5.6 MiB descomprimido; en la transición R3 → R4 conviven el paquete de R3 y el de R4 (≈ 30.6 MiB).
 
 **Lo que falta de R4 y necesita revisión artística:** el salón es correcto pero de generador (simetría, gramática de collares y runas repetida, guardianes casi gemelos, estandartes lisos); el Custodio (fase F) y sus avisos (fase H) siguen siendo los del *blockout* delante de un salón que ya no lo es.
+
+## M.12 El Custodio de Tinta (fase F): un jefe se pinta por partes
+
+El jefe del Santuario deja de ser un montón de `Graphics`. Se pinta con arte en **un séptimo paquete, `ink-warden`** (`category: "enemies"`, `zones: ["r4_sanctum"]`, 112 px/m): el primer paquete de la categoría `enemies` que el juego dibuja con arte. Se descarga al entrar en R4 y se suelta al salir, como el de la sala. **La lógica no cambia:** 36 de vida, la FSM, los dos ataques con sus avisos, el daño, la fase 2, las puertas, el *checkpoint* y la persistencia de la muerte son los de siempre; la vista lee el mismo estado de la simulación y las poses son **las mismas cifras** con arte y sin él.
+
+**Por qué por partes y no un clip.** La pose del Custodio *es* el estado de la simulación, y es la vista quien la lee: el cuerpo se hunde y se inclina en el aviso, la cresta sube, las esquirlas se levantan, el ojo arde más, y al caer se derrite en el charco en que está de pie. Un clip de fotogramas no puede hacer eso sin que el arte decida cuándo; unas pocas imágenes, cada una con su trabajo, sí. El pintor entrega **cinco *sprite sets***, y dos etiquetas por cada uno dicen **de quién** y **cuál**:
+
+| Parte (`part:`) | Fotogramas del clip `idle` | Pivote | Qué es |
+|---|---|---|---|
+| `body` | **2**: la tinta, y la misma silueta en blanco (el destello de un golpe) | `[0.5, 1]` (los pies) | una capa de tinta mojada con la capucha puesta, una costura de luz violeta con una columna de glifos, venas bajo la superficie y un dobladillo que gotea hasta el suelo. Sin cara y sin miembros |
+| `eye` | 1 (aditivo) | `[0.5, 0.5]` | la ranura pálida donde estaría la cara, con su halo dentro |
+| `crest` | **3**: tenue, despierta, furiosa (la fase 2) | `[0.5, 0.5]` | la corona de luz violeta que flota sobre la capucha (aditiva) |
+| `shard` | 1 (el juego cuelga **dos**) | `[0.5, 0.5]` | una esquirla de tinta cristalizada |
+| `pool` | 1 | `[0.5, 1]` | el charco en el que está de pie y en el que se derrite |
+
+`boss:<lookId>` dice **de quién** es la parte (el `view.lookId` de la definición del guardián: `ink_warden`) y `part:<nombre>`, **cuál**. Un paquete `enemies` que lleve estas etiquetas se valida con `bossArtIssues` (`src/presentation/bossArt.ts`, puro, usado por `assets:check`): **error** si una parte dice dos jefes o dos partes, nombra una que no existe o no tiene clip `idle`; **aviso** si dos *sprites* reclaman la misma parte, si al cuerpo le falta el fotograma del destello o a la cresta alguno de sus estados (los que faltan repiten el último), o si sobra algún fotograma (no se dibuja); y un aviso por jefe al que le falte alguna parte. **Una parte que falta no deja un jefe a medio pintar:** el motor lo viste **entero o nada** y, sin partes completas, sigue dibujando las formas de siempre. (Y para un paquete de la categoría `enemies` rige la regla de bordes de siempre: los píxeles no tocan los lados ni el borde alto del lienzo —el halo vive *dentro* de la imagen—; el borde de abajo sí, con el pivote abajo.)
+
+**El motor** (una vista, sin tocar la simulación):
+
+- `RoomArtView` toma de `heldPacks('enemies')` las partes de cada jefe y las entrega en `RoomArtCoverage.guardians` (por `lookId`); el arte de la sala y el del jefe llegan **por el mismo camino**.
+- `GuardianView.dress(art | null)` cuelga los *sprites* **donde estaban las formas** (las formas **se ocultan, no se destruyen**: con `dress(null)` —la sala se reconstruyó o el arte se soltó— vuelven en el mismo fotograma) y los alimenta con **los mismos números**: el cuerpo, el destello (`v.flash`), el ojo, el fotograma de la cresta (`enraged ? 2 : awake ? 1 : 0`), las esquirlas, el charco (que se ensancha al caer). Los resplandores —el aura, el halo de la cresta, la luz del ojo— siguen siendo luz suave compartida con los efectos; la luz del ojo se atenúa a 0.55 porque el ojo pintado ya trae su halo. Las marcas del suelo (los avisos violeta) **no cambian**: son de la fase H.
+- `Game2D` lo viste en dos momentos (como el sello): al vestir la sala (`dressRoom`, la vista puede ser una `LateView` cuyo código aún viene de camino: se viste al llegar) y al **nacer** la vista (un jefe que despierta cuando el arte de la zona ya está en memoria).
+
+**Una escena que contesta a lo que pasa en la sala: `Placement.whenSet` / `whenClear`.** Una colocación puede llevar el nombre de una bandera del mundo (`~fight:r4_boss` volátil, `defeated:r4_boss` permanente): la pieza se ve **mientras** esa bandera está puesta (`whenSet`) y/o **mientras** no lo está (`whenClear`); entra en 0.9 s y sale en 0.6 s. Son las mismas dos condiciones que ya tiene un interactuable de los datos de la sala. **El decorado solo las LEE** (`RoomArtView.update(dt, isSet)` recibe una función de lectura; ninguna escena puede poner una bandera, así que ninguna escena puede cambiar lo que decide una regla). La primera vez que se evalúa una pieza se pone en su destino sin fundido (una sala que se abre con el Custodio ya caído no enciende despacio su ojo apagado). Una pieza con `motion: 'pulse'` multiplica su alfa por el nivel. `RoomArtView.gated()` y `state().roomArtGates` dicen cómo de visible está cada una (para las pruebas y el panel de depuración).
+
+**R4 contesta a la pelea con tres cosas**, todas de la escena:
+
+- **El ojo del muro** arde mientras el Custodio pelea (`eye_awake`, aditivo, mismo centro que el ojo tallado) y se **cierra para siempre** cuando cae (`eye_dead`: una oscuridad suave sobre él, pintada pequeña y ajustada con `w`/`h`).
+- **El anillo de la arena** gana una capa más (alfa 0.35, pulso) mientras dura la pelea.
+- **La recompensa se enciende al caer el Custodio:** la columna de luz del dais, el resplandor de la runa y el del portal de salida solo existen cuando `defeated:r4_boss` está puesta (antes de eso el dais está en reposo).
+
+**Medido** (GL por software; sin dispositivo real): R4 con el jefe y las capas de reacción = **414 *sprites*, 17 llamadas de dibujo como máximo** (presupuesto 60), 6 páginas residentes (**28.2 MiB** con el héroe; el paquete del jefe añade 1.35 MiB descomprimidos y ≈ 190 KB en disco); en la transición R3 → R4 conviven los paquetes de las dos salas (≈ 32 MiB, bajo el techo propuesto de 96 MiB para todo lo residente). El arranque en frío no cambia (el jefe es del *chunk* perezoso de R4).
+
+**Lo que falta del Custodio y necesita revisión artística:** el cuerpo es una silueta correcta y legible pero **de generador** (simetría, un dobladillo que gotea siempre igual, la costura de glifos repetida); no tiene un animador que le dé peso: las poses son las del cuerpo moviéndose entero (hundirse, inclinarse), sin deformarse. Sus **avisos violeta, la lluvia de tinta, los impactos y la muerte** (el charco que se lo traga) siguen siendo los efectos de siempre: son la **fase H**. La barra de vida del jefe es de la interfaz (no se rehace en este prompt).

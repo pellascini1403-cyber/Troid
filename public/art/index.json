@@ -90,6 +90,18 @@
       "tags": [
         "ruins"
       ]
+    },
+    {
+      "id": "ink-warden",
+      "category": "enemies",
+      "load": "zone",
+      "zones": [
+        "r4_sanctum"
+      ],
+      "manifest": "ink-warden/ink-warden.pack.json",
+      "tags": [
+        "boss"
+      ]
     }
   ]
 }

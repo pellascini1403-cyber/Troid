@@ -46,7 +46,9 @@ export interface HookHost {
   readonly playerVisual: PlayerVisualSwitch;
   readonly roomView: RoomView2D;
   /** What the art covers of the room now (`null`: the blockout draws all of it). */
-  roomArt(): { solids: ReadonlySet<string>; gates: ReadonlySet<string>; exits: ReadonlySet<string>; hazards: ReadonlySet<string>; interactables: ReadonlyMap<string, unknown>; seals: ReadonlyMap<string, unknown>; backdrop: ReadonlySet<string>; sprites: number; lacking: ReadonlyMap<string, readonly string[]>; notes: readonly string[] } | null;
+  roomArt(): { solids: ReadonlySet<string>; gates: ReadonlySet<string>; exits: ReadonlySet<string>; hazards: ReadonlySet<string>; interactables: ReadonlyMap<string, unknown>; seals: ReadonlyMap<string, unknown>; guardians: ReadonlyMap<string, unknown>; backdrop: ReadonlySet<string>; sprites: number; lacking: ReadonlyMap<string, readonly string[]>; notes: readonly string[] } | null;
+  /** The pieces of the scenery that follow a flag of the world, and how shown each is now. */
+  roomArtGates(): ReadonlyArray<{ piece: string; level: number }>;
   readonly entityViews: EntityViews;
   readonly touchControls: TouchControls;
   readonly touchSource: TouchSource;
@@ -221,11 +223,12 @@ export function createTestHooks(h: HookHost) {
           const c = h.roomArt();
           return c
             ? {
-                solids: [...c.solids], gates: [...c.gates], exits: [...c.exits], hazards: [...c.hazards], interactables: [...c.interactables.keys()], seals: [...c.seals.keys()], backdrop: [...c.backdrop],
+                solids: [...c.solids], gates: [...c.gates], exits: [...c.exits], hazards: [...c.hazards], interactables: [...c.interactables.keys()], seals: [...c.seals.keys()], guardians: [...c.guardians.keys()], backdrop: [...c.backdrop],
                 sprites: c.sprites, lacking: Object.fromEntries(c.lacking), notes: [...c.notes],
               }
             : null;
         })(),
+        roomArtGates: h.roomArtGates(),
         room: session.room.id,
         flags: session.flags.list(),
         gates: Object.fromEntries((session.room.gates ?? []).map((g) => [g.id, { open: session.gateOpen(g.id), alpha: h.roomView.gateAlpha(g.id) ?? null }])),

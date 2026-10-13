@@ -1,0 +1,137 @@
+{
+  "manifestVersion": 1,
+  "id": "ink-warden",
+  "category": "enemies",
+  "status": "provisional",
+  "comment": "THE INK WARDEN, in parts: the body (a cloak of wet ink with its hood up, and its white flash), the eye, the crest in three states, a shard and the pool it melts into. Original and abstract: no face, no limbs. Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.",
+  "tags": [
+    "boss",
+    "generated"
+  ],
+  "atlasMode": "shared",
+  "atlases": [],
+  "sprites": [
+    {
+      "id": "warden_body",
+      "artPxPerMeter": 112,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3,
+      "frameSize": [
+        291,
+        336
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "boss:ink_warden",
+        "part:body"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "warden_body_",
+          "count": 2
+        }
+      }
+    },
+    {
+      "id": "warden_eye",
+      "artPxPerMeter": 112,
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "height": 0.696,
+      "frameSize": [
+        157,
+        78
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "boss:ink_warden",
+        "part:eye",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "warden_eye_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "warden_crest",
+      "artPxPerMeter": 112,
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "height": 1.804,
+      "frameSize": [
+        168,
+        202
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "boss:ink_warden",
+        "part:crest",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "warden_crest_",
+          "count": 3
+        }
+      }
+    },
+    {
+      "id": "warden_shard",
+      "artPxPerMeter": 112,
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "height": 1.196,
+      "frameSize": [
+        101,
+        134
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "boss:ink_warden",
+        "part:shard"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "warden_shard_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "warden_pool",
+      "artPxPerMeter": 112,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.804,
+      "frameSize": [
+        515,
+        90
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "boss:ink_warden",
+        "part:pool"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "warden_pool_",
+          "count": 1
+        }
+      }
+    }
+  ]
+}

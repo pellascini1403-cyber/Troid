@@ -115,7 +115,8 @@
         "x": 84,
         "y": -0.2,
         "alpha": 0.4,
-        "scale": 0.7
+        "scale": 0.7,
+        "whenSet": "defeated:r4_boss"
       },
       {
         "sprite": "glow_cyan",
@@ -123,7 +124,8 @@
         "y": -2.3,
         "scale": 1.8,
         "alpha": 0.4,
-        "motion": "pulse"
+        "motion": "pulse",
+        "whenSet": "defeated:r4_boss"
       },
       {
         "sprite": "glow_cyan",
@@ -131,7 +133,8 @@
         "y": -0.8,
         "scale": 2.2,
         "alpha": 0.4,
-        "motion": "pulse"
+        "motion": "pulse",
+        "whenSet": "defeated:r4_boss"
       },
       {
         "sprite": "mist_bank",

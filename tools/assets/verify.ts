@@ -5,6 +5,7 @@ import { PLAYER_VISUAL } from '../../src/content/visuals';
 import { checkSpriteFrames, mergeFrameMeta, parseAtlasData, type AtlasPage } from '../../src/presentation/artAtlas';
 import { applyContract } from '../../src/presentation/artContract';
 import { artClipFrames, atlasVariants, parseArtIndex, parseArtPack, toSpriteSetDefinition, type ArtAtlas, type ArtIndexEntry, type ArtIssue, type ArtPack, type ArtSprite } from '../../src/presentation/artManifest';
+import { bossArtIssues } from '../../src/presentation/bossArt';
 import { environmentCoverageIssues, environmentPackIssues, environmentSlots } from '../../src/presentation/environment';
 import { parseRoomScene, sceneIssues } from '../../src/presentation/roomScene';
 import { lackedClips } from '../../src/presentation/visualSource';
@@ -100,6 +101,8 @@ function verifyPack(entry: ArtIndexEntry, read: FileReader, issues: ArtIssue[], 
     issues.push(...tag(label, environmentPackIssues(pack)));
     environment.push(pack);
   }
+  // a boss is drawn in parts, and says whose and which with its tags (phase F)
+  if (pack.category === 'enemies') issues.push(...tag(label, bossArtIssues(pack)));
 
   // ---- every atlas: the files are there and are what the manifest says
   const pages = new Map<string, AtlasPage>();

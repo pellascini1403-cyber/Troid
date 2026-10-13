@@ -15,6 +15,38 @@ export interface GuardianLike {
   readonly body: { readonly halfW: number; readonly height: number };
 }
 
+/** One picture of the boss as the art gives it: its frames, how big a pixel of it is in the world and where its pivot is. */
+export interface GuardianArtPart {
+  readonly frames: readonly Texture[];
+  /** Metres per art pixel. */
+  readonly mpp: number;
+  readonly pivot: readonly [number, number];
+}
+
+/**
+ * The boss as the art draws it, in PARTS (`presentation/bossArt`): the body (frame 0 the ink, frame 1 the same silhouette in white: the flash of a hit), the eye, the crest (dim, awake, enraged), a shard
+ * (the view hangs two) and the pool the body stands in and melts into. The pose is still the simulation's state, read the same way: the art only gives the shapes their pictures.
+ */
+export interface GuardianArt {
+  readonly body: GuardianArtPart;
+  readonly eye: GuardianArtPart;
+  readonly crest: GuardianArtPart;
+  readonly shard: GuardianArtPart;
+  readonly pool: GuardianArtPart;
+}
+
+/** What the art adds to the view while it is dressed: the sprites that stand where the shapes were. */
+interface ArtNodes {
+  art: GuardianArt;
+  pool: Sprite;
+  body: Sprite;
+  flash: Sprite | null;
+  eye: Sprite;
+  crest: Sprite;
+  shardL: Sprite;
+  shardR: Sprite;
+}
+
 export interface GuardianViewOptions {
   /** The soft round light of the VFX atlas: the aura and the glow of the crest and the eye are tinted copies of it. */
   glow: Texture;
@@ -54,6 +86,7 @@ export class GuardianView implements EntityView {
   private readonly crestGlow = new Sprite();
   private readonly flash = new Graphics();
   private time = 0;
+  private nodes: ArtNodes | null = null;
 
   constructor(
     private readonly source: GuardianLike,
@@ -120,7 +153,52 @@ export class GuardianView implements EntityView {
     this.root.addChild(this.floor, this.actor);
   }
 
+  /**
+   * The art draws the boss from now on (or, with `null`, its shapes do again): its sprites take the place of the shapes, which are not drawn. The glows — the aura, the halo of the crest, the light of the
+   * eye — stay what they are (soft light, shared with the effects). The pose, the marks on the floor and everything the simulation says are untouched: this changes what the boss LOOKS like, never what it does.
+   */
+  dress(art: GuardianArt | null): void {
+    if (this.nodes) {
+      for (const n of [this.nodes.pool, this.nodes.body, this.nodes.flash, this.nodes.eye, this.nodes.crest, this.nodes.shardL, this.nodes.shardR]) n?.destroy();
+      this.nodes = null;
+    }
+    const shapes = art === null;
+    for (const g of [this.body, this.eye, this.shardL, this.shardR, this.crestBody, this.flash]) g.visible = shapes;
+    if (!art) return;
+    const sprite = (part: GuardianArtPart, frame = 0): Sprite => {
+      const s = new Sprite(part.frames[Math.min(frame, part.frames.length - 1)]!);
+      s.anchor.set(part.pivot[0], part.pivot[1]);
+      s.scale.set(part.mpp);
+      return s;
+    };
+    const pool = sprite(art.pool);
+    const body = sprite(art.body);
+    const flash = art.body.frames.length > 1 ? sprite(art.body, 1) : null;
+    if (flash) {
+      flash.blendMode = 'add';
+      flash.alpha = 0;
+    }
+    const eye = sprite(art.eye);
+    eye.blendMode = 'add';
+    // the eye sits where the hood is empty: 2.44 m over the feet (the same place the shapes put it)
+    eye.position.set(0, -2.44);
+    const crest = sprite(art.crest);
+    crest.blendMode = 'add';
+    const shardL = sprite(art.shard);
+    const shardR = sprite(art.shard);
+    this.actor.addChildAt(pool, 0);
+    // under the shapes' own glows and in front of them: body, its flash, the eye
+    this.shape.addChildAt(body, 0);
+    if (flash) this.shape.addChild(flash);
+    this.shape.addChild(eye);
+    this.actor.addChild(shardL, shardR);
+    this.crest.addChildAt(crest, 1);
+    this.nodes = { art, pool, body, flash, eye, crest, shardL, shardR };
+  }
+
   sync(alpha: number, dt: number): void {
+    // the art was let go of (the zone changed under it): the shapes are the boss again
+    if (this.nodes && this.nodes.art.body.frames[0]!.destroyed) this.dress(null);
     const v = this.source.view;
     this.time += dt;
     const t = this.time;
@@ -212,8 +290,10 @@ export class GuardianView implements EntityView {
     this.actor.alpha = v.opacity;
     this.aura.alpha = aura;
     this.aura.scale.set((5.2 / GLOW_PX) * pulse);
+    const n = this.nodes;
     this.eye.alpha = Math.min(1, 0.3 + eye * 0.7);
-    this.eyeGlow.alpha = Math.max(0, eye - 0.3);
+    // the painted eye carries its own halo: the shared glow only adds to it
+    this.eyeGlow.alpha = Math.max(0, eye - 0.3) * (n ? 0.55 : 1);
     this.crest.position.set(shake, -(CREST_Y * sy + lift + Math.sin(t * 2.2) * 0.07));
     this.crestBody.alpha = 0.55 + crestGlow * 0.45;
     this.crestGlow.alpha = crestGlow * 0.9;
@@ -225,6 +305,22 @@ export class GuardianView implements EntityView {
     this.shardL.rotation = -0.2 * raise;
     this.shardR.rotation = 0.2 * raise;
     this.flash.alpha = v.flash * v.opacity;
+    if (n) {
+      // the art's parts stand where the shapes stand, and take the same numbers
+      n.eye.alpha = Math.min(1, eye * 1.05);
+      n.crest.texture = n.art.crest.frames[Math.min(n.art.crest.frames.length - 1, v.enraged ? 2 : v.awake ? 1 : 0)]!;
+      n.crest.alpha = 0.55 + crestGlow * 0.45;
+      n.shardL.position.copyFrom(this.shardL.position);
+      n.shardR.position.copyFrom(this.shardR.position);
+      n.shardL.rotation = this.shardL.rotation;
+      n.shardR.rotation = this.shardR.rotation;
+      n.shardL.alpha = n.shardR.alpha = v.awake ? 1 : 0.55;
+      if (n.flash) n.flash.alpha = v.flash * v.opacity;
+      // the pool it lies in while it sleeps, thinner while it fights, and the one it melts into when it falls
+      const dying = v.anim === 'death';
+      n.pool.alpha = dying ? 0.55 + 0.45 * p : v.awake ? 0.5 : 0.85;
+      n.pool.scale.x = n.art.pool.mpp * (dying ? 0.9 + 0.5 * p : v.awake ? 0.9 : 0.75);
+    }
 
     this.drawMarks(y);
   }

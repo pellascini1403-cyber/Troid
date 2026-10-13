@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseArtPack } from '@/presentation/artManifest';
-import { parseRoomScene, sceneIssues, scenePieces, SCENE_LAYERS, SCENE_VERSION } from '@/presentation/roomScene';
+import { parseRoomScene, placementShown, sceneIssues, scenePieces, SCENE_LAYERS, SCENE_VERSION } from '@/presentation/roomScene';
 
 /**
  * THE DRESSING OF A ROOM (docs/ART-PIPELINE-2D.md, part M): a scene is data — which piece of the pack stands where in which layer — read without ever throwing, and
@@ -34,6 +34,15 @@ describe('parseRoomScene', () => {
     expect(text).toMatch(/alpha/);
   });
 
+  it('reads the flags a piece answers (`whenSet`, `whenClear`, a volatile one with its `~`) and refuses what is not a flag\'s name', () => {
+    const { value, issues } = parseRoomScene(scene({ backdropNear: [{ sprite: 'eye', x: 44, y: 3, whenSet: '~fight:r4_boss', whenClear: 'defeated:r4_boss' }] }));
+    expect(issues.filter((i) => i.level === 'error')).toEqual([]);
+    expect(value!.layers.backdropNear![0]).toMatchObject({ whenSet: '~fight:r4_boss', whenClear: 'defeated:r4_boss' });
+    const bad = parseRoomScene(scene({ terrain: [{ sprite: 'a', x: 0, y: 0, whenSet: 'Defeated Boss' }, { sprite: 'a', x: 0, y: 0, whenClear: 7 }] }));
+    expect(bad.value).toBeNull();
+    expect(bad.issues.map((i) => i.path).join(' ')).toMatch(/whenSet.*whenClear|terrain\[0\]\.whenSet[\s\S]*terrain\[1\]\.whenClear/);
+  });
+
   it('knows exactly the layers of the scene graph a piece may be placed in', () => {
     expect([...SCENE_LAYERS]).toEqual(['backdropFar', 'backdropMid', 'backdropNear', 'propsBack', 'terrain', 'foreground', 'lightOverlay']);
   });
@@ -65,5 +74,25 @@ describe('a pack declares its scenes and how its frames are stored', () => {
     expect(parseArtPack({ ...base, scenes: { r1_gate: '../x.json' } }).value).toBeNull();
     expect(parseArtPack({ ...base, scenes: { r1_gate: 'scenes/a.txt' } }).value).toBeNull();
     expect(parseArtPack({ ...base, atlasMode: 'huge' }).value).toBeNull();
+  });
+});
+
+describe('placementShown: a piece that answers the world', () => {
+  const flags = (...set: string[]) => (f: string): boolean => set.includes(f);
+
+  it('a piece with no condition is always shown', () => {
+    expect(placementShown({}, flags())).toBe(true);
+    expect(placementShown({}, flags('anything'))).toBe(true);
+  });
+
+  it('`whenSet` shows it while the flag is set; `whenClear`, while it is not; both, only while both hold', () => {
+    expect(placementShown({ whenSet: 'defeated:r4_boss' }, flags())).toBe(false);
+    expect(placementShown({ whenSet: 'defeated:r4_boss' }, flags('defeated:r4_boss'))).toBe(true);
+    expect(placementShown({ whenClear: 'defeated:r4_boss' }, flags())).toBe(true);
+    expect(placementShown({ whenClear: 'defeated:r4_boss' }, flags('defeated:r4_boss'))).toBe(false);
+    const burning = { whenSet: '~fight:r4_boss', whenClear: 'defeated:r4_boss' };
+    expect(placementShown(burning, flags())).toBe(false);
+    expect(placementShown(burning, flags('~fight:r4_boss'))).toBe(true);
+    expect(placementShown(burning, flags('~fight:r4_boss', 'defeated:r4_boss'))).toBe(false);
   });
 });

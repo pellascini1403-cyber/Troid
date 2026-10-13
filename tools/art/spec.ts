@@ -27,6 +27,10 @@ export interface SpriteSpec {
 
 export interface PackSpec {
   id: string;
+  /** What the pack draws (default `environment`): the enemies and the boss are of the `enemies` category — they are drawn over the world, with a transparent background. */
+  category?: 'environment' | 'enemies';
+  /** The tags of the pack in the index and its manifest (default `ruins`). */
+  tags?: string[];
   /** The rooms that need it: the zone policy fetches it when the hero is in one of them. */
   zones: string[];
   ppm: number;

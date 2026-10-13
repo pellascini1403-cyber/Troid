@@ -269,6 +269,10 @@ export const RUINS_SANCTUM: PackSpec = {
     grand('paving_double', 'sanctumPaving', SEED + 94, [4, 0.3], 'terrain', 96, { cols: 4, style: 'double' }),
     // the shrine of the last rest: two frames, resting and lit
     { id: 'shrine_sanctum', tags: ['role:interactive', 'kind:rest'], piece: 'sanctumShrine', params: { seed: SEED + 95 }, cols: 2, rows: 1, pivot: [0.5, 1] },
+    // the eye of the wall answers the fight: it burns while the Warden is awake (light, over the carved wall) and closes once it has fallen (a darkness over it). Their centre is the eye's
+    { id: 'eye_awake', tags: ['role:decor', 'layer:backdrop-near', 'blend:add'], piece: 'eyeAwake', params: { seed: SEED + 97 }, sizeM: [8.4, 8.4], ppm: 32, pivot: [0.5, 1] },
+    // (a soft darkness: painted small and fitted to the eye by the scene — it holds no detail to keep)
+    grand('eye_dead', 'eyeDead', SEED + 98, [1.6, 1.6], 'backdrop-near', 40),
     // the ring on the floor of the arena: cold light, flattened (the one piece of light of this pack: its own family, at the density a soft light needs)
     lightPiece('ring_arena', 'arenaRing', 704, 35, 32, 'decor', { seed: 9 }),
     // the rune of the Air Dash: light that floats over the dais
@@ -277,4 +281,27 @@ export const RUINS_SANCTUM: PackSpec = {
   scenes: { r4_sanctum: R4_SCENES.sanctum },
 };
 
-export const PACKS: readonly PackSpec[] = [RUINS_GROUND, RUINS_BACK, RUINS_LIGHT, RUINS_ROOTS, RUINS_SEAL, RUINS_SANCTUM];
+/**
+ * THE INK WARDEN (docs/PROMPT8-LOG.md phase F): the boss of the Sanctum, painted in PARTS because the game moves them — the pose is the simulation's state, read by the view: the body, the eye, the crest in three
+ * states (dim, awake, enraged), a shard of the two that hang at its sides, and the pool it melts into. A pack of the `enemies` category (drawn over the world, with a transparent background), fetched with R4 and let go
+ * when the hero leaves it. Painted by the generator, not by a person: provisional until an artist reviews or replaces it.
+ */
+export const INK_WARDEN: PackSpec = {
+  id: 'ink-warden',
+  category: 'enemies',
+  tags: ['boss'],
+  zones: ['r4_sanctum'],
+  ppm: 112,
+  comment:
+    'THE INK WARDEN, in parts: the body (a cloak of wet ink with its hood up, and its white flash), the eye, the crest in three states, a shard and the pool it melts into. Original and abstract: no face, no limbs. ' +
+    'Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.',
+  sprites: [
+    { id: 'warden_body', tags: ['boss:ink_warden', 'part:body'], piece: 'wardenBody', params: { seed: SEED + 100 }, cols: 2, rows: 1, pivot: [0.5, 1] },
+    { id: 'warden_eye', tags: ['boss:ink_warden', 'part:eye', 'blend:add'], piece: 'wardenEye', params: { seed: SEED + 101 }, sizeM: [1.4, 0.7], pivot: [0.5, 0.5] },
+    { id: 'warden_crest', tags: ['boss:ink_warden', 'part:crest', 'blend:add'], piece: 'wardenCrest', params: { seed: SEED + 102 }, cols: 3, rows: 1, pivot: [0.5, 0.5] },
+    { id: 'warden_shard', tags: ['boss:ink_warden', 'part:shard'], piece: 'wardenShard', params: { seed: SEED + 103 }, sizeM: [0.9, 1.2], pivot: [0.5, 0.5] },
+    { id: 'warden_pool', tags: ['boss:ink_warden', 'part:pool'], piece: 'wardenPool', params: { seed: SEED + 104 }, sizeM: [4.6, 0.8], pivot: [0.5, 1] },
+  ],
+};
+
+export const PACKS: readonly PackSpec[] = [RUINS_GROUND, RUINS_BACK, RUINS_LIGHT, RUINS_ROOTS, RUINS_SEAL, RUINS_SANCTUM, INK_WARDEN];

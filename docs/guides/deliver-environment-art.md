@@ -104,7 +104,7 @@ Hoy el juego dibuja **siempre** el *blockout*, y entregar arte no cambia nada ha
 
 ## 7. Peligros, objetos, santuarios y sellos (fases C y D)
 
-Cuatro piezas de los datos de la sala que ya se dibujan con arte (R2 usa las tres primeras, R3 la última y la carta; R4 usará el resto):
+Cuatro piezas de los datos de la sala que ya se dibujan con arte (R2 usa las tres primeras, R3 la última y la carta; R4 el resto):
 
 | Qué se dibuja | Etiquetas | Cómo se pone |
 |---|---|---|
@@ -121,3 +121,25 @@ Cuatro piezas de los datos de la sala que ya se dibujan con arte (R2 usa las tre
 
 **Una guarda del primer plano:** las piezas de `layer:foreground` cuelgan del borde alto de la pantalla. Que su **borde superior nunca se vea** (si la cámara más alta de la sala lo deja a la vista se verá un corte plano en el aire): `RoomArtView` lo avisa en desarrollo (`state().roomArt.notes`) y el escenario `room-art` lo exige vacío.
 
+## 8. Un jefe (fase F) y las piezas que contestan a lo que pasa en la sala
+
+**Un jefe se entrega por partes**, en un paquete de la categoría **`enemies`** (se dibuja sobre el mundo, con fondo transparente), con `zones` de su sala (`["r4_sanctum"]`): se descarga al entrar y se suelta al salir. Su pose es el estado de la simulación (el cuerpo se hunde, la cresta sube, las esquirlas se levantan, el ojo arde, al caer se derrite en su charco) y es **la vista** quien lo lee, así que el arte no es un clip: son pocas imágenes, cada una con su trabajo. Dos etiquetas en cada *sprite set* dicen **de quién** y **cuál**:
+
+| Etiqueta | Qué dice |
+|---|---|
+| `boss:<lookId>` | de quién es la parte: el `view.lookId` de la definición del guardián (`ink_warden`) |
+| `part:<nombre>` | cuál: `body`, `eye`, `crest`, `shard` o `pool` |
+
+| Parte | Fotogramas (clip `idle`) | Pivote | Notas |
+|---|---|---|---|
+| `body` | **2**: la tinta, y la **misma silueta en blanco** (el destello de un golpe; se dibuja aditiva encima) | `[0.5, 1]` (los pies, sobre el suelo) | si falta el segundo, un golpe no deja destello (aviso) |
+| `eye` | 1, `blend:add` | `[0.5, 0.5]` | se coloca a 2.44 m de los pies, donde la capucha está vacía |
+| `crest` | **3**: tenue, despierta, furiosa (la fase 2), `blend:add` | `[0.5, 0.5]` | los que falten repiten el último (aviso) |
+| `shard` | 1 | `[0.5, 0.5]` | el juego cuelga **dos** (una se refleja en la otra) |
+| `pool` | 1 | `[0.5, 1]` | el charco en el que duerme y en el que se derrite; se ensancha al caer |
+
+**Todas las partes o ninguna:** con alguna parte sin entregar el juego sigue dibujando al jefe con las formas de siempre (un jefe nunca queda a medio pintar) y `assets:check` avisa de cuáles faltan. **Reglas del lienzo de un paquete `enemies`:** fondo transparente; los píxeles **no tocan** el lado izquierdo, el derecho ni el borde alto (un halo vive *dentro* de la imagen); el de abajo sí, si el pivote está abajo. `npm run assets:check` valida las etiquetas con `bossArtIssues`.
+
+**Sustituir el arte del Custodio por uno hecho a mano:** se deja cada *sprite* con el **mismo `id`** y las mismas etiquetas en `art/ink-warden/ink-warden.pack.json`, se ponen los PNG en `art/ink-warden/<id>/<id>_NN.png` y **se quita del `packs/ruins.ts` del pintor** (`INK_WARDEN`) para que `art:build` no lo vuelva a pintar. Ni la vista, ni la escena, ni el juego cambian.
+
+**Una colocación de escena puede contestar a una bandera del mundo** (`whenSet` / `whenClear`): `{ "sprite": "eye_awake", "x": 44.5, "y": 2.7, "whenSet": "~fight:r4_boss", "whenClear": "defeated:r4_boss" }` se ve **mientras** la pelea está en marcha y **hasta** que el jefe cae. Entra en 0.9 s y sale en 0.6 s; la primera vez que se evalúa se pone en su destino sin fundido (una sala que se abre con el jefe ya caído no enciende despacio su ojo apagado). Nombres de bandera: minúsculas con `:`, `.`, `_` y `-`; una `~` delante es una bandera volátil. **El decorado solo las lee**: ninguna escena puede poner una bandera. Es lo que usa R4 para el ojo del muro (arde en la pelea y se cierra para siempre), el anillo de la arena (una capa más en la pelea) y la luz de la recompensa (se enciende al caer el Custodio).

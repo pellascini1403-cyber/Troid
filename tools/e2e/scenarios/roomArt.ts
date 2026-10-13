@@ -19,6 +19,8 @@ import type { Ctx, GameState, Scenario } from '../scenario';
  *       Spirit Bolt floats until it is taken, and the blockout keeps drawing all of it with `?art=`
  *   H · R4, the Sanctum: the floor, the walls and the two doors of the arena are drawn by the art (the doors shut when the fight begins), the shrine of the last rest, the rune of the Air Dash that
  *       is not there until the Warden has fallen, nothing of the environment is left to the blockout, and the draw calls stay under the budget from the portal to the way out
+ *   I · the Ink Warden and the arena that answers it (phase F): the boss is drawn by the parts of its art (and by its shapes with `?art=`), the eye of the wall burns while the fight is on and closes
+ *       once the Warden has fallen, the reward lights up when it falls, the scenery only READS the flags, and a room that opens with the Warden fallen does not fade its dead eye in
  */
 const PHONE = { width: 844, height: 390, dpr: 1 };
 const R1 = ROOMS['r1_gate']!;
@@ -44,6 +46,20 @@ const labels = (ctx: Ctx, layer: string): Promise<Array<{ label: string; visible
     layer,
   );
 
+/** The Ink Warden's view, read from the scene graph: whether it has one, how many of its shapes (Graphics of its body) are drawn and how many sprites it has (the art's parts). */
+const bossOf = (ctx: Ctx): Promise<{ found: boolean; shapes: number; sprites: number }> =>
+  ctx.page.evaluate(`(() => {
+    const find = (c, label) => (c.label === label ? c : (c.children || []).map((k) => find(k, label)).find(Boolean));
+    const layers = window.__troid.game.renderer.layers;
+    const root = find(layers.actors, 'guardian') || find(layers.fxWorld, 'guardian');
+    if (!root) return { found: false, shapes: 0, sprites: 0 };
+    const actor = find(root, 'guardian-actor');
+    const all = (c) => [c, ...(c.children || []).flatMap(all)];
+    const nodes = all(actor).filter((c) => c !== actor);
+    // (a node is told by how it is rendered, not by its class name: a production build has no class names)
+    return { found: true, shapes: nodes.filter((c) => c.renderPipeId === 'graphics' && c.visible).length, sprites: nodes.filter((c) => c.renderPipeId === 'sprite').length };
+  })()`) as Promise<{ found: boolean; shapes: number; sprites: number }>;
+
 const PARTIAL: FixturePack[] = [
   {
     id: 'partial',
@@ -58,6 +74,7 @@ const PARTIAL: FixturePack[] = [
 export const roomArt: Scenario = {
   name: 'room-art',
   async run(ctx) {
+    const boss = (): ReturnType<typeof bossOf> => bossOf(ctx);
     // ================================================================================================ A · R1 with the art
     await ctx.open('paused=1', PHONE);
     const dressed = await waitFor(ctx, 'the room dressed with the art', (s) => s.roomArt !== null && s.roomArt !== undefined);
@@ -293,6 +310,7 @@ export const roomArt: Scenario = {
     assert.deepEqual([...sanctum.gates].sort(), ['arena_door_e', 'arena_door_w'], 'both doors of the arena');
     assert.deepEqual([...sanctum.exits].sort(), ['east', 'west'], 'and both ways out');
     assert.deepEqual([...sanctum.interactables].sort(), ['reward_air_dash', 'shrine'], 'the shrine of the last rest and the rune of the Air Dash');
+    assert.deepEqual(sanctum.guardians, ['ink_warden'], 'and the Ink Warden: the art has every part of it');
     assert.deepEqual(sanctum.lacking, {}, 'the art lacks nothing R4 asks for: with it, all of the environment the world asks for is drawn by art');
     assert.deepEqual(sanctum.notes, [], 'and nothing it says about its strips or its foreground');
     assert.ok(sanctum.sprites > 250, `the hall is dressed (${sanctum.sprites} sprites)`);
@@ -340,5 +358,61 @@ export const roomArt: Scenario = {
     await ctx.page.waitForTimeout(800);
     assert.equal((await ctx.state()).roomArt, null, 'no art: nothing dresses R4');
     assert.deepEqual(await ctx.page.evaluate('window.__troid.game.interactableViews.covered'), [], 'the shrine and the reward are the blockout\'s');
+    assert.equal((await boss()).shapes > 5, true, 'and the Warden is drawn by its shapes');
+
+    // ================================================================================================ I · the Ink Warden, and the arena that answers it
+    await ctx.open('room=r4_sanctum&paused=1', PHONE);
+    await waitFor(ctx, 'R4 dressed with the art', (s) => s.roomArt !== null && s.roomArt !== undefined);
+    await ctx.page.waitForTimeout(400);
+    const painted = await boss();
+    assert.equal(painted.found, true, 'the Warden has a view');
+    assert.equal(painted.shapes, 0, 'drawn by the parts of its art: none of its shapes is on');
+    assert.ok(painted.sprites >= 6, `and its parts are there: pool, body, flash, eye, crest and two shards (${painted.sprites} sprites)`);
+    await ctx.teleport(52, 0);
+    await ctx.page.evaluate('window.__troid.settleCamera(5)');
+    await ctx.page.waitForTimeout(300);
+    await ctx.shot('i-00-the-warden-asleep');
+    // the scenery that answers the world: nothing is on while the Warden sleeps
+    const levels = async (piece: string): Promise<number[]> => ((await ctx.state()).roomArtGates ?? []).filter((g) => g.piece === piece).map((g) => g.level);
+    assert.deepEqual(await levels('eye_awake'), [0], 'the eye of the wall is not burning');
+    assert.deepEqual(await levels('eye_dead'), [0], 'and not closed');
+    assert.deepEqual(await levels('ring_arena'), [0], 'the ring on the floor is not burning');
+    assert.deepEqual(await levels('beam_a'), [0], 'the reward is dark');
+    const settled = async (piece: string, want: number, what: string): Promise<void> => {
+      for (let i = 0; i < 160; i++) {
+        const l = await levels(piece);
+        if (l.length > 0 && l.every((v) => Math.abs(v - want) < 0.01)) return;
+        await ctx.page.waitForTimeout(50);
+      }
+      throw new Error(`${what}: ${piece} is at ${JSON.stringify(await levels(piece))}, not ${want}`);
+    };
+    // the fight is on (the volatile flag the room's own data names): the eye burns and fades in, it does not pop
+    await ctx.page.evaluate("window.__troid.session.flags.set('~fight:r4_boss')");
+    await ctx.page.waitForTimeout(300);
+    const midway = (await levels('eye_awake'))[0]!;
+    assert.ok(midway > 0 && midway < 1, `the eye fades in (${midway.toFixed(2)} a third of a second after the fight began)`);
+    await settled('eye_awake', 1, 'the fight is on');
+    await settled('ring_arena', 1, 'the fight is on');
+    assert.deepEqual(await levels('eye_dead'), [0], 'the eye is not closed while the Warden fights');
+    await ctx.shot('i-01-the-eye-burns');
+    // the Warden falls: the eye lets go and closes, the ring settles, and the reward comes on
+    await ctx.page.evaluate("window.__troid.session.flags.set('defeated:r4_boss')");
+    await settled('eye_awake', 0, 'the Warden has fallen');
+    await settled('eye_dead', 1, 'the Warden has fallen');
+    await settled('ring_arena', 0, 'the Warden has fallen');
+    await settled('beam_a', 1, 'the Warden has fallen');
+    await settled('glow_cyan', 1, 'the Warden has fallen');
+    await ctx.shot('i-02-the-eye-closes');
+    // the scenery only READS: the flags are exactly what the simulation set
+    const flags = (await ctx.state()).flags ?? [];
+    assert.ok(flags.includes('defeated:r4_boss') && flags.includes('~fight:r4_boss'), 'the two flags are the ones the test set');
+    assert.equal(flags.filter((f) => !['defeated:r4_boss', '~fight:r4_boss'].includes(f) && /r4|eye|ring|reward/.test(f)).length, 0, 'and the art set none of its own');
+    // a room that is built again with the Warden fallen shows its dead eye at once (nothing fades in): the levels are put at their targets the first time they are read
+    await ctx.page.evaluate('window.__troid.game.roomDirty = true');
+    await ctx.step(1);
+    await ctx.page.waitForFunction(`(() => { const g = window.__troid.state().roomArtGates || []; return g.length > 0; })()`, undefined, { timeout: 8000 });
+    await ctx.page.waitForTimeout(250);
+    assert.deepEqual(await levels('eye_dead'), [1], 'rebuilt with the Warden fallen: the eye is closed at once, not fading in');
+    assert.deepEqual(await levels('eye_awake'), [0], 'and the burning eye is not there');
   },
 };

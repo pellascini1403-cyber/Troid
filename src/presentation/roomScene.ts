@@ -38,6 +38,13 @@ export interface Placement {
   /** Which frame of the `idle` clip (default 0): a piece may come in variants. */
   frame?: number;
   motion?: SceneMotion;
+  /**
+   * A flag of the world (`defeated:r4_boss`, a volatile `~fight:r4_boss`): the piece is drawn only while it is SET (`whenSet`) and/or while it is CLEAR (`whenClear`), and it fades in and out as the
+   * flag changes. The same two conditions an interactable of a room's data has. It is how the scenery answers what happens in the room — an eye that burns while the boss fights — and it is only ever
+   * READ: nothing the scenery does can set a flag, so no scene can change what a rule decides.
+   */
+  whenSet?: string;
+  whenClear?: string;
 }
 
 export interface RoomScene {
@@ -48,7 +55,9 @@ export interface RoomScene {
 
 const LAYER_SET: ReadonlySet<string> = new Set(SCENE_LAYERS);
 const MOTION_SET: ReadonlySet<string> = new Set(SCENE_MOTIONS);
-const PLACEMENT_KEYS = ['sprite', 'x', 'y', 'scale', 'w', 'h', 'flip', 'alpha', 'tint', 'frame', 'motion'] as const;
+const PLACEMENT_KEYS = ['sprite', 'x', 'y', 'scale', 'w', 'h', 'flip', 'alpha', 'tint', 'frame', 'motion', 'whenSet', 'whenClear'] as const;
+/** A flag's name: lowercase words with `:`, `.`, `_` and `-`, and a leading `~` for a volatile one. */
+const FLAG_NAME = /^~?[a-z0-9][a-z0-9_.:-]{0,63}$/;
 /** No room is wider than this; a coordinate beyond it is a typo (or pixels). */
 export const SCENE_REACH = 400;
 
@@ -102,6 +111,12 @@ export function parseRoomScene(raw: unknown): Parsed<RoomScene> {
         if (typeof p['motion'] === 'string' && MOTION_SET.has(p['motion'])) placement.motion = p['motion'] as SceneMotion;
         else r.error(`${at}.motion`, `must be one of ${SCENE_MOTIONS.join(' | ')}`);
       }
+      for (const key of ['whenSet', 'whenClear'] as const) {
+        if (p[key] !== undefined) {
+          const flag = r.string(p[key], `${at}.${key}`, { pattern: FLAG_NAME, what: 'a flag of the world' });
+          if (flag !== null) placement[key] = flag;
+        }
+      }
       out.push(placement);
     });
     layers[layer as SceneLayer] = out;
@@ -128,6 +143,11 @@ export function sceneIssues(scene: RoomScene, pack: { sprites: ReadonlyArray<{ i
     });
   }
   return out;
+}
+
+/** Whether a piece is shown now, given which flags are set: the pure half of `whenSet` / `whenClear`. */
+export function placementShown(p: Pick<Placement, 'whenSet' | 'whenClear'>, isSet: (flag: string) => boolean): boolean {
+  return (p.whenSet === undefined || isSet(p.whenSet)) && (p.whenClear === undefined || !isSet(p.whenClear));
 }
 
 /** How many pieces a scene places, in all. */

@@ -9,7 +9,8 @@ import { columnProp, crystals, effigy, ferns, foreLeaves, grass, hangingRoots, m
 import { beam, glow, mistBank, motes, shaft, veil } from './lights';
 import { rootArch, rootCrawl, rootCurtain, rootPillar, shrine, thorns, vial } from './roots';
 import { cardSpirit, lintel, paving, pedestal, pilaster, relief, runeCircle, runePath, sealSigil } from './seal';
-import { airRune, arenaRing, banner, colossalColumn, colossus, dais, eyeWall, inkPool, portalGrand, sanctumPaving, sanctumShrine } from './sanctum';
+import { wardenBody, wardenCrest, wardenEye, wardenPool, wardenShard } from './warden';
+import { airRune, arenaRing, banner, eyeAwake, eyeDead, colossalColumn, colossus, dais, eyeWall, inkPool, portalGrand, sanctumPaving, sanctumShrine } from './sanctum';
 
 /**
  * The painter's catalogue: each piece is a function from parameters to a painted surface, deterministic (a seed in, the same pixels out). The build (`tools/art/build.ts`)
@@ -170,6 +171,8 @@ export const PIECES: Record<string, PieceMaker> = {
     return colossus({ w: Math.round(num(p, 'wM', 5) * ppm), h: Math.round(num(p, 'hM', 15) * ppm), ppm, seed: num(p, 'seed', 3), variant: num(p, 'variant', 0) });
   },
   eyeWall: prop(eyeWall, 10, 13),
+  eyeAwake: prop(eyeAwake, 8.4, 8.4),
+  eyeDead: prop(eyeDead, 1.6, 1.6),
   /** The shrine of the last rest: two cells of 3.9 × 5.1 m (resting, lit). */
   sanctumShrine: async (p) => {
     const ppm = num(p, 'ppm', 96);
@@ -190,6 +193,20 @@ export const PIECES: Record<string, PieceMaker> = {
     const cols = num(p, 'cols', 4);
     return sanctumPaving({ w: Math.round(ppm * cols), h: Math.round(ppm * 0.3), ppm, seed: num(p, 'seed', 9), cols, style: str(p, 'style', ['dashes', 'ticks', 'double'] as const, 'dashes') });
   },
+  /** The Ink Warden, in parts (docs/PROMPT8-LOG.md phase F): the body, the eye, the crest in three states, a shard, the pool. */
+  /** The body: two cells of 2.6 × 3.0 m (the ink, and its white flash). */
+  wardenBody: async (p) => {
+    const ppm = num(p, 'ppm', 96);
+    return wardenBody({ w: Math.round(ppm * 2.6), h: Math.round(ppm * 3), ppm, seed: num(p, 'seed', 3) });
+  },
+  wardenEye: prop(wardenEye, 1.4, 0.7),
+  /** The crest: three cells of 1.5 × 1.8 m (dim, awake, enraged). */
+  wardenCrest: async (p) => {
+    const ppm = num(p, 'ppm', 96);
+    return wardenCrest({ w: Math.round(ppm * 1.5) * 3, h: Math.round(ppm * 1.8), ppm, seed: num(p, 'seed', 3) });
+  },
+  wardenShard: prop(wardenShard, 0.9, 1.2),
+  wardenPool: prop(wardenPool, 4.6, 0.8),
   columnWhole: prop((o) => columnProp({ ...o, state: 'whole', heightM: 4.6 }), 1.6, 5.2),
   columnBroken: prop((o) => columnProp({ ...o, state: 'broken', heightM: 3.1 }), 1.6, 3.7),
   lightShaft: light(shaft, 192, 640),

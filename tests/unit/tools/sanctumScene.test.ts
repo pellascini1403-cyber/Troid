@@ -10,7 +10,7 @@ import { R4_SANCTUM_ROOM } from '@/content/rooms/r4Sanctum';
  * columns) never hide one another, so each is seen whole; and the places the eye must find are left free (nothing dark behind the shrine, nothing in front of the wall the Warden sleeps before).
  */
 const root = fileURLToPath(new URL('../../../', import.meta.url));
-interface Placement { sprite: string; x: number; y: number; scale?: number; flip?: boolean; alpha?: number }
+interface Placement { sprite: string; x: number; y: number; scale?: number; w?: number; h?: number; flip?: boolean; alpha?: number; whenSet?: string; whenClear?: string }
 interface Scene { layers: Record<string, Placement[] | undefined> }
 interface Pack { sprites: Array<{ id: string; artPxPerMeter: number; frameSize?: [number, number] }> }
 
@@ -49,7 +49,8 @@ describe('the composition of R4', () => {
   });
 
   it('never lets one of the big pieces of the hall hide another: the wall, the guardians, the portals and the columns stand clear of each other', () => {
-    const big = near.filter((p) => !p.sprite.startsWith('banner_'));
+    // (the pieces that answer a flag — the eye that burns, the eye that closes — lie over the wall on purpose)
+    const big = near.filter((p) => !p.sprite.startsWith('banner_') && p.whenSet === undefined && p.whenClear === undefined);
     expect(big.length).toBeGreaterThanOrEqual(10);
     for (let i = 0; i < big.length; i++) {
       for (let j = i + 1; j < big.length; j++) {
@@ -59,6 +60,27 @@ describe('the composition of R4', () => {
         expect(overlap, `${big[i]!.sprite} @ ${big[i]!.x} and ${big[j]!.sprite} @ ${big[j]!.x} overlap by ${overlap.toFixed(2)} m`).toBeLessThanOrEqual(0.05);
       }
     }
+  });
+
+  it('puts the pieces that answer the fight on the eye of the wall: the same centre, so each carved ring lights up where it was cut', () => {
+    const wall = near.find((p) => p.sprite === 'eye_wall')!;
+    const wallPiece = pack.sprites.find((x) => x.id === 'eye_wall')!;
+    const wallHeight = wallPiece.frameSize![1] / wallPiece.artPxPerMeter;
+    // the eye is cut 5.2 m under the head of the wall (the painter puts it at half the width, and a little lower)
+    const eyeY = wall.y + wallHeight - 5.2;
+    const answers = near.filter((p) => p.sprite.startsWith('eye_') && p.sprite !== 'eye_wall');
+    expect(answers.map((p) => p.sprite).sort()).toEqual(['eye_awake', 'eye_dead']);
+    for (const p of answers) {
+      expect(p.x, `${p.sprite} stands on the eye`).toBeCloseTo(wall.x, 2);
+      const piece = pack.sprites.find((x) => x.id === p.sprite)!;
+      // (a soft piece is fitted to the size the scene gives it)
+      expect(p.y + (p.h ?? piece.frameSize![1] / piece.artPxPerMeter) / 2, `${p.sprite} is centred on the eye`).toBeCloseTo(eyeY, 1);
+      expect(p.whenSet !== undefined || p.whenClear !== undefined, `${p.sprite} answers a flag`).toBe(true);
+    }
+    // it burns while the fight is on and closes for good once the Warden has fallen: the two flags the room's own data names
+    expect(answers.find((p) => p.sprite === 'eye_awake')).toMatchObject({ whenSet: '~fight:r4_boss', whenClear: 'defeated:r4_boss' });
+    expect(answers.find((p) => p.sprite === 'eye_dead')).toMatchObject({ whenSet: 'defeated:r4_boss' });
+    expect(R4_SANCTUM_ROOM.bosses?.[0]).toMatchObject({ fightFlag: '~fight:r4_boss', defeatFlag: 'defeated:r4_boss' });
   });
 
   it('keeps the banners off the wall with the eye and off the portals, and hangs them clear of the head of the hero', () => {

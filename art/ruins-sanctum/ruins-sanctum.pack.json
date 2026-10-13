@@ -399,6 +399,55 @@
       }
     },
     {
+      "id": "eye_awake",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 8.406,
+      "frameSize": [
+        269,
+        269
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-near",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "eye_awake_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "eye_dead",
+      "artPxPerMeter": 40,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.6,
+      "frameSize": [
+        64,
+        64
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-near"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "eye_dead_",
+          "count": 1
+        }
+      }
+    },
+    {
       "id": "ring_arena",
       "artPxPerMeter": 32,
       "pivot": [

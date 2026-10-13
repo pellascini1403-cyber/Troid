@@ -50,7 +50,7 @@ describe('the art of the repository', () => {
     // the six to validate first are tagged as such in the declaration, and the four blows carry the sword
     expect(Object.entries(hero.clips).filter(([, c]) => c!.tags.includes('first')).map(([s]) => s).sort()).toEqual([...PLAYER_VISUAL.first].sort());
     expect(Object.entries(hero.clips).filter(([, c]) => c!.tags.includes('sword')).map(([s]) => s).sort()).toEqual(['attack1', 'attack2', 'attackAir', 'attackCrouch']);
-    // the protagonist and the scenery of the first room: all provisional, all shipped
+    // the protagonist, the scenery of the four rooms and the boss: all provisional, all shipped
     expect(dryBuild().packs.map((p) => [p.id, p.status, p.shipped])).toEqual([
       ['player', 'provisional', true],
       ['ruins-ground', 'provisional', true],
@@ -59,6 +59,7 @@ describe('the art of the repository', () => {
       ['ruins-roots', 'provisional', true],
       ['ruins-seal', 'provisional', true],
       ['ruins-sanctum', 'provisional', true],
+      ['ink-warden', 'provisional', true],
     ]);
     expect(existsSync(join(root, 'public', 'art', 'index.json')), 'the generated folder is committed: the game fetches it').toBe(true);
   }, PACKING);

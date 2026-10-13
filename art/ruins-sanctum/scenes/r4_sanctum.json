@@ -203,6 +203,15 @@
         "y": -0.18,
         "alpha": 0.6,
         "motion": "pulse"
+      },
+      {
+        "sprite": "ring_arena",
+        "x": 46,
+        "y": -0.18,
+        "alpha": 0.35,
+        "motion": "pulse",
+        "whenSet": "~fight:r4_boss",
+        "whenClear": "defeated:r4_boss"
       }
     ],
     "propsBack": [
@@ -218,6 +227,23 @@
         "x": 44.5,
         "y": -0.9,
         "alpha": 0.88
+      },
+      {
+        "sprite": "eye_awake",
+        "x": 44.5,
+        "y": 2.7,
+        "alpha": 0.75,
+        "whenSet": "~fight:r4_boss",
+        "whenClear": "defeated:r4_boss"
+      },
+      {
+        "sprite": "eye_dead",
+        "x": 44.5,
+        "y": 2.7,
+        "w": 8.4,
+        "h": 8.4,
+        "alpha": 0.9,
+        "whenSet": "defeated:r4_boss"
       },
       {
         "sprite": "colossus_a",

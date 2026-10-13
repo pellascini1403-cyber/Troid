@@ -815,3 +815,77 @@ export function arenaRing(o: SanctumOptions): Surface {
   }
   return s;
 }
+
+// ------------------------------------------------------------------------------------------------------------------------------------------------------- the eye answers the fight
+
+/**
+ * The eye of the wall when the Warden is awake: the rings and the rays of the eye burn violet-white and the pupil blazes, painted as LIGHT to lie over the carved wall (`eyeWall`) — the same centre and the
+ * same radii, so each carved line lights up where it was cut. The game shows it while the fight lasts and fades it out when the Warden falls. 8.4 × 8.4 m, the centre of the eye at the middle.
+ */
+export function eyeAwake(o: SanctumOptions): Surface {
+  const { w, h, ppm: u } = o;
+  const s = surface(w, h);
+  const ctx = s.ctx;
+  const cx = w / 2;
+  const cy = h / 2;
+  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 4.1 * u);
+  glow.addColorStop(0, rgba(VIOLET, 0.34));
+  glow.addColorStop(0.6, rgba(VIOLET, 0.12));
+  glow.addColorStop(1, rgba(VIOLET, 0));
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, w, h);
+  ctx.lineCap = 'round';
+  for (const [k, lw, a] of [[3.9, 0.12, 0.6], [3.1, 0.09, 0.55], [2.3, 0.09, 0.6], [1.5, 0.08, 0.7]] as const) {
+    ctx.strokeStyle = rgba([0.78, 0.62, 1], a);
+    ctx.lineWidth = Math.max(1.6, u * lw);
+    ctx.beginPath();
+    ctx.arc(cx, cy, k * u, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = rgba([0.8, 0.66, 1], 0.5);
+  ctx.lineWidth = Math.max(1.2, u * 0.05);
+  for (let i = 0; i < 32; i++) {
+    const a = (i / 32) * Math.PI * 2 + 0.05;
+    const r0 = i % 4 === 0 ? 2.4 : 3.2;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * r0 * u, cy + Math.sin(a) * r0 * u);
+    ctx.lineTo(cx + Math.cos(a) * 3.85 * u, cy + Math.sin(a) * 3.85 * u);
+    ctx.stroke();
+  }
+  // the pupil blazes
+  const pupil = ctx.createRadialGradient(cx, cy, 0, cx, cy, 2.2 * u);
+  pupil.addColorStop(0, 'rgba(235,222,255,0.8)');
+  pupil.addColorStop(0.35, rgba(VIOLET, 0.45));
+  pupil.addColorStop(1, rgba(VIOLET, 0));
+  ctx.fillStyle = pupil;
+  ctx.fillRect(cx - 2.3 * u, cy - 2.3 * u, 4.6 * u, 4.6 * u);
+  ctx.fillStyle = 'rgba(250,244,255,0.95)';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 1.15 * u);
+  ctx.lineTo(cx + 0.4 * u, cy);
+  ctx.lineTo(cx, cy + 1.15 * u);
+  ctx.lineTo(cx - 0.4 * u, cy);
+  ctx.closePath();
+  ctx.fill();
+  return s;
+}
+
+/**
+ * The eye of the wall once the Warden has fallen: a soft darkness over the pupil and the rings, as if the wall had closed its eye. Not light — a dark thing, drawn normally over the carved wall. Painted small (1.6 × 1.6 m) and
+ * stretched to 8.4 m over the eye by the scene: a soft gradient holds no detail to keep.
+ */
+export function eyeDead(o: SanctumOptions): Surface {
+  const { w, h } = o;
+  const s = surface(w, h);
+  const ctx = s.ctx;
+  const cx = w / 2;
+  const cy = h / 2;
+  // painted small and stretched over the eye by the scene: the darkness ends at the edge of its own picture
+  const dark = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.min(w, h) / 2);
+  dark.addColorStop(0, 'rgba(3,6,12,0.86)');
+  dark.addColorStop(0.55, 'rgba(3,6,12,0.6)');
+  dark.addColorStop(1, 'rgba(3,6,12,0)');
+  ctx.fillStyle = dark;
+  ctx.fillRect(0, 0, w, h);
+  return s;
+}

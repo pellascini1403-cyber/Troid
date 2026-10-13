@@ -3,10 +3,12 @@ import type { Rect } from '@/core/math';
 import type { ArtLibrary } from '@/assets/artLibrary';
 import { HALF_VIEW, PARALLAX_FACTOR, readEnvLook, readEnvTags, slotKey, type EnvLook } from '@/presentation/environment';
 import { cropFrame, planHazards, planInteractables, planSeals, planStrip, planTerrain, type Draw, type InteractablePlacement, type PieceInfo, type PieceLookup, type SealPlacement } from '@/presentation/roomPlan';
-import { SCENE_LAYERS, type Placement, type SceneLayer } from '@/presentation/roomScene';
+import { GUARDIAN_PARTS, bossParts } from '@/presentation/bossArt';
+import { SCENE_LAYERS, placementShown, type Placement, type SceneLayer } from '@/presentation/roomScene';
 import type { SpriteSetDefinition } from '@/presentation/SpriteSetDefinition';
 import { viewY } from '@/presentation/worldTransform';
 import type { RoomDefinition } from '@/world/RoomDefinition';
+import type { GuardianArt, GuardianArtPart } from './GuardianView';
 import type { InteractableArt } from './InteractableViews';
 import type { Layers } from './layers';
 import type { SealArt } from './SealView';
@@ -33,6 +35,8 @@ export interface RoomArtCoverage {
   interactables: ReadonlyMap<string, InteractableArt>;
   /** The sigils of the wards the art draws, by seal id: the seal's own view hangs each one and feeds it what the simulation says. */
   seals: ReadonlyMap<string, SealArt>;
+  /** The bosses the art draws, by the `lookId` of their definition: each guardian's own view takes the parts and moves them (and keeps drawing itself with its shapes when the art has no parts for it). */
+  guardians: ReadonlyMap<string, GuardianArt>;
   /** The blockout backdrops the scene replaces: `far`, `mid`, `near` and `front` (the foreground). */
   backdrop: ReadonlySet<string>;
   /** How many sprites it made. */
@@ -62,7 +66,25 @@ interface Motion {
   phase: number;
   baseAlpha: number;
   baseX: number;
+  /** When the piece is shown only while a flag says so, how much of it is shown now (0 … 1): the motion multiplies its alpha by it. */
+  gate?: Gate;
 }
+
+/** A piece of a scene that answers the world: it is shown while its flags say so (`Placement.whenSet` / `whenClear`) and fades in and out as they change. Only ever READS the flags. */
+interface Gate {
+  sprite: Sprite;
+  piece: string;
+  whenSet: string | undefined;
+  whenClear: string | undefined;
+  baseAlpha: number;
+  /** 0 … 1: how shown it is. It is put at its target the first time it is evaluated (a room that opens with the boss fallen does not fade its dead eye in). */
+  level: number;
+  settled: boolean;
+}
+
+/** Seconds a gated piece takes to appear and to go. */
+const GATE_FADE_IN = 0.9;
+const GATE_FADE_OUT = 0.6;
 
 const LAYER_OF_BLOCKOUT: Readonly<Record<string, string>> = { backdropFar: 'far', backdropMid: 'mid', backdropNear: 'near', foreground: 'front' };
 /** The camera shows at most this much above and below the room's camera range. */
@@ -70,6 +92,18 @@ const VIEW_MARGIN_Y = 10;
 const FOREGROUND_FACTOR = PARALLAX_FACTOR.foreground;
 
 const pad2 = (i: number): string => String(i).padStart(2, '0');
+
+/** The pictures of the `idle` clip of a loaded sprite set, in order; `null` when the clip is not there or a frame is missing (a piece with a hole in it is not drawn). */
+function idleFrames(set: { def: SpriteSetDefinition; textures: ReadonlyMap<string, Texture> }): Texture[] | null {
+  const idle = set.def.clips['idle'];
+  if (!idle) return null;
+  const frames: Texture[] = [];
+  for (let i = 0; i < idle.count; i++) {
+    const t = set.textures.get(`${idle.frames}${pad2(i)}`);
+    if (t) frames.push(t);
+  }
+  return frames.length === idle.count ? frames : null;
+}
 
 /** A sub-rectangle of a texture, in the pixels of its ORIGINAL (untrimmed) frame — the clipped last cell of a repetition. `null` when nothing of it is visible. */
 export function cropTexture(t: Texture, keep: { x0: number; y0: number; x1: number; y1: number }): Texture | null {
@@ -90,6 +124,7 @@ export class RoomArtView {
   private readonly crops = new Map<string, Texture>();
   private readonly motions: Motion[] = [];
   private readonly doors = new Map<string, Container>();
+  private readonly gates: Gate[] = [];
   private serial = 0;
   private time = 0;
 
@@ -127,14 +162,8 @@ export class RoomArtView {
         const set = this.art.acquireLoaded(info.pack.id, sprite.id);
         if (!set) continue;
         this.taken.push(set.def);
-        const idle = set.def.clips['idle'];
-        if (!idle) continue;
-        const frames: Texture[] = [];
-        for (let i = 0; i < idle.count; i++) {
-          const t = set.textures.get(`${idle.frames}${pad2(i)}`);
-          if (t) frames.push(t);
-        }
-        if (frames.length !== idle.count) continue;
+        const frames = idleFrames(set);
+        if (!frames) continue;
         const mpp = (set.def.visualScale ?? 1) / set.def.artPxPerMeter;
         const first = frames[0]!;
         const look = readEnvLook(sprite.tags);
@@ -203,6 +232,24 @@ export class RoomArtView {
     }
     for (const [slot, ids] of ward.lacking) lacking.set(slot, ids);
 
+    // ---- the bosses: the parts of each guardian the zone holds art for (the guardian is an entity: its own view takes the parts and moves them). Every part, or none: a boss is never half-painted
+    const guardians = new Map<string, GuardianArt>();
+    for (const info of this.art.heldPacks('enemies')) {
+      for (const [look, names] of bossParts(info.pack.sprites)) {
+        if (GUARDIAN_PARTS.some((p) => !names.has(p))) continue;
+        const got: Partial<Record<(typeof GUARDIAN_PARTS)[number], GuardianArtPart>> = {};
+        for (const part of GUARDIAN_PARTS) {
+          const set = this.art.acquireLoaded(info.pack.id, names.get(part)!);
+          if (!set) break;
+          this.taken.push(set.def);
+          const frames = idleFrames(set);
+          if (!frames) break;
+          got[part] = { frames, mpp: (set.def.visualScale ?? 1) / set.def.artPxPerMeter, pivot: set.def.pivot };
+        }
+        if (GUARDIAN_PARTS.every((p) => got[p])) guardians.set(look, got as GuardianArt);
+      }
+    }
+
     // ---- the strips: the three seamless layers that scroll slower than the world (`backdrop` far, mid and near) — the base of the scenery, under the scene's own pieces
     const covered = new Set<string>();
     const notes: string[] = [];
@@ -263,18 +310,43 @@ export class RoomArtView {
         if (blockout) covered.add(blockout);
       }
     }
-    return { solids: plan.dressed, gates: new Set(plan.gates.keys()), exits, hazards: hazards.dressed, interactables, seals, backdrop: covered, sprites, lacking, notes };
+    return { solids: plan.dressed, gates: new Set(plan.gates.keys()), exits, hazards: hazards.dressed, interactables, seals, guardians, backdrop: covered, sprites, lacking, notes };
   }
 
-  /** The cosmetic motion of the pieces that have one (real seconds: scenery does not wait for a hit-stop). */
-  update(dt: number): void {
+  /**
+   * The cosmetic motion of the pieces that have one, and the answer of the pieces that follow a flag of the world (real seconds: scenery does not wait for a hit-stop). `isSet` is how the view READS
+   * the world's flags — it never writes one.
+   */
+  update(dt: number, isSet?: (flag: string) => boolean): void {
+    if (isSet && this.gates.length > 0) this.follow(dt, isSet);
     if (this.motions.length === 0) return;
     this.time += dt;
     for (const m of this.motions) {
       const t = this.time + m.phase;
       if (m.kind === 'sway') m.sprite.rotation = Math.sin(t * 0.9) * 0.035;
-      else if (m.kind === 'pulse') m.sprite.alpha = m.baseAlpha * (0.72 + 0.28 * (0.5 + 0.5 * Math.sin(t * 1.6)));
+      else if (m.kind === 'pulse') m.sprite.alpha = m.baseAlpha * (0.72 + 0.28 * (0.5 + 0.5 * Math.sin(t * 1.6))) * (m.gate?.level ?? 1);
       else m.sprite.x = m.baseX + Math.sin(t * 0.25) * 0.8;
+    }
+  }
+
+  /** The pieces that follow a flag, and how shown each is now (for the tests and the debug panel). */
+  gated(): ReadonlyArray<{ piece: string; level: number }> {
+    return this.gates.map((g) => ({ piece: g.piece, level: g.level }));
+  }
+
+  private follow(dt: number, isSet: (flag: string) => boolean): void {
+    for (const g of this.gates) {
+      const target = placementShown(g, isSet) ? 1 : 0;
+      if (!g.settled) {
+        g.level = target;
+        g.settled = true;
+      } else if (g.level !== target) {
+        const step = dt / (target > g.level ? GATE_FADE_IN : GATE_FADE_OUT);
+        g.level = target > g.level ? Math.min(target, g.level + step) : Math.max(target, g.level - step);
+      }
+      g.sprite.visible = g.level > 0.002;
+      // a pulsing piece takes its alpha from its motion (which multiplies by the level); the others take it here
+      if (!this.motions.some((m) => m.sprite === g.sprite && m.kind === 'pulse')) g.sprite.alpha = g.baseAlpha * g.level;
     }
   }
 
@@ -286,6 +358,7 @@ export class RoomArtView {
     this.crops.clear();
     for (const def of this.taken.splice(0)) this.art.release(def);
     this.motions.length = 0;
+    this.gates.length = 0;
     this.doors.clear();
   }
 
@@ -350,7 +423,15 @@ export class RoomArtView {
     if (p.tint !== undefined) s.tint = p.tint;
     if (piece.look.blend === 'add') s.blendMode = 'add';
     root.addChild(s);
-    if (p.motion) this.motions.push({ sprite: s, kind: p.motion, phase: (p.x * 1.7 + p.y * 0.9) % (Math.PI * 2), baseAlpha: p.alpha ?? 1, baseX: p.x });
+    // a piece that answers a flag starts hidden and is shown (or not) the first time the flags are read
+    let gate: Gate | undefined;
+    if (p.whenSet !== undefined || p.whenClear !== undefined) {
+      gate = { sprite: s, piece: p.sprite, whenSet: p.whenSet, whenClear: p.whenClear, baseAlpha: p.alpha ?? 1, level: 0, settled: false };
+      s.visible = false;
+      s.alpha = 0;
+      this.gates.push(gate);
+    }
+    if (p.motion) this.motions.push({ sprite: s, kind: p.motion, phase: (p.x * 1.7 + p.y * 0.9) % (Math.PI * 2), baseAlpha: p.alpha ?? 1, baseX: p.x, ...(gate ? { gate } : {}) });
     return 1;
   }
 }

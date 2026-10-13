@@ -386,3 +386,75 @@ Nuevos: `tools/art/painter/sanctum.ts`, `tools/art/scenes/r4.ts`, `tests/unit/to
 - **Revisión artística:** el salón es **correcto y coherente** pero *de generador*: simetría perfecta, columnas con la misma gramática de collares y runas, guardianes casi gemelos, estandartes lisos; el empedrado se repite cada 4 m. Falta el ojo de un ilustrador para la escala real (un guardián de 15 m con un rostro, un muro con un relieve de verdad).
 - **El Custodio** (fase F): con el salón vestido, es lo que más desentona —un pilar violeta procedural delante de un muro tallado—; sus avisos violeta (fase H) tienen que leerse **sobre este suelo**, que ya está fijado como oscuro y sin violeta.
 - **Calibración en dispositivo real:** que el cian del anillo y de las runas no moleste en pantallas OLED pequeñas, y que los avisos violeta se lean en un teléfono.
+
+## Fase F — el Custodio de Tinta (S50)
+
+**Resultado en una frase:** el jefe **se dibuja con arte pintado en el motor**, por partes, en un séptimo paquete (`ink-warden`, el primero de la categoría `enemies`): **una capa de tinta mojada con la capucha puesta y una costura de glifos violeta, una ranura pálida donde estaría la cara, una corona de luz en tres estados (tenue, despierta, furiosa), dos esquirlas y el charco en el que duerme y en el que se derrite**. Es el mismo manto y la misma capucha que los guardianes de piedra del salón de detrás: **el Custodio es uno de ellos, despertado, y hecho de lo que mancha el suelo de la arena**.
+**La lógica no cambia:** 36 de vida, la FSM, los dos ataques con sus avisos, el daño, la fase 2, las puertas, el *checkpoint* y la persistencia de la muerte son los de siempre; la vista lee el mismo estado y **las poses son las mismas cifras** con arte y sin él (una prueba lo exige). La arena, además, **contesta a la pelea**: el ojo del muro arde mientras el Custodio pelea y se cierra para siempre cuando cae, y la recompensa se enciende al caer.
+
+### Qué se hizo
+
+- **El pintor** (`tools/art/painter/warden.ts`): `wardenBody` (dos celdas: la tinta y la misma silueta en blanco, el destello de un golpe), `wardenEye`, `wardenCrest` (tres celdas), `wardenShard` y `wardenPool`. **Original y abstracto:** sin cara y sin miembros —una columna de tinta que se sostiene como un manto—. Violeta es el color de lo que hiere al héroe, y también el de esta pieza; la tinta es casi negra con un borde frío (la luz de la sala doblada hacia el violeta).
+- **El paquete** (`tools/art/packs/ruins.ts#INK_WARDEN`): `category: "enemies"` (el pintor aprende `PackSpec.category` y `PackSpec.tags`), `zones: ["r4_sanctum"]`, 112 px/m: se descarga al entrar en R4 y se suelta al salir.
+- **El contrato** (`src/presentation/bossArt.ts`, puro): `boss:<lookId>` y `part:<body|eye|crest|shard|pool>` dicen de quién es cada imagen y cuál; `bossArtIssues` (que usa `assets:check` para los paquetes `enemies`) exige un `idle`, avisa de la cresta con menos de tres fotogramas, del cuerpo sin destello, de dos imágenes para la misma parte, y de los jefes a los que les falta alguna parte. **Todas las partes o ninguna:** sin partes completas el juego sigue dibujando al jefe con las formas de siempre (9 pruebas).
+- **El motor:** `RoomArtView` entrega las partes completas por `lookId` en `RoomArtCoverage.guardians` (por el mismo camino que el arte de la sala); `GuardianView.dress(art | null)` cuelga los *sprites* donde estaban las formas (se ocultan, **no se destruyen**: con `dress(null)` —la sala se reconstruyó, el arte se soltó bajo la vista— el jefe vuelve a ser el de formas **en el mismo fotograma**) y los alimenta con los mismos números de la pose; `Game2D` lo viste al vestir la sala y al nacer la vista (que puede ser una `LateView` cuyo código aún viene de camino). Los resplandores (aura, halo de la cresta, luz del ojo) siguen siendo luz suave compartida con los efectos; la luz del ojo se atenúa a 0.55 porque el ojo pintado trae su halo. Las marcas del suelo (los avisos violeta) no cambian: son de la fase H.
+- **Una escena que contesta al mundo** (`roomScene`): `Placement.whenSet` / `whenClear` —una pieza que se ve mientras una bandera está puesta y/o mientras no lo está, con un fundido de 0.9 s al entrar y 0.6 s al salir y sin fundido la primera vez que se evalúa—. **El decorado solo lee las banderas** (`RoomArtView.update(dt, isSet)`): ninguna escena puede poner una, así que ninguna escena puede cambiar lo que decide una regla.
+- **La arena contesta a la pelea** (`tools/art/scenes/r4.ts`): `eye_awake` (el ojo del muro arde mientras dura la pelea: `~fight:r4_boss` puesta y `defeated:r4_boss` no), `eye_dead` (una oscuridad suave sobre el ojo cuando el Custodio cae), una segunda capa del anillo de luz fría mientras dura la pelea, y la **recompensa**: la columna de luz del dais, el resplandor de la runa y el del portal de salida solo existen cuando `defeated:r4_boss` está puesta.
+
+### Los activos nuevos (todo de `tools/art`, estado `provisional`)
+
+| Paquete | *Sprite sets* | Qué es |
+|---|---|---|
+| `ink-warden` (nuevo, categoría `enemies`, 112 px/m) | 5 | `warden_body` (2 fotogramas: tinta, destello), `warden_eye`, `warden_crest` (3: tenue, despierta, furiosa), `warden_shard`, `warden_pool` |
+| `ruins-sanctum` (ampliado) | +2 | `eye_awake` (luz sobre el ojo tallado) y `eye_dead` (la oscuridad que lo cierra) |
+| Escena `r4_sanctum` | +7 colocaciones con condición | el ojo, el anillo, la luz de la recompensa |
+
+El paquete del jefe pesa ≈ 190 KB en disco (1.35 MiB descomprimido); entre los ocho paquetes: 5179.1 KB en disco y 39106 KB descomprimidos.
+
+### *Placeholders* quitados y los que quedan
+
+- **Quitados** (con `?visual=auto`, y solo mientras el arte de la zona está en memoria): el **cuerpo del Custodio** (un pilar de `Graphics`: polígonos violeta), su **ojo**, las **dos esquirlas**, la **cresta** y el **destello del golpe** dibujados con formas; el **ojo del muro**, que era estático.
+- **Quedan en R4 y en el jefe:** los **avisos violeta del suelo** (las marcas de la carga y de la lluvia, que son `Graphics`), la **lluvia de tinta**, **los impactos** y **la disolución al morir** —los efectos de siempre: fase H—, el **aura** (un resplandor suave genérico) y la **barra de vida** (es interfaz; no se rehace). Las formas siguen existiendo **solo como respaldo** (un jefe nunca queda a medio pintar si falta una parte).
+- **Quedan en el mundo:** del entorno, nada. Siguen siendo procedurales los **enemigos** (fase G) y los **efectos** (fase H).
+
+### Archivos
+
+Nuevos: `src/presentation/bossArt.ts`, `tools/art/painter/warden.ts`, `tests/unit/presentation/bossArt.test.ts`, `art/ink-warden/**`, `art/ruins-sanctum/eye_awake/**`, `art/ruins-sanctum/eye_dead/**`, `public/art/ink-warden/**`.
+Modificados: `src/app/{Game2D,testHooks}.ts`, `src/presentation/roomScene.ts`, `src/render/{GuardianView,RoomArtView}.ts` (7 archivos de `src/`: es la primera fase desde la C que toca el motor), `tools/art/{build,spec}.ts`, `tools/art/packs/ruins.ts`, `tools/art/painter/{pieces,sanctum}.ts`, `tools/art/scenes/r4.ts`, `tools/assets/verify.ts`, `tools/e2e/scenario.ts`, `tools/e2e/scenarios/{playerArt,roomArt}.ts`, `art/index.json`, `public/art/index.json`, los manifiestos y escenas de `ruins-sanctum` y `ruins-light`, 4 archivos de pruebas, la documentación.
+
+### Herramientas usadas
+
+`npm run art:build -- --pack ink-warden` (el pintor), `npm run assets:check` / `assets:pack` (validación y empaquetado), el laboratorio visual de la sesión (`sheet.mts`: hojas de contacto de cada parte; capturas de la arena con el Custodio dormido, despierto, furioso y caído), `?visual=art|placeholder|auto` (para comparar con y sin arte), `window.__troid.state().roomArt.guardians` y `roomArtGates` (los ganchos de pruebas), `npm run bench:bundle`.
+
+### Verificación
+
+| | Resultado |
+|---|---|
+| `tsc` | limpio |
+| Pruebas unitarias y de integración | **2339 en 147 archivos** (2319 al cerrar la fase E: +20 —`bossArt` 9, `GuardianView` con arte 7, `placementShown` y la lectura de condiciones 3, la composición del ojo 1—) |
+| E2E | **44/44 en desarrollo** y **44/44 en producción** (en producción `room-art` falló una vez por la sonda de mi propia prueba, ver el problema 7, y pasó tras corregirla; los otros 43, a la primera) |
+| Llamadas de dibujo | R4: **17 como máximo** en siete puntos del recorrido (`room-art`); **20 en la pelea del jefe** (`boss`, `boss-death`; eran 18 con las formas: +2, probablemente por las partes aditivas del cuerpo —destello, ojo, cresta— que cortan el lote entre las normales) · 19 en `finale` · 15 en `world-art` (presupuesto 60) |
+| Memoria del arte en R4 | **28.2 MiB** residentes (6 páginas; 26.4 antes del jefe); en la transición R3 → R4 conviven los paquetes de las dos salas (≈ 32 MiB, bajo el techo propuesto de 96 MiB) |
+| Arranque en frío (200 KB) | **193.3 KB gz** (193.2 antes: +0.1) · *chunk* de arte 17.0 KB gz (+0.7) · *chunk* del jefe 3.9 KB gz (+0.4) · primera sesión 226.0 KB gz (+1.3) |
+
+> Sigue sin medirse nada en un dispositivo real.
+
+### Pruebas que se adaptaron (y por qué)
+
+`artRepo.test` (ocho paquetes: el del jefe, `provisional` y empaquetado), `playerArt` (E2E: ocho paquetes en la biblioteca), `sanctumScene.test` (la regla «las piezas grandes del salón no se tapan entre sí» exime a las que contestan a una bandera —el ojo que arde y el que se cierra yacen sobre el muro a propósito—; y una prueba nueva fija que comparten **el centro del ojo tallado**) y `roomArt` (E2E: sección **I**, la del jefe —sus cinco partes las tiene el arte, el jefe se dibuja con ellas y no con las formas; el ojo del muro está apagado antes de la pelea, arde con `~fight:r4_boss` y se cierra con `defeated:r4_boss`; la recompensa no existe hasta que cae; el decorado no pone ninguna bandera; una sala reconstruida con el Custodio caído enseña el ojo cerrado de golpe, sin fundido; con `art=` el jefe vuelve a ser el de formas—). Ninguna prueba se bajó ni se borró.
+
+### Problemas encontrados (y resueltos)
+
+1. **El contrato de `decor` rechazaba los ojos superpuestos** (pivote `[0.5, 0.5]`; el contrato exige `[0.5, 1]` para toda pieza de escena): se pintaron con el pivote abajo y la escena los sube lo que falta (`EYE_Y = 6.9 − 4.2`). Lo cazó `assets:check`.
+2. **Avisos de borde en el paquete `enemies`** (el ojo y la esquirla tocaban los lados del lienzo, y la regla de este tipo de paquete es que el alfa no los toque): lienzos más grandes con el halo **dentro** de la imagen.
+3. **`eye_dead` salía como un anillo, no como una oscuridad** (al pintarla pequeña, 1.6 m, el radio del degradado seguía siendo el del lienzo grande): el radio sale ahora de `min(w, h) / 2`.
+4. **La primera versión del cuerpo tenía «pies» con bolas en las puntas del dobladillo** (se leían como miembros, justo lo que el diseño no quiere): lenguas irregulares con hilos finos.
+5. **Un fallo de prueba, no de producto:** la primera expectativa de la vista vestida esperaba un `Graphics` aditivo visible que no existe (el suelo es otro `Graphics`); se corrigió a lo que el contrato dice de verdad.
+6. **Los avisos violeta se leen mejor, no peor:** el pilar de formas era violeta y el Custodio pintado es casi negro; el `boss` E2E (que cuenta los píxeles violeta de los avisos sobre la arena ya vestida) pasa de *carga 331 → 1005 px, lluvia 1014 → 1182* a *carga 164 → 888, lluvia 840 → 1144*: el fondo violeta baja y el salto del aviso sube (+724 frente a +674).
+7. **La sonda del jefe en `room-art` usaba el nombre de la clase** (`constructor.name === 'Graphics'`): en desarrollo funcionaba y en producción (`vite build` minifica las clases) no hay nombres, así que el escenario fallaba solo en la pasada de producción. Ahora identifica el nodo por cómo se renderiza (`renderPipeId`: `graphics` / `sprite`), que sobrevive a la minificación. Era la prueba, no el juego.
+
+### Pendiente de la fase F (a propósito)
+
+- **Revisión artística:** el Custodio es **correcto y coherente** pero «de generador»: simetría casi perfecta, un dobladillo que gotea siempre igual, la costura de glifos repetida; **no tiene un animador que le dé peso**: se mueve entero (se hunde, se inclina, se levanta), sin deformarse ni cambiar de fotograma salvo la cresta. Un ilustrador debería darle una silueta más reconocible en la oscuridad y un par de poses propias (el aviso y el golpe).
+- **Los avisos violeta, la lluvia de tinta, los impactos y la muerte** (fase H). Con el Custodio y la arena ya vestidos, los avisos del suelo —`Graphics` planos— son lo que más desentona en R4.
+- **Calibración en dispositivo real:** que el Custodio (casi negro) se lea sobre el suelo de la arena en una pantalla pequeña, y que los avisos violeta ganen al ojo y a la corona.

@@ -102,10 +102,10 @@ async function paintPack(pack: PackSpec, page: import('playwright-core').Page): 
     json({
       manifestVersion: 1,
       id: pack.id,
-      category: 'environment',
+      category: pack.category ?? 'environment',
       status: 'provisional',
       comment: pack.comment,
-      tags: ['ruins', 'generated'],
+      tags: [...(pack.tags ?? ['ruins']), 'generated'],
       atlasMode: 'shared',
       ...(Object.keys(scenes).length > 0 ? { scenes } : {}),
       atlases: [],
@@ -115,7 +115,7 @@ async function paintPack(pack: PackSpec, page: import('playwright-core').Page): 
   // the index: this pack's entry is written, the others stay
   const indexFile = join(ART, 'index.json');
   const index = JSON.parse(readFileSync(indexFile, 'utf8')) as { manifestVersion: number; packs: Array<Record<string, unknown>> };
-  const entry = { id: pack.id, category: 'environment', load: 'zone', zones: pack.zones, manifest: `${pack.id}/${pack.id}.pack.json`, tags: ['ruins'] };
+  const entry = { id: pack.id, category: pack.category ?? 'environment', load: 'zone', zones: pack.zones, manifest: `${pack.id}/${pack.id}.pack.json`, tags: pack.tags ?? ['ruins'] };
   const at = index.packs.findIndex((p) => p['id'] === pack.id);
   if (at >= 0) index.packs[at] = entry;
   else index.packs.push(entry);
