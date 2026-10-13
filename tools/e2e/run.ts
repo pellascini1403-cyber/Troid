@@ -32,6 +32,7 @@ import { hazard } from './scenarios/hazard';
 import { hud } from './scenarios/hud';
 import { interaction } from './scenarios/interaction';
 import { language } from './scenarios/language';
+import { lighting } from './scenarios/lighting';
 import { magic } from './scenarios/magic';
 import { mobile } from './scenarios/mobile';
 import { death } from './scenarios/death';
@@ -54,7 +55,7 @@ import { vfx } from './scenarios/vfx';
 import { vfxArt } from './scenarios/vfxArt';
 import { world, worldArt } from './scenarios/world';
 
-const ALL: Scenario[] = [assets, playerArt, playerLab, playerR1, audioCues, environment, artPerformance, roomArt, movement, crouch, combat, slime, r1, room, death, render, camera, sprites, vfx, vfxArt, stress, touch, gamepad, hud, magic, bolt, bottles, bottle4, progression, interaction, devtools, language, vertical, transition, world, worldArt, boss, bossDeath, checkpoint, save, settings, hazard, mobile, finale, soak];
+const ALL: Scenario[] = [assets, playerArt, playerLab, playerR1, audioCues, environment, artPerformance, roomArt, movement, crouch, combat, slime, r1, room, death, render, camera, sprites, vfx, vfxArt, lighting, stress, touch, gamepad, hud, magic, bolt, bottles, bottle4, progression, interaction, devtools, language, vertical, transition, world, worldArt, boss, bossDeath, checkpoint, save, settings, hazard, mobile, finale, soak];
 const filter = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice('--only='.length).split(',').filter((n) => n !== '');
 const prod = process.argv.includes('--prod');
@@ -89,7 +90,8 @@ for (const scenario of selected) {
       // that opens several pages in a row only ever has the latest one alive.
       await opened.current?.page.context().close();
       opened.current = null;
-      const o = await openPage(browser, `${server.url}/?hooks=1&${query}`, size);
+      // `TROID_E2E_QUERY='&light=off'` adds a query to every page a run opens: the same scenario with an option on (to see what an option changes of what the scenario sees)
+      const o = await openPage(browser, `${server.url}/?hooks=1&${query}${process.env['TROID_E2E_QUERY'] ?? ''}`, size);
       opened.current = o;
       await o.page.waitForFunction('window.__troid && window.__troid.ready()', undefined, { timeout: 30000 });
       // the effects load after the first frame (a separate chunk): a scenario starts with them in place

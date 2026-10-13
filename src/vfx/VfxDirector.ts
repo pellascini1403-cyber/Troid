@@ -40,6 +40,8 @@ export class VfxDirector {
     private readonly projectileSkills: ReadonlySet<string> = new Set(),
     /** The light the hero carries (their magic): none when the game gives none (the lab, the tests). */
     private readonly ambient: AmbientOptions | null = null,
+    /** Told every time a trigger fires, with where: the light a moment leaves is drawn by whoever listens (it costs none of the effects' budget). */
+    private readonly onFire: ((trigger: VfxTrigger, spawn: VfxSpawn) => void) | null = null,
   ) {
     let spacing = 0.5;
     for (const id of bindings.dashTrail) {
@@ -161,6 +163,7 @@ export class VfxDirector {
 
   /** Starts every effect bound to a trigger. Returns how many produced something. */
   fire(trigger: VfxTrigger, spawn: VfxSpawn): number {
+    this.onFire?.(trigger, spawn);
     let made = 0;
     for (const id of this.bindings[trigger]) if (this.system.spawn(id, spawn)) made++;
     return made;

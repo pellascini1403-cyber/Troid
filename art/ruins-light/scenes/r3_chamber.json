@@ -66,6 +66,36 @@
         "motion": "drift"
       },
       {
+        "sprite": "motes_a",
+        "x": 10,
+        "y": -1.2,
+        "scale": 1.06,
+        "alpha": 0.31,
+        "flip": true,
+        "tint": 10478335,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_a",
+        "x": 31.63,
+        "y": -1.2,
+        "scale": 1,
+        "alpha": 0.24,
+        "flip": false,
+        "tint": 12906751,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_a",
+        "x": 77.64,
+        "y": -1.2,
+        "scale": 0.97,
+        "alpha": 0.25,
+        "flip": false,
+        "tint": 10478335,
+        "motion": "drift"
+      },
+      {
         "sprite": "glow_violet",
         "x": 63.6,
         "y": -2.8,

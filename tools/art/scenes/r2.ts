@@ -2,7 +2,7 @@ import { R2_HALL_ROOM } from '../../../src/content/rooms/r2Hall';
 import type { Placement, RoomScene, SceneLayer } from '../../../src/presentation/roomScene';
 import { Rng } from '../painter/rng';
 import { sizeOf, type PackSpec } from '../spec';
-import { choose, foregroundTop, push, round2, sceneOf, surfacesOf, type Layers } from './common';
+import { choose, foregroundTop, push, round2, sceneOf, scatterMotes, surfacesOf, type Layers } from './common';
 
 /**
  * THE DRESSING OF R2, «Galería de Raíces» (docs/GAME-SPEC-2D.md §14.5): a hall the forest has taken. The way in is a quiet place under an arch of roots, with the shrine at its heart;
@@ -124,6 +124,8 @@ function light(pack: PackSpec): RoomScene {
   over('mist_bank', 53, -3.9, { alpha: 0.26, scale: 0.7, motion: 'drift', flip: true });
   for (const x of [20, 72]) over('mist_bank', x, -0.2, { alpha: 0.14, scale: 0.6, motion: 'drift' });
   over('motes_a', 44, -2.6, { alpha: 0.5, motion: 'drift' });
+  // spores in the dark of the gallery: green-cyan, close, never over the ditch (its own dust is the field above)
+  scatterMotes(layers, new Rng(112), ROOM, { every: 22, yBottom: -2, alpha: [0.22, 0.36], scale: [0.85, 1.15], tints: [0xa8f0d8, 0x9fe6ff], avoid: [[30, 58]] });
   // the lichen on the walls of the ditch and the glow of its crystals and fungus
   for (const [x, y, k] of [[26.6, -0.6, 0.5], [27.4, -2.2, 0.42], [29.2, -2.9, 0.38], [57.2, -2.5, 0.45], [58.6, -1.1, 0.5], [59.4, -2.8, 0.36], [33.2, -2.3, 0.62], [36.4, -2.9, 0.42], [46.5, -2.2, 0.72], [52.2, -2.8, 0.45]] as const) {
     centred('glow_cyan', x, y, k, { alpha: 0.42, motion: 'pulse' });

@@ -31,3 +31,17 @@ describe('where the art is (?art= and the build)', () => {
     expect(optionsFromQuery(new URLSearchParams('hooks=1')).art).toBeUndefined();
   });
 });
+
+describe('?light=off (the game as it was before the light of the world)', () => {
+  it('takes away the light the energy casts and the atmosphere of the screen; anything else keeps them', () => {
+    expect(optionsFromQuery(new URLSearchParams('light=off')).light).toBe('off');
+    expect(optionsFromQuery(new URLSearchParams('')).light).toBe('auto');
+    expect(optionsFromQuery(new URLSearchParams('light=on')).light).toBe('auto');
+    expect(optionsFromQuery(new URLSearchParams('light=')).light).toBe('auto');
+  });
+
+  it('is independent of the other looks: the art of the effects and the visual of the hero ignore it', () => {
+    const o = optionsFromQuery(new URLSearchParams('light=off&vfx=procedural&visual=art'));
+    expect([o.light, o.vfx, o.visual]).toEqual(['off', 'procedural', 'art']);
+  });
+});

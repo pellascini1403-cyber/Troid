@@ -2,7 +2,7 @@ import { R3_CHAMBER_ROOM } from '../../../src/content/rooms/r3Chamber';
 import type { Placement, RoomScene, SceneLayer } from '../../../src/presentation/roomScene';
 import { Rng } from '../painter/rng';
 import { sizeOf, type PackSpec } from '../spec';
-import { choose, foregroundTop, push, round2, sceneOf, surfacesOf, type Layers } from './common';
+import { choose, foregroundTop, push, round2, sceneOf, scatterMotes, surfacesOf, type Layers } from './common';
 
 /**
  * THE DRESSING OF R3, «Cámara del Sello» (docs/GAME-SPEC-2D.md §14.6): the room where the hero is given something and then put to use. A ritual road of worn paving, with a line of light
@@ -121,6 +121,8 @@ function light(pack: PackSpec): RoomScene {
   for (const x of [14, 40, 58]) over('mist_bank', x, -0.2, { alpha: 0.16, scale: 0.7, motion: 'drift' });
   over('mist_bank', DOOR_X, -0.1, { alpha: 0.4, scale: 0.8, motion: 'drift', tint: 0xa56bff });
   over('motes_a', 59, 0.4, { alpha: 0.4, motion: 'drift' });
+  // the energy of the seal in the air of the chamber: cyan sparks
+  scatterMotes(layers, new Rng(113), ROOM, { every: 22, yBottom: -1.2, alpha: [0.22, 0.34], scale: [0.85, 1.15], tints: [0x9fe2ff, 0xc4f0ff], avoid: [[50, 68]] });
   // the glow of the ward: on the door, high and low, and a halo at the feet of the guardians
   centred('glow_violet', DOOR_X, 2.4, 2.6, { alpha: 0.3, motion: 'pulse' });
   centred('glow_violet', DOOR_X, 6.4, 2.2, { alpha: 0.18, motion: 'pulse' });

@@ -53,3 +53,28 @@ export const choose = <T>(rng: Rng, items: ReadonlyArray<readonly [T, number]>):
   }
   return items[items.length - 1]![0];
 };
+
+/**
+ * Dust, spores and sparks in the air (docs/PROMPT8-LOG.md, phase I): fields of the motes piece (16 × 12 m of soft light, drifting) spread along the whole room, so that the air is never empty, in front of the action
+ * (the light overlay: added) and dim. Where they stand, how big and how bright is seeded: a rebuild changes nothing. `avoid` leaves clear the places the hand already put a field in (or where the eye must
+ * stay free: the arena, whose telegraphs are what shout).
+ */
+export function scatterMotes(
+  layers: Layers,
+  rng: Rng,
+  room: RoomLike,
+  o: { every: number; yBottom: number; alpha: readonly [number, number]; scale: readonly [number, number]; tints: readonly number[]; avoid?: ReadonlyArray<readonly [number, number]> },
+): void {
+  const b = room.camera?.bounds;
+  const x0 = b?.x0 ?? 0;
+  const x1 = b?.x1 ?? 100;
+  for (let x = x0 + o.every * 0.5; x < x1; x += o.every * rng.range(0.85, 1.15)) {
+    const alpha = round2(rng.range(o.alpha[0], o.alpha[1]));
+    const scale = round2(rng.range(o.scale[0], o.scale[1]));
+    const flip = rng.chance(0.5);
+    const tint = o.tints[Math.floor(rng.next() * o.tints.length) % o.tints.length]!;
+    const at = round2(x);
+    if (o.avoid?.some(([a, c]) => at >= a && at <= c)) continue;
+    push(layers, 'lightOverlay', { sprite: 'motes_a', x: at, y: o.yBottom, scale, alpha, flip, tint, motion: 'drift' });
+  }
+}

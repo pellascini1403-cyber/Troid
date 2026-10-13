@@ -2,7 +2,7 @@ import { R1_GATE_ROOM } from '../../../src/content/rooms/r1Gate';
 import type { Placement, RoomScene, SceneLayer } from '../../../src/presentation/roomScene';
 import { Rng } from '../painter/rng';
 import { sizeOf, type PackSpec } from '../spec';
-import { choose, foregroundTop, push, round2, sceneOf, surfacesOf, type Layers } from './common';
+import { choose, foregroundTop, push, round2, sceneOf, scatterMotes, surfacesOf, type Layers } from './common';
 
 /**
  * THE DRESSING OF R1, «Puerta de las Ruinas» (docs/GAME-SPEC-2D.md §14.4): which pieces of the packs stand where. A room is a walk — the open way in under the old trees, the
@@ -108,6 +108,8 @@ function light(pack: PackSpec): RoomScene {
   for (const x of [16, 56, 90]) over('mist_bank', x, -0.2, { alpha: 0.16, scale: 0.6, motion: 'drift' });
   // dust in the light by the gate
   over('motes_a', 104, -0.5, { alpha: 0.55, motion: 'drift' });
+  // …and the air of the rest of the walk is never empty: pale dust under the trees, dimmer in the chasm and the tunnel
+  scatterMotes(layers, new Rng(111), ROOM, { every: 21, yBottom: -1.5, alpha: [0.2, 0.34], scale: [0.85, 1.2], tints: [0xd8f0ff, 0xbfe6ff], avoid: [[90, 114]] });
   // small glows under the crystals and the rune stone, a violet halo at the foot of each effigy
   for (const [x, y, k] of [[8.2, 1.6, 0.8], [12.6, 0.55, 0.55], [51.2, 5.6, 0.5], [66.2, 0.3, 0.4], [99.4, 0.5, 0.5], [111.6, 0.5, 0.45]] as const) centred('glow_cyan', x, y, k, { alpha: 0.4, motion: 'pulse' });
   for (const x of [101.3, 108.1]) centred('glow_violet', x, 2.2, 0.9, { alpha: 0.2, motion: 'pulse' });

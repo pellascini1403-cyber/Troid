@@ -27,6 +27,8 @@ export interface GameOptions {
   visual: VisualMode;
   /** `?vfx=procedural` keeps the effects drawing with the game's own shapes even when the art has painted them (to compare, and to see the fallback); anything else (the default) uses the art's. */
   vfx: 'auto' | 'procedural';
+  /** `?light=off` takes away the light the energy casts on the world (the hero's, the bolt's, the enemies'): the game as it was before phase I, to compare and to see what it adds; anything else (the default) has it. */
+  light: 'auto' | 'off';
   camera: Partial<CameraConfig>;
 }
 
@@ -52,6 +54,7 @@ export function optionsFromQuery(q: URLSearchParams): GameOptions {
     art: q.get('art') ?? undefined,
     visual: (VISUAL_MODES as readonly string[]).includes(q.get('visual') ?? '') ? (q.get('visual') as VisualMode) : 'auto',
     vfx: q.get('vfx') === 'procedural' ? 'procedural' : 'auto',
+    light: q.get('light') === 'off' ? 'off' : 'auto',
     camera: cameraConfigFromQuery(q),
   };
 }

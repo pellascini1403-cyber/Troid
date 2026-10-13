@@ -177,6 +177,8 @@ export function createTestHooks(h: HookHost) {
       if (!e || !(seconds > 0)) return;
       e.director.update(seconds);
       e.system.update(seconds);
+      e.lighting?.advance(seconds);
+      e.screen?.update(seconds);
     },
     state: () => {
       const b = session.player.body;
@@ -244,6 +246,10 @@ export function createTestHooks(h: HookHost) {
         vfx: effects?.system.stats ?? NO_EFFECTS,
         // where the light of the effects comes from (phase H): the shapes (`art`: painted, `procedural`: the game's own) and the sequences the art gave
         vfxLook: effects?.look ?? null,
+        // the light the energy casts on the world (phase I): how many lights are on, how much light in all, and which (`null`: none — `?light=off`, or the effects have not arrived)
+        lights: effects?.lighting?.field.stats ?? null,
+        // the atmosphere of the screen (phase I): the room's dark, whether the fight's is on and which pulses are at the edge (`null`: none)
+        screen: effects?.screen?.state ?? null,
         // what the views of the bolt and of the boss draw with (the art's, or their shapes): `null` when there is none of them now
         looks: (() => {
           let bolt: boolean | null = null;

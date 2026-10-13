@@ -37,6 +37,7 @@ import { VirtualPad } from '@/input/sources/VirtualPad';
 import { ProgressStore } from '@/save/ProgressStore';
 import { SettingsStore } from '@/save/SettingsStore';
 import type { TouchSettings } from '@/save/SettingsData';
+import type { LightFrame, LightHero } from '@/presentation/lighting';
 import type { QualitySetting } from '@/presentation/viewport';
 import { lackedClips } from '@/presentation/visualSource';
 import { ActorSprite } from '@/render/ActorSprite';
@@ -121,6 +122,10 @@ export class Game2D {
   private cueLog: CueLog | null = null;
   /** Builds the effects again with the budgets of the profile in force (set once their chunk has arrived). */
   private rebuildEffects: (() => void) | null = null;
+  /** What the lights of the world read each frame (made once, filled in place: nothing is allocated while the game runs). */
+  private readonly lightHero: LightHero = { x: 0, y: 0, dead: false, magic: 0 };
+  private readonly lightFrame: LightFrame = { alpha: 1, hero: this.lightHero, bodies: [] };
+  private readonly floorProbe = { x0: 0, y0: 0, x1: 0, y1: 0 };
   /** The light the art painted (docs/ART-PIPELINE-2D.md §M.14), once the art has started and its packs of light are in memory: the effects draw from this atlas instead of the game's own, which stays under it. */
   private vfxArt: { readonly atlas: VfxAtlas; dispose(): void } | null = null;
   /** The art that comes from files (docs/ART-PIPELINE-2D.md, part C): a separate chunk, fetched after the first frame and ONLY when there is an index to read. `null` otherwise. */
@@ -413,6 +418,8 @@ export class Game2D {
             now: () => this.session.now,
             // the hero carries light as long as their magic is high (and none once they are down)
             ambientLevel: () => (this.session.player.health.dead ? 0 : this.session.magic.fraction),
+            light: options.light !== 'off',
+            screen: { layer: renderer.layers.screen, rect: () => renderer.viewport, room: this.session.room.id },
           });
         };
         this.rebuildEffects = build;
@@ -649,6 +656,7 @@ export class Game2D {
       this.buildRoomView();
       this.camera.snap();
       this.effects?.system.clear();
+      this.effects?.lighting?.field.clear();
     }
     const p = this.session.player;
     // While paused (debug / E2E) show the exact simulated state, not an interpolation of stale ticks.
@@ -665,6 +673,8 @@ export class Game2D {
     const vfxDt = this.debug.get('paused') ? 0 : realDt * this.debug.get('timeScale');
     this.effects?.director.update(vfxDt);
     this.effects?.system.update(vfxDt);
+    this.updateLights(vfxDt, a, x, y);
+    this.effects?.screen?.update(vfxDt);
     this.roomView.update(realDt);
     // the scenery that answers the world reads its flags (never writes one)
     this.roomArt?.update(realDt, (flag) => this.session.flags.has(flag));
@@ -690,6 +700,37 @@ export class Game2D {
     this.counter.beginFrame();
     this.renderer.render();
     this.counter.endFrame();
+  }
+
+  /** The top of the highest floor under a point, a few metres down (`null`: none — a pit). The pool of light under the hero lies there, where they will land. */
+  private floorBelow(x: number, y: number): number | null {
+    const r = this.floorProbe;
+    r.x0 = x - 0.25;
+    r.x1 = x + 0.25;
+    r.y0 = y - 6;
+    r.y1 = y + 0.05;
+    let best: number | null = null;
+    for (const c of this.session.collision.query(r)) {
+      const top = c.rect.y1;
+      if (top <= y + 0.05 && (best === null || top > best)) best = top;
+    }
+    return best;
+  }
+
+  /** The light the energy casts on the world: the hero's (their magic makes it brighter), the bolts', the enemies' and the guardian's. It reads what the views read — the interpolated state — and draws behind the actors. */
+  private updateLights(dt: number, alpha: number, x: number, y: number): void {
+    const lighting = this.effects?.lighting;
+    if (!lighting) return;
+    const hero = this.lightHero;
+    hero.x = x;
+    hero.y = y;
+    hero.dead = this.session.player.health.dead;
+    hero.magic = this.session.magic.fraction;
+    hero.ground = this.session.player.body.grounded ? y : this.floorBelow(x, y);
+    const frame = this.lightFrame;
+    frame.alpha = alpha;
+    frame.bodies = this.session.entities;
+    lighting.update(dt, frame);
   }
 
   // ----------------------------------------------------------------------------------------------------- settings

@@ -1,13 +1,21 @@
-import { GlParticleContainerPipe } from 'pixi.js';
+import { GlParticleContainerPipe, type Container } from 'pixi.js';
 import { AudioDirector, CueLog } from '@/audio/AudioDirector';
+import { vignetteTexture } from '@/assets/proceduralTextures';
 import type { VfxAtlas } from '@/assets/vfxAtlas';
+import { EDGE_PULSES, FIGHT_MOOD, moodFor } from '@/content/atmosphere';
+import { LIGHT_PULSES, LIGHT_RECIPES, LIGHT_STRENGTH } from '@/content/lights';
 import { AMBIENT, VFX, VFX_BINDINGS } from '@/content/vfx';
 import type { EventBus } from '@/core/events';
 import type { GameEvents } from '@/gameplay/events';
 import type { AudioSink } from '@/presentation/audioCues';
-import { PARTICLE_BUDGET, SPRITE_FX_BUDGET } from '@/presentation/vfx';
+import { vignetteAlpha } from '@/presentation/atmosphere';
+import { collectLights, lightCapacity, LightBook, pulseCapacity, type LightFrame } from '@/presentation/lighting';
+import { PARTICLE_BUDGET, SPRITE_FX_BUDGET, type VfxSpawn, type VfxTrigger } from '@/presentation/vfx';
+import { viewY } from '@/presentation/worldTransform';
 import type { QualityTier } from '@/presentation/viewport';
 import type { Layers } from '@/render/layers';
+import { LightField } from '@/vfx/LightField';
+import { ScreenFx, type ScreenRect } from '@/vfx/ScreenFx';
 import { VfxDirector } from '@/vfx/VfxDirector';
 import { VfxSystem } from '@/vfx/VfxSystem';
 
@@ -22,11 +30,24 @@ export interface Effects {
   readonly director: VfxDirector;
   /** Raises the cues of the sound to come into the sink it was given (`null`: nobody listens, so nothing is raised — the game has no sound). */
   readonly cues: AudioDirector | null;
+  /** The light of the world (docs/PROMPT8-LOG.md, phase I): soft pools of energy behind the actors. `null` when the page asked for none (`?light=off`). */
+  readonly lighting: Lighting | null;
+  /** The atmosphere of the screen: the vignette of the room and the pulses at the edge when something happens to the hero. `null` without it (`?light=off`, or a tool that gives no screen). */
+  readonly screen: ScreenFx | null;
   /** What the quality profile it was built with allows: live particles and live sprite effects (the E2E reads it; the game does not need it). */
   readonly budgets: { readonly particles: number; readonly sprites: number };
   /** Where the shapes the effects are drawn from come from (`art`: painted; `procedural`: the game's own) and the sequences the art gave (the E2E reads it). */
   readonly look: { readonly origin: VfxAtlas['origin']; readonly sequences: readonly string[] };
   dispose(): void;
+}
+
+/** The lights of the world as the game drives them: `update` reads what the views read (the frame), decides which lights there are and draws them; `advance` lets them ease for a while without asking again (a paused lab, a test). */
+export interface Lighting {
+  readonly field: LightField;
+  update(dt: number, frame: LightFrame): void;
+  advance(dt: number): void;
+  /** The light a moment leaves where it happened (what the trigger that just fired is bound to in `LIGHT_PULSES`). */
+  pulse(trigger: VfxTrigger, spawn: VfxSpawn): void;
 }
 
 export interface EffectsOptions {
@@ -46,6 +67,10 @@ export interface EffectsOptions {
   now?: () => number;
   /** 0–1: how much light the hero carries now (their magic): the director lets a mote go as often as it is high. None: the hero carries none. */
   ambientLevel?: () => number;
+  /** `false`: no lights of the world and no atmosphere on the screen (`?light=off`: to compare, and to see what the game was). Default: with them. */
+  light?: boolean;
+  /** The screen layer, where the game is drawn on it and the room the hero is in: with them the screen has its atmosphere. */
+  screen?: { layer: Container; rect: () => ScreenRect; room: string };
 }
 
 /** A log of cues, for the tests and the development build: made here so it travels with the effects and never with the first download. */
@@ -76,18 +101,65 @@ export function createEffects(o: EffectsOptions): Effects {
     spriteBudget: budgets.sprites,
   });
   system.prewarm();
-  const director = new VfxDirector(o.bus, system, VFX_BINDINGS, VFX, o.playerPosition, o.projectileSkills, o.ambientLevel ? { ...AMBIENT, level: o.ambientLevel } : null);
+  const lighting = o.light === false ? null : createLighting(o.layers.fxBack, o.atlas, o.tier);
+  const screen =
+    o.light === false || !o.screen
+      ? null
+      : new ScreenFx(o.screen.layer, {
+          bus: o.bus,
+          texture: vignetteTexture((d) => vignetteAlpha(d, 1)),
+          rect: o.screen.rect,
+          room: o.screen.room,
+          moodFor,
+          fight: FIGHT_MOOD,
+          pulses: EDGE_PULSES,
+        });
+  const director = new VfxDirector(
+    o.bus, system, VFX_BINDINGS, VFX, o.playerPosition, o.projectileSkills, o.ambientLevel ? { ...AMBIENT, level: o.ambientLevel } : null,
+    lighting ? (trigger, spawn) => lighting.pulse(trigger, spawn) : null,
+  );
   const cues = o.audioSink ? new AudioDirector(o.bus, o.audioSink, { now: o.now, projectileSkills: o.projectileSkills }) : null;
   return {
     system,
     director,
     cues,
+    lighting,
+    screen,
     budgets,
     look: { origin: o.atlas.origin, sequences: Object.keys(o.atlas.sequences) },
     dispose: () => {
       cues?.dispose();
       director.dispose();
+      lighting?.field.destroy();
+      screen?.dispose();
       system.destroy();
+    },
+  };
+}
+
+/** The light of the world: a field of pooled sprites in the layer behind the actors, and the book the frame fills for it. */
+function createLighting(layer: Layers['fxBack'], atlas: VfxAtlas, tier: QualityTier): Lighting {
+  const capacity = lightCapacity(tier);
+  const field = new LightField(layer, atlas, capacity, pulseCapacity(tier));
+  const book = new LightBook(capacity);
+  return {
+    field,
+    update(dt, frame) {
+      book.begin();
+      collectLights(frame, LIGHT_RECIPES, LIGHT_STRENGTH, book);
+      book.end();
+      field.update(dt, book);
+    },
+    advance(dt) {
+      field.update(dt, book);
+    },
+    pulse(trigger, spawn) {
+      const list = LIGHT_PULSES[trigger];
+      if (!list) return;
+      for (const p of list) {
+        const [ox, oy] = p.offset ?? [0, 0];
+        field.pulse(p, spawn.x + ox * spawn.facing, viewY(spawn.y + oy));
+      }
     },
   };
 }

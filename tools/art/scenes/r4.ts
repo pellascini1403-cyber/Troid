@@ -2,7 +2,7 @@ import { R4_SANCTUM_ROOM } from '../../../src/content/rooms/r4Sanctum';
 import type { Placement, RoomScene, SceneLayer } from '../../../src/presentation/roomScene';
 import { Rng } from '../painter/rng';
 import { sizeOf, type PackSpec } from '../spec';
-import { choose, foregroundTop, push, round2, sceneOf, surfacesOf, type Layers } from './common';
+import { choose, foregroundTop, push, round2, sceneOf, scatterMotes, surfacesOf, type Layers } from './common';
 
 /**
  * THE DRESSING OF R4, «Santuario» (docs/GAME-SPEC-2D.md §14.4): the last room of the slice and the home of its boss. Three stretches in a line, and the scenery tells them apart before the
@@ -156,6 +156,8 @@ function light(pack: PackSpec): RoomScene {
   centred('glow_cyan', EAST_PORTAL_X, 3.6, 2.2, { alpha: 0.4, motion: 'pulse', whenSet: FALLEN });
   over('mist_bank', 90, -0.2, { alpha: 0.24, scale: 0.8, motion: 'drift' });
   over('motes_a', 80, 0.4, { alpha: 0.36, motion: 'drift' });
+  // embers of the sanctum, violet and cyan, dim: the arena (where the warnings are what shout) keeps clear
+  scatterMotes(layers, new Rng(114), ROOM, { every: 22, yBottom: -1.2, alpha: [0.16, 0.28], scale: [0.85, 1.15], tints: [0xcdbdff, 0x9fe2ff], avoid: [[25, 67], [38, 54], [74, 88]] });
   return scene(layers);
 }
 
