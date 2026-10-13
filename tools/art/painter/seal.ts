@@ -27,7 +27,7 @@ const VIOLET: Rgb = hex('#9a5cff');
 const rgba = (c: Rgb, a: number): string => `rgba(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)},${a})`;
 
 /** Cuts a white mask into the layers of a stone: the mask is lower than the stone around it, darker, and full of light. */
-function inlay(layers: Layers, mask: Surface, ppm: number, glow: Rgb, o: { depth?: number; halo?: number; strength?: number } = {}): Layers {
+export function inlay(layers: Layers, mask: Surface, ppm: number, glow: Rgb, o: { depth?: number; halo?: number; strength?: number } = {}): Layers {
   const { w, h } = layers;
   const m = alphaOf(mask);
   const soft = alphaOf(blurred(mask, ppm * (o.halo ?? 0.12)));

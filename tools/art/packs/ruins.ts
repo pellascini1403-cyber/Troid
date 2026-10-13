@@ -1,6 +1,7 @@
 import { R1_SCENES } from '../scenes/r1';
 import { R2_SCENES } from '../scenes/r2';
 import { R3_SCENES } from '../scenes/r3';
+import { R4_SCENES } from '../scenes/r4';
 import type { PackSpec, SpriteSpec } from '../spec';
 
 /**
@@ -15,7 +16,7 @@ import type { PackSpec, SpriteSpec } from '../spec';
  * done is never half-dressed with materials that were not composed for it (the boss's telegraph, for one, was drawn over a bare floor and is judged over the scenery that
  * phase gives it).
  */
-const DRESSED_ROOMS = ['r1_gate', 'r2_hall', 'r3_chamber'];
+const DRESSED_ROOMS = ['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum'];
 const SEED = 7;
 
 const solid = (material: 'earth' | 'stone'): SpriteSpec[] => {
@@ -110,7 +111,7 @@ export const RUINS_GROUND: PackSpec = {
     prop('rune_stone_a', 'runeStone', 7, [1.3, 3.2], 'props-back'),
     prop('effigy_a', 'effigy', 9, [1.6, 3.6], 'props-back'),
   ],
-  scenes: { r1_gate: R1_SCENES.ground, r2_hall: R2_SCENES.ground, r3_chamber: R3_SCENES.ground },
+  scenes: { r1_gate: R1_SCENES.ground, r2_hall: R2_SCENES.ground, r3_chamber: R3_SCENES.ground, r4_sanctum: R4_SCENES.ground },
 };
 
 export const RUINS_BACK: PackSpec = {
@@ -130,7 +131,7 @@ export const RUINS_BACK: PackSpec = {
     prop('fore_leaves_b', 'foreLeaves', 42, [5, 3.4], 'foreground', 48),
     prop('fore_leaves_c', 'foreLeaves', 43, [5, 3.4], 'foreground', 48),
   ],
-  scenes: { r1_gate: R1_SCENES.back, r2_hall: R2_SCENES.back, r3_chamber: R3_SCENES.back },
+  scenes: { r1_gate: R1_SCENES.back, r2_hall: R2_SCENES.back, r3_chamber: R3_SCENES.back, r4_sanctum: R4_SCENES.back },
 };
 
 export const RUINS_LIGHT: PackSpec = {
@@ -149,7 +150,7 @@ export const RUINS_LIGHT: PackSpec = {
     lightPiece('mist_bank', 'lightMist', 1024, 192, 32, 'decor', { seed: 3 }),
     lightPiece('motes_a', 'lightMotes', 512, 384, 32, 'decor', { seed: 8 }),
   ],
-  scenes: { r1_gate: R1_SCENES.light, r2_hall: R2_SCENES.light, r3_chamber: R3_SCENES.light },
+  scenes: { r1_gate: R1_SCENES.light, r2_hall: R2_SCENES.light, r3_chamber: R3_SCENES.light, r4_sanctum: R4_SCENES.light },
 };
 
 /**
@@ -225,4 +226,55 @@ export const RUINS_SEAL: PackSpec = {
   scenes: { r3_chamber: R3_SCENES.seal },
 };
 
-export const PACKS: readonly PackSpec[] = [RUINS_GROUND, RUINS_BACK, RUINS_LIGHT, RUINS_ROOTS, RUINS_SEAL];
+/**
+ * THE SANCTUM (R4): the hall where the hero rests one last time and the Ink Warden sleeps. Columns taller than the view, guardians of stone for the layers behind the action, the wall with an
+ * eye cut into it, the shrine of the last rest, the dais and the rune of the Air Dash, the ink on the floor, banners, the portals at either end and the floor itself. Only R4 fetches it.
+ */
+const grand = (id: string, piece: string, seed: number, sizeM: [number, number], layer: string, ppm: number, params: Record<string, unknown> = {}): SpriteSpec => ({
+  id,
+  tags: ['role:decor', `layer:${layer}`],
+  piece,
+  params: { seed, ...params },
+  sizeM,
+  ppm,
+  pivot: [0.5, 1],
+});
+
+export const RUINS_SANCTUM: PackSpec = {
+  id: 'ruins-sanctum',
+  zones: ['r4_sanctum'],
+  ppm: 96,
+  comment:
+    'THE SANCTUM of the Ink Warden: columns taller than the view, guardians of stone, the wall with an eye cut into it, the shrine of the last rest, the rune of the Air Dash, the ink on the floor, banners, the portals and the floor. ' +
+    'Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.',
+  sprites: [
+    // the hall: columns that leave the screen, guardians that watch from the haze, the wall with an eye, banners, the portals at the two ends — all in the layer behind the action (a single density, 40 px/m:
+    // they are bigger than the screen, and a column does not need the hero's 96 to be a column)
+    grand('column_grand_a', 'colossalColumn', SEED + 80, [2.6, 12], 'backdrop-near', 40, { variant: 0 }),
+    grand('column_grand_b', 'colossalColumn', SEED + 81, [2.6, 12], 'backdrop-near', 40, { variant: 1 }),
+    grand('portal_grand', 'portalGrand', SEED + 82, [7.4, 13], 'backdrop-near', 40),
+    grand('colossus_a', 'colossus', SEED + 84, [5, 15], 'backdrop-near', 40, { variant: 0 }),
+    grand('colossus_b', 'colossus', SEED + 85, [5, 15], 'backdrop-near', 40, { variant: 1 }),
+    grand('eye_wall', 'eyeWall', SEED + 86, [10, 13], 'backdrop-near', 40),
+    grand('banner_a', 'banner', SEED + 87, [2.4, 8], 'backdrop-near', 40, { variant: 0 }),
+    grand('banner_b', 'banner', SEED + 88, [2.4, 8], 'backdrop-near', 40, { variant: 1 }),
+    // at the depth of the hero: the dais of the reward
+    grand('dais_reward', 'dais', SEED + 83, [2.6, 0.8], 'props-back', 96),
+    // on the floor: the ink of the Warden, and the paving of the three stretches (cyan dashes, cold ticks, a double line)
+    grand('ink_pool_a', 'inkPool', SEED + 89, [3.2, 0.8], 'terrain', 96),
+    grand('ink_pool_b', 'inkPool', SEED + 90, [3.2, 0.8], 'terrain', 96),
+    grand('ink_pool_c', 'inkPool', SEED + 91, [3.2, 0.8], 'terrain', 96),
+    grand('paving_dashes', 'sanctumPaving', SEED + 92, [4, 0.3], 'terrain', 96, { cols: 4, style: 'dashes' }),
+    grand('paving_ticks', 'sanctumPaving', SEED + 93, [4, 0.3], 'terrain', 96, { cols: 4, style: 'ticks' }),
+    grand('paving_double', 'sanctumPaving', SEED + 94, [4, 0.3], 'terrain', 96, { cols: 4, style: 'double' }),
+    // the shrine of the last rest: two frames, resting and lit
+    { id: 'shrine_sanctum', tags: ['role:interactive', 'kind:rest'], piece: 'sanctumShrine', params: { seed: SEED + 95 }, cols: 2, rows: 1, pivot: [0.5, 1] },
+    // the ring on the floor of the arena: cold light, flattened (the one piece of light of this pack: its own family, at the density a soft light needs)
+    lightPiece('ring_arena', 'arenaRing', 704, 35, 32, 'decor', { seed: 9 }),
+    // the rune of the Air Dash: light that floats over the dais
+    { id: 'rune_air', tags: ['role:interactive', 'kind:pickup', 'variant:rune'], piece: 'airRune', params: { seed: SEED + 96 }, sizeM: [1.9, 1.3], pivot: [0.5, 1] },
+  ],
+  scenes: { r4_sanctum: R4_SCENES.sanctum },
+};
+
+export const PACKS: readonly PackSpec[] = [RUINS_GROUND, RUINS_BACK, RUINS_LIGHT, RUINS_ROOTS, RUINS_SEAL, RUINS_SANCTUM];

@@ -151,6 +151,8 @@ Módulos que **no** existen en la carpeta hasta que se necesiten: `bosses/` (con
 
 > **Estado real tras el Prompt 8, fase D** (R3 vestida). `roomPlan` ganó `planSeals` (dónde cuelga el sigilo de cada sello, a la altura de `sealSigilY`, y qué falta por ranura) y `environment` entiende `role:seal`. El sello es una **entidad** (la sala la hace nacer), así que su arte no cabe en una escena: `RoomArtView` crea un `ArtSeal` por sello y `SealView.dress(art)` lo cuelga de la vista del sello (`EntityViews.each(kind, fn)` encuentra las vistas de un tipo); el arte **lee los mismos tres números que leía el *blockout*** (`rejected`, `opacity`, `broken`) y no decide nada; las formas del *blockout* se ocultan —no se destruyen— y vuelven en el mismo fotograma si el arte se limpia. `Game2D.dressRoom` conoce un sello por el id de los **datos de la sala** (`def.id`), no por el de la entidad. La puerta del sello y la carta usan lo que ya existía (`material:seal`, `variant:card`). `tools/art` gana el paquete de R3 (`ruins-seal`, 96 px/m) y la composición `r3_chamber`. La simulación sigue sin importar nada de esto.
 
+> **Estado real tras el Prompt 8, fase E** (R4 vestida). **Ningún cambio en `src/`**: R4 usa lo que las fases B–D ya enseñaron (puertas de `gate` que se cierran con la pelea, un `rest`, un `pickup` de `variant:rune`, dos salidas). `tools/art` gana el paquete de R4 (`ruins-sanctum`: todo lo monumental en la capa de detrás a 40 px/m, lo del plano del héroe a 96) y la composición `r4_sanctum`, hecha en metros de la capa de paralaje; con ella las 14 piezas obligatorias del entorno están entregadas y la lista de lo que sigue siendo *blockout* del entorno queda vacía. La simulación sigue sin importar nada de esto.
+
 ---
 
 ## 4. Contrato simulación → vista

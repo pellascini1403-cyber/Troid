@@ -1,0 +1,183 @@
+{
+  "sceneVersion": 1,
+  "room": "r4_sanctum",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 49.5,
+        "y": -5.2,
+        "w": 99,
+        "h": 5.2
+      },
+      {
+        "sprite": "rubble_a",
+        "x": 8.84,
+        "y": 0,
+        "scale": 1.12,
+        "flip": false
+      },
+      {
+        "sprite": "grass_a",
+        "x": 11.66,
+        "y": 0,
+        "scale": 0.9,
+        "flip": false
+      },
+      {
+        "sprite": "grass_b",
+        "x": 14.39,
+        "y": 0,
+        "scale": 0.9,
+        "flip": true
+      },
+      {
+        "sprite": "fern_b",
+        "x": 17.23,
+        "y": 0,
+        "scale": 1.01,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_c",
+        "x": 22.37,
+        "y": 0,
+        "scale": 0.93,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_c",
+        "x": 67.8,
+        "y": 0,
+        "scale": 1.1,
+        "flip": false
+      },
+      {
+        "sprite": "grass_b",
+        "x": 77.22,
+        "y": 0,
+        "scale": 1.08,
+        "flip": true
+      },
+      {
+        "sprite": "rubble_b",
+        "x": 79.92,
+        "y": 0,
+        "scale": 1.1,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_a",
+        "x": 84.56,
+        "y": 0,
+        "scale": 1.04,
+        "flip": true
+      },
+      {
+        "sprite": "rubble_a",
+        "x": 92.19,
+        "y": 0,
+        "scale": 1.18,
+        "flip": true
+      },
+      {
+        "sprite": "rubble_a",
+        "x": 95.33,
+        "y": 0,
+        "scale": 0.88,
+        "flip": false
+      },
+      {
+        "sprite": "grass_a",
+        "x": 98.45,
+        "y": 0,
+        "scale": 0.88,
+        "flip": true
+      },
+      {
+        "sprite": "rubble_a",
+        "x": 28,
+        "y": 0,
+        "scale": 1.05
+      },
+      {
+        "sprite": "rubble_b",
+        "x": 31.2,
+        "y": 0,
+        "scale": 0.8,
+        "flip": true
+      },
+      {
+        "sprite": "rubble_c",
+        "x": 64.9,
+        "y": 0,
+        "scale": 1,
+        "flip": true
+      },
+      {
+        "sprite": "rubble_b",
+        "x": 37.6,
+        "y": 0,
+        "scale": 0.7
+      },
+      {
+        "sprite": "crystals_a",
+        "x": 11.4,
+        "y": 0,
+        "scale": 1
+      },
+      {
+        "sprite": "crystals_b",
+        "x": 17.2,
+        "y": 0,
+        "scale": 0.85
+      },
+      {
+        "sprite": "crystals_a",
+        "x": 81.8,
+        "y": 0,
+        "scale": 0.8
+      }
+    ],
+    "propsBack": [
+      {
+        "sprite": "effigy_a",
+        "x": 22.8,
+        "y": 0,
+        "scale": 1.15,
+        "flip": true
+      },
+      {
+        "sprite": "rune_stone_a",
+        "x": 7.4,
+        "y": 0
+      },
+      {
+        "sprite": "column_broken_a",
+        "x": 29.4,
+        "y": 0,
+        "scale": 1.1
+      },
+      {
+        "sprite": "column_broken_b",
+        "x": 63.8,
+        "y": 0,
+        "scale": 1,
+        "flip": true
+      },
+      {
+        "sprite": "effigy_a",
+        "x": 79.6,
+        "y": 0,
+        "scale": 1.1
+      },
+      {
+        "sprite": "effigy_a",
+        "x": 88.4,
+        "y": 0,
+        "scale": 1.1,
+        "flip": true
+      }
+    ]
+  }
+}

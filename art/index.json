@@ -17,7 +17,8 @@
       "zones": [
         "r1_gate",
         "r2_hall",
-        "r3_chamber"
+        "r3_chamber",
+        "r4_sanctum"
       ],
       "manifest": "ruins-ground/ruins-ground.pack.json",
       "tags": [
@@ -31,7 +32,8 @@
       "zones": [
         "r1_gate",
         "r2_hall",
-        "r3_chamber"
+        "r3_chamber",
+        "r4_sanctum"
       ],
       "manifest": "ruins-back/ruins-back.pack.json",
       "tags": [
@@ -45,7 +47,8 @@
       "zones": [
         "r1_gate",
         "r2_hall",
-        "r3_chamber"
+        "r3_chamber",
+        "r4_sanctum"
       ],
       "manifest": "ruins-light/ruins-light.pack.json",
       "tags": [
@@ -72,6 +75,18 @@
         "r3_chamber"
       ],
       "manifest": "ruins-seal/ruins-seal.pack.json",
+      "tags": [
+        "ruins"
+      ]
+    },
+    {
+      "id": "ruins-sanctum",
+      "category": "environment",
+      "load": "zone",
+      "zones": [
+        "r4_sanctum"
+      ],
+      "manifest": "ruins-sanctum/ruins-sanctum.pack.json",
       "tags": [
         "ruins"
       ]

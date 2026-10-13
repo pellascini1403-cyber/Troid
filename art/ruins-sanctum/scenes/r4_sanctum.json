@@ -1,0 +1,315 @@
+{
+  "sceneVersion": 1,
+  "room": "r4_sanctum",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "paving_dashes",
+        "x": 4,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_dashes",
+        "x": 8,
+        "y": 0,
+        "flip": false
+      },
+      {
+        "sprite": "paving_dashes",
+        "x": 12,
+        "y": 0,
+        "flip": false
+      },
+      {
+        "sprite": "paving_dashes",
+        "x": 16,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_dashes",
+        "x": 20,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_dashes",
+        "x": 22.9,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_ticks",
+        "x": 28.5,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_ticks",
+        "x": 32.5,
+        "y": 0,
+        "flip": false
+      },
+      {
+        "sprite": "paving_ticks",
+        "x": 36.5,
+        "y": 0,
+        "flip": false
+      },
+      {
+        "sprite": "paving_ticks",
+        "x": 40.5,
+        "y": 0,
+        "flip": false
+      },
+      {
+        "sprite": "paving_ticks",
+        "x": 44.5,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_ticks",
+        "x": 48.5,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_ticks",
+        "x": 52.5,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_ticks",
+        "x": 56.5,
+        "y": 0,
+        "flip": false
+      },
+      {
+        "sprite": "paving_ticks",
+        "x": 60.5,
+        "y": 0,
+        "flip": false
+      },
+      {
+        "sprite": "paving_ticks",
+        "x": 63.4,
+        "y": 0,
+        "flip": false
+      },
+      {
+        "sprite": "paving_double",
+        "x": 69.1,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_double",
+        "x": 73.1,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_double",
+        "x": 77.1,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_double",
+        "x": 81.1,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_double",
+        "x": 85.1,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_double",
+        "x": 89.1,
+        "y": 0,
+        "flip": false
+      },
+      {
+        "sprite": "paving_double",
+        "x": 93.1,
+        "y": 0,
+        "flip": false
+      },
+      {
+        "sprite": "paving_double",
+        "x": 97.1,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_double",
+        "x": 97,
+        "y": 0,
+        "flip": false
+      },
+      {
+        "sprite": "ink_pool_a",
+        "x": 22.4,
+        "y": 0,
+        "scale": 0.9,
+        "flip": false
+      },
+      {
+        "sprite": "ink_pool_b",
+        "x": 24,
+        "y": 0,
+        "scale": 0.7,
+        "flip": true
+      },
+      {
+        "sprite": "ink_pool_c",
+        "x": 56,
+        "y": 0,
+        "scale": 1,
+        "flip": true
+      },
+      {
+        "sprite": "ink_pool_a",
+        "x": 60.2,
+        "y": 0,
+        "scale": 1.1,
+        "flip": true
+      },
+      {
+        "sprite": "ink_pool_b",
+        "x": 62.6,
+        "y": 0,
+        "scale": 0.7,
+        "flip": false
+      },
+      {
+        "sprite": "ink_pool_c",
+        "x": 34.2,
+        "y": 0,
+        "scale": 0.6,
+        "flip": true
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "ring_arena",
+        "x": 46,
+        "y": -0.18,
+        "alpha": 0.6,
+        "motion": "pulse"
+      }
+    ],
+    "propsBack": [
+      {
+        "sprite": "dais_reward",
+        "x": 84,
+        "y": 0
+      }
+    ],
+    "backdropNear": [
+      {
+        "sprite": "eye_wall",
+        "x": 44.5,
+        "y": -0.9,
+        "alpha": 0.88
+      },
+      {
+        "sprite": "colossus_a",
+        "x": 23.6,
+        "y": -0.9,
+        "alpha": 0.85
+      },
+      {
+        "sprite": "colossus_b",
+        "x": 52.8,
+        "y": -0.9,
+        "alpha": 0.85,
+        "flip": true
+      },
+      {
+        "sprite": "portal_grand",
+        "x": 2.2,
+        "y": -0.9,
+        "alpha": 0.92
+      },
+      {
+        "sprite": "portal_grand",
+        "x": 75.65,
+        "y": -0.9,
+        "alpha": 0.92,
+        "flip": true
+      },
+      {
+        "sprite": "column_grand_a",
+        "x": 7.4,
+        "y": -0.9,
+        "flip": false,
+        "alpha": 0.92
+      },
+      {
+        "sprite": "column_grand_b",
+        "x": 16,
+        "y": -0.9,
+        "flip": true,
+        "alpha": 0.92
+      },
+      {
+        "sprite": "column_grand_b",
+        "x": 29.2,
+        "y": -0.9,
+        "flip": false,
+        "alpha": 0.92
+      },
+      {
+        "sprite": "column_grand_a",
+        "x": 60.5,
+        "y": -0.9,
+        "flip": true,
+        "alpha": 0.92
+      },
+      {
+        "sprite": "column_grand_b",
+        "x": 66.5,
+        "y": -0.9,
+        "flip": false,
+        "alpha": 0.92
+      },
+      {
+        "sprite": "banner_a",
+        "x": 19.2,
+        "y": 2.7,
+        "alpha": 0.92
+      },
+      {
+        "sprite": "banner_b",
+        "x": 32.6,
+        "y": 2.9,
+        "alpha": 0.92
+      },
+      {
+        "sprite": "banner_a",
+        "x": 57.5,
+        "y": 2.6,
+        "alpha": 0.92
+      },
+      {
+        "sprite": "banner_b",
+        "x": 69.8,
+        "y": 2.8,
+        "alpha": 0.92
+      },
+      {
+        "sprite": "banner_a",
+        "x": 11.6,
+        "y": 3.3,
+        "alpha": 0.92
+      }
+    ]
+  }
+}

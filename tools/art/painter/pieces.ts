@@ -9,6 +9,7 @@ import { columnProp, crystals, effigy, ferns, foreLeaves, grass, hangingRoots, m
 import { beam, glow, mistBank, motes, shaft, veil } from './lights';
 import { rootArch, rootCrawl, rootCurtain, rootPillar, shrine, thorns, vial } from './roots';
 import { cardSpirit, lintel, paving, pedestal, pilaster, relief, runeCircle, runePath, sealSigil } from './seal';
+import { airRune, arenaRing, banner, colossalColumn, colossus, dais, eyeWall, inkPool, portalGrand, sanctumPaving, sanctumShrine } from './sanctum';
 
 /**
  * The painter's catalogue: each piece is a function from parameters to a painted surface, deterministic (a seed in, the same pixels out). The build (`tools/art/build.ts`)
@@ -159,6 +160,36 @@ export const PIECES: Record<string, PieceMaker> = {
   },
   runeCircle: prop(runeCircle, 3, 1),
   runePath: prop(runePath, 6, 0.3),
+  /** The hall of the sanctum (R4): the columns taller than the view, the guardians of stone, the wall with an eye in it, the shrine of the last rest, the rune of the Air Dash, the dais, the ink, the banners, the portal, the floor. */
+  colossalColumn: async (p) => {
+    const ppm = num(p, 'ppm', 96);
+    return colossalColumn({ w: Math.round(num(p, 'wM', 2.6) * ppm), h: Math.round(num(p, 'hM', 12) * ppm), ppm, seed: num(p, 'seed', 3), variant: num(p, 'variant', 0) });
+  },
+  colossus: async (p) => {
+    const ppm = num(p, 'ppm', 32);
+    return colossus({ w: Math.round(num(p, 'wM', 5) * ppm), h: Math.round(num(p, 'hM', 15) * ppm), ppm, seed: num(p, 'seed', 3), variant: num(p, 'variant', 0) });
+  },
+  eyeWall: prop(eyeWall, 10, 13),
+  /** The shrine of the last rest: two cells of 3.9 × 5.1 m (resting, lit). */
+  sanctumShrine: async (p) => {
+    const ppm = num(p, 'ppm', 96);
+    return sanctumShrine({ w: Math.round(ppm * 3.9) * 2, h: Math.round(ppm * 5.1), ppm, seed: num(p, 'seed', 31) });
+  },
+  airRune: prop(airRune, 1.9, 1.3),
+  arenaRing: prop(arenaRing, 22, 1.1),
+  dais: prop(dais, 2.6, 0.8),
+  inkPool: prop(inkPool, 3.2, 0.8),
+  banner: async (p) => {
+    const ppm = num(p, 'ppm', 40);
+    return banner({ w: Math.round(num(p, 'wM', 2.4) * ppm), h: Math.round(num(p, 'hM', 8) * ppm), ppm, seed: num(p, 'seed', 3), variant: num(p, 'variant', 0) });
+  },
+  portalGrand: prop(portalGrand, 7.4, 13),
+  /** The floor of the hall: `cols` metres of dark slabs, 0.3 m tall, periodic along its length. */
+  sanctumPaving: async (p) => {
+    const ppm = num(p, 'ppm', 96);
+    const cols = num(p, 'cols', 4);
+    return sanctumPaving({ w: Math.round(ppm * cols), h: Math.round(ppm * 0.3), ppm, seed: num(p, 'seed', 9), cols, style: str(p, 'style', ['dashes', 'ticks', 'double'] as const, 'dashes') });
+  },
   columnWhole: prop((o) => columnProp({ ...o, state: 'whole', heightM: 4.6 }), 1.6, 5.2),
   columnBroken: prop((o) => columnProp({ ...o, state: 'broken', heightM: 3.1 }), 1.6, 3.7),
   lightShaft: light(shaft, 192, 640),

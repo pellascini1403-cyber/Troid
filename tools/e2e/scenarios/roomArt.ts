@@ -17,11 +17,14 @@ import type { Ctx, GameState, Scenario } from '../scenario';
  *       the blockout lets go of exactly those, the room's own data is untouched, and the draw calls stay under the budget along the whole room
  *   G · R3, the Seal Chamber: the door of the ward fades with its gate, the sigil of the ward is hung by the seal's own view (a blow turned away makes the flash come on), the card of the
  *       Spirit Bolt floats until it is taken, and the blockout keeps drawing all of it with `?art=`
+ *   H · R4, the Sanctum: the floor, the walls and the two doors of the arena are drawn by the art (the doors shut when the fight begins), the shrine of the last rest, the rune of the Air Dash that
+ *       is not there until the Warden has fallen, nothing of the environment is left to the blockout, and the draw calls stay under the budget from the portal to the way out
  */
 const PHONE = { width: 844, height: 390, dpr: 1 };
 const R1 = ROOMS['r1_gate']!;
 const R2 = ROOMS['r2_hall']!;
 const R3 = ROOMS['r3_chamber']!;
+const R4 = ROOMS['r4_sanctum']!;
 /** The places of the walk and what each is (x of the hero's feet). */
 const PLACES: Array<[string, number]> = [['start', 6], ['chasm', 34], ['stairs', 44], ['crawl', 70], ['court', 98], ['gate', 106.6]];
 
@@ -282,5 +285,60 @@ export const roomArt: Scenario = {
     assert.equal((await ctx.state()).roomArt, null, 'no art: nothing dresses R3');
     assert.deepEqual(await sealView(), { shapes: [true, true, true], art: 0, flash: null }, 'the seal draws its own shapes');
     assert.deepEqual(await ctx.page.evaluate('window.__troid.game.interactableViews.covered'), [], 'and the card is the blockout\'s');
+
+    // ================================================================================================ H · R4: the hall, the doors of the arena, the shrine of the last rest, the rune of the Air Dash
+    await ctx.open('room=r4_sanctum&paused=1', PHONE);
+    const sanctum = (await waitFor(ctx, 'R4 dressed with the art', (s) => s.roomArt !== null && s.roomArt !== undefined)).roomArt!;
+    assert.deepEqual([...sanctum.solids].sort(), R4.solids.map((x) => x.id).sort(), 'every solid of R4 — the floor, the walls and the two doors of the arena — is drawn by the art');
+    assert.deepEqual([...sanctum.gates].sort(), ['arena_door_e', 'arena_door_w'], 'both doors of the arena');
+    assert.deepEqual([...sanctum.exits].sort(), ['east', 'west'], 'and both ways out');
+    assert.deepEqual([...sanctum.interactables].sort(), ['reward_air_dash', 'shrine'], 'the shrine of the last rest and the rune of the Air Dash');
+    assert.deepEqual(sanctum.lacking, {}, 'the art lacks nothing R4 asks for: with it, all of the environment the world asks for is drawn by art');
+    assert.deepEqual(sanctum.notes, [], 'and nothing it says about its strips or its foreground');
+    assert.ok(sanctum.sprites > 250, `the hall is dressed (${sanctum.sprites} sprites)`);
+    assert.deepEqual([...((await ctx.page.evaluate('window.__troid.game.interactableViews.covered')) as string[])].sort(), ['reward_air_dash', 'shrine'], 'the blockout\'s marks of the shrine and the reward are not drawn');
+    await ctx.shot('h-00-the-sanctum');
+    // the shrine rests until it is the checkpoint; the rune is not there until the Warden has fallen
+    await ctx.page.waitForTimeout(300);
+    const restShrine = await interactive('shrine', 'propsBack');
+    assert.ok(restShrine !== null && restShrine.lit !== null, 'the shrine has two frames: resting and lit');
+    assert.equal(restShrine!.lit, 0, 'it is not the checkpoint of this playground: the lit frame is off');
+    const waiting = await interactive('reward_air_dash', 'lightOverlay');
+    assert.ok(waiting === null || !waiting.visible, 'the rune of the Air Dash is not there while the Warden stands');
+    // the doors of the arena follow the fight: open (nothing drawn) until the hero is in the arena, then shut
+    const doorArt = `(() => { const w = window.__troid.game.roomArt.door('arena_door_w'); const e = window.__troid.game.roomArt.door('arena_door_e'); return w && e ? [w.alpha, w.visible, e.alpha, e.visible] : null; })()`;
+    await ctx.page.waitForFunction(`(() => { const d = ${doorArt}; return d && d[0] === 0 && !d[1] && d[2] === 0 && !d[3]; })()`, undefined, { timeout: 8000 });
+    await ctx.teleport(30, 0);
+    await ctx.step(10);
+    await ctx.page.waitForFunction(`(() => { const d = ${doorArt}; return d && d[0] === 1 && d[1] && d[2] === 1 && d[3]; })()`, undefined, { timeout: 8000 });
+    await ctx.shot('h-01-the-doors-shut');
+    // the Warden falls (its flag): the rune of the Air Dash floats over the dais until it is taken
+    await ctx.page.evaluate("window.__troid.session.flags.set('defeated:r4_boss')");
+    await ctx.step(2);
+    await ctx.page.waitForFunction(
+      `(() => { const c = window.__troid.game.renderer.layers.lightOverlay.children.find((x) => x.label === 'art:interactable:reward_air_dash'); return c && c.visible; })()`,
+      undefined,
+      { timeout: 8000 },
+    );
+    // the draw calls along the room: the portal, the shrine, the door, the arena, the Warden's bed, the dais, the way out
+    let worstSanctum = 0;
+    for (const [name, x] of [['start', 4], ['shrine', 14], ['door', 24], ['arena', 46], ['bed', 60], ['dais', 84], ['out', 96]] as const) {
+      await ctx.teleport(x, 0);
+      await ctx.page.evaluate('window.__troid.settleCamera(5)');
+      await ctx.page.waitForTimeout(400);
+      const g = await ctx.state();
+      worstSanctum = Math.max(worstSanctum, g.drawsMax ?? 0);
+      assert.ok((g.drawsMax ?? 0) <= 60, `R4 ${name}: ${g.drawsMax} draw calls (budget 60)`);
+      await ctx.shot(`h-${name}`);
+    }
+    const lib4 = (await ctx.state()).art!;
+    console.log(`  room-art: R4 = ${sanctum.sprites} sprites · worst ${worstSanctum} draw calls (budget 60) · art ${lib4.pages} pages, ${(lib4.bytes / 1048576).toFixed(1)} MiB resident`);
+    assert.ok(lib4.bytes < 32 * 1048576, `R4's pages fit the proposed memory budget of 32 MiB (${(lib4.bytes / 1048576).toFixed(1)} MiB)`);
+    assert.deepEqual(ctx.warnings.filter((w) => w.includes('[art]')), [], 'the library had nothing to say about the art of R4');
+    // no art: the blockout draws the doors, the shrine and the reward, as it always did
+    await ctx.open('room=r4_sanctum&paused=1&art=', PHONE);
+    await ctx.page.waitForTimeout(800);
+    assert.equal((await ctx.state()).roomArt, null, 'no art: nothing dresses R4');
+    assert.deepEqual(await ctx.page.evaluate('window.__troid.game.interactableViews.covered'), [], 'the shrine and the reward are the blockout\'s');
   },
 };

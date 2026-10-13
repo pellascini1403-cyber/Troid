@@ -1,12 +1,12 @@
 # Cómo entregar el arte del entorno (y qué pide el mundo)
 
-> **Estado (Prompt 8, fase D): R1, R2 y R3 ya se dibujan con imágenes.** El juego dibuja una sala con las imágenes de su paquete de entorno **cuando las tiene** (`RoomArtView`) y deja al *blockout* lo que no cubren. Las imágenes que hoy hay (`art/ruins-ground`, `art/ruins-back`, `art/ruins-light`, `art/ruins-roots`, `art/ruins-seal`) **no son de una mano**: las hace un **pintor** (`npm run art:build`, ART-PIPELINE-2D parte M) y son **provisionales**: necesitan revisión artística o sustitución. **Sustituir una pieza por arte hecho a mano es entregar un PNG con las mismas etiquetas** (§2): el juego no cambia.
+> **Estado (Prompt 8, fase E): las cuatro salas ya se dibujan con imágenes.** El juego dibuja una sala con las imágenes de su paquete de entorno **cuando las tiene** (`RoomArtView`) y deja al *blockout* lo que no cubren. Las imágenes que hoy hay (`art/ruins-ground`, `art/ruins-back`, `art/ruins-light`, `art/ruins-roots`, `art/ruins-seal`, `art/ruins-sanctum`) **no son de una mano**: las hace un **pintor** (`npm run art:build`, ART-PIPELINE-2D parte M) y son **provisionales**: necesitan revisión artística o sustitución. **Sustituir una pieza por arte hecho a mano es entregar un PNG con las mismas etiquetas** (§2): el juego no cambia.
 >
 > Esta guía dice **qué pide el mundo** y **cómo se entrega**. Para el detalle técnico: [ART-PIPELINE-2D.md](../ART-PIPELINE-2D.md) (partes I y M). Para el protagonista: [deliver-protagonist-art.md](deliver-protagonist-art.md).
 
 ## 1. Qué pide el mundo
 
-No es una lista escrita a mano: **sale de los datos de las cuatro salas** (`R1`–`R4`), así que cambia sola cuando una sala usa un material nuevo. `npm run assets:missing` la imprime con lo entregado y lo que falta. Hoy son **14 piezas obligatorias** y 16 opcionales (entregadas por el pintor: 13 de las 14 obligatorias; falta la runa del Air Dash de R4):
+No es una lista escrita a mano: **sale de los datos de las cuatro salas** (`R1`–`R4`), así que cambia sola cuando una sala usa un material nuevo. `npm run assets:missing` la imprime con lo entregado y lo que falta. Hoy son **14 piezas obligatorias** y 16 opcionales (**las 14 obligatorias están entregadas** por el pintor):
 
 | Pieza (`role`) | De qué (`material:` / `kind:` / `backdrop:`) | Partes (`part:`) — **obligatoria** en negrita | Dibuja | Salas |
 |---|---|---|---|---|
@@ -114,6 +114,8 @@ Cuatro piezas de los datos de la sala que ya se dibujan con arte (R2 usa las tre
 | **Un sello** (`seals`: el sigilo que el héroe debe romper con el Spirit Bolt) | `role:seal`, `blend:add` | pivote **en el centro** `[0.5, 0.5]`; **dos fotogramas**: el sigilo **colgado** y el sigilo **destellando** (el segundo se enciende por encima del primero cuando el sello rechaza un golpe de espada). Es **luz** (capa aditiva): píntalo con fondo negro. Lo coloca el juego sobre el sello, a la mitad de su altura (con tope), y lo **hincha, encoge y desvanece** según lo que diga la simulación (cuánto queda del golpe rechazado, cuánto queda del sello, si está roto): el dibujo **no decide nada**. La **puerta** que el sello sostiene es una puerta más (`role:door`, `material:seal`, `body`/`top`/`bottom`/`glow`) |
 
 **Los pasos de siempre:** `npm run assets:missing` dice qué pieza se pide todavía y qué salas la usan; `npm run assets:check` valida las etiquetas (una variante en algo que no es un objeto se ignora y se avisa; dos dibujos para la misma variante «reclaman la misma pieza»); `npm run assets:pack` empaqueta. **Lo que no entregues sigue siendo el *blockout* de siempre**, ranura a ranura.
+
+**Piezas más grandes que la pantalla** (columnas, guardianes, un muro entero): van en la capa de detrás (`layer:backdrop-near`) y **a una sola densidad** (R4: 40 px/m); en el plano del héroe solo lo pequeño y cercano, a la densidad del héroe (96). Las piezas de una misma familia de escala —el plano del héroe, o cada capa de paralaje— comparten `ppm`; el empaquetador avisa si no. **Se colocan en metros de la capa**: una pieza de la capa 0.75 en `x` aparece en el mundo en `x + 0.25 × cámara`.
 
 **Una regla de densidad:** todas las piezas `blend:add` de **un mismo paquete** son una familia de luz y **comparten `ppm`** (si no, `assets:check` avisa: la luz de un paquete con dos densidades se vería con dos granos). En `ruins-seal` todo lo aditivo (resplandor de la puerta, sigilo, círculos y trazo de runas) es 96 px/m.
 

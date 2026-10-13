@@ -323,3 +323,66 @@ un golpe de espada rechazado enciende el destello del arte; la carta desaparece 
 - **El momento del Spirit Bolt** (fase H): la carga, el disparo, el impacto, el estallido del sello y el resplandor posterior.
 - **Calibración en dispositivo real:** la legibilidad del sigilo violeta sobre el fondo azul en pantallas pequeñas.
 - **R4 y el jefe:** fases E y F.
+
+## Fase E — R4 «Santuario» (S49)
+
+**Resultado en una frase:** la última sala **se dibuja con arte pintado en el motor** —los tres paquetes compartidos más uno propio de R4 (`ruins-sanctum`): **columnas más altas que la pantalla, dos guardianes de piedra, el muro con un ojo tallado detrás del lecho del Custodio, estandartes, un portal en cada extremo, el santuario del último descanso, la runa del Air Dash sobre su dais, tinta en el suelo y un anillo de luz fría en la arena**—, y con ella **todo el entorno que pide el mundo (las 14 piezas obligatorias) está entregado**: la lista de lo que sigue siendo *blockout* del entorno queda **vacía**.
+**R4 no se da por terminada del todo**: el Custodio sigue siendo procedural (fase F), los avisos violeta y los efectos son los de siempre (fase H) y la lluvia, la carga y el resto de su presencia esperan a esas fases. No hizo falta **ningún cambio de motor**: R4 usa lo que las fases B–D ya enseñaron (puertas, santuario, objeto con variante `rune`, salidas).
+
+### Qué se hizo
+
+- **La composición, tres tramos que se distinguen antes de leer nada:** el **vestíbulo** (0 – 24), el último lugar tranquilo —un portal en el camino de vuelta, el santuario entre dos columnas, luz cian y, al fondo, **el primer rezume de la tinta** del Custodio bajo la puerta—; la **arena** (26.5 – 65.5), un salón hecho para parecer **más grande que la pantalla** —columnas que salen del encuadre, dos guardianes sobre los umbrales, el muro con el ojo **tras el lecho del Custodio**, estandartes, un anillo de luz fría en el suelo y **nada violeta en ese suelo salvo la tinta**: el violeta es el color de lo que hiere y tiene que ser lo único que grite—; la **recompensa** (67 – 99), tranquila otra vez —un dais bajo una columna de luz con la runa flotando encima y, al final, el portal que es la salida del mundo—. Un gradiente de tensión: **cian donde el héroe está a salvo, un poco de violeta donde está el Custodio**.
+- **El salón vive en la capa de detrás (0.75)** y en **una sola densidad (40 px/m)**: son piezas más grandes que la pantalla y una columna no necesita los 96 del héroe para ser una columna. En el plano del héroe quedan el suelo, el empedrado, la tinta, el dais, las puertas, el santuario y la runa (a 96). La regla de familias de escala del contrato obligó a ello (ver los problemas).
+- **Coordenadas de la capa de detrás:** como la capa se mueve 0.75 de lo que se mueve la cámara, una pieza en `x` aparece en el mundo en `x + 0.25 × cámara`. Se compone **en metros de la capa** —separando las piezas para que ninguna tape a otra— y se dejan libres los sitios que el ojo debe encontrar: detrás del santuario y del dais (nada oscuro donde está la luz) y el centro de la arena (el muro y el Custodio delante).
+- **El pintor** (`tools/art/painter/sanctum.ts`): columna colosal (fuste con éntasis y estrías, tres collares con una línea de luz bajo cada uno, una columna de runas, **el borde alto se funde en la oscuridad**: nunca se ve un corte), guardián colosal (capa con capucha, hombros anchos, mangas que se juntan sobre el pomo de una espada clavada, dos rendijas cian; **el Custodio es uno de estos despertado**: misma capa, misma capucha), el muro con el ojo (hornacina de cabeza redonda con anillos y rayos tallados y una pupila violeta tenue), santuario (dais de tres escalones, dos obeliscos con runas, pedestal con cuenco, un cristal dentro de un anillo; **dos celdas: en espera y encendido** con un pilar de luz y un charco), runa del Air Dash (anillo, tres chevrones y tres estelas de velocidad), dais, charcos de tinta, estandartes, portal (muro con un vano apuntado, línea de luz en el borde, runas en las pilastras y un anillo sobre la clave), empedrado de tres estilos (guiones cian / marcas frías / doble línea) y el anillo de la arena. **Runas originales y abstractas** (ninguna letra de ningún alfabeto).
+- **Zonas:** los tres paquetes compartidos declaran ya las cuatro salas; `ruins-sanctum`, solo `r4_sanctum`.
+
+### Los activos nuevos (todo de `tools/art`, estado `provisional`)
+
+| Paquete | *Sprite sets* | Qué es |
+|---|---|---|
+| `ruins-sanctum` (nuevo) | 18 | 2 columnas colosales, 2 guardianes, el muro con el ojo, 2 estandartes, el portal (los dos extremos con la misma pieza), el dais, 3 charcos de tinta, 3 empedrados, **el santuario** (2 fotogramas), **la runa del Air Dash**, el anillo de la arena |
+| Escenas `r4_sanctum` | **100 colocaciones** (suelo y *props* 26, salón y suelo del paquete 48, fondos y primer plano 7, luz 19) | 411 *sprites* en pantalla |
+
+El paquete pesa ≈ 0.8 MB en disco (5.6 MiB descomprimido); entre los siete paquetes: 4880.9 KB en disco y 37226 KB descomprimidos.
+
+### *Placeholders* quitados y los que quedan
+
+- **Quitados en R4** (con `?visual=auto`): los **rectángulos de suelo y muros**; las **dos puertas de la arena** (las losas violeta del *blockout*: ahora los pilares con runas del paquete compartido, que se cierran con la pelea); la **marca del santuario** (columna con cristal dibujada con `Graphics`); la **marca de la recompensa** (idem); los **haces de las dos salidas** y las **cuatro capas de fondo planas**.
+- **Quedan en R4:** **el Custodio de Tinta** (procedural: fase F), **sus avisos violeta y sus golpes** (fase H) y la barra de vida.
+- **Quedan en el mundo:** del **entorno**, nada: `STILL_THE_BLOCKOUT` de `artRepo.test` está **vacío** (el informe de entrega dice **14 de 14** piezas obligatorias). Siguen siendo *blockout*/procedurales: los **enemigos** (fase G), el **jefe** (F), los **efectos** (H) y, de la iluminación y el paralaje, lo que la fase I pula.
+
+### Archivos
+
+Nuevos: `tools/art/painter/sanctum.ts`, `tools/art/scenes/r4.ts`, `tests/unit/tools/sanctumScene.test.ts`, `art/ruins-sanctum/**`, `art/ruins-*/scenes/r4_sanctum.json`, `public/art/ruins-sanctum/**`. Modificados: `tools/art/{packs/ruins,painter/{pieces,seal}}.ts`, `art/index.json`, `public/art/index.json` y los manifiestos de los tres paquetes compartidos, `tests/unit/tools/artRepo.test.ts`, `tools/e2e/scenarios/{playerArt,roomArt}.ts`, la documentación. **Ningún archivo de `src/`.**
+
+### Verificación
+
+| | Resultado |
+|---|---|
+| `tsc` | limpio |
+| Pruebas unitarias y de integración | **2319 en 146 archivos** (2314 al cerrar la fase D: +5, la composición de R4) |
+| E2E | **44/44 en producción** y **44/44 en desarrollo** (las dos pasadas completas, a la primera) |
+| Llamadas de dibujo | R4 entera: **17 como máximo** en siete puntos del recorrido, **18 en la pelea del jefe** (presupuesto 60); R1, 13; R2, 11; R3, 10 |
+| Memoria del arte en R4 | **26.4 MiB** residentes (5 páginas; presupuesto propuesto 32 MiB); en la transición R3 → R4 conviven los dos paquetes de sala: ≈ 30.6 MiB |
+| Arranque en frío (200 KB) | **193.2 KB gz** (sin cambios: la fase no toca `src/`) · *chunk* de arte 16.3 KB gz · primera sesión 224.7 KB gz |
+
+> Sigue sin medirse nada en un dispositivo real.
+
+### Pruebas que se adaptaron (y por qué)
+
+`artRepo.test` (siete paquetes y `STILL_THE_BLOCKOUT` **vacío**: el último aviso, la runa de R4, ya no existe), `playerArt` (E2E: siete paquetes en la biblioteca) y `roomArt` (E2E: sección **H**, la de R4 —cada sólido, las dos puertas, las dos salidas, el santuario y la runa los dibuja el arte; las puertas se cierran al empezar la pelea; la runa no está hasta que cae el Custodio; ≤ 60 llamadas en siete puntos, de portal a portal; memoria bajo el presupuesto; con `art=` todo vuelve a ser el *blockout*—). Pruebas nuevas: `sanctumScene.test` (5: la composición como reglas —el suelo está empedrado de pared a pared y el empedrado nunca cubre una puerta, las piezas grandes del salón no se tapan entre sí, los estandartes no tapan el muro ni los portales, ninguna columna delante del muro del Custodio—). Ninguna prueba se bajó ni se borró.
+
+### Problemas encontrados (y resueltos)
+
+1. **La regla de familias de escala del contrato se negaba a las piezas de salón** (el empaquetador avisó): columnas a 56 px/m, portal a 48, dais y empedrado a 96, **todos en la familia «suelo»** (plano del héroe), y los guardianes a 32 con los estandartes a 40 en la de la capa de detrás. Un suelo con tres densidades es justo lo que la regla quiere evitar. Solución de arte, no de contrato: **todo lo monumental a la capa de detrás y a 40 px/m, todo lo del plano del héroe a 96**.
+2. **Una trampa del paralaje:** con la cámara a distancias distintas, componer por `0.75 × X` hacía que un guardián y una columna de tramos vecinos se **montaran** (la capa de detrás «cabe» en 0.75 del mundo). Se compone en **metros de la capa**, con las separaciones a la vista, y las reglas de composición se guardaron como pruebas (`sanctumScene.test`): la primera ejecución cazó un solapamiento de 0.2 m entre el portal y la primera columna.
+3. **La primera pasada era un neón:** columnas con collares y runas muy brillantes, el muro con el ojo más luminoso que el Custodio. Se bajó la luz tallada (collares 0.85 → 0.5, runas 0.7 → 0.42, ojo 0.6 → 0.32, portales 0.8 → 0.5) y se quitaron las marcas de los collares: **el héroe y el Custodio tienen que ser lo más claro de la arena**.
+4. **El anillo del suelo cruzaba el aviso de la carga:** más tenue (alpha 0.85 → 0.6). El `boss` E2E mide los píxeles violeta de los avisos sobre la arena ya vestida (la carga 331 → 1005 px, la lluvia 1014 → 1182…) y pasa.
+5. **El anillo de la arena pesaba en las tres salas de antes** (+0.3 MiB en R1–R3 por la página del paquete de luz): se movió al paquete de R4, que es su única sala.
+
+### Pendiente de la fase E (a propósito)
+
+- **Revisión artística:** el salón es **correcto y coherente** pero *de generador*: simetría perfecta, columnas con la misma gramática de collares y runas, guardianes casi gemelos, estandartes lisos; el empedrado se repite cada 4 m. Falta el ojo de un ilustrador para la escala real (un guardián de 15 m con un rostro, un muro con un relieve de verdad).
+- **El Custodio** (fase F): con el salón vestido, es lo que más desentona —un pilar violeta procedural delante de un muro tallado—; sus avisos violeta (fase H) tienen que leerse **sobre este suelo**, que ya está fijado como oscuro y sin violeta.
+- **Calibración en dispositivo real:** que el cian del anillo y de las runas no moleste en pantallas OLED pequeñas, y que los avisos violeta se lean en un teléfono.

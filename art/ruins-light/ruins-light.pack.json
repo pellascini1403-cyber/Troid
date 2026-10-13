@@ -12,7 +12,8 @@
   "scenes": {
     "r1_gate": "scenes/r1_gate.json",
     "r2_hall": "scenes/r2_hall.json",
-    "r3_chamber": "scenes/r3_chamber.json"
+    "r3_chamber": "scenes/r3_chamber.json",
+    "r4_sanctum": "scenes/r4_sanctum.json"
   },
   "atlases": [],
   "sprites": [

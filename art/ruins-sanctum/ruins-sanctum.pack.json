@@ -1,0 +1,452 @@
+{
+  "manifestVersion": 1,
+  "id": "ruins-sanctum",
+  "category": "environment",
+  "status": "provisional",
+  "comment": "THE SANCTUM of the Ink Warden: columns taller than the view, guardians of stone, the wall with an eye cut into it, the shrine of the last rest, the rune of the Air Dash, the ink on the floor, banners, the portals and the floor. Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.",
+  "tags": [
+    "ruins",
+    "generated"
+  ],
+  "atlasMode": "shared",
+  "scenes": {
+    "r4_sanctum": "scenes/r4_sanctum.json"
+  },
+  "atlases": [],
+  "sprites": [
+    {
+      "id": "column_grand_a",
+      "artPxPerMeter": 40,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 12,
+      "frameSize": [
+        104,
+        480
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-near"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "column_grand_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "column_grand_b",
+      "artPxPerMeter": 40,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 12,
+      "frameSize": [
+        104,
+        480
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-near"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "column_grand_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "portal_grand",
+      "artPxPerMeter": 40,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 13,
+      "frameSize": [
+        296,
+        520
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-near"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "portal_grand_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "colossus_a",
+      "artPxPerMeter": 40,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 15,
+      "frameSize": [
+        200,
+        600
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-near"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "colossus_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "colossus_b",
+      "artPxPerMeter": 40,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 15,
+      "frameSize": [
+        200,
+        600
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-near"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "colossus_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "eye_wall",
+      "artPxPerMeter": 40,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 13,
+      "frameSize": [
+        400,
+        520
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-near"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "eye_wall_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "banner_a",
+      "artPxPerMeter": 40,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 8,
+      "frameSize": [
+        96,
+        320
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-near"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "banner_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "banner_b",
+      "artPxPerMeter": 40,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 8,
+      "frameSize": [
+        96,
+        320
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-near"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "banner_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "dais_reward",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.802,
+      "frameSize": [
+        250,
+        77
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "dais_reward_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "ink_pool_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.802,
+      "frameSize": [
+        307,
+        77
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "ink_pool_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "ink_pool_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.802,
+      "frameSize": [
+        307,
+        77
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "ink_pool_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "ink_pool_c",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.802,
+      "frameSize": [
+        307,
+        77
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "ink_pool_c_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "paving_dashes",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.302,
+      "frameSize": [
+        384,
+        29
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "paving_dashes_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "paving_ticks",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.302,
+      "frameSize": [
+        384,
+        29
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "paving_ticks_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "paving_double",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.302,
+      "frameSize": [
+        384,
+        29
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "paving_double_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "shrine_sanctum",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 5.104,
+      "frameSize": [
+        374,
+        490
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:interactive",
+        "kind:rest"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "shrine_sanctum_",
+          "count": 2
+        }
+      }
+    },
+    {
+      "id": "ring_arena",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.094,
+      "frameSize": [
+        704,
+        35
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "ring_arena_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "rune_air",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.302,
+      "frameSize": [
+        182,
+        125
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:interactive",
+        "kind:pickup",
+        "variant:rune"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "rune_air_",
+          "count": 1
+        }
+      }
+    }
+  ]
+}

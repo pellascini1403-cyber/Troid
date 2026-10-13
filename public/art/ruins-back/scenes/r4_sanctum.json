@@ -1,0 +1,59 @@
+{
+  "sceneVersion": 1,
+  "room": "r4_sanctum",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_a",
+        "x": 9,
+        "y": -0.9,
+        "flip": false,
+        "scale": 1.27
+      },
+      {
+        "sprite": "arch_grand_b",
+        "x": 60,
+        "y": -0.9,
+        "flip": true,
+        "scale": 1.29
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "fore_leaves_a",
+        "x": 1.99,
+        "y": 8.53,
+        "flip": false,
+        "scale": 1.25
+      },
+      {
+        "sprite": "fore_leaves_b",
+        "x": 17.93,
+        "y": 8.22,
+        "flip": false,
+        "scale": 1.32
+      },
+      {
+        "sprite": "fore_leaves_c",
+        "x": 85.38,
+        "y": 7.95,
+        "flip": true,
+        "scale": 1.35
+      },
+      {
+        "sprite": "fore_leaves_a",
+        "x": 99.83,
+        "y": 9.11,
+        "flip": false,
+        "scale": 1.04
+      },
+      {
+        "sprite": "fore_leaves_b",
+        "x": 112.69,
+        "y": 8.91,
+        "flip": true,
+        "scale": 1.09
+      }
+    ]
+  }
+}

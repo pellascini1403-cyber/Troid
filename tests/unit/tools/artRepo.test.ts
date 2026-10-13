@@ -14,16 +14,15 @@ import { verifyArtFolder } from '../../../tools/assets/verify';
  * THE ART IN THE REPOSITORY (docs/ART-PIPELINE-2D.md, parts E, L and M): whatever `art/` declares must build, and whatever `public/art` ships must verify — the very check
  * `npm run build` runs before a browser is ever opened, held in the unit tests too so that a broken asset cannot be committed unnoticed. What is there today is the
  * protagonist, made from the user's own pose sheet (`art/player/source`), provisional: one frame per clip, eight of the fifteen clips stand-ins that reuse another
- * pose; and the scenery of the first three rooms (the five `ruins-*` packs, painted by `tools/art`). The rest of the rooms' pieces, the enemies, the boss and the effects have no
- * art in the repository yet, and that is said, not hidden: `STILL_THE_BLOCKOUT` lists what the world asks for and the art does not have, and shrinks as the phases deliver it.
+ * pose; and the scenery of the four rooms (the six `ruins-*` packs, painted by `tools/art`: every piece of the environment the world asks for is delivered). The enemies, the boss and the effects have no
+ * art in the repository yet, and that is said, not hidden: `STILL_THE_BLOCKOUT` lists what the world asks for of the ENVIRONMENT and the art does not have (empty since the phase that dressed R4), and the
+ * clips of the protagonist that are still stand-ins are listed below.
  */
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 /** Packing the art of the repository is real work (a few seconds): the tests that do it say so. */
 const PACKING = 120_000;
 /** What the rooms of the world ask of the environment and no pack has yet: the blockout draws each of these. Empty when the world is fully dressed. */
-const STILL_THE_BLOCKOUT = [
-  'warn environment ruins-ground + ruins-back + ruins-light + ruins-roots + ruins-seal: the world asks for the interactive "pickup" of variant "rune" (r4_sanctum) and the pack does not have it: the blockout draws it',
-];
+const STILL_THE_BLOCKOUT: string[] = [];
 
 /** One dry build of the repository's art, shared by the tests that only read it. */
 let dry: ReturnType<typeof buildArt> | undefined;
@@ -59,6 +58,7 @@ describe('the art of the repository', () => {
       ['ruins-light', 'provisional', true],
       ['ruins-roots', 'provisional', true],
       ['ruins-seal', 'provisional', true],
+      ['ruins-sanctum', 'provisional', true],
     ]);
     expect(existsSync(join(root, 'public', 'art', 'index.json')), 'the generated folder is committed: the game fetches it').toBe(true);
   }, PACKING);
@@ -97,7 +97,7 @@ describe('the art of the repository', () => {
     }
   }, PACKING);
 
-  it('verifies: what the game fetches is a valid art folder, with no warning but the pieces of the world that are still the blockout\'s', () => {
+  it('verifies: what the game fetches is a valid art folder, with no warning at all: the environment the world asks for is all there', () => {
     const v = verifyArtFolder(join(root, 'public', 'art'));
     expect(v.issues.filter((i) => i.level !== 'info').map((i) => `${i.level} ${i.path}: ${i.message}`)).toEqual(STILL_THE_BLOCKOUT);
     expect(v.ok).toBe(true);
