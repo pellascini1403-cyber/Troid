@@ -1,0 +1,202 @@
+{
+  "sceneVersion": 1,
+  "room": "r3_chamber",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "paving_a",
+        "x": 4,
+        "y": 0,
+        "flip": false
+      },
+      {
+        "sprite": "paving_a",
+        "x": 8,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_c",
+        "x": 12,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_c",
+        "x": 16,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_c",
+        "x": 20,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_a",
+        "x": 24,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_c",
+        "x": 28,
+        "y": 0,
+        "flip": false
+      },
+      {
+        "sprite": "paving_a",
+        "x": 32,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_b",
+        "x": 36,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_c",
+        "x": 40,
+        "y": 0,
+        "flip": false
+      },
+      {
+        "sprite": "paving_c",
+        "x": 44,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_a",
+        "x": 48,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_c",
+        "x": 52,
+        "y": 0,
+        "flip": false
+      },
+      {
+        "sprite": "paving_b",
+        "x": 56,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "paving_b",
+        "x": 60,
+        "y": 0,
+        "flip": false
+      }
+    ],
+    "propsBack": [
+      {
+        "sprite": "relief_b",
+        "x": 34.5,
+        "y": 2.5,
+        "scale": 1.12
+      },
+      {
+        "sprite": "altar_card",
+        "x": 34.5,
+        "y": 4.8
+      },
+      {
+        "sprite": "relief_a",
+        "x": 13.6,
+        "y": 0
+      },
+      {
+        "sprite": "relief_a",
+        "x": 47.6,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "portal_flank",
+        "x": 61.1,
+        "y": 0
+      },
+      {
+        "sprite": "portal_flank",
+        "x": 66.1,
+        "y": 0,
+        "flip": true
+      },
+      {
+        "sprite": "portal_lintel",
+        "x": 63.6,
+        "y": 9.3
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "rune_path",
+        "x": 6.4,
+        "y": 0.1,
+        "alpha": 0.7
+      },
+      {
+        "sprite": "rune_path",
+        "x": 12.4,
+        "y": 0.1,
+        "alpha": 0.7
+      },
+      {
+        "sprite": "rune_path",
+        "x": 18.4,
+        "y": 0.1,
+        "alpha": 0.7
+      },
+      {
+        "sprite": "rune_path",
+        "x": 43.2,
+        "y": 0.1,
+        "alpha": 0.7,
+        "flip": false
+      },
+      {
+        "sprite": "rune_path",
+        "x": 49.2,
+        "y": 0.1,
+        "alpha": 0.7,
+        "flip": true
+      },
+      {
+        "sprite": "rune_path",
+        "x": 55.2,
+        "y": 0.1,
+        "alpha": 0.7,
+        "flip": true
+      },
+      {
+        "sprite": "rune_circle",
+        "x": 34.5,
+        "y": 4.92,
+        "alpha": 0.9,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "rune_circle",
+        "x": 51.4,
+        "y": 0.1,
+        "alpha": 0.75,
+        "motion": "pulse",
+        "scale": 1.15
+      },
+      {
+        "sprite": "rune_circle",
+        "x": 24.6,
+        "y": 2.52,
+        "alpha": 0.5,
+        "motion": "pulse",
+        "scale": 0.6
+      }
+    ]
+  }
+}

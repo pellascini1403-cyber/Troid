@@ -1,0 +1,261 @@
+{
+  "frames": {
+    "altar_card_00": {
+      "frame": {
+        "x": 682,
+        "y": 923,
+        "w": 154,
+        "h": 123
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 6,
+        "y": 0,
+        "w": 154,
+        "h": 123
+      },
+      "sourceSize": {
+        "w": 163,
+        "h": 125
+      }
+    },
+    "card_spirit_00": {
+      "frame": {
+        "x": 965,
+        "y": 2,
+        "w": 67,
+        "h": 106
+      },
+      "sourceSize": {
+        "w": 67,
+        "h": 106
+      }
+    },
+    "paving_a_00": {
+      "frame": {
+        "x": 2,
+        "y": 959,
+        "w": 384,
+        "h": 29
+      },
+      "sourceSize": {
+        "w": 384,
+        "h": 29
+      }
+    },
+    "paving_b_00": {
+      "frame": {
+        "x": 2,
+        "y": 992,
+        "w": 384,
+        "h": 29
+      },
+      "sourceSize": {
+        "w": 384,
+        "h": 29
+      }
+    },
+    "paving_c_00": {
+      "frame": {
+        "x": 2,
+        "y": 1025,
+        "w": 384,
+        "h": 29
+      },
+      "sourceSize": {
+        "w": 384,
+        "h": 29
+      }
+    },
+    "portal_flank_00": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 115,
+        "h": 922
+      },
+      "sourceSize": {
+        "w": 115,
+        "h": 922
+      }
+    },
+    "portal_lintel_00": {
+      "frame": {
+        "x": 121,
+        "y": 2,
+        "w": 691,
+        "h": 144
+      },
+      "sourceSize": {
+        "w": 691,
+        "h": 144
+      }
+    },
+    "relief_a_00": {
+      "frame": {
+        "x": 530,
+        "y": 150,
+        "w": 307,
+        "h": 480
+      },
+      "sourceSize": {
+        "w": 307,
+        "h": 480
+      }
+    },
+    "relief_b_00": {
+      "frame": {
+        "x": 121,
+        "y": 150,
+        "w": 307,
+        "h": 480
+      },
+      "sourceSize": {
+        "w": 307,
+        "h": 480
+      }
+    },
+    "rune_circle_00": {
+      "frame": {
+        "x": 390,
+        "y": 959,
+        "w": 288,
+        "h": 86
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 5,
+        "w": 288,
+        "h": 86
+      },
+      "sourceSize": {
+        "w": 288,
+        "h": 96
+      }
+    },
+    "rune_path_00": {
+      "frame": {
+        "x": 2,
+        "y": 928,
+        "w": 524,
+        "h": 27
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 26,
+        "y": 1,
+        "w": 524,
+        "h": 27
+      },
+      "sourceSize": {
+        "w": 576,
+        "h": 29
+      }
+    },
+    "seal_body_00": {
+      "frame": {
+        "x": 121,
+        "y": 634,
+        "w": 115,
+        "h": 288
+      },
+      "sourceSize": {
+        "w": 115,
+        "h": 288
+      }
+    },
+    "seal_bottom_00": {
+      "frame": {
+        "x": 841,
+        "y": 382,
+        "w": 115,
+        "h": 67
+      },
+      "sourceSize": {
+        "w": 115,
+        "h": 67
+      }
+    },
+    "seal_glow_00": {
+      "frame": {
+        "x": 841,
+        "y": 2,
+        "w": 120,
+        "h": 238
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 4,
+        "y": 9,
+        "w": 120,
+        "h": 238
+      },
+      "sourceSize": {
+        "w": 128,
+        "h": 256
+      }
+    },
+    "seal_sigil_00": {
+      "frame": {
+        "x": 531,
+        "y": 634,
+        "w": 285,
+        "h": 285
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 11,
+        "y": 11,
+        "w": 285,
+        "h": 285
+      },
+      "sourceSize": {
+        "w": 307,
+        "h": 307
+      }
+    },
+    "seal_sigil_01": {
+      "frame": {
+        "x": 240,
+        "y": 634,
+        "w": 287,
+        "h": 287
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 10,
+        "y": 10,
+        "w": 287,
+        "h": 287
+      },
+      "sourceSize": {
+        "w": 307,
+        "h": 307
+      }
+    },
+    "seal_top_00": {
+      "frame": {
+        "x": 841,
+        "y": 244,
+        "w": 115,
+        "h": 134
+      },
+      "sourceSize": {
+        "w": 115,
+        "h": 134
+      }
+    }
+  },
+  "meta": {
+    "app": "troid-assets",
+    "version": "1",
+    "image": "ruins-seal_0.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1036,
+      "h": 1056
+    },
+    "scale": "1"
+  }
+}

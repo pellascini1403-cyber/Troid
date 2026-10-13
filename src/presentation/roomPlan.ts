@@ -1,5 +1,5 @@
 import type { Rect } from '@/core/math';
-import { axisPlan, ENV_CONTRACT, interactiveVariant, PICKUP_FLOAT, planTiles, slotKey, stripCover, type EnvLook } from './environment';
+import { axisPlan, ENV_CONTRACT, interactiveVariant, PICKUP_FLOAT, planTiles, sealSigilY, slotKey, stripCover, type EnvLook } from './environment';
 
 /**
  * WHAT TO DRAW OF A ROOM'S OWN DATA (docs/ART-PIPELINE-2D.md, part M): the pure half of the view that replaces the blockout with pictures. Given the room's solids
@@ -412,3 +412,40 @@ export function cropFrame(
     trim: { x: x0 - keep.x0, y: y0 - keep.y0, w: x1 - x0, h: y1 - y0 },
   };
 }
+
+// ------------------------------------------------------------------------------------------------------------------------------------------------------- the wards
+
+export interface PlanSeal {
+  id: string;
+  x: number;
+  y: number;
+  height?: number;
+}
+
+export interface SealPlacement {
+  id: string;
+  /** Where the middle of the sigil hangs, metres, +y up (the picture's pivot is its centre). */
+  x: number;
+  y: number;
+  /** The pictures it has: the first is how it hangs, the second (if any) the flash of a blow that is turned away. */
+  frames: number;
+}
+
+export interface SealPlan {
+  placements: SealPlacement[];
+  /** `slot → seals` the art has no sigil for: the blockout keeps drawing those. */
+  lacking: Map<string, string[]>;
+}
+
+/** Where the art hangs the sigil of each ward of a room (the ward's collision and what breaks it are the room's data and the simulation's; the picture only follows). */
+export function planSeals(seals: ReadonlyArray<PlanSeal>, sigil: PieceInfo | null): SealPlan {
+  const placements: SealPlacement[] = [];
+  const lacking = new Map<string, string[]>();
+  if (!sigil) {
+    if (seals.length > 0) lacking.set(slotKey('seal', null, ''), seals.map((s) => s.id));
+    return { placements, lacking };
+  }
+  for (const s of seals) placements.push({ id: s.id, x: s.x, y: sealSigilY(s), frames: sigil.frames });
+  return { placements, lacking };
+}
+

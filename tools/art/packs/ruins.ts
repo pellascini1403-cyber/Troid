@@ -1,5 +1,6 @@
 import { R1_SCENES } from '../scenes/r1';
 import { R2_SCENES } from '../scenes/r2';
+import { R3_SCENES } from '../scenes/r3';
 import type { PackSpec, SpriteSpec } from '../spec';
 
 /**
@@ -14,7 +15,7 @@ import type { PackSpec, SpriteSpec } from '../spec';
  * done is never half-dressed with materials that were not composed for it (the boss's telegraph, for one, was drawn over a bare floor and is judged over the scenery that
  * phase gives it).
  */
-const DRESSED_ROOMS = ['r1_gate', 'r2_hall'];
+const DRESSED_ROOMS = ['r1_gate', 'r2_hall', 'r3_chamber'];
 const SEED = 7;
 
 const solid = (material: 'earth' | 'stone'): SpriteSpec[] => {
@@ -109,7 +110,7 @@ export const RUINS_GROUND: PackSpec = {
     prop('rune_stone_a', 'runeStone', 7, [1.3, 3.2], 'props-back'),
     prop('effigy_a', 'effigy', 9, [1.6, 3.6], 'props-back'),
   ],
-  scenes: { r1_gate: R1_SCENES.ground, r2_hall: R2_SCENES.ground },
+  scenes: { r1_gate: R1_SCENES.ground, r2_hall: R2_SCENES.ground, r3_chamber: R3_SCENES.ground },
 };
 
 export const RUINS_BACK: PackSpec = {
@@ -129,7 +130,7 @@ export const RUINS_BACK: PackSpec = {
     prop('fore_leaves_b', 'foreLeaves', 42, [5, 3.4], 'foreground', 48),
     prop('fore_leaves_c', 'foreLeaves', 43, [5, 3.4], 'foreground', 48),
   ],
-  scenes: { r1_gate: R1_SCENES.back, r2_hall: R2_SCENES.back },
+  scenes: { r1_gate: R1_SCENES.back, r2_hall: R2_SCENES.back, r3_chamber: R3_SCENES.back },
 };
 
 export const RUINS_LIGHT: PackSpec = {
@@ -148,7 +149,7 @@ export const RUINS_LIGHT: PackSpec = {
     lightPiece('mist_bank', 'lightMist', 1024, 192, 32, 'decor', { seed: 3 }),
     lightPiece('motes_a', 'lightMotes', 512, 384, 32, 'decor', { seed: 8 }),
   ],
-  scenes: { r1_gate: R1_SCENES.light, r2_hall: R2_SCENES.light },
+  scenes: { r1_gate: R1_SCENES.light, r2_hall: R2_SCENES.light, r3_chamber: R3_SCENES.light },
 };
 
 /**
@@ -186,4 +187,42 @@ export const RUINS_ROOTS: PackSpec = {
   scenes: { r2_hall: R2_SCENES.roots },
 };
 
-export const PACKS: readonly PackSpec[] = [RUINS_GROUND, RUINS_BACK, RUINS_LIGHT, RUINS_ROOTS];
+/**
+ * THE SEAL of the Seal Chamber (R3): the door of the ward and its sigil, the card of the Spirit Bolt and the altar it lies on, the carved walls, the portal of stone the ward is set in,
+ * the paving of the ritual road and the circles of light on its stones. Only R3 fetches it.
+ */
+export const RUINS_SEAL: PackSpec = {
+  id: 'ruins-seal',
+  zones: ['r3_chamber'],
+  ppm: 96,
+  comment:
+    'THE SEAL of the Seal Chamber: the door of the ward (the material "seal") and its sigil, the card of the Spirit Bolt, the altar, the carved walls, the portal, the paving and the circles of light. ' +
+    'Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.',
+  sprites: [
+    // the door of the ward: 1.2 m wide, a column of cells 3 m tall (it repeats up the 9 m of the door), a cap with the diamond of the ward, a foot, and the violet light it gives
+    { id: 'seal_body', tags: ['role:door', 'material:seal', 'part:body'], piece: 'sealDoor', params: { seed: SEED + 60, part: 'body' }, pivot: [0, 1] },
+    { id: 'seal_top', tags: ['role:door', 'material:seal', 'part:top', 'rise:0.1'], piece: 'sealDoor', params: { seed: SEED + 60, part: 'top' }, pivot: [0, 1] },
+    { id: 'seal_bottom', tags: ['role:door', 'material:seal', 'part:bottom'], piece: 'sealDoor', params: { seed: SEED + 60, part: 'bottom' }, pivot: [0, 1] },
+    { id: 'seal_glow', tags: ['role:door', 'material:seal', 'part:glow', 'blend:add', 'reach:0.9'], piece: 'lightGlow', params: { w: 128, h: 256, tint: VIOLET }, ppm: 96, pivot: [0, 1] },
+    // the sigil of the ward (the seal the Spirit Bolt breaks): two frames, hanging and flashing; it is light (a family of its own: the light of this pack is all drawn at 96 px/m)
+    { id: 'seal_sigil', tags: ['role:seal', 'blend:add'], piece: 'sealSigil', params: { seed: SEED + 61 }, cols: 2, rows: 1, ppm: 96, pivot: [0.5, 0.5] },
+    // the card of the Spirit Bolt: a pickup that gives a card, drawn as light over the ledge
+    { id: 'card_spirit', tags: ['role:interactive', 'kind:pickup', 'variant:card'], piece: 'cardSpirit', params: { seed: SEED + 62 }, sizeM: [0.7, 1.1], pivot: [0.5, 1] },
+    // what stands behind the action: the altar of the card, the carved walls and the portal
+    prop('altar_card', 'pedestal', SEED + 63, [1.7, 1.3], 'props-back'),
+    { id: 'relief_a', tags: ['role:decor', 'layer:props-back'], piece: 'relief', params: { seed: SEED + 64, variant: 0 }, sizeM: [3.2, 5], pivot: [0.5, 1] },
+    { id: 'relief_b', tags: ['role:decor', 'layer:props-back'], piece: 'relief', params: { seed: SEED + 65, variant: 1 }, sizeM: [3.2, 5], pivot: [0.5, 1] },
+    prop('portal_flank', 'pilaster', SEED + 66, [1.2, 9.6], 'props-back'),
+    prop('portal_lintel', 'lintel', SEED + 67, [7.2, 1.5], 'props-back'),
+    // the road: three strips of paving of 4 m, over the ground
+    ...(['a', 'b', 'c'] as const).map(
+      (v, i): SpriteSpec => ({ id: `paving_${v}`, tags: ['role:decor', 'layer:terrain'], piece: 'paving', params: { seed: SEED + 70 + i, cols: 4 }, sizeM: [4, 0.3], pivot: [0.5, 1] }),
+    ),
+    // the circles and the line of light on the stones: additive, in the layer of the light
+    lightPiece('rune_circle', 'runeCircle', 288, 96, 96, 'decor', { seed: 2 }),
+    lightPiece('rune_path', 'runePath', 576, 29, 96, 'decor', { seed: 3 }),
+  ],
+  scenes: { r3_chamber: R3_SCENES.seal },
+};
+
+export const PACKS: readonly PackSpec[] = [RUINS_GROUND, RUINS_BACK, RUINS_LIGHT, RUINS_ROOTS, RUINS_SEAL];

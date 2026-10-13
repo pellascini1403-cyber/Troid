@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PLAYER_VISUAL } from '../../src/content/visuals';
 import { artClipFrames, CLIP_ALIASES, parseArtIndex, parseArtPack } from '../../src/presentation/artManifest';
-import { ENV_CONTRACT, readEnvTags, slotKey, type EnvSlot } from '../../src/presentation/environment';
+import { ENV_CONTRACT, readEnvLook, readEnvTags, slotKey, type EnvSlot } from '../../src/presentation/environment';
 import { SWORD_STATES } from '../../src/presentation/validateSpriteSet';
 import { ONE_SHOT_STATES, type AnimState } from '../../src/presentation/vocabulary';
 import { parseSheetSpec } from './sheet';
@@ -186,7 +186,9 @@ export function readEnvironmentDelivery(srcDir: string, slots: readonly EnvSlot[
           const { roles, subject, parts } = readEnvTags(sprite.tags);
           const spec = roles.length === 1 ? ENV_CONTRACT[roles[0] as keyof typeof ENV_CONTRACT] : undefined;
           if (!spec) continue;
-          drawn.set(slotKey(roles[0]!, spec.subject ? subject : null, spec.parts.length > 0 ? (parts[0] ?? '') : ''), `${entry.id}/${sprite.id}`);
+          // an interactive's piece is its variant (the bottle, the card or the rune of a pickup); the others are named by their part
+          const part = roles[0] === 'interactive' ? (readEnvLook(sprite.tags).variant ?? '') : spec.parts.length > 0 ? (parts[0] ?? '') : '';
+          drawn.set(slotKey(roles[0]!, spec.subject ? subject : null, part), `${entry.id}/${sprite.id}`);
         }
       } catch {
         packs.push({ id: entry.id, status: 'unreadable' });
@@ -196,7 +198,8 @@ export function readEnvironmentDelivery(srcDir: string, slots: readonly EnvSlot[
     // no art/ folder, no index: nothing delivered
   }
   const rows: EnvDeliveryRow[] = slots.map((slot) => {
-    const by = drawn.get(slotKey(slot.role, slot.subject, slot.part)) ?? null;
+    // (a pickup with no variant serves every variant: the same rule the pack check and the game follow)
+    const by = drawn.get(slotKey(slot.role, slot.subject, slot.part)) ?? (slot.role === 'interactive' && slot.part !== '' ? drawn.get(slotKey(slot.role, slot.subject, '')) : undefined) ?? null;
     return { slot, delivered: by !== null, by };
   });
   const required = rows.filter((r) => r.slot.required);

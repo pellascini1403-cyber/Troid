@@ -15,10 +15,13 @@ import type { Ctx, GameState, Scenario } from '../scenario';
  *   E · art that has only some of the materials (synthetic): what it has is drawn by it, what it lacks stays the blockout's, and the room is still whole
  *   F · R2, the Root Gallery: the thorns of the ditch, the shrine (resting → lit when it is the checkpoint) and the vial of the fourth bottle (gone once taken) are drawn by the art,
  *       the blockout lets go of exactly those, the room's own data is untouched, and the draw calls stay under the budget along the whole room
+ *   G · R3, the Seal Chamber: the door of the ward fades with its gate, the sigil of the ward is hung by the seal's own view (a blow turned away makes the flash come on), the card of the
+ *       Spirit Bolt floats until it is taken, and the blockout keeps drawing all of it with `?art=`
  */
 const PHONE = { width: 844, height: 390, dpr: 1 };
 const R1 = ROOMS['r1_gate']!;
 const R2 = ROOMS['r2_hall']!;
+const R3 = ROOMS['r3_chamber']!;
 /** The places of the walk and what each is (x of the hero's feet). */
 const PLACES: Array<[string, number]> = [['start', 6], ['chasm', 34], ['stairs', 44], ['crawl', 70], ['court', 98], ['gate', 106.6]];
 
@@ -215,5 +218,69 @@ export const roomArt: Scenario = {
       'the blockout draws the thorns',
     );
     assert.deepEqual(await ctx.page.evaluate('window.__troid.game.interactableViews.covered'), [], 'and the shrine and the pickup');
+
+    // ================================================================================================ G · R3: the ward, its door, the card
+    await ctx.open('room=r3_chamber&paused=1', PHONE);
+    const chamber = (await waitFor(ctx, 'R3 dressed with the art', (s) => s.roomArt !== null && s.roomArt !== undefined)).roomArt!;
+    assert.deepEqual([...chamber.solids].sort(), R3.solids.map((x) => x.id).sort(), 'every solid of R3 — the ground, the climb, the ledge and the door of the ward — is drawn by the art');
+    assert.deepEqual(chamber.gates, ['seal_gate'], 'the door the ward holds is drawn by the art');
+    assert.deepEqual(chamber.seals, ['seal'], 'and so is the sigil of the ward');
+    assert.deepEqual(chamber.interactables, ['card_spirit_bolt'], 'and the card of the Spirit Bolt');
+    assert.deepEqual(chamber.lacking, {}, 'the art lacks nothing R3 asks for');
+    assert.deepEqual(chamber.notes, [], 'and nothing it says about its strips or its foreground');
+    const sealView = (): Promise<{ shapes: boolean[]; art: number; flash: number | null } | null> =>
+      ctx.page.evaluate(
+        `(() => { const v = window.__troid.game.renderer.layers.fxWorld.children.find((c) => c.label === 'seal'); if (!v) return null; const a = v.children.find((c) => c.label === 'art:seal:seal'); return { shapes: v.children.slice(0, 3).map((c) => c.visible), art: v.children.filter((c) => c.label === 'art:seal:seal').length, flash: a ? a.children[1].alpha : null }; })()`,
+      ) as Promise<{ shapes: boolean[]; art: number; flash: number | null } | null>;
+    await ctx.page.waitForTimeout(300);
+    assert.deepEqual(await sealView(), { shapes: [false, false, false], art: 1, flash: 0 }, 'the seal\'s own view hangs the art\'s sigil on itself and does not draw its blockout shapes');
+    await ctx.shot('g-00-the-chamber');
+    // a blow that is turned away (the sword's) makes the flash of the art come on, as it makes the blockout's flash
+    await ctx.page.evaluate(
+      `(() => { const s = window.__troid.session.entities.find((e) => e.kind === 'seal'); s.receiveHit({ attackId: 'sword', attackerId: null, damage: 1, direction: 1, knockbackX: 0, knockbackY: 0, stun: 0, hitStop: 0, shake: 0, x: 62, y: 1 }); })()`,
+    );
+    await ctx.page.waitForFunction(
+      `(() => { const v = window.__troid.game.renderer.layers.fxWorld.children.find((c) => c.label === 'seal'); const a = v && v.children.find((c) => c.label === 'art:seal:seal'); return a && a.children[1].alpha > 0.5; })()`,
+      undefined,
+      { timeout: 8000 },
+    );
+    // the card floats on the ledge until it is taken
+    const card = await interactive('card_spirit_bolt', 'lightOverlay');
+    assert.ok(card !== null && card.visible, 'the card floats over its altar');
+    await ctx.page.evaluate("window.__troid.session.flags.set('taken:card_spirit_bolt')");
+    await ctx.step(2);
+    await ctx.page.waitForFunction(
+      `(() => { const c = window.__troid.game.renderer.layers.lightOverlay.children.find((x) => x.label === 'art:interactable:card_spirit_bolt'); return c && !c.visible; })()`,
+      undefined,
+      { timeout: 8000 },
+    );
+    // the draw calls along the room: the way in, the climb, the ledge, the lane, the portal
+    let worstChamber = 0;
+    for (const [name, x, y] of [['start', 4, 0], ['climb', 24, 2.5], ['ledge', 34, 4.9], ['lane', 52, 0], ['portal', 60, 0]] as const) {
+      await ctx.teleport(x, y);
+      await ctx.page.evaluate('window.__troid.settleCamera(5)');
+      await ctx.page.waitForTimeout(400);
+      const g = await ctx.state();
+      worstChamber = Math.max(worstChamber, g.drawsMax ?? 0);
+      assert.ok((g.drawsMax ?? 0) <= 60, `R3 ${name}: ${g.drawsMax} draw calls (budget 60)`);
+      await ctx.shot(`g-${name}`);
+    }
+    const lib3 = (await ctx.state()).art!;
+    console.log(`  room-art: R3 = ${chamber.sprites} sprites · worst ${worstChamber} draw calls (budget 60) · art ${lib3.pages} pages, ${(lib3.bytes / 1048576).toFixed(1)} MiB resident`);
+    assert.ok(lib3.bytes < 32 * 1048576, `R3's pages fit the proposed memory budget of 32 MiB (${(lib3.bytes / 1048576).toFixed(1)} MiB)`);
+    assert.deepEqual(ctx.warnings.filter((w) => w.includes('[art]')), [], 'the library had nothing to say about the art of R3');
+    // the door of the ward follows its gate, like any door: whole while the ward holds it, gone once it is broken
+    const doorOf = (): Promise<{ alpha: number; visible: boolean } | null> =>
+      ctx.page.evaluate(`(() => { const d = window.__troid.game.roomArt.door('seal_gate'); return d ? { alpha: d.alpha, visible: d.visible } : null; })()`) as Promise<{ alpha: number; visible: boolean } | null>;
+    assert.deepEqual(await doorOf(), { alpha: 1, visible: true }, 'the door of the ward is drawn, whole');
+    await ctx.page.evaluate("window.__troid.session.flags.set('broken:r3_seal')");
+    await ctx.step(2);
+    await ctx.page.waitForFunction("(() => { const d = window.__troid.game.roomArt.door('seal_gate'); return d && d.alpha === 0 && !d.visible; })()", undefined, { timeout: 8000 });
+    // no art: the blockout draws the sigil and the card, as it always did
+    await ctx.open('room=r3_chamber&paused=1&art=', PHONE);
+    await ctx.page.waitForTimeout(800);
+    assert.equal((await ctx.state()).roomArt, null, 'no art: nothing dresses R3');
+    assert.deepEqual(await sealView(), { shapes: [true, true, true], art: 0, flash: null }, 'the seal draws its own shapes');
+    assert.deepEqual(await ctx.page.evaluate('window.__troid.game.interactableViews.covered'), [], 'and the card is the blockout\'s');
   },
 };

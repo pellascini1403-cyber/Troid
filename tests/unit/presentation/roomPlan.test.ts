@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readEnvLook } from '@/presentation/environment';
-import { PICKUP_FLOAT } from '@/presentation/environment';
-import { cropFrame, exposedEdges, planHazards, planInteractables, planStrip, planTerrain, subtractSpans, type PieceInfo, type PieceLookup, type PlanRoom } from '@/presentation/roomPlan';
+import { PICKUP_FLOAT, sealSigilY } from '@/presentation/environment';
+import { cropFrame, exposedEdges, planHazards, planInteractables, planSeals, planStrip, planTerrain, subtractSpans, type PieceInfo, type PieceLookup, type PlanRoom } from '@/presentation/roomPlan';
 import { rect } from '@/world/builders';
 import { R1_GATE_ROOM } from '@/content/rooms/r1Gate';
 import { R2_HALL_ROOM } from '@/content/rooms/r2Hall';
@@ -291,3 +291,28 @@ describe('planInteractables: the shrines, the pickups and the levers', () => {
     expect(asks(R4_SANCTUM_ROOM)).toEqual(['interactive:pickup:rune', 'interactive:rest:']);
   });
 });
+
+describe('planSeals: the wards', () => {
+  const sigil = (frames = 2): PieceInfo => piece(3, 3, [], frames);
+
+  it('hangs the sigil where the blockout hangs it: the middle of the ward, or 1.8 m over its feet when it is taller than the hero reaches', () => {
+    expect(sealSigilY({ y: 0, height: 3.6 })).toBeCloseTo(1.8, 10);
+    expect(sealSigilY({ y: 0 })).toBeCloseTo(1.8, 10);
+    expect(sealSigilY({ y: 2, height: 1 })).toBeCloseTo(2.5, 10);
+    expect(sealSigilY({ y: 0, height: 9 })).toBeCloseTo(1.8, 10);
+  });
+
+  it('one placement per ward, on its spot, with the pictures the art has', () => {
+    const plan = planSeals([{ id: 'a', x: 63, y: 0 }, { id: 'b', x: 10, y: 4, height: 2 }], sigil());
+    expect(plan.placements).toEqual([{ id: 'a', x: 63, y: 1.8, frames: 2 }, { id: 'b', x: 10, y: 5, frames: 2 }]);
+    expect(plan.lacking.size).toBe(0);
+  });
+
+  it('a room with wards and an art with no sigil reports the slot, and the blockout keeps its shapes', () => {
+    const plan = planSeals(R3_CHAMBER_ROOM.seals ?? [], null);
+    expect(plan.placements).toEqual([]);
+    expect([...plan.lacking]).toEqual([['seal::', ['seal']]]);
+    expect(planSeals([], null).lacking.size).toBe(0);
+  });
+});
+

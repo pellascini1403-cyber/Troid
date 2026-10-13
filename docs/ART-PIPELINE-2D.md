@@ -1203,3 +1203,24 @@ R2 se viste como R1 —las mismas teselas, los mismos fondos y la misma luz de l
 
 **Lo que falta de R2 y necesita revisión artística:** el santuario en reposo y las espinas son pequeños comparados con el arco (se leen, pero piden el ojo de un artista); las raíces comparten una gramática (trenzas + nudos + ramas) que a ojo de ilustrador se repite; el suelo del foso es la misma tierra que la de fuera (le faltan charcos y estratos); el Ink Slime sigue procedural (fase G).
 
+
+## M.10 R3, «Cámara del Sello» (fase D): lo que el contrato aprendió
+
+R3 se viste con los mismos tres paquetes compartidos (suelo, fondos, luz: ahora declaran `r1_gate`, `r2_hall` **y** `r3_chamber`) y un quinto paquete **solo de R3** (`ruins-seal`, `zones: ["r3_chamber"]`, 96 px/m): la puerta del sello, su sigilo, la carta del Spirit Bolt, el altar, los muros tallados, el portal, el empedrado y los círculos de luz. Es la sala donde el héroe **recibe algo y después lo usa**: un camino ritual de piedra gastada, con una línea de luz cian incrustada, va de la entrada al sello; sube a la repisa donde la carta descansa en su altar y sigue por la nave larga hasta el portal. **Cian es del héroe** (camino, altar, carta, círculos donde ponerse); **violeta es del sello** (la puerta, su sigilo, la luz que se derrama).
+
+**Una pieza de los datos de la sala que antes solo dibujaba el *blockout*: el sello (`seals`).** Es una *entidad* (la sala la hace nacer), así que no cabe en una escena: el arte se **cuelga de su vista**.
+
+- `role:seal` (un `blend:add`, dos fotogramas: **colgado** / **destello**). `roomPlan.planSeals` coloca el sigilo a la altura de `sealSigilY` (la misma función que usa el *blockout*: la mitad del alto del sello, con tope), y lo que falta se reporta por ranura (`seal::`).
+- `RoomArtView` crea un `ArtSeal` por sello y `SealView.dress(art)` lo cuelga de la vista del sello: **el arte no decide nada**, lee los mismos tres números que leía el *blockout* (`rejected`: cuánto queda del golpe que se rechazó, `opacity`: cuánto queda del sello, `broken`) y los pone en movimiento (respira, se hincha al romperse, se encoge al golpe, el destello se enciende al rechazar). Las formas del *blockout* **se ocultan, no se destruyen**: si la sala se reconstruye (el arte se limpia) o el arte se suelta, el sello vuelve a ser el de formas **en el mismo fotograma**.
+- El arte conoce un sello por **el id que le dan los datos de la sala** (`def.id`), no por el id que la simulación da a la entidad (`seal#1`): `Game2D.dressRoom` busca por `def.id`. (Un fallo real de esta fase: la primera versión buscaba por el de la entidad y el sello nunca se vestía; lo cazó el E2E `room-art`.)
+- La puerta que el sello sostiene es una puerta más (`material:seal`, cuatro piezas: cuerpo, cabeza con el rombo, pie y luz) con el estilo **`ward`** del pintor: piedra con canales de runas cian que acaban en violeta al llegar a la hoja.
+
+**La carta** es un `pickup` con `variant:card` (la tercera variante del contrato): luz pintada, flotando sobre su altar. El `pickup` de R3 pide `card` porque **da una carta** (`interactiveVariant`), no por el nombre de la sala.
+
+**Una regla de densidad que R3 deja escrita:** las piezas `blend:add` de **un mismo paquete** forman una familia (`light`) y **tienen que compartir `ppm`** (si no, el empaquetador avisa: la luz de un paquete con dos densidades se vería con dos tamaños de grano). Todo lo aditivo de `ruins-seal` es 96 px/m: el resplandor de la puerta, el sigilo, los círculos y el trazo de runas.
+
+**Lo pintado** (todo de `tools/art/painter/seal.ts`; originales, runas **abstractas** —ninguna letra de ningún alfabeto—): sigilo (rombo con un ojo pálido, tres anillos, dos fotogramas), carta (marco de luz con un espíritu), altar (dos escalones y un pedestal con tres runas cian), relieves (muros tallados con anillos que arden), pilastras y dintel del portal, empedrado (franjas periódicas de 4 m con la línea de luz), círculos y trazo de runas (aditivos).
+
+**Medido** (GL por software; sin dispositivo real): R3 = **370 *sprites*, 10 llamadas de dibujo como máximo** (presupuesto 60), 5 páginas residentes en R3 (**25.0 MiB** descomprimidas con el héroe), el paquete de R3 ≈ 0.8 MB en disco y 4.2 MB descomprimido.
+
+**Lo que falta de R3 y necesita revisión artística:** el sigilo y la carta se leen bien pero son «de generador» (simetría perfecta, ninguna imperfección de mano); los relieves tallados repiten una gramática de anillos; el sello **roto** (la rotura es el momento del Spirit Bolt) es el mismo hincharse y desvanecerse de siempre: lo que lo hace épico son los VFX de la fase H.

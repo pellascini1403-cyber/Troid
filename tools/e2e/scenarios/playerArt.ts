@@ -306,8 +306,8 @@ export const playerArt: Scenario = {
     for (const clip of REQUIRED) assert.ok(s.visual!.provides.includes(clip), `the set has a clip for ${clip}`);
     assert.ok(s.visual!.provides.includes('land'), 'and the landing the sheet has a pose for');
     const lib = s.art!;
-    // the library lists the packs of the index: the protagonist, and the four of the scenery of the ruins (S45–S47: they are `zone` packs, read when the hero is in their rooms)
-    assert.deepEqual({ state: lib.state, failures: lib.failures, packs: lib.packList.map((p) => p.id) }, { state: 'ready', failures: 0, packs: ['player', 'ruins-ground', 'ruins-back', 'ruins-light', 'ruins-roots'] });
+    // the library lists the packs of the index: the protagonist, and the five of the scenery of the ruins (S45–S48: they are `zone` packs, read when the hero is in their rooms)
+    assert.deepEqual({ state: lib.state, failures: lib.failures, packs: lib.packList.map((p) => p.id) }, { state: 'ready', failures: 0, packs: ['player', 'ruins-ground', 'ruins-back', 'ruins-light', 'ruins-roots', 'ruins-seal'] });
     assert.equal(lib.packList.find((p) => p.id === 'player')!.status, 'provisional', 'the protagonist\'s pack is the user\'s own sheet, still provisional');
     assert.equal(ctx.warnings.filter((w) => w.includes('[art]') || w.includes('[sprite]')).length, 0, 'the art of the repository has nothing to say, even in development');
     assert.equal((await ctx.state()).boxes!.hitbox, null);

@@ -1,0 +1,412 @@
+{
+  "manifestVersion": 1,
+  "id": "ruins-seal",
+  "category": "environment",
+  "status": "provisional",
+  "comment": "THE SEAL of the Seal Chamber: the door of the ward (the material \"seal\") and its sigil, the card of the Spirit Bolt, the altar, the carved walls, the portal, the paving and the circles of light. Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.",
+  "tags": [
+    "ruins",
+    "generated"
+  ],
+  "atlasMode": "shared",
+  "scenes": {
+    "r3_chamber": "scenes/r3_chamber.json"
+  },
+  "atlases": [],
+  "sprites": [
+    {
+      "id": "seal_body",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 3,
+      "frameSize": [
+        115,
+        288
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:door",
+        "material:seal",
+        "part:body"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "seal_body_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "seal_top",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 1.396,
+      "frameSize": [
+        115,
+        134
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:door",
+        "material:seal",
+        "part:top",
+        "rise:0.1"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "seal_top_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "seal_bottom",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 0.698,
+      "frameSize": [
+        115,
+        67
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:door",
+        "material:seal",
+        "part:bottom"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "seal_bottom_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "seal_glow",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 2.667,
+      "frameSize": [
+        128,
+        256
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:door",
+        "material:seal",
+        "part:glow",
+        "blend:add",
+        "reach:0.9"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "seal_glow_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "seal_sigil",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "height": 3.198,
+      "frameSize": [
+        307,
+        307
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:seal",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "seal_sigil_",
+          "count": 2
+        }
+      }
+    },
+    {
+      "id": "card_spirit",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.104,
+      "frameSize": [
+        67,
+        106
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:interactive",
+        "kind:pickup",
+        "variant:card"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "card_spirit_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "altar_card",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.302,
+      "frameSize": [
+        163,
+        125
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "altar_card_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "relief_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 5,
+      "frameSize": [
+        307,
+        480
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "relief_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "relief_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 5,
+      "frameSize": [
+        307,
+        480
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "relief_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "portal_flank",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 9.604,
+      "frameSize": [
+        115,
+        922
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "portal_flank_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "portal_lintel",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.5,
+      "frameSize": [
+        691,
+        144
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "portal_lintel_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "paving_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.302,
+      "frameSize": [
+        384,
+        29
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "paving_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "paving_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.302,
+      "frameSize": [
+        384,
+        29
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "paving_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "paving_c",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.302,
+      "frameSize": [
+        384,
+        29
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "paving_c_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "rune_circle",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1,
+      "frameSize": [
+        288,
+        96
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "rune_circle_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "rune_path",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.302,
+      "frameSize": [
+        576,
+        29
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "rune_path_",
+          "count": 1
+        }
+      }
+    }
+  ]
+}

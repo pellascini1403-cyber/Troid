@@ -178,6 +178,12 @@ export function stripCover(bounds: Rect, factor: number, stripWidth: number): { 
 /** A floating pickup is drawn this far above the spot its room data names (metres): its centre, not its foot. Shared by the blockout and the art, so the one never moves against the other. */
 export const PICKUP_FLOAT = 0.85;
 
+/**
+ * Where the sigil of a seal hangs: the middle of the ward, or 1.8 m over its feet if the ward is taller than the hero (the height a blow reaches). Shared by the blockout's sigil and
+ * the art's, so the one never moves against the other.
+ */
+export const sealSigilY = (seal: { y: number; height?: number }): number => seal.y + Math.min(1.8, (seal.height ?? 3.6) / 2);
+
 /** The things a pickup can give, as its picture says (`variant:bottle`): what the blockout draws as a vial, a rune or a card. */
 export const PICKUP_VARIANTS = ['bottle', 'card', 'rune'] as const;
 

@@ -101,3 +101,36 @@ describe('the door a seal holds (R3)', () => {
     expect(strokes(door)).toBeGreaterThan(strokes(stone));
   });
 });
+
+describe('SealView: the art takes the sigil over', () => {
+  const art = (): { root: Container; calls: Array<{ rejected: number; opacity: number; broken: boolean }>; update(s: { rejected: number; opacity: number; broken: boolean }): void } => {
+    const calls: Array<{ rejected: number; opacity: number; broken: boolean }> = [];
+    return { root: new Container(), calls, update: (s) => void calls.push({ ...s }) };
+  };
+
+  it('with art the blockout\'s shapes are not drawn, and the art is told what the simulation says of the seal every frame', () => {
+    const s = seal({ rejected: 0.5 });
+    const view = new SealView(s);
+    const a = art();
+    view.dress(a);
+    expect(view.root.children.slice(0, 3).every((c) => !c.visible)).toBe(true);
+    expect(view.root.children).toContain(a.root);
+    view.sync(1, 0.1);
+    expect(a.calls).toEqual([{ rejected: 0.5, opacity: 1, broken: false }]);
+    s.view.opacity = 0.4;
+    view.sync(1, 0.1);
+    expect(view.root.alpha).toBe(0.4);
+  });
+
+  it('with no art (or art that was given back) the shapes are the sigil again — the art may be cleared under it at any time', () => {
+    const view = new SealView(seal());
+    const a = art();
+    view.dress(a);
+    a.root.destroy();
+    view.sync(1, 0.1);
+    expect(view.root.children.slice(0, 3).every((c) => c.visible)).toBe(true);
+    view.dress(null);
+    expect(view.root.children.slice(0, 3).every((c) => c.visible)).toBe(true);
+  });
+});
+

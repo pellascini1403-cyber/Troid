@@ -11,7 +11,8 @@
   "atlasMode": "shared",
   "scenes": {
     "r1_gate": "scenes/r1_gate.json",
-    "r2_hall": "scenes/r2_hall.json"
+    "r2_hall": "scenes/r2_hall.json",
+    "r3_chamber": "scenes/r3_chamber.json"
   },
   "atlases": [],
   "sprites": [

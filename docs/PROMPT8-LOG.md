@@ -253,3 +253,73 @@ Nuevos: `tools/art/painter/roots.ts`, `tools/art/scenes/{common,r2}.ts`, `art/ru
 - **Revisión artística**: las raíces comparten una gramática (trenzas + nudos + ramas) que a ojo de ilustrador se repite; el santuario en reposo y las espinas son pequeños al lado del arco; el suelo del foso necesita charcos y estratos.
 - **Calibración en dispositivo real**: legibilidad de las puntas carmín y del santuario en pantallas pequeñas.
 - **R3, R4**: fases D y E.
+
+## Fase D — R3 «Cámara del Sello» (S48)
+
+**Resultado en una frase:** la tercera sala **se dibuja con arte pintado en el motor** —los tres paquetes compartidos más uno propio de R3 (`ruins-seal`): **la puerta del sello** (piedra con canales de runas cian que acaban en violeta), **el sigilo del sello** (dos fotogramas: colgado y destello),
+**la carta del Spirit Bolt**, el altar, muros tallados, el portal de piedra, el empedrado ritual con su línea de luz y los círculos donde ponerse—, y el motor aprende a dibujar con arte **una cosa más que antes solo dibujaba el *blockout***: **el sello, que es una entidad**.
+R3 no se da por terminada del todo: **el momento del Spirit Bolt** (la carga, el disparo, el impacto, la rotura del sello) conserva los efectos de siempre hasta la fase H.
+
+### Qué se hizo
+
+- **Contrato:** `role:seal` (un `blend:add` de dos fotogramas, colgado / destello; pivote en el centro) y la vista de la puerta del sello usa lo que ya existía (`material:seal`: cuerpo, cabeza con el rombo, pie y luz). La carta es `variant:card` (la tercera variante de la fase C).
+  Una **regla de densidad**: las piezas `blend:add` de un mismo paquete forman la familia `light` y **comparten `ppm`** (todo lo aditivo de `ruins-seal` es 96 px/m).
+- **Planificador puro** (`roomPlan.planSeals`, con 3 pruebas: la altura del sigilo es la del *blockout* —la mitad del alto del sello, con tope a 1.8 m—, un puesto por sello con los fotogramas del arte, y lo que falta se reporta por ranura).
+- **Vistas.** El sello es una **entidad** (la sala la hace nacer), no una colocación de escena: `RoomArtView` crea un **`ArtSeal`** por sello y `SealView.dress(art)` lo **cuelga de la vista del sello**. El arte **lee los mismos tres números** que leía el *blockout* (`rejected`, `opacity`, `broken`) y no decide nada: respira, se encoge al golpe, se hincha al romperse, se enciende
+  el destello al rechazar. Las formas del *blockout* **se ocultan, no se destruyen**: si la sala se reconstruye o el arte se suelta, el sello vuelve a ser el de formas en el mismo fotograma (2 pruebas). `EntityViews.each(kind, fn)` encuentra las vistas de un tipo.
+- **El pintor de R3** (`tools/art/painter/seal.ts`): sigilo, carta, altar, relieves, pilastras y dintel del portal, empedrado, círculos de runas y trazo de runas. **Runas originales y abstractas** (trazos, anillos, marcas de cuenta: **ninguna letra de ningún alfabeto**, nada copiado). Una función común, `inlay`, **talla una máscara en la piedra**
+  (más baja, más oscura, con luz emisiva dentro): todos los canales de luz del paquete salen de ella.
+- **La composición** (`tools/art/scenes/r3.ts`): un camino ritual de piedra gastada con una línea de luz cian incrustada que va de la entrada al sello, sube a la repisa de la carta y sigue por la nave larga hasta el portal. **Cian es del héroe; violeta es del sello.**
+- **Zonas:** los tres paquetes compartidos declaran ahora `r1_gate`, `r2_hall` **y** `r3_chamber`; `ruins-seal`, solo `r3_chamber` (se descarga al entrar y se suelta al salir).
+
+### Los activos nuevos (todo de `tools/art`, estado `provisional`)
+
+| Paquete | *Sprite sets* | Qué es |
+|---|---|---|
+| `ruins-seal` (nuevo, 96 px/m) | 16 | puerta del sello (cuerpo, cabeza, pie, resplandor), **sigilo** (2 fotogramas), **carta**, altar, 2 relieves, pilastra y dintel del portal, 3 empedrados, círculo de runas, trazo de runas |
+| Escena `r3_chamber` | **93 colocaciones** (suelo y *props* 38, sello 31, fondos y primer plano 9, luz 15) | 370 *sprites* en pantalla |
+
+El paquete pesa ≈ 0.8 MB en disco (4.2 MB descomprimido); entre los seis paquetes: 4109.6 KB en disco y 31507 KB descomprimidos.
+
+### *Placeholders* quitados y los que quedan
+
+- **Quitados en R3** (con `?visual=auto`): los **rectángulos de suelo, subida, repisa y puerta**; la **losa violeta de la puerta del sello** (el `drawSealDoor` del *blockout*); las **formas del sigilo** (rombo, halo y destello dibujados con `Graphics`); la **carta** (también `Graphics`); los **haces de las salidas** y las **cuatro capas de fondo planas**.
+- **Quedan en R3:** el **momento del Spirit Bolt** —la carga, el proyectil, el impacto, el estallido del sello y su disolución— son los efectos de siempre (fase H); la puerta se desvanece con el fundido de siempre.
+- **Quedan en el mundo** (el empaquetador lo lista, **un** aviso en `STILL_THE_BLOCKOUT` de `artRepo.test`, que ya no son cuatro): la **runa** del Air Dash (R4). **R4 y el jefe siguen siendo el bloqueo de siempre** (fases E y F).
+
+### Archivos
+
+Nuevos: `tools/art/painter/seal.ts`, `tools/art/scenes/r3.ts`, `art/ruins-seal/**`, `art/ruins-*/scenes/r3_chamber.json`, `public/art/ruins-seal/**`. Modificados: `src/presentation/{environment,roomPlan}.ts`, `src/render/{RoomArtView,SealView,EntityViews}.ts`, `src/app/{Game2D,testHooks}.ts`,
+`tools/art/{packs/ruins,painter/{pieces,props}}.ts`, `art/index.json`, `public/art/index.json` y los manifiestos de los tres paquetes compartidos, 4 archivos de pruebas, `tools/e2e/scenario.ts` y 2 escenarios, `tools/assets/missing.ts`, la documentación.
+
+### Verificación
+
+| | Resultado |
+|---|---|
+| `tsc` | limpio |
+| Pruebas unitarias y de integración | **2314 en 145 archivos** (2308 al cerrar la fase C: +6 — el planificador de sellos, la vista del sello con arte y el informe de entrega por variante) |
+| E2E | **44/44 en producción** y **44/44 en desarrollo** (las dos pasadas completas, a la primera; `hud` también) |
+| Llamadas de dibujo | R3 entera: **10 como máximo** en cinco puntos del recorrido (presupuesto 60); R1, 13; R2, 11 |
+| Memoria del arte en R3 | **25.0 MiB** residentes (5 páginas; presupuesto propuesto 32 MiB); R1, 20.8; R2, 26.6 |
+| Arranque en frío (200 KB) | **193.2 KB gz** (193.1 antes: +0.1) · *chunk* de arte 16.3 KB gz · primera sesión 224.7 KB gz |
+
+> Sigue sin medirse nada en un dispositivo real.
+
+### Pruebas que se adaptaron (y por qué)
+
+`artRepo.test` (seis paquetes y la lista honesta `STILL_THE_BLOCKOUT`, ahora de **1**: solo la runa del Air Dash), `playerArt` (E2E: seis paquetes en la biblioteca) y `roomArt` (E2E: sección **G**, la de R3 —cada sólido, la puerta, el sello y la carta los dibuja el arte; el sigilo del arte cuelga de la vista del sello y las formas del *blockout* no se dibujan;
+un golpe de espada rechazado enciende el destello del arte; la carta desaparece al cogerla; la puerta se desvanece al romperse el sello; ≤ 60 llamadas en cinco puntos; memoria bajo el presupuesto; con `art=` el sello vuelve a ser el de formas—). Ninguna prueba se bajó ni se borró.
+
+### Problemas encontrados (y resueltos)
+
+1. **El sigilo del arte nunca se colgaba de la vista del sello** (lo cazó la sección G de `room-art` en la primera pasada): `Game2D.dressRoom` buscaba el arte del sello por **el id de la entidad** (`seal#1`, que da la simulación) y el arte lo conoce por **el id de los datos de la sala** (`seal`). Ahora busca por `def.id`. El *blockout* siguió dibujando el sello correctamente mientras tanto: la guarda por ranura hizo que el fallo fuese **silencioso para el jugador** y visible solo en la prueba.
+2. **La luz de un paquete tiene una sola densidad** (la comprobación por familia ya existía; lo aditivo de `ruins-seal` —resplandor de la puerta, sigilo, círculos y trazo de runas— se pinta todo a 96 px/m): la regla queda escrita en la guía (§7) y en M.10.
+
+3. **`assets:missing` daba por «NO ENTREGADOS» el frasco y la carta que sí estaban entregados** (desde la fase C: el informe no miraba la variante de un objeto y los buscaba como `pickup` a secas; el empaquetador, que sí la mira, tenía razón). Corregido —un objeto se entrega por su variante y uno sin variante sirve a todas, la misma regla del empaquetador y del juego— con una prueba de regresión. Con eso el informe dice lo cierto: **13 de 14 piezas obligatorias** (solo falta la runa de R4).
+
+### Pendiente de la fase D (a propósito)
+
+- **Revisión artística:** el sigilo y la carta se leen bien pero son «de generador» (simetría perfecta, nada de mano); los relieves tallados repiten una gramática de anillos; el empedrado se repite cada 4 m.
+- **El momento del Spirit Bolt** (fase H): la carga, el disparo, el impacto, el estallido del sello y el resplandor posterior.
+- **Calibración en dispositivo real:** la legibilidad del sigilo violeta sobre el fondo azul en pantallas pequeñas.
+- **R4 y el jefe:** fases E y F.

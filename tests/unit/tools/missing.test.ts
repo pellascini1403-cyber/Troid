@@ -167,6 +167,19 @@ describe('readEnvironmentDelivery', () => {
     expect(readEnvironmentDelivery(src, slots).delivered).toBe(0);
   });
 
+  it('a pickup is delivered by the variant it says it is (the bottle, the card, the rune), and one with no variant serves them all', () => {
+    const pickup = (id: string, variant: string | null) => ({ id, tags: ['role:interactive', 'kind:pickup', ...(variant ? [`variant:${variant}`] : [])] });
+    const row = (r: ReturnType<typeof readEnvironmentDelivery>, variant: string) => r.rows.find((x) => x.slot.role === 'interactive' && x.slot.subject === 'pickup' && x.slot.part === variant);
+    declareScenery('provisional', [pickup('vial', 'bottle'), pickup('card', 'card')]);
+    const some = readEnvironmentDelivery(src, slots);
+    expect(row(some, 'bottle')).toMatchObject({ delivered: true, by: 'forest/vial' });
+    expect(row(some, 'card')).toMatchObject({ delivered: true, by: 'forest/card' });
+    expect(row(some, 'rune')?.delivered).toBe(false);
+    declareScenery('provisional', [pickup('anything', null)]);
+    const all = readEnvironmentDelivery(src, slots);
+    expect(['bottle', 'card', 'rune'].map((v) => row(all, v)?.by)).toEqual(['forest/anything', 'forest/anything', 'forest/anything']);
+  });
+
   it('says it all in words for a person, and where to read how to deliver it', () => {
     declareScenery('provisional', [{ id: 'stone_fill', tags: ['role:solid', 'material:stone', 'part:fill'] }]);
     const text = formatEnvironmentDelivery(readEnvironmentDelivery(src, slots));

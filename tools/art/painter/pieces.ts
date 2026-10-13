@@ -8,6 +8,7 @@ import { door, edge, lit, platform } from './props';
 import { columnProp, crystals, effigy, ferns, foreLeaves, grass, hangingRoots, mushrooms, rubble, ruinedArch, runeStone } from './flora';
 import { beam, glow, mistBank, motes, shaft, veil } from './lights';
 import { rootArch, rootCrawl, rootCurtain, rootPillar, shrine, thorns, vial } from './roots';
+import { cardSpirit, lintel, paving, pedestal, pilaster, relief, runeCircle, runePath, sealSigil } from './seal';
 
 /**
  * The painter's catalogue: each piece is a function from parameters to a painted surface, deterministic (a seed in, the same pixels out). The build (`tools/art/build.ts`)
@@ -80,6 +81,21 @@ const doorPiece: PieceMaker = async (p) => {
   return lit(door({ w, h, ppm, seed: num(p, 'seed', 13), part, glow: [seal[0] * 0.9, seal[1] * 0.9, seal[2] * 0.9] }, base), part === 'body');
 };
 
+/** The door of a ward (the material `seal`): a column 1.2 m wide of dark stone cut by two seams of violet ink with a column of runes between them, and the diamond of the ward over the top. */
+const sealDoorPiece: PieceMaker = async (p) => {
+  const ppm = num(p, 'ppm', 96);
+  const part = str(p, 'part', ['body', 'top', 'bottom'] as const, 'body');
+  const w = Math.round(num(p, 'wM', 1.2) * ppm);
+  const h = Math.round(ppm * (part === 'body' ? 3 : part === 'top' ? 1.4 : 0.7));
+  const seed = num(p, 'seed', 19) + (part === 'body' ? 0 : part === 'top' ? 5 : 9);
+  const base = stone({
+    w, h, ppm, seed, style: 'courses', courseM: [0.6, 1.2], blockM: [1.2, 1.2], jointM: 0.07, moss: 0.2, cracks: 0.3, stains: 0.9, energy: 0,
+    stone: STONE, mossRamp: MOSS, tone: 0.26, toneSpread: 0.06,
+  });
+  const violet = hex('#a56bff');
+  return lit(door({ w, h, ppm, seed: num(p, 'seed', 19), part, style: 'ward', glow: [violet[0] * 1.0, violet[1] * 1.0, violet[2] * 1.0] }, base), part === 'body');
+};
+
 const strip = (make: typeof farStrip, defaults: { w: number; h: number; ppm: number }): PieceMaker => async (p) => make({ w: num(p, 'w', defaults.w), h: num(p, 'h', defaults.h), ppm: num(p, 'ppm', defaults.ppm), seed: num(p, 'seed', 21) });
 
 /** A prop: its size in metres and a seed; the painter makes the picture at the pack's density. */
@@ -121,6 +137,28 @@ export const PIECES: Record<string, PieceMaker> = {
     return shrine({ w: Math.round(ppm * 3.3) * 2, h: Math.round(ppm * 3.7), ppm, seed: num(p, 'seed', 31) });
   },
   vial: prop(vial, 0.7, 1.2),
+  sealDoor: sealDoorPiece,
+  /** The sigil of the ward: two cells of 3.2 × 3.2 m (hanging, flashing). */
+  sealSigil: async (p) => {
+    const ppm = num(p, 'ppm', 96);
+    return sealSigil({ w: Math.round(ppm * 3.2) * 2, h: Math.round(ppm * 3.2), ppm, seed: num(p, 'seed', 3) });
+  },
+  cardSpirit: prop(cardSpirit, 0.7, 1.1),
+  pedestal: prop(pedestal, 1.7, 1.3),
+  relief: async (p) => {
+    const ppm = num(p, 'ppm', 96);
+    return relief({ w: Math.round(ppm * 3.2), h: Math.round(ppm * 5), ppm, seed: num(p, 'seed', 5), variant: num(p, 'variant', 0) });
+  },
+  pilaster: prop(pilaster, 1.2, 9.6),
+  lintel: prop(lintel, 7.2, 1.5),
+  /** The ritual road: `cols` metres of paving, 0.3 m tall, periodic along its length. */
+  paving: async (p) => {
+    const ppm = num(p, 'ppm', 96);
+    const cols = num(p, 'cols', 4);
+    return paving({ w: Math.round(ppm * cols), h: Math.round(ppm * 0.3), ppm, seed: num(p, 'seed', 9), cols });
+  },
+  runeCircle: prop(runeCircle, 3, 1),
+  runePath: prop(runePath, 6, 0.3),
   columnWhole: prop((o) => columnProp({ ...o, state: 'whole', heightM: 4.6 }), 1.6, 5.2),
   columnBroken: prop((o) => columnProp({ ...o, state: 'broken', heightM: 3.1 }), 1.6, 3.7),
   lightShaft: light(shaft, 192, 640),

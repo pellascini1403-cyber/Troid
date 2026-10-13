@@ -45,6 +45,11 @@ export class EntityViews {
     return this.views.size;
   }
 
+  /** The views of the entities of one kind (the art of a room finds the seals this way): the entity each belongs to, and the view. */
+  each(kind: string, fn: (entity: SimEntity, view: EntityView) => void): void {
+    for (const [entity, view] of this.views) if (entity.kind === kind) fn(entity, view);
+  }
+
   sync(alpha: number, dt: number): void {
     for (const v of this.views.values()) v.sync(alpha, dt);
   }

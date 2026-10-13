@@ -263,6 +263,8 @@ export interface DoorOptions {
   part: 'body' | 'top' | 'bottom';
   /** The colour of the light in the seal. */
   glow: Rgb;
+  /** `gate`: one seam down the middle (the door of a guardian). `ward`: two seams with a column of runes between them, and the sigil's own diamond over them (the door a ward holds). */
+  style?: 'gate' | 'ward';
 }
 
 /** A door of the ruins: a monolith of dark stone cut by a seam of ink-light and carved with runes. `body` repeats up the door (periodic in y). */
@@ -275,7 +277,46 @@ export function door(o: DoorOptions, stoneLayers: Layers): Layers {
   sctx.strokeStyle = '#fff';
   const cx = w / 2;
   const seamW = Math.max(3, ppm * 0.07);
-  if (o.part === 'body') {
+  if (o.style === 'ward') {
+    const off = ppm * 0.27;
+    const seams = (y0: number, y1: number): void => {
+      sctx.beginPath();
+      sctx.rect(cx - off - seamW / 2, y0, seamW, y1 - y0);
+      sctx.rect(cx + off - seamW / 2, y0, seamW, y1 - y0);
+      sctx.fill();
+    };
+    // the thin line of light inlaid along either edge
+    const edges = (y0: number, y1: number): void => {
+      sctx.beginPath();
+      sctx.rect(ppm * 0.07, y0, Math.max(2, ppm * 0.025), y1 - y0);
+      sctx.rect(w - ppm * 0.07 - Math.max(2, ppm * 0.025), y0, Math.max(2, ppm * 0.025), y1 - y0);
+      sctx.fill();
+    };
+    if (o.part === 'body') {
+      seams(0, h);
+      edges(0, h);
+      const rungs = Math.max(1, Math.round(h / (ppm * 0.75)));
+      for (let i = 0; i < rungs; i++) rune(sctx, cx, ((i + 0.5) / rungs) * h, ppm * 0.22, rng);
+    } else if (o.part === 'top') {
+      // the diamond of the ward cut over the seams, and its ring
+      sctx.lineWidth = Math.max(2, ppm * 0.045);
+      const hw = Math.min(w * 0.36, ppm * 0.42);
+      sctx.beginPath();
+      sctx.moveTo(cx, h * 0.12);
+      sctx.lineTo(cx + hw, h * 0.5);
+      sctx.lineTo(cx, h * 0.88);
+      sctx.lineTo(cx - hw, h * 0.5);
+      sctx.closePath();
+      sctx.stroke();
+      sctx.beginPath();
+      sctx.ellipse(cx, h * 0.5, hw * 0.16, h * 0.18, 0, 0, Math.PI * 2);
+      sctx.fill();
+      edges(h * 0.5, h);
+    } else {
+      seams(0, h * 0.5);
+      edges(0, h);
+    }
+  } else if (o.part === 'body') {
     // the seam runs the whole height of the cell, a little wavering, and rungs of runes cross it
     sctx.beginPath();
     sctx.rect(cx - seamW / 2, 0, seamW, h);

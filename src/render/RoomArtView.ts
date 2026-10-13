@@ -2,13 +2,14 @@ import { Container, Rectangle, Sprite, Texture, type ImageSource } from 'pixi.js
 import type { Rect } from '@/core/math';
 import type { ArtLibrary } from '@/assets/artLibrary';
 import { HALF_VIEW, PARALLAX_FACTOR, readEnvLook, readEnvTags, slotKey, type EnvLook } from '@/presentation/environment';
-import { cropFrame, planHazards, planInteractables, planStrip, planTerrain, type Draw, type InteractablePlacement, type PieceInfo, type PieceLookup } from '@/presentation/roomPlan';
+import { cropFrame, planHazards, planInteractables, planSeals, planStrip, planTerrain, type Draw, type InteractablePlacement, type PieceInfo, type PieceLookup, type SealPlacement } from '@/presentation/roomPlan';
 import { SCENE_LAYERS, type Placement, type SceneLayer } from '@/presentation/roomScene';
 import type { SpriteSetDefinition } from '@/presentation/SpriteSetDefinition';
 import { viewY } from '@/presentation/worldTransform';
 import type { RoomDefinition } from '@/world/RoomDefinition';
 import type { InteractableArt } from './InteractableViews';
 import type { Layers } from './layers';
+import type { SealArt } from './SealView';
 
 type Art = ArtLibrary<ImageSource, Texture>;
 
@@ -30,6 +31,8 @@ export interface RoomArtCoverage {
   hazards: ReadonlySet<string>;
   /** The shrines, pickups and levers the art draws, each with the handle that follows what the simulation says of it. */
   interactables: ReadonlyMap<string, InteractableArt>;
+  /** The sigils of the wards the art draws, by seal id: the seal's own view hangs each one and feeds it what the simulation says. */
+  seals: ReadonlyMap<string, SealArt>;
   /** The blockout backdrops the scene replaces: `far`, `mid`, `near` and `front` (the foreground). */
   backdrop: ReadonlySet<string>;
   /** How many sprites it made. */
@@ -186,6 +189,20 @@ export class RoomArtView {
     }
     for (const [slot, ids] of items.lacking) lacking.set(slot, ids);
 
+    // ---- the wards: the sigil of each seal (the seal is an entity: its own view hangs this picture on itself and moves it)
+    const seals = new Map<string, SealArt>();
+    const sigil = [...bySlot.entries()].find(([key]) => key.startsWith('seal::'))?.[1];
+    const ward = planSeals(room.seals ?? [], info(sigil));
+    if (sigil) {
+      for (const p of ward.placements) {
+        const art = new ArtSeal(sigil, p);
+        this.roots.push(art.root);
+        seals.set(p.id, art);
+        sprites += art.sprites;
+      }
+    }
+    for (const [slot, ids] of ward.lacking) lacking.set(slot, ids);
+
     // ---- the strips: the three seamless layers that scroll slower than the world (`backdrop` far, mid and near) — the base of the scenery, under the scene's own pieces
     const covered = new Set<string>();
     const notes: string[] = [];
@@ -246,7 +263,7 @@ export class RoomArtView {
         if (blockout) covered.add(blockout);
       }
     }
-    return { solids: plan.dressed, gates: new Set(plan.gates.keys()), exits, hazards: hazards.dressed, interactables, backdrop: covered, sprites, lacking, notes };
+    return { solids: plan.dressed, gates: new Set(plan.gates.keys()), exits, hazards: hazards.dressed, interactables, seals, backdrop: covered, sprites, lacking, notes };
   }
 
   /** The cosmetic motion of the pieces that have one (real seconds: scenery does not wait for a hit-stop). */
@@ -375,6 +392,40 @@ class ArtInteractable implements InteractableArt {
       this.root.alpha = 0.88 + 0.12 * Math.sin(time * 3.1 + phase);
     } else if (p.kind !== 'rest') this.root.alpha = available ? 1 : 0.35;
     if (this.lit) this.lit.alpha = lit ? 0.85 + 0.15 * Math.sin(time * 2.4 + phase) : 0;
+  }
+}
+
+/**
+ * The sigil of a ward as the art draws it: the picture hanging (with its halo painted in) and, when the piece has a second frame, the FLASH of a blow that was turned away over it. It breathes,
+ * flinches and swells the way the blockout's shapes do — the same numbers — and decides nothing.
+ */
+class ArtSeal implements SealArt {
+  readonly root: Container;
+  readonly sprites: number;
+  private readonly body: Sprite;
+  private readonly flash: Sprite | null;
+
+  constructor(piece: Piece, place: SealPlacement) {
+    this.root = new Container({ label: `art:seal:${place.id}` });
+    this.body = new Sprite(piece.frames[0]!);
+    this.flash = piece.frames.length > 1 ? new Sprite(piece.frames[1]!) : null;
+    for (const s of this.flash ? [this.body, this.flash] : [this.body]) {
+      s.anchor.set(piece.pivot[0], piece.pivot[1]);
+      s.scale.set(piece.mpp);
+      this.root.addChild(s);
+    }
+    if (this.flash) this.flash.alpha = 0;
+    this.sprites = this.flash ? 2 : 1;
+  }
+
+  update(v: { readonly rejected: number; readonly opacity: number; readonly broken: boolean }, clock: number): void {
+    if (this.root.destroyed) return;
+    const breathe = 1 + 0.06 * Math.sin(clock * 3.2);
+    const swell = v.broken ? 1 + (1 - v.opacity) * 0.8 : 1;
+    // a blow that is turned away makes it flinch
+    const k = breathe * swell * (1 - v.rejected * 0.12);
+    this.root.scale.set(k);
+    if (this.flash) this.flash.alpha = v.rejected * 0.9 * v.opacity;
   }
 }
 

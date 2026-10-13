@@ -54,7 +54,7 @@ export interface GameState {
   flags?: string[];
   gates?: Record<string, { open: boolean; alpha: number | null }>;
   /** 2D view only (S45): what the art draws of the room — `null` while the blockout draws all of it. */
-  roomArt?: { solids: string[]; gates: string[]; exits: string[]; hazards: string[]; interactables: string[]; backdrop: string[]; sprites: number; lacking: Record<string, string[]>; notes: string[] } | null;
+  roomArt?: { solids: string[]; gates: string[]; exits: string[]; hazards: string[]; interactables: string[]; seals: string[]; backdrop: string[]; sprites: number; lacking: Record<string, string[]>; notes: string[] } | null;
   exits?: string[];
   views?: number;
   /** 2D view only: the defeat flow, the interface language and the respawn point. */

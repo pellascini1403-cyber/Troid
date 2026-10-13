@@ -19,6 +19,7 @@ import { Enemy } from '@/enemies/Enemy';
 import type { EnemyDefinition } from '@/enemies/EnemyDefinition';
 import { TrainingDummy } from '@/enemies/TrainingDummy';
 import { restoreFromProgress } from '@/gameplay/progress';
+import type { Seal } from '@/gameplay/Seal';
 import { GameSession } from '@/gameplay/GameSession';
 import { createPlayerStatus } from '@/gameplay/PlayerStatus';
 import { log } from '@/core/log';
@@ -598,6 +599,9 @@ export class Game2D {
     this.roomArtCover = cover;
     this.roomView.cover(cover, (id) => view.door(id));
     this.interactableViews.cover(cover.interactables);
+    // the seals are entities: each hangs the art's sigil on its own view (or keeps the blockout's shapes when the art has none)
+    // (the art knows a seal by the id its room's data gives it, which is not the id the simulation gives its entity)
+    this.entityViews.each('seal', (entity, view) => (view as unknown as SealView).dress(cover.seals.get((entity as Seal).def.id) ?? null));
     // a developer is told what the art got wrong (a strip too short for the camera); a player's console stays quiet
     if (import.meta.env.DEV) for (const n of cover.notes) log.scope('art').warn(n);
   }
