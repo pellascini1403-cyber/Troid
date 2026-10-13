@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { AMBIENT_CONTRACT } from '@/presentation/vfxContract';
 import type { Scenario } from '../scenario';
 
 /**
@@ -164,7 +165,9 @@ export const combat: Scenario = {
     await page.waitForTimeout(2600);
     await hooks('pause()');
     s = await ctx.state();
-    assert.equal((s.vfx?.particles ?? 0) + (s.vfx?.sprites ?? 0), 0, `effects left alive: ${s.vfx?.particles} particles, ${s.vfx?.sprites} sprites`);
+    // (the hero carries a little light of their own while their magic is high — motes, a handful at most, which the contract caps: everything else has gone back to its pool)
+    assert.equal(s.vfx?.sprites, 0, `effects left alive: ${s.vfx?.sprites} sprites`);
+    assert.ok((s.vfx?.particles ?? 0) <= AMBIENT_CONTRACT.maxAlive, `effects left alive: ${s.vfx?.particles} particles (the hero's own light is at most ${AMBIENT_CONTRACT.maxAlive})`);
     assert.equal(s.vfx?.dropped, 0, 'nothing was dropped by the budget in a normal fight');
 
     await page.waitForTimeout(300);

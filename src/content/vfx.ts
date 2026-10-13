@@ -1,10 +1,14 @@
-import type { ArcVfx, FlashVfx, ParticleVfx, VfxBindings, VfxDefinition } from '@/presentation/vfx';
+import type { ArcVfx, FlashVfx, FlipbookVfx, ParticleVfx, VfxBindings, VfxDefinition } from '@/presentation/vfx';
 
 /**
  * The first effects (docs/GAME-SPEC-2D.md §3.5): the hero's energy is CYAN with a WHITE core, enemy energy is VIOLET,
  * enemy ink is BLACK. Colours are palette slots, never hex: the same definition serves the hero and the enemies, and the
  * warm accent (`accent`) is OFF by default (it falls back to cyan until it is tried on screen in Prompt 7).
  * All numbers are starting values, retuned by looking at them: metres, seconds, m/s.
+ *
+ * Phase H (docs/PROMPT8-LOG.md, docs/ART-PIPELINE-2D.md §M.14) made the light a produced thing: the shapes the effects are made of can be PAINTED (the ten of `vfx-shapes`), and the big moments have a
+ * SEQUENCE the art paints (`vfx-flipbooks`: the cut that sweeps, the blow that lands, the ink that bursts, the pillar of a place that awakens). A `flipbook` effect is not played when the art lacks its
+ * sequence, and the effects bound beside it carry the moment without it — every trigger is whole either way, which the contract (`presentation/vfxContract`) keeps.
  */
 
 const TAU = Math.PI * 2;
@@ -36,6 +40,8 @@ const slashArc: ArcVfx = {
   ],
   variants: SLASH_VARIANTS,
   fallback: { rotation: [0.4, -0.2], width: 1.1, height: 1.1 },
+  // the cut the art paints, when it has it: its body in the cyan of the energy, its edge white-hot
+  sequences: { core: 'slash_body', hot: 'slash_edge', scale: [1.35, 1.4], alpha: [1, 0.55] },
 };
 
 /** The last hit of the chain: bigger, longer-lived and the ONE place the optional warm accent would appear. */
@@ -75,6 +81,12 @@ const impactRing: FlashVfx = {
   life: 0.17, size: [0.3, 1.5], alpha: [0.85, 0],
 };
 
+/** The blow that lands, as the art paints it: a flare with spikes along the way the blow went. */
+const impactBurst: FlipbookVfx = {
+  kind: 'flipbook', id: 'impact_burst', priority: 7, palette: 'energy', sequence: 'impact', blend: 'add', role: 'hot',
+  life: 0.22, size: [1.5, 2.1], alpha: [1, 1], aim: 'dir',
+};
+
 // ------------------------------------------------------------------------------------------- damage taken
 
 const hurtShards: ParticleVfx = {
@@ -104,6 +116,12 @@ const hurtFlash: FlashVfx = {
   life: 0.16, size: [1.0, 2.3], alpha: [0.95, 0],
 };
 
+/** The blow the hero takes, as the art paints it: the same flare, but in the hero's own cyan and thrown the way the blow pushes them. */
+const hurtBurst: FlipbookVfx = {
+  kind: 'flipbook', id: 'hurt_burst', priority: 8, palette: 'energy', sequence: 'impact', blend: 'add', role: 'core',
+  life: 0.24, size: [1.6, 2.3], alpha: [1, 1], aim: 'dir',
+};
+
 // ------------------------------------------------------------------------------------------------- the dash
 
 const dashBurst: ParticleVfx = {
@@ -130,6 +148,17 @@ const dashBurst: ParticleVfx = {
 const dashFlash: FlashVfx = {
   kind: 'flash', id: 'dash_flash', priority: 5, palette: 'energy', shape: 'glow', role: 'hot',
   life: 0.12, size: [0.6, 1.5], alpha: [0.9, 0],
+};
+
+/** Two marks of speed left behind where the dash began: chevrons pointing the way the hero went. */
+const dashChevronNear: FlashVfx = {
+  kind: 'flash', id: 'dash_chevron_near', priority: 4, palette: 'energy', shape: 'chevron', role: 'hot',
+  life: 0.22, size: [1.0, 1.5], alpha: [0.9, 0], aspect: 4 / 3, offset: [-0.55, 0],
+};
+
+const dashChevronFar: FlashVfx = {
+  kind: 'flash', id: 'dash_chevron_far', priority: 3, palette: 'energy', shape: 'chevron', role: 'core',
+  life: 0.28, size: [0.8, 1.3], alpha: [0.6, 0], aspect: 4 / 3, offset: [-1.25, 0],
 };
 
 /** Dust the dash kicks up off the floor (normal blend: it is grey smoke, not light). */
@@ -232,6 +261,17 @@ const deathFlash: FlashVfx = {
   life: 0.2, size: [0.8, 2.2], alpha: [0.95, 0],
 };
 
+/** The ink of a creature that falls, as the art paints it: a splash of black ink and the rim of violet light on it. */
+const deathSplash: FlipbookVfx = {
+  kind: 'flipbook', id: 'death_splash', priority: 9, palette: 'enemy', sequence: 'ink_splash', blend: 'normal', role: 'ink',
+  life: 0.55, size: [1.7, 2.5], alpha: [1, 1],
+};
+
+const deathGloss: FlipbookVfx = {
+  kind: 'flipbook', id: 'death_gloss', priority: 9, palette: 'enemy', sequence: 'ink_splash_gloss', blend: 'add', role: 'hot',
+  life: 0.55, size: [1.7, 2.5], alpha: [1, 1],
+};
+
 // ------------------------------------------------------------------------------------------ the warning
 
 /**
@@ -242,6 +282,12 @@ const deathFlash: FlashVfx = {
 const telegraphRing: FlashVfx = {
   kind: 'flash', id: 'telegraph_ring', priority: 8, palette: 'enemy', shape: 'ring', role: 'hot',
   life: 0.4, size: [3.8, 1.1], alpha: [0.05, 0.95],
+};
+
+/** The sigil of the creature's wind-up, closing in as it turns: the same clock as the ring, in the enemy's own sign. */
+const telegraphRune: FlashVfx = {
+  kind: 'flash', id: 'telegraph_rune', priority: 7, palette: 'enemy', shape: 'rune', role: 'core',
+  life: 0.4, size: [2.9, 0.9], alpha: [0.05, 0.8], turn: [1, 0],
 };
 
 const telegraphMotes: ParticleVfx = {
@@ -287,6 +333,12 @@ const energyScatter: ParticleVfx = {
   radius: 0.5,
 };
 
+/** The hero's light leaves them as a column that rises from their feet (the director raises it at their chest). */
+const deathPillar: FlipbookVfx = {
+  kind: 'flipbook', id: 'death_pillar', priority: 10, palette: 'energy', sequence: 'pillar', blend: 'add', role: 'hot',
+  life: 1.3, size: [1.3, 1.9], alpha: [1, 1], offset: [0, -0.9], layer: 'back',
+};
+
 // ------------------------------------------------------------------------------------- the Spirit Bolt
 
 /**
@@ -294,9 +346,61 @@ const energyScatter: ParticleVfx = {
  * the hero, a bigger cyan burst with a white core where it lands, and a soft puff where it fizzles out. The bolt itself, with
  * its tail, is drawn by its view.
  */
+/**
+ * The power GATHERS in the hand before the bolt leaves (the six ticks of its preparation): motes fly in from around the muzzle, a ring closes on it and a light swells there. It is the accumulation the
+ * eye reads as "something is coming" — the release is the bolt's own `boltCast`, a tenth of a second later.
+ */
+const boltChargeRing: FlashVfx = {
+  kind: 'flash', id: 'bolt_charge_ring', priority: 6, palette: 'energy', shape: 'ring', role: 'hot',
+  life: 0.14, size: [2.5, 0.5], alpha: [0.25, 1],
+};
+
+const boltChargeGlow: FlashVfx = {
+  kind: 'flash', id: 'bolt_charge_glow', priority: 6, palette: 'energy', shape: 'glow', role: 'hot',
+  life: 0.14, size: [0.3, 1.5], alpha: [0.45, 1],
+};
+
+const boltChargeMotes: ParticleVfx = {
+  kind: 'particles',
+  id: 'bolt_charge_motes',
+  priority: 5,
+  palette: 'energy',
+  blend: 'add',
+  shape: 'spark',
+  count: [5, 7],
+  speed: [5.5, 7.5],
+  life: [0.1, 0.14],
+  aim: 'any',
+  spread: TAU,
+  size: [0.2, 0.34],
+  sizeEnd: 0.4,
+  gravity: 0,
+  drag: 0,
+  alpha: [0.3, 1],
+  colors: ['hot', 'core'],
+  radius: 0.8,
+  inward: true,
+};
+
 const boltMuzzleFlash: FlashVfx = {
   kind: 'flash', id: 'bolt_muzzle_flash', priority: 6, palette: 'energy', shape: 'glow', role: 'hot',
-  life: 0.13, size: [0.5, 1.5], alpha: [1, 0],
+  life: 0.14, size: [0.8, 2.2], alpha: [1, 0],
+};
+
+/** A ring that opens at the muzzle, a streak of light thrown forward and the hand's own glow, still lit as the bolt goes: the launch. */
+const boltMuzzleRing: FlashVfx = {
+  kind: 'flash', id: 'bolt_muzzle_ring', priority: 6, palette: 'energy', shape: 'ring', role: 'hot',
+  life: 0.18, size: [0.6, 2.6], alpha: [1, 0],
+};
+
+const boltMuzzleStreak: FlashVfx = {
+  kind: 'flash', id: 'bolt_muzzle_streak', priority: 6, palette: 'energy', shape: 'streak', role: 'hot',
+  life: 0.16, size: [1.6, 4.4], alpha: [1, 0], aspect: 4, offset: [0.9, 0],
+};
+
+const boltHandGlow: FlashVfx = {
+  kind: 'flash', id: 'bolt_hand_glow', priority: 5, palette: 'energy', shape: 'glow', role: 'core',
+  life: 0.4, size: [0.9, 0.5], alpha: [0.7, 0], offset: [-0.3, 0],
 };
 
 const boltMuzzleSparks: ParticleVfx = {
@@ -350,6 +454,17 @@ const boltImpactFlash: FlashVfx = {
 const boltImpactRing: FlashVfx = {
   kind: 'flash', id: 'bolt_impact_ring', priority: 6, palette: 'energy', shape: 'ring', role: 'core',
   life: 0.22, size: [0.4, 2.1], alpha: [0.9, 0],
+};
+
+/** Where the bolt lands, as the art paints it: a flare with rays and the arcs of a shock that goes out, and a glow that stays a moment after the rest is gone — the afterglow. */
+const boltImpactSeq: FlipbookVfx = {
+  kind: 'flipbook', id: 'bolt_impact_seq', priority: 7, palette: 'energy', sequence: 'bolt_impact', blend: 'add', role: 'core',
+  life: 0.34, size: [2.6, 3.2], alpha: [1, 1], aim: 'facing',
+};
+
+const boltAfterglow: FlashVfx = {
+  kind: 'flash', id: 'bolt_afterglow', priority: 5, palette: 'energy', shape: 'glow', role: 'core',
+  life: 0.8, size: [1.6, 0.8], alpha: [0.5, 0],
 };
 
 const boltFizzle: ParticleVfx = {
@@ -410,6 +525,107 @@ const drinkHealFlash: FlashVfx = {
   life: 0.22, size: [0.8, 2.4], alpha: [0.9, 0],
 };
 
+/** The flame of light that rises round the hero as the life comes back, standing on their feet (the director raises it at their chest). */
+const drinkHealAura: FlipbookVfx = {
+  kind: 'flipbook', id: 'drink_heal_aura', priority: 5, palette: 'energy', sequence: 'aura', blend: 'add', role: 'core',
+  life: 0.7, size: [1.5, 1.8], alpha: [1, 1], offset: [0, -0.9], layer: 'back',
+};
+
+// ------------------------------------------------------------------------------------------ resting at a shrine
+
+/**
+ * A place that awakens (the shrine takes the hero in: it is where they come back now): a pillar of light stands on it, a rune opens behind the hero, a ring spreads on the floor and a flame of light rises round
+ * them. The hero's cyan and white, additive: nothing here is a hit. (The bottle's own motes are the shrine's too: the same warmth of being restored.)
+ */
+const checkpointPillar: FlipbookVfx = {
+  kind: 'flipbook', id: 'checkpoint_pillar', priority: 6, palette: 'energy', sequence: 'pillar', blend: 'add', role: 'hot',
+  life: 1.3, size: [1.5, 2], alpha: [1, 1], layer: 'back',
+};
+
+const checkpointAura: FlipbookVfx = {
+  kind: 'flipbook', id: 'checkpoint_aura', priority: 5, palette: 'energy', sequence: 'aura', blend: 'add', role: 'core',
+  life: 0.9, size: [1.7, 2.1], alpha: [1, 1], layer: 'back',
+};
+
+const checkpointRune: FlashVfx = {
+  kind: 'flash', id: 'checkpoint_rune', priority: 6, palette: 'energy', shape: 'rune', role: 'core',
+  life: 1.1, size: [1.1, 2.9], alpha: [0.9, 0], turn: [0, 1.3], offset: [0, 0.95], layer: 'back',
+};
+
+const checkpointRing: FlashVfx = {
+  kind: 'flash', id: 'checkpoint_ring', priority: 5, palette: 'energy', shape: 'ring', role: 'hot',
+  life: 0.7, size: [0.6, 3.6], alpha: [0.8, 0], offset: [0, 0.1],
+};
+
+const checkpointMotes: ParticleVfx = {
+  kind: 'particles',
+  id: 'checkpoint_motes',
+  priority: 5,
+  palette: 'energy',
+  blend: 'add',
+  shape: 'glow',
+  count: [14, 20],
+  speed: [1.2, 3.4],
+  life: [0.7, 1.4],
+  aim: 'up',
+  spread: 1.5,
+  size: [0.14, 0.3],
+  sizeEnd: 0.1,
+  gravity: 0.9,
+  drag: 1.3,
+  alpha: [0.95, 0],
+  colors: ['hot', 'core', 'hot'],
+  radius: 0.5,
+};
+
+// ------------------------------------------------------------------------------------------ a power gained
+
+/**
+ * A power gained (the Spirit Bolt, the Air Dash): a great rune opens behind the hero and turns while a pillar of light stands where they do, a ring goes out and a flash opens — the biggest moment of the hero's
+ * light, and the only one that takes the whole of a trigger's budget. Cyan and white.
+ */
+const abilityRune: FlashVfx = {
+  kind: 'flash', id: 'ability_rune', priority: 8, palette: 'energy', shape: 'rune', role: 'hot',
+  life: 1.5, size: [1.3, 3.8], alpha: [1, 0], turn: [0.3, -1.6], offset: [0, 1], layer: 'back',
+};
+
+const abilityPillar: FlipbookVfx = {
+  kind: 'flipbook', id: 'ability_pillar', priority: 8, palette: 'energy', sequence: 'pillar', blend: 'add', role: 'core',
+  life: 1.3, size: [1.2, 1.7], alpha: [1, 1], layer: 'back',
+};
+
+const abilityRing: FlashVfx = {
+  kind: 'flash', id: 'ability_ring', priority: 7, palette: 'energy', shape: 'ring', role: 'hot',
+  life: 0.85, size: [0.6, 4.6], alpha: [0.9, 0], offset: [0, 0.9],
+};
+
+const abilityFlash: FlashVfx = {
+  kind: 'flash', id: 'ability_flash', priority: 8, palette: 'energy', shape: 'glow', role: 'hot',
+  life: 0.2, size: [0.8, 2.4], alpha: [0.6, 0], offset: [0, 0.9],
+};
+
+const abilityMotes: ParticleVfx = {
+  kind: 'particles',
+  id: 'ability_motes',
+  priority: 7,
+  palette: 'energy',
+  blend: 'add',
+  shape: 'spark',
+  count: [14, 20],
+  speed: [1.4, 4.2],
+  life: [0.8, 1.5],
+  aim: 'up',
+  spread: 2.2,
+  size: [0.14, 0.3],
+  sizeEnd: 0.1,
+  gravity: 0.7,
+  drag: 1.2,
+  spin: [-3, 3],
+  alpha: [0.95, 0],
+  colors: ['hot', 'core', 'hot'],
+  radius: 0.6,
+};
+
 // ------------------------------------------------------------------------------------------ taking a pickup
 
 /**
@@ -447,6 +663,11 @@ const pickupFlash: FlashVfx = {
   life: 0.22, size: [0.8, 2.2], alpha: [0.9, 0],
 };
 
+const pickupRune: FlashVfx = {
+  kind: 'flash', id: 'pickup_rune', priority: 5, palette: 'energy', shape: 'rune', role: 'core',
+  life: 0.55, size: [0.5, 1.9], alpha: [0.9, 0], turn: [0, 0.9],
+};
+
 // ------------------------------------------------------------------------------------------- a seal turns a blow away
 
 /**
@@ -479,6 +700,52 @@ const sealRejectSparks: ParticleVfx = {
   radius: 0.15,
 };
 
+/**
+ * A ward that breaks (the Spirit Bolt is the one blow it accepts): the light of what broke it flashes white-cyan, a violet ring goes out from the sigil, the ward bursts into ink with the rim of violet
+ * light on it and its shards fly. It is the end of what held the way: bigger than a creature's fall, and nothing like it (a creature's ink falls; the ward's is thrown).
+ */
+const sealBreakFlash: FlashVfx = {
+  kind: 'flash', id: 'seal_break_flash', priority: 8, palette: 'energy', shape: 'glow', role: 'hot',
+  life: 0.22, size: [1.4, 4.4], alpha: [1, 0],
+};
+
+const sealBreakRing: FlashVfx = {
+  kind: 'flash', id: 'seal_break_ring', priority: 8, palette: 'enemy', shape: 'ring', role: 'hot',
+  life: 0.5, size: [0.9, 5.2], alpha: [0.95, 0],
+};
+
+const sealBreakSplash: FlipbookVfx = {
+  kind: 'flipbook', id: 'seal_break_splash', priority: 9, palette: 'enemy', sequence: 'ink_splash', blend: 'normal', role: 'ink',
+  life: 0.65, size: [2.8, 4.2], alpha: [1, 1],
+};
+
+const sealBreakGloss: FlipbookVfx = {
+  kind: 'flipbook', id: 'seal_break_gloss', priority: 9, palette: 'enemy', sequence: 'ink_splash_gloss', blend: 'add', role: 'hot',
+  life: 0.65, size: [2.8, 4.2], alpha: [1, 1],
+};
+
+const sealBreakShards: ParticleVfx = {
+  kind: 'particles',
+  id: 'seal_break_shards',
+  priority: 8,
+  palette: 'enemy',
+  blend: 'add',
+  shape: 'shard',
+  count: [14, 18],
+  speed: [3, 9],
+  life: [0.4, 0.85],
+  aim: 'any',
+  spread: TAU,
+  size: [0.3, 0.55],
+  sizeEnd: 0.2,
+  gravity: -8,
+  drag: 1.6,
+  alpha: [1, 0],
+  colors: ['hot', 'core', 'hot'],
+  align: true,
+  radius: 0.9,
+};
+
 // ------------------------------------------------------------------------------------------------------ the boss
 
 /**
@@ -489,6 +756,12 @@ const sealRejectSparks: ParticleVfx = {
 const bossWakeRing: FlashVfx = {
   kind: 'flash', id: 'boss_wake_ring', priority: 7, palette: 'enemy', shape: 'ring', role: 'hot',
   life: 0.7, size: [1.2, 9], alpha: [0.9, 0],
+};
+
+/** The sign of the guardian opens in the air above its crest as it wakes (and again when it burns hotter): a great rune, turning. */
+const bossWakeRune: FlashVfx = {
+  kind: 'flash', id: 'boss_wake_rune', priority: 7, palette: 'enemy', shape: 'rune', role: 'core',
+  life: 0.9, size: [1.6, 6.5], alpha: [0.9, 0], turn: [0, 1.2],
 };
 
 const bossWakeMotes: ParticleVfx = {
@@ -538,6 +811,17 @@ const bossStrikeFlash: FlashVfx = {
   life: 0.16, size: [1, 2.8], alpha: [0.95, 0],
 };
 
+/** The ink of the rain erupts where each mark was: a column of black ink that rises from the floor and falls back, and the violet light along its edge. It stands on the floor (the director raises it 0.2 m). */
+const bossStrikeColumn: FlipbookVfx = {
+  kind: 'flipbook', id: 'boss_strike_column', priority: 7, palette: 'enemy', sequence: 'ink_column', blend: 'normal', role: 'ink',
+  life: 0.6, size: [1.6, 1.7], alpha: [1, 1], offset: [0, -0.2],
+};
+
+const bossStrikeColumnGlow: FlipbookVfx = {
+  kind: 'flipbook', id: 'boss_strike_column_glow', priority: 7, palette: 'enemy', sequence: 'ink_column_glow', blend: 'add', role: 'hot',
+  life: 0.6, size: [1.6, 1.7], alpha: [1, 1], offset: [0, -0.2],
+};
+
 const bossPhaseRing: FlashVfx = {
   kind: 'flash', id: 'boss_phase_ring', priority: 7, palette: 'enemy', shape: 'ring', role: 'core',
   life: 0.55, size: [1, 7], alpha: [0.9, 0],
@@ -548,19 +832,64 @@ const bossDefeatRing: FlashVfx = {
   life: 1, size: [1, 12], alpha: [0.9, 0],
 };
 
+/** The guardian comes apart: a great burst of black ink with the violet rim of light on it, at the height of its heart. */
+const bossDefeatSplash: FlipbookVfx = {
+  kind: 'flipbook', id: 'boss_defeat_splash', priority: 9, palette: 'enemy', sequence: 'ink_splash', blend: 'normal', role: 'ink',
+  life: 1, size: [4.5, 8], alpha: [1, 1],
+};
+
+const bossDefeatGloss: FlipbookVfx = {
+  kind: 'flipbook', id: 'boss_defeat_gloss', priority: 9, palette: 'enemy', sequence: 'ink_splash_gloss', blend: 'add', role: 'hot',
+  life: 1, size: [4.5, 8], alpha: [1, 1],
+};
+
+// --------------------------------------------------------------------------------------------- the air of the hero
+
+/**
+ * The light that the hero carries when their magic is high (not an event: the director lets a mote go now and then, as often as the magic is full): a spark of cyan that rises and goes out. It is the "power feel" of
+ * the Spirit Bolt before it is cast — the hero with the bolt ready is not the hero who is spent. At most a few alive at once (`AMBIENT_CONTRACT` keeps it).
+ */
+export const ambientMote: ParticleVfx = {
+  kind: 'particles',
+  id: 'ambient_mote',
+  priority: 1,
+  palette: 'energy',
+  blend: 'add',
+  shape: 'glow',
+  count: [1, 1],
+  speed: [0.15, 0.5],
+  life: [1.2, 2],
+  aim: 'up',
+  spread: 2.4,
+  size: [0.2, 0.36],
+  sizeEnd: 0.15,
+  gravity: 0.25,
+  drag: 0.8,
+  alpha: [0.95, 0],
+  colors: ['core', 'hot', 'core'],
+  radius: 0.65,
+};
+
 export const VFX: Readonly<Record<string, VfxDefinition>> = Object.fromEntries(
   [
     slashArc, slashArcFinisher,
-    impactSparks, impactFlash, impactRing,
-    hurtShards, hurtFlash,
-    dashBurst, dashFlash, dashDust, dashTrail, dashTrailShards,
-    deathInk, deathMotes, deathFlash, energyScatter,
-    telegraphRing, telegraphMotes,
-    boltMuzzleFlash, boltMuzzleSparks, boltImpactBurst, boltImpactFlash, boltImpactRing, boltFizzle,
-    drinkGather, drinkHealMotes, drinkHealFlash,
-    pickupMotes, pickupRing, pickupFlash,
+    impactSparks, impactFlash, impactRing, impactBurst,
+    hurtShards, hurtFlash, hurtBurst,
+    dashBurst, dashFlash, dashChevronNear, dashChevronFar, dashDust, dashTrail, dashTrailShards,
+    deathInk, deathMotes, deathFlash, deathSplash, deathGloss, energyScatter, deathPillar,
+    telegraphRing, telegraphRune, telegraphMotes,
+    boltChargeRing, boltChargeGlow, boltChargeMotes,
+    boltMuzzleFlash, boltMuzzleRing, boltMuzzleStreak, boltHandGlow, boltMuzzleSparks,
+    boltImpactBurst, boltImpactFlash, boltImpactRing, boltImpactSeq, boltAfterglow, boltFizzle,
+    drinkGather, drinkHealMotes, drinkHealFlash, drinkHealAura,
+    checkpointPillar, checkpointAura, checkpointRune, checkpointRing, checkpointMotes,
+    abilityRune, abilityPillar, abilityRing, abilityFlash, abilityMotes,
+    pickupMotes, pickupRing, pickupFlash, pickupRune,
     sealRejectRing, sealRejectSparks,
-    bossWakeRing, bossWakeMotes, bossStrikeBurst, bossStrikeFlash, bossPhaseRing, bossDefeatRing,
+    sealBreakFlash, sealBreakRing, sealBreakSplash, sealBreakGloss, sealBreakShards,
+    bossWakeRing, bossWakeRune, bossWakeMotes, bossStrikeBurst, bossStrikeFlash, bossStrikeColumn, bossStrikeColumnGlow,
+    bossPhaseRing, bossDefeatRing, bossDefeatSplash, bossDefeatGloss,
+    ambientMote,
   ].map((d) => [d.id, d]),
 );
 
@@ -568,23 +897,30 @@ export const VFX: Readonly<Record<string, VfxDefinition>> = Object.fromEntries(
 export const VFX_BINDINGS: VfxBindings = {
   slash: ['slash_arc'],
   slashFinisher: ['slash_arc_finisher'],
-  hitLanded: ['impact_sparks', 'impact_flash', 'impact_ring'],
-  playerHurt: ['hurt_shards', 'hurt_flash'],
-  dashStart: ['dash_burst', 'dash_flash'],
+  hitLanded: ['impact_sparks', 'impact_flash', 'impact_ring', 'impact_burst'],
+  playerHurt: ['hurt_shards', 'hurt_flash', 'hurt_burst'],
+  dashStart: ['dash_burst', 'dash_flash', 'dash_chevron_near', 'dash_chevron_far'],
   dashDust: ['dash_dust'],
   dashTrail: ['dash_trail', 'dash_trail_shards'],
-  enemyDied: ['death_ink', 'death_motes', 'death_flash'],
-  enemyTelegraph: ['telegraph_ring', 'telegraph_motes'],
-  playerDied: ['energy_scatter'],
-  boltCast: ['bolt_muzzle_flash', 'bolt_muzzle_sparks'],
-  boltImpact: ['bolt_impact_burst', 'bolt_impact_flash', 'bolt_impact_ring'],
+  enemyDied: ['death_ink', 'death_motes', 'death_flash', 'death_splash', 'death_gloss'],
+  enemyTelegraph: ['telegraph_ring', 'telegraph_rune', 'telegraph_motes'],
+  playerDied: ['energy_scatter', 'death_pillar'],
+  boltCharge: ['bolt_charge_ring', 'bolt_charge_glow', 'bolt_charge_motes'],
+  boltCast: ['bolt_muzzle_flash', 'bolt_muzzle_ring', 'bolt_muzzle_streak', 'bolt_hand_glow', 'bolt_muzzle_sparks'],
+  boltImpact: ['bolt_impact_burst', 'bolt_impact_flash', 'bolt_impact_ring', 'bolt_impact_seq', 'bolt_afterglow'],
   boltEnd: ['bolt_fizzle'],
   drinkStart: ['drink_gather'],
-  drinkHeal: ['drink_heal_motes', 'drink_heal_flash'],
-  pickup: ['pickup_motes', 'pickup_ring', 'pickup_flash'],
+  drinkHeal: ['drink_heal_motes', 'drink_heal_flash', 'drink_heal_aura'],
+  checkpoint: ['checkpoint_pillar', 'checkpoint_aura', 'checkpoint_rune', 'checkpoint_ring', 'checkpoint_motes'],
+  abilityGained: ['ability_rune', 'ability_pillar', 'ability_ring', 'ability_flash', 'ability_motes'],
+  pickup: ['pickup_motes', 'pickup_ring', 'pickup_flash', 'pickup_rune'],
   sealRejected: ['seal_reject_ring', 'seal_reject_sparks'],
-  bossWake: ['boss_wake_ring', 'boss_wake_motes'],
-  bossStrike: ['boss_strike_burst', 'boss_strike_flash'],
-  bossPhase: ['boss_phase_ring', 'boss_wake_motes'],
-  bossDefeated: ['boss_defeat_ring', 'death_motes'],
+  sealBroken: ['seal_break_flash', 'seal_break_ring', 'seal_break_splash', 'seal_break_gloss', 'seal_break_shards'],
+  bossWake: ['boss_wake_ring', 'boss_wake_rune', 'boss_wake_motes'],
+  bossStrike: ['boss_strike_burst', 'boss_strike_flash', 'boss_strike_column', 'boss_strike_column_glow'],
+  bossPhase: ['boss_phase_ring', 'boss_wake_rune', 'boss_wake_motes'],
+  bossDefeated: ['boss_defeat_ring', 'boss_defeat_splash', 'boss_defeat_gloss', 'death_motes'],
 };
+
+/** How the director lets the hero's light go: the effect, and the seconds between motes at full magic (at lower magic the level squared stretches it). */
+export const AMBIENT = { effect: ambientMote.id, every: 0.35 } as const;

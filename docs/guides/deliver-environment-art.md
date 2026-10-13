@@ -165,3 +165,30 @@ Como el jefe (§8), **un enemigo ordinario se entrega por partes** en un paquete
 **Todas las partes (y las dos anclas) o ninguna:** con algo sin entregar el juego sigue dibujando la criatura con las formas de siempre y `assets:check` avisa de qué falta. Las reglas del lienzo son las de un paquete `enemies`: fondo transparente; los píxeles **no tocan** el lado izquierdo, el derecho ni el borde alto (deja margen para la cerda y el halo); el de abajo sí, si el pivote está abajo. `part:` lo comparten el escenario, los jefes y los enemigos: **solo `boss:` o `enemy:` dice de qué es la parte**.
 
 **Sustituir el arte del Slime por uno hecho a mano:** se deja cada *sprite* con el **mismo `id`** y las mismas etiquetas (y las anclas del cuerpo) en `art/ink-slime/ink-slime.pack.json`, se ponen los PNG en `art/ink-slime/<id>/<id>_NN.png` y **se quita del `packs/ruins.ts` del pintor** (`INK_SLIME`) para que `art:build` no lo vuelva a pintar. Ni la vista, ni la escena, ni el juego cambian.
+
+## 10. La luz (fase H): las formas y las secuencias de los efectos
+
+Los efectos del juego —el tajo, el golpe, el rayo, la tinta que salta, el pilar de un lugar que despierta— se dibujan con **formas de luz** y con unas pocas **secuencias**. Las entrega la categoría **`vfx`**, en paquetes con **`load: "boot"`** (se descargan con el juego: un golpe llega en el primer minuto) y **sin `zones`** (se retienen mientras corre). Son **máscaras blancas**: **el alfa es la luz** y el color lo pone el juego al dibujar (cian para el héroe, violeta para los enemigos, negro para la tinta), así que **no hace falta —ni conviene— pintarlas de ningún color**: una imagen sirve a los dos bandos y la identidad no depende de lo que haya en ella.
+
+| Etiqueta | Qué dice |
+|---|---|
+| `vfx:shape` + `shape:<nombre>` | una **forma** (una imagen, clip `idle` de un fotograma): `glow`, `spark`, `shard`, `ring`, `rune`, `dust`, `ink`, `streak`, `arc`, `chevron` |
+| `vfx:seq` + `seq:<nombre>` | una **secuencia** (varios fotogramas, clip `idle`): ver la tabla |
+| `blend:add` / `blend:normal` | cómo se mezcla (solo informa: lo decide la definición del efecto) |
+
+**Las diez formas, todas en UNA página del atlas** (el sistema de partículas dibuja todas desde una sola textura: con las diez en una página son **una** llamada de dibujo por modo de mezcla). **Todas o ninguna**: con una sola que falte el juego sigue con las suyas (y `assets:check` avisa de cuál). Orientaciones: `arc` se curva hacia **+x**; `shard` y `chevron` **apuntan a +x**; `streak` es horizontal con **el extremo brillante a la derecha** (el juego lo gira y lo refleja).
+
+| Secuencia | Fotogramas | Pivote | Qué debe ser |
+|---|---|---|---|
+| `slash_body`, `slash_edge` | 6 | `[0.62, 0.5]` | el corte de la espada, **a la derecha**, barriendo de arriba abajo (el juego lo voltea para el remate, que sube): el cuerpo y el filo **por separado** (se tiñen distinto) y **el mismo marco** |
+| `impact` | 6 | `[0.5, 0.5]` | el fogonazo de un golpe; **apunta a +x** (el juego lo gira hacia donde fue el golpe) |
+| `bolt_body`, `bolt_core` | 4 | `[0.66, 0.5]` | el rayo en vuelo, **apuntando a +x**, con la cabeza en el pivote; **un bucle** de cuatro fotogramas; el cuerpo y el corazón por separado |
+| `bolt_impact` | 7 | `[0.5, 0.5]` | donde cae el rayo |
+| `ink_splash`, `ink_splash_gloss` | 6 | `[0.5, 0.52]` | la tinta que salta (oscura) y **su brillo aparte** (el mismo dibujo, puede ir **a la mitad de resolución**) |
+| `ink_column`, `ink_column_glow` | 8 | `[0.5, 1]` | la columna que levanta el jefe, **de pie sobre el borde de abajo**; el brillo aparte |
+| `pillar` | 6 | `[0.5, 1]` | el pilar de luz, de pie |
+| `aura` | 6 | `[0.5, 1]` | la llama de luz que sube alrededor del héroe, de pie |
+
+**El tiempo no es del arte**: una secuencia se **reparte en la vida del efecto** (`life` en `content/vfx.ts`), no en fotogramas por segundo; **cuántos** fotogramas, pone el arte. **El pivote lo pone el arte** (es el punto que se coloca sobre el del evento: el filo del corte, el pie del pilar). **Las secuencias que falten no se juegan** —el efecto no aparece y los demás efectos del momento lo llevan—, sin error.
+
+**Las reglas de un paquete `vfx`:** fondo transparente; los píxeles **no tocan los bordes del marco** (deja el halo dentro: `assets:check` avisa); todos los fotogramas de una secuencia **del mismo tamaño**. Sustituir lo pintado por arte hecho a mano: se deja cada *sprite* con el **mismo `id`** y las mismas etiquetas en `art/vfx-shapes/vfx-shapes.pack.json` y `art/vfx-flipbooks/vfx-flipbooks.pack.json`, se ponen los PNG en `art/<paquete>/<id>/<id>_NN.png` y **se quita del `packs/vfx.ts` del pintor** para que `art:build` no lo repinte. Para ver el resultado: `?lab=vfx` (cada disparador, con el arte) y `?lab=vfx&vfx=procedural` (con las formas del juego); en el juego, `?vfx=procedural`.

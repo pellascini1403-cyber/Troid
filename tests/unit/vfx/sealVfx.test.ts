@@ -8,9 +8,9 @@ import { VfxDirector } from '@/vfx/VfxDirector';
 import type { VfxSystem } from '@/vfx/VfxSystem';
 
 /**
- * What a seal looks like when it answers (docs/PROMPT6-LOG.md S28): a blow it turns away snaps a violet ring open where it landed and
- * springs sparks back the way the blow came from — the ward is of the enemy's colour — and when it breaks it falls like any guardian: the
- * ink burst of a death, raised by the very event the session uses to set its flag. Data, raised by the director from events.
+ * What a seal looks like when it answers (docs/PROMPT6-LOG.md S28; docs/PROMPT8-LOG.md phase H): a blow it turns away snaps a violet ring open where it landed and
+ * springs sparks back the way the blow came from — the ward is of the enemy's colour — and when it breaks it is a ward that BREAKS (its own effects, not a creature's
+ * death: the light of what broke it, the ink thrown and its shards), raised by the very event the session uses to set its flag. Data, raised by the director from events.
  */
 function setup() {
   const calls: Array<{ id: string; at: VfxSpawn }> = [];
@@ -47,9 +47,24 @@ describe('the director raises them from the seal\'s events', () => {
     expect(calls[0]!.at).toMatchObject({ x: 61.7, y: 1.1, facing: 1, dirX: 1 });
   });
 
-  it('the fall of a seal is the ink burst of a death (its `actor:died` is a neutral one), and a seal that rejects does not die', () => {
-    const { bus, ids } = setup();
+  it('the fall of a seal is its own break (its `actor:died` is a neutral one): not a creature\'s death, at the ward\'s own centre — and a seal that rejects does not die', () => {
+    const { bus, calls, ids } = setup();
+    bus.emit('seal:rejected', { id: 'seal_1', attackId: 'player_slash', x: 61.7, y: 1.1, direction: 1, shake: 0.1 });
+    expect(ids()).toEqual(VFX_BINDINGS.sealRejected);
+    calls.length = 0;
     bus.emit('actor:died', { id: 'seal_1', team: 'neutral', x: 63, y: 1.8 });
-    expect(ids()).toEqual(VFX_BINDINGS.enemyDied);
+    expect(ids()).toEqual(VFX_BINDINGS.sealBroken);
+    expect(ids().some((id) => VFX_BINDINGS.enemyDied.includes(id))).toBe(false);
+    expect(calls[0]!.at).toMatchObject({ x: 63, y: 1.8 });
+  });
+
+  it('the break is in the ward\'s violet and the white-cyan of what broke it, and it is the biggest of the seal\'s effects (bigger than a refusal)', () => {
+    const palettes = new Set(VFX_BINDINGS.sealBroken.map((id) => VFX[id]!.palette));
+    expect([...palettes].sort()).toEqual(['enemy', 'energy']);
+    const reach = (id: string): number => {
+      const d = VFX[id]!;
+      return d.kind === 'flash' || d.kind === 'flipbook' ? Math.max(d.size[0], d.size[1]) : 0;
+    };
+    expect(Math.max(...VFX_BINDINGS.sealBroken.map(reach))).toBeGreaterThan(Math.max(...VFX_BINDINGS.sealRejected.map(reach)));
   });
 });

@@ -85,7 +85,7 @@ export interface HookHost {
   keys(): Record<string, string>;
 }
 
-const NO_EFFECTS = { particles: 0, sprites: 0, spawned: 0, dropped: 0, peakParticles: 0, poolCreated: 0 };
+const NO_EFFECTS = { particles: 0, sprites: 0, spawned: 0, dropped: 0, unplayed: 0, peakParticles: 0, poolCreated: 0 };
 
 export function createTestHooks(h: HookHost) {
   const { session } = h;
@@ -171,6 +171,13 @@ export function createTestHooks(h: HookHost) {
     },
     /** Lets the camera run `seconds` of its own time at 60 Hz right now: a test need not wait on slow software-GL frames to see where it settles. */
     settleCamera: (seconds = 4) => h.settleCamera(seconds),
+    /** Lets the effects run `seconds` of their own (real) time right now — they stand still while the game is paused, so a test photographs a moment of one without waiting on the clock of a slow frame. */
+    advanceEffects: (seconds: number) => {
+      const e = h.effects();
+      if (!e || !(seconds > 0)) return;
+      e.director.update(seconds);
+      e.system.update(seconds);
+    },
     state: () => {
       const b = session.player.body;
       const vp = h.renderer.viewport;
@@ -216,7 +223,7 @@ export function createTestHooks(h: HookHost) {
         },
         // objects in each scene layer: the E2E proves that rebuilding a room leaves nothing behind
         scene: Object.fromEntries(
-          (['terrain', 'actors', 'fxNormal', 'fxWorld', 'backdropFar', 'backdropMid', 'backdropNear', 'foreground', 'lightOverlay'] as const).map((k) => [k, h.renderer.layers[k].children.length]),
+          (['terrain', 'fxBack', 'actors', 'fxNormal', 'fxWorld', 'backdropFar', 'backdropMid', 'backdropNear', 'foreground', 'lightOverlay'] as const).map((k) => [k, h.renderer.layers[k].children.length]),
         ),
         // what the art draws of the room (S45): the solids and doors it covers, the sprites it made, what the blockout still draws
         roomArt: (() => {
@@ -235,6 +242,19 @@ export function createTestHooks(h: HookHost) {
         exits: [...session.exitsReached],
         views: h.entityViews.count,
         vfx: effects?.system.stats ?? NO_EFFECTS,
+        // where the light of the effects comes from (phase H): the shapes (`art`: painted, `procedural`: the game's own) and the sequences the art gave
+        vfxLook: effects?.look ?? null,
+        // what the views of the bolt and of the boss draw with (the art's, or their shapes): `null` when there is none of them now
+        looks: (() => {
+          let bolt: boolean | null = null;
+          h.entityViews.each('projectile', (_e, view) => void (bolt = (view as unknown as { isPainted?: boolean }).isPainted === true));
+          let marks: number | null = null;
+          h.entityViews.each('guardian', (_e, view) => {
+            const inner = (view as unknown as { view?: unknown }).view ?? view;
+            marks = (inner as { paintedMarks?: number }).paintedMarks ?? 0;
+          });
+          return { bolt, marks };
+        })(),
         death: session.deathSnapshot, transition: session.transitionSnapshot, lang: h.translator.locale,
         device: h.input.device,
         // the player's resources (the HUD shows them; the tests read the numbers)

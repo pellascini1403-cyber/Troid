@@ -1,0 +1,205 @@
+{
+  "frames": {
+    "shape_arc_00": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 160,
+        "h": 188
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 94,
+        "y": 2,
+        "w": 160,
+        "h": 188
+      },
+      "sourceSize": {
+        "w": 256,
+        "h": 192
+      }
+    },
+    "shape_chevron_00": {
+      "frame": {
+        "x": 2,
+        "y": 322,
+        "w": 59,
+        "h": 44
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 3,
+        "y": 2,
+        "w": 59,
+        "h": 44
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 48
+      }
+    },
+    "shape_dust_00": {
+      "frame": {
+        "x": 260,
+        "y": 74,
+        "w": 89,
+        "h": 90
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 4,
+        "y": 4,
+        "w": 89,
+        "h": 90
+      },
+      "sourceSize": {
+        "w": 96,
+        "h": 96
+      }
+    },
+    "shape_glow_00": {
+      "frame": {
+        "x": 166,
+        "y": 74,
+        "w": 90,
+        "h": 90
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 3,
+        "y": 3,
+        "w": 90,
+        "h": 90
+      },
+      "sourceSize": {
+        "w": 96,
+        "h": 96
+      }
+    },
+    "shape_ink_00": {
+      "frame": {
+        "x": 127,
+        "y": 322,
+        "w": 46,
+        "h": 50
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 11,
+        "y": 7,
+        "w": 46,
+        "h": 50
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 64
+      }
+    },
+    "shape_ring_00": {
+      "frame": {
+        "x": 2,
+        "y": 194,
+        "w": 124,
+        "h": 124
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 2,
+        "w": 124,
+        "h": 124
+      },
+      "sourceSize": {
+        "w": 128,
+        "h": 128
+      }
+    },
+    "shape_rune_00": {
+      "frame": {
+        "x": 130,
+        "y": 194,
+        "w": 122,
+        "h": 122
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 3,
+        "y": 3,
+        "w": 122,
+        "h": 122
+      },
+      "sourceSize": {
+        "w": 128,
+        "h": 128
+      }
+    },
+    "shape_shard_00": {
+      "frame": {
+        "x": 256,
+        "y": 50,
+        "w": 91,
+        "h": 20
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 3,
+        "y": 6,
+        "w": 91,
+        "h": 20
+      },
+      "sourceSize": {
+        "w": 96,
+        "h": 32
+      }
+    },
+    "shape_spark_00": {
+      "frame": {
+        "x": 65,
+        "y": 322,
+        "w": 58,
+        "h": 58
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 3,
+        "y": 3,
+        "w": 58,
+        "h": 58
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 64
+      }
+    },
+    "shape_streak_00": {
+      "frame": {
+        "x": 166,
+        "y": 2,
+        "w": 187,
+        "h": 44
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 3,
+        "y": 2,
+        "w": 187,
+        "h": 44
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 48
+      }
+    }
+  },
+  "meta": {
+    "app": "troid-assets",
+    "version": "1",
+    "image": "vfx-shapes_0.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 356,
+      "h": 384
+    },
+    "scale": "1"
+  }
+}

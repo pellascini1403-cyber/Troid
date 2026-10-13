@@ -2,11 +2,12 @@ import { Graphics, type Texture } from 'pixi.js';
 import { SpriteAssetManager } from '@/assets/SpriteAssetManager';
 import { createPixiSpriteLoader } from '@/assets/spriteLoader';
 import { createVfxAtlas } from '@/assets/vfxAtlas';
+import { artIndexUrl } from '../options';
 import { PLAYER_ATTACKS } from '@/content/attacks';
 import { PLAYER_PLACEHOLDER } from '@/content/placeholders/playerPlaceholder';
 import { PROCEDURAL_ATLASES } from '@/content';
 import { SKILLS, SPIRIT_BOLT } from '@/content/skills';
-import { VFX, VFX_BINDINGS } from '@/content/vfx';
+import { AMBIENT, VFX, VFX_BINDINGS } from '@/content/vfx';
 import { EventBus } from '@/core/events';
 import { DrawCallCounter } from '@/debug/DrawCallCounter';
 import type { GameEvents } from '@/gameplay/events';
@@ -25,8 +26,11 @@ import { VfxSystem } from '@/vfx/VfxSystem';
  * when `window.__vfx.advance(seconds)` says so, which is how the E2E scenario takes frame-exact screenshots.
  *
  *   ?vh=8 visible height in metres (smaller = zoom in) · ?manual=1  · ?cycle=0 (no auto-play) · ?accent=1 (the optional warm accent ON, to compare) · ?tier=low|medium|high
+ *   ?vfx=procedural keeps the game's own shapes (what the effects were before the art painted the light) · ?art=<folder> reads the art from another folder · ?ambient=0..1 the light the hero carries (their magic)
+ *
+ * With art (the one the build found, or `?art=`) the effects draw the shapes and the sequences the art painted, as the game does after its art has started.
  */
-const TRIGGERS: readonly VfxTrigger[] = ['slash', 'slashFinisher', 'hitLanded', 'playerHurt', 'dashStart', 'enemyDied', 'enemyTelegraph', 'playerDied', 'boltCast', 'boltImpact', 'boltEnd', 'drinkStart', 'drinkHeal', 'pickup', 'sealRejected', 'bossWake', 'bossStrike', 'bossPhase', 'bossDefeated'];
+const TRIGGERS: readonly VfxTrigger[] = ['slash', 'slashFinisher', 'hitLanded', 'playerHurt', 'dashStart', 'enemyDied', 'enemyTelegraph', 'playerDied', 'boltCharge', 'boltCast', 'boltImpact', 'boltEnd', 'drinkStart', 'drinkHeal', 'checkpoint', 'abilityGained', 'pickup', 'sealRejected', 'sealBroken', 'bossWake', 'bossStrike', 'bossPhase', 'bossDefeated'];
 
 export async function startVfxLab(host: HTMLElement, params: URLSearchParams): Promise<void> {
   const manual = params.get('manual') === '1';
@@ -59,8 +63,27 @@ export async function startVfxLab(host: HTMLElement, params: URLSearchParams): P
   L.actors.addChild(dummy.root);
   dummy.sync(1);
 
-  const atlas = createVfxAtlas();
-  const vfx = new VfxSystem({ add: L.fxWorld, normal: L.fxNormal }, atlas, VFX, {
+  const base = createVfxAtlas();
+  let atlas = base;
+  // the art, when there is some and the page does not ask for the game's own shapes: the same adoption the game makes after its art has started
+  let artSets: { dispose(): void } | null = null;
+  const indexUrl = params.get('vfx') === 'procedural' ? null : artIndexUrl(params.get('art') ?? undefined, __TROID_ART_INDEX__, document.baseURI);
+  if (indexUrl) {
+    try {
+      const { createArt, createVfxArt } = await import('../art');
+      const art = createArt({ indexUrl, drawnPxPerMetre: () => r.viewport.ppm * r.viewport.resolution, dev: true, note: (m) => console.warn(`[art] ${m}`) });
+      await art.start();
+      const made = createVfxArt(art, base);
+      if (made) {
+        atlas = made.atlas;
+        artSets = made;
+      }
+    } catch (err) {
+      console.warn(`[art] the light could not be loaded: ${String(err)}`);
+    }
+  }
+  void artSets;
+  const vfx = new VfxSystem({ add: L.fxWorld, normal: L.fxNormal, back: L.fxBack }, atlas, VFX, {
     particleBudget: PARTICLE_BUDGET[tier],
     spriteBudget: SPRITE_FX_BUDGET[tier],
     accent,
@@ -68,7 +91,8 @@ export async function startVfxLab(host: HTMLElement, params: URLSearchParams): P
   vfx.prewarm();
   const bus = new EventBus<GameEvents>();
   const body = { x: -1.6, y: 0 };
-  const director = new VfxDirector(bus, vfx, VFX_BINDINGS, VFX, () => ({ x: body.x, y: body.y }), new Set(Object.keys(SKILLS)));
+  let ambient = Math.min(1, Math.max(0, Number(params.get('ambient')) || 0));
+  const director = new VfxDirector(bus, vfx, VFX_BINDINGS, VFX, () => ({ x: body.x, y: body.y }), new Set(Object.keys(SKILLS)), { ...AMBIENT, level: () => ambient });
 
   const hitRect = { x0: -1.4, y0: 0.3, x1: 0.2, y1: 1.4 };
   const fire = (trigger: VfxTrigger): void => {
@@ -100,6 +124,9 @@ export async function startVfxLab(host: HTMLElement, params: URLSearchParams): P
       case 'playerDied':
         bus.emit('player:died', { x: -1.6, y: 0 });
         break;
+      case 'boltCharge':
+        bus.emit('skill:castStarted', { skillId: SPIRIT_BOLT.id, x: -1.6 + SPIRIT_BOLT.projectile.muzzle.x, y: SPIRIT_BOLT.projectile.muzzle.y, facing: 1, ticks: SPIRIT_BOLT.startup });
+        break;
       case 'boltCast':
         bus.emit('skill:cast', { skillId: SPIRIT_BOLT.id, x: -1.6 + SPIRIT_BOLT.projectile.muzzle.x, y: SPIRIT_BOLT.projectile.muzzle.y, facing: 1, cost: SPIRIT_BOLT.cost });
         break;
@@ -130,6 +157,15 @@ export async function startVfxLab(host: HTMLElement, params: URLSearchParams): P
       case 'sealRejected':
         bus.emit('seal:rejected', { id: 'lab_seal', attackId: 'player_slash', x: -0.2, y: 1.2, direction: 1, shake: 0.1 });
         break;
+      case 'checkpoint':
+        bus.emit('checkpoint:set', { room: 'lab', entry: 'rest', x: -1.6, y: 0 });
+        break;
+      case 'abilityGained':
+        bus.emit('ability:unlocked', { id: 'air_dash' });
+        break;
+      case 'sealBroken':
+        bus.emit('actor:died', { id: 'lab_seal', team: 'neutral', x: -0.2, y: 1.8 });
+        break;
       case 'pickup':
         bus.emit('interaction:performed', { id: 'lab_pickup', kind: 'pickup', verbKey: 'interact.pickUp', x: -1.6, y: 1.2 });
         break;
@@ -145,9 +181,10 @@ export async function startVfxLab(host: HTMLElement, params: URLSearchParams): P
       const d = Math.min(dashLeft, seconds);
       body.x += 21 * d;
       dashLeft -= d;
-      director.update();
+      director.update(0);
       if (dashLeft <= 0) bus.emit('player:dashEnded', { x: body.x, y: 0 });
     }
+    director.update(seconds);
     vfx.update(seconds);
   };
 
@@ -196,6 +233,12 @@ export async function startVfxLab(host: HTMLElement, params: URLSearchParams): P
     advance,
     clear: () => vfx.clear(),
     stats: () => vfx.stats,
+    /** Where the shapes and the sequences of the effects come from now. */
+    look: () => ({ origin: atlas.origin, sequences: Object.keys(atlas.sequences) }),
+    /** The light the hero carries (0–1): the director lets motes go as often as it is high. */
+    setAmbient: (level: number) => {
+      ambient = Math.min(1, Math.max(0, level));
+    },
     render: () => r.render(),
   };
   r.resize();

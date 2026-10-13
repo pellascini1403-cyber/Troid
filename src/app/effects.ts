@@ -1,7 +1,7 @@
 import { GlParticleContainerPipe } from 'pixi.js';
 import { AudioDirector, CueLog } from '@/audio/AudioDirector';
 import type { VfxAtlas } from '@/assets/vfxAtlas';
-import { VFX, VFX_BINDINGS } from '@/content/vfx';
+import { AMBIENT, VFX, VFX_BINDINGS } from '@/content/vfx';
 import type { EventBus } from '@/core/events';
 import type { GameEvents } from '@/gameplay/events';
 import type { AudioSink } from '@/presentation/audioCues';
@@ -24,13 +24,15 @@ export interface Effects {
   readonly cues: AudioDirector | null;
   /** What the quality profile it was built with allows: live particles and live sprite effects (the E2E reads it; the game does not need it). */
   readonly budgets: { readonly particles: number; readonly sprites: number };
+  /** Where the shapes the effects are drawn from come from (`art`: painted; `procedural`: the game's own) and the sequences the art gave (the E2E reads it). */
+  readonly look: { readonly origin: VfxAtlas['origin']; readonly sequences: readonly string[] };
   dispose(): void;
 }
 
 export interface EffectsOptions {
   /** Pixi's renderer (the live one): the particle pipe is installed on it. */
   renderer: unknown;
-  layers: Pick<Layers, 'fxWorld' | 'fxNormal'>;
+  layers: Pick<Layers, 'fxWorld' | 'fxNormal' | 'fxBack'>;
   atlas: VfxAtlas;
   bus: EventBus<GameEvents>;
   tier: QualityTier;
@@ -42,6 +44,8 @@ export interface EffectsOptions {
   audioSink?: AudioSink | null;
   /** The simulation's clock, stamped on every cue. */
   now?: () => number;
+  /** 0–1: how much light the hero carries now (their magic): the director lets a mote go as often as it is high. None: the hero carries none. */
+  ambientLevel?: () => number;
 }
 
 /** A log of cues, for the tests and the development build: made here so it travels with the effects and never with the first download. */
@@ -67,18 +71,19 @@ function installParticlePipe(renderer: unknown): void {
 export function createEffects(o: EffectsOptions): Effects {
   installParticlePipe(o.renderer);
   const budgets = { particles: PARTICLE_BUDGET[o.tier], sprites: SPRITE_FX_BUDGET[o.tier] };
-  const system = new VfxSystem({ add: o.layers.fxWorld, normal: o.layers.fxNormal }, o.atlas, VFX, {
+  const system = new VfxSystem({ add: o.layers.fxWorld, normal: o.layers.fxNormal, back: o.layers.fxBack }, o.atlas, VFX, {
     particleBudget: budgets.particles,
     spriteBudget: budgets.sprites,
   });
   system.prewarm();
-  const director = new VfxDirector(o.bus, system, VFX_BINDINGS, VFX, o.playerPosition, o.projectileSkills);
+  const director = new VfxDirector(o.bus, system, VFX_BINDINGS, VFX, o.playerPosition, o.projectileSkills, o.ambientLevel ? { ...AMBIENT, level: o.ambientLevel } : null);
   const cues = o.audioSink ? new AudioDirector(o.bus, o.audioSink, { now: o.now, projectileSkills: o.projectileSkills }) : null;
   return {
     system,
     director,
     cues,
     budgets,
+    look: { origin: o.atlas.origin, sequences: Object.keys(o.atlas.sequences) },
     dispose: () => {
       cues?.dispose();
       director.dispose();

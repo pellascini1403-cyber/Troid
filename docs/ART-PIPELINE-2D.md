@@ -151,7 +151,7 @@ El *benchmark* de *bundle* cuenta **solo JavaScript**: ni imágenes ni JSON. S35
 |---|---|---|
 | **VFX** | **un** atlas procedural de ocho formas **blancas** (`assets/vfxAtlas.ts`); el color sale de una **ranura de paleta** (`energy`, `enemy`…) en tiempo de ejecución; *pooling* y presupuesto de partículas / efectos de sprite por perfil (150/300/400 · 24/40/64) | `VfxDefinition` (`presentation/vfx.ts`: partículas, arco, destello), `VFX_BINDINGS` (disparador → definiciones) y el director (eventos → disparadores), en `content/vfx.ts` |
 | **Entorno** | rectángulos por material (`MATERIAL_FILL`) con borde superior iluminado, puertas, pinchos, columnas de luz; fondos de *parallax* **procedurales por id** (`room.art.backdrop = 'ruins'`, `seed`) con los factores de `PARALLAX_FACTOR` (0.15 · 0.4 · 0.75 · primer plano 1.2) | `RoomDefinition.art = { backdrop, seed }`; la **colisión** sale de `room.solids` y **no** depende del arte |
-| **Capas de la escena** | `sky · world{ backdropFar, backdropMid, backdropNear, propsBack, terrain, actors, fxNormal, fxWorld(add), foreground, lightOverlay(add), debug } · screen` | `render/layers.ts` |
+| **Capas de la escena** | `sky · world{ backdropFar, backdropMid, backdropNear, propsBack, terrain, fxBack(add), actors, fxNormal, fxWorld(add), foreground, lightOverlay(add), debug } · screen` | `render/layers.ts` |
 
 ## A.12 Qué arte real hay en el repositorio (nada) y qué se puede hacer con lo que existe fuera
 
@@ -692,20 +692,21 @@ Si el arte llega como **una hoja por clip** en vez de un archivo por fotograma, 
 
 ## H.1 Los efectos que hay (y se conservan)
 
-Veintiún disparadores (`VfxTrigger`), de siete familias que conoce un jugador y cuatro más:
+Veinticinco disparadores (`VfxTrigger`), de nueve familias (siete que conoce un jugador y cuatro más; la fase H —§M.14— añadió cuatro disparadores y dos familias):
 
 | Familia | Disparadores → efectos | Evento de la simulación | Nace… |
 |---|---|---|---|
-| **tajo** | `slash` · `slashFinisher` → arco de la espada (3 capas) | `player:attackActive` (el tick en que el *hitbox* existe) | 0.8 m sobre los pies, **ajustado al *hitbox*** |
-| **impacto** | `hitLanded` → chispas + destello + anillo | `combat:hit` (contra algo que no es el héroe) | en el punto de contacto |
-| **daño** | `playerHurt` → esquirlas + destello | `player:hurt` | en el torso |
-| ***dash*** | `dashStart` · `dashDust` · `dashTrail` → ráfaga, polvo y estela **a lo largo de la distancia recorrida** | `player:dashed` / `player:dashEnded` | pecho · pies · 0.85 m |
-| **muerte** | `enemyDied` (tinta + motas + destello, **violeta/negro**) · `playerDied` (la energía se dispersa) | `actor:died` · `player:died` | 0.7 m · 0.9 m |
-| **aviso** | `enemyTelegraph` → anillo + motas **violeta** | `enemy:telegraph` | 0.45 m |
-| ***Spirit Bolt*** | `boltCast` · `boltImpact` · `boltEnd` | `skill:cast` · `combat:hit` de un proyectil · `projectile:ended` | la mano · el contacto · donde se acaba |
-| botella · objeto · sello · jefe | `drinkStart/Heal` · `pickup` · `sealRejected` · `bossWake/Strike/Phase/Defeated` | `bottle:*` · `interaction:performed` · `seal:rejected` · `boss:*` | según el contrato |
+| **tajo** | `slash` · `slashFinisher` → arco de la espada (3 capas; **el corte pintado** si el arte lo tiene) | `player:attackActive` (el tick en que el *hitbox* existe) | 0.8 m sobre los pies, **ajustado al *hitbox*** |
+| **impacto** | `hitLanded` → chispas + destello + anillo + **fogonazo pintado** | `combat:hit` (contra algo que no es el héroe) | en el punto de contacto |
+| **daño** | `playerHurt` → esquirlas + destello + fogonazo | `player:hurt` | en el torso |
+| ***dash*** | `dashStart` · `dashDust` · `dashTrail` → ráfaga, **dos *chevrons* de velocidad**, polvo y estela **a lo largo de la distancia recorrida** | `player:dashed` / `player:dashEnded` | pecho · pies · 0.85 m |
+| **muerte** | `enemyDied` (tinta + motas + destello + **la salpicadura pintada**, violeta/negro) · `playerDied` (la energía se dispersa **y sube una columna de luz detrás del héroe**) | `actor:died` · `player:died` | 0.7 m · 0.9 m |
+| **aviso** | `enemyTelegraph` → anillo + **runa que se cierra** + motas **violeta** | `enemy:telegraph` | 0.45 m |
+| ***Spirit Bolt*** | **`boltCharge`** (anillo que se cierra, luz que crece, motas que **entran**) · `boltCast` (destello, anillo, rayo hacia delante, brillo de la mano) · `boltImpact` (chispas, destello, anillo, **el impacto pintado**, **resplandor remanente**) · `boltEnd` | **`skill:castStarted`** · `skill:cast` · `combat:hit` de un proyectil · `projectile:ended` | el cañón · el cañón · el contacto · donde se acaba |
+| **descanso** · **poder** | **`checkpoint`** (pilar de luz, llama, runa y anillo **detrás del héroe**) · **`abilityGained`** (la runa grande, el pilar, el anillo, el destello y las motas) | `checkpoint:set` · `ability:unlocked` | los pies del héroe |
+| botella · objeto · sello · jefe | `drinkStart/Heal` · `pickup` · `sealRejected` · **`sealBroken`** · `bossWake/Strike/Phase/Defeated` | `bottle:*` · `interaction:performed` · `seal:rejected` · **`actor:died` de algo neutral** · `boss:*` | según el contrato |
 
-Todo corre en **tiempo real** (un *hit-stop* congela el mundo, no las chispas), sale de **pools** (después del calentamiento no se crea ni un objeto: `stats.poolCreated` deja de crecer) y respeta el presupuesto por perfil (**150 / 300 / 400 partículas** y **24 / 40 / 64 efectos de *sprite***).
+Todo corre en **tiempo real** (un *hit-stop* congela el mundo, no las chispas), sale de **pools** (después del calentamiento no se crea ni un objeto: `stats.poolCreated` deja de crecer) y respeta el presupuesto por perfil (**150 / 300 / 400 partículas** y **24 / 40 / 64 efectos de *sprite***; el presupuesto de *sprites* es **uno para los tres sitios** donde se dibujan: delante, la tinta y la luz de detrás).
 
 ## H.2 El contrato
 
@@ -720,15 +721,17 @@ Todo corre en **tiempo real** (un *hit-stop* congela el mundo, no las chispas), 
 | **DE QUÉ COLORES** | `palettes`: el héroe, `energy` (cian y blanco); enemigos y avisos, `enemy` (violeta); el polvo, `neutral`; el acento cálido, **solo** el remate del combo y apagado por defecto | `checkVfxContract` |
 | **BIEN FORMADO** | números que son números, rangos ordenados, `alpha` en 0–1, vidas > 0 | `checkVfxContract` (un sustituto llega como **datos**: esto detiene una errata antes de la pantalla) |
 
+**La luz que lleva el héroe** (fase H) no es un disparador —ningún evento la levanta— sino **un estado**: una mota que el director suelta de vez en cuando mientras la magia está alta (cada 0.35 s con la magia llena; con la mitad, el nivel al cuadrado la espacia). Tiene un contrato propio, `AMBIENT_CONTRACT`, porque **no se acaba nunca**, así que debe costar casi nada: **una** partícula, del color del héroe, aditiva, la primera que el presupuesto suelta (prioridad ≤ 2), ≤ 2.2 s de vida y **≤ 8 vivas a la vez** (`ambientIssues`, con siete pruebas de mutación). Sin magia, o con el héroe caído, no suelta ninguna.
+
 `checkVfxContract(defs, bindings)` dice, **con el disparador y el efecto**, qué regla se rompe; sobre lo que se publica da una lista vacía, y la prueba lo demuestra con **ocho pruebas de mutación** (vida de más, partículas de más, capas de más, paleta ajena, un disparador sin efecto o con uno que no existe, números rotos, topes que no caben en el presupuesto, un momento que desborda el perfil bajo).
 
-## H.3 Cómo se sustituirá un efecto (tres niveles, de menos a más arte)
+## H.3 Cómo se sustituye un efecto (tres niveles, de menos a más arte) — los tres están construidos (fase H)
 
-1. **Datos (hoy, sin código).** Un `VfxDefinition` de `content/vfx.ts`: tamaños, cuentas, vidas, colores, gravedad. `checkVfxContract` dice si sigue valiendo.
-2. **La forma (cuando haya arte).** `VfxSystem` solo dibuja con **ocho formas** del `VfxAtlas` —`glow`, `spark`, `shard`, `ring`, `dust`, `ink`, `streak`, `arc`—, **máscaras blancas** que la paleta tiñe al dibujar (así el cian y el violeta siguen siendo **la identidad**, pongan lo que pongan en la imagen). Sustituirlas es dar otro `VfxAtlas` con el mismo contrato de formas: los mismos nombres, la orientación (`arc` se curva hacia +x, `shard` se dibuja a lo largo de +x, `streak` es horizontal) y **una sola página** (el `ParticleContainer` de Pixi comparte la fuente de la textura: una llamada de dibujo por modo de mezcla). Enganche: `createEffects({ atlas })`. **No está construido:** hoy el atlas se dibuja con código y cambiar su origen antes de tener el arte sería diseñar contra nada.
-3. **Animación por fotogramas.** Un efecto que no es una máscara teñida sino una secuencia dibujada (un tajo de cinco fotogramas). Reglas ya fijadas: su **tiempo es el del dato** (se reparte en `life`, no en los fps del arte), nace en el **origen del contrato**, cuenta **como un *sprite*** del presupuesto y vive en un *pool*. **No está construido:** sin arte no hay cuántos fotogramas, ni si se tiñe, ni dónde está su pivote; cuando lo haya, se añade `kind: 'flipbook'` a `VfxDefinition` y `checkVfxContract` ya sabe medirlo.
+1. **Datos (sin código).** Un `VfxDefinition` de `content/vfx.ts`: tamaños, cuentas, vidas, colores, gravedad. `checkVfxContract` dice si sigue valiendo.
+2. **La forma (construido, §M.14).** `VfxSystem` dibuja con **diez formas** del `VfxAtlas` —`glow`, `spark`, `shard`, `ring`, `rune`, `dust`, `ink`, `streak`, `arc`, `chevron`—, **máscaras blancas** que la paleta tiñe al dibujar (así el cian y el violeta siguen siendo **la identidad**, pongan lo que pongan en la imagen). El juego las dibuja él mismo (`createVfxAtlas`: lo que siempre hizo) y **el arte puede pintarlas** (`vfx-shapes`): `createArtVfxAtlas` las pone **encima** del atlas propio y solo cuando son **las diez en una sola página** (el `ParticleContainer` de Pixi comparte la fuente de la textura: una llamada de dibujo por modo de mezcla). La orientación se conserva: `arc` se curva hacia +x, `shard` y `chevron` apuntan a +x, `streak` es horizontal. Enganche: `createEffects({ atlas })`.
+3. **Animación por fotogramas (construido, §M.14).** `kind: 'flipbook'`: una secuencia pintada (`vfx-flipbooks`, doce) que se reparte en la `life` del dato —**su tiempo es el del dato, no los fps del arte**—, nace en el **origen del contrato**, **cuenta como un *sprite*** del presupuesto, vive en un *pool*, se tiñe con la paleta y se coloca por el **pivote del propio arte**. **Sin la secuencia —el arte no la tiene o su paquete no cargó— el efecto simplemente no se juega** (`stats.unplayed`, que no es el presupuesto soltándolo) y los efectos que lo acompañan en el disparador llevan el momento (el contrato exige que cada disparador esté entero sin ella; el E2E lo juega con `?vfx=procedural`). El corte de la espada es un `ArcVfx` con `sequences`: con **las dos** secuencias es el del arte, con una o ninguna es el creciente de siempre.
 
-**En ningún nivel cambia:** el evento, el origen, la vida, el presupuesto, los colores ni el *pool*. Y **nada del juego se entera**: el director es de la vista y la simulación no sabe que existe.
+**En ningún nivel cambia:** el evento, el origen, la vida, el presupuesto, los colores ni el *pool*. Y **nada del juego se entera**: el director es de la vista y la simulación no sabe que existe (el único añadido de la fase en la simulación es **un evento de aviso**, `skill:castStarted`, que no cambia nada de lo que ocurre).
 
 ## H.4 Las señales de audio
 
@@ -793,6 +796,7 @@ Todo es procedural, determinista (la misma sala, el mismo aspecto) y de la vista
 | `propsBack` | mundo | 1 | normal | santuarios, palancas, objetos | `decor`, `interactive` |
 | `terrain` | mundo | 1 | normal | suelo, paredes, plataformas, puertas, espinas | `solid`, `platform`, `door`, `hazard` |
 | `actors` | mundo | 1 | normal | el héroe, los enemigos, el jefe | — |
+| `fxBack` | mundo | 1 | **aditiva** | luz **detrás** de los actores: el pilar de un lugar que despierta, la runa de un poder ganado (la silueta oscura del héroe contra ella) | — |
 | `fxNormal` · `fxWorld` | mundo | 1 | normal · **aditiva** | tinta, humo, polvo · luz: proyectiles, tajos, el sigilo del sello | — · `seal` |
 | `foreground` | mundo | **1.2** | normal | siluetas oscuras delante (más rápido que el mundo) | `foreground`, `decor` |
 | `lightOverlay` | mundo | 1 | **aditiva** | haces sobre las salidas, objetos que flotan | `light`, `interactive` |
@@ -1310,3 +1314,55 @@ El enemigo ordinario de la slice deja de ser una cúpula de `Graphics` con dos o
 **Medido** (GL por software; sin dispositivo real): *sprites* y llamadas de dibujo de R1/R2 con el *slime* vestido, memoria (+0.5 MiB: una página), *bundle* y E2E — ver el registro de la fase.
 
 **Lo que falta del *slime* y necesita revisión artística:** es **correcto y coherente pero de generador** (la silueta es una curva, no el dibujo de una ilustradora; el «hervor» son cuatro variaciones de ruido, no un animador); **un solo cuerpo para las dos salas** (los dos *slimes* son idénticos); no tiene poses propias de la embestida ni del aturdimiento (se estira y se aplasta entero). **Los efectos de su aviso, su muerte y sus golpes** (el anillo violeta que se cierra, las motas, la tinta que salpica) siguen siendo los de siempre: **fase H**.
+
+## M.14 La luz (fase H): las formas y las secuencias del arte, y el momento del *Spirit Bolt*
+
+Hasta la fase G los efectos eran **datos con formas dibujadas por código** (§H): una cuenta de partículas, ocho máscaras blancas hechas con un lienzo, ningún arte. La fase H los convierte en **luz producida**: dos paquetes nuevos de la categoría `vfx` (**noveno y décimo**: `vfx-shapes` y `vfx-flipbooks`, `load: "boot"`, sin zonas) se descargan **con el juego** —un golpe llega en el primer minuto— y se retienen mientras corre; los efectos dibujan con **las formas y las secuencias que el arte pintó**. **Nada de la simulación cambia** (un solo evento nuevo, de aviso, `skill:castStarted`), el contrato de los efectos se conserva y **sin el arte todo es como era**.
+
+**La decisión de contrato: máscaras blancas.** El alfa **es** la luz y el color lo pone la paleta al dibujar (cian para el héroe, violeta para los enemigos, negro para la tinta). Así **una imagen sirve a los dos bandos y la identidad —negro, blanco, cian y violeta— no depende de lo que haya pintado el arte**: un artista que sustituya una forma no puede romperla.
+
+**Las diez formas** (`vfx-shapes`, *una sola página* de 356 × 384: el `ParticleContainer` dibuja todas las partículas desde **una** fuente de textura; 0.53 MiB): `glow`, `spark` (una estrella de cuatro puntas), `shard` (una esquirla de cristal a lo largo de +x), `ring` (un anillo roto con marcas), `rune` (anillo doble con un rombo: el signo de un lugar que despierta y de un poder ganado), `dust`, `ink` (una mancha con gotas), `streak` (un cometa), `arc` (el creciente de la espada) y `chevron` (una marca de velocidad hacia +x).
+
+**Las doce secuencias** (`vfx-flipbooks`, 3.06 MiB descomprimido; cada una, un *sprite set* con su clip `idle`; **el tiempo es el de la `life` del dato, no un ritmo del arte**):
+
+| Secuencia | Fotogramas | Qué es | La usa |
+|---|---|---|---|
+| `slash_body` · `slash_edge` | 6 + 6 (192 × 160) | **el corte** de la espada **barriendo**: una cometa curva de cabeza fina y brillante cuya cola la sigue y se apaga, más **el filo** blanco aparte (para teñir el cuerpo de cian y el filo de blanco incandescente) | `slash_arc`, `slash_arc_finisher` (el creciente es el respaldo) |
+| `impact` | 6 (128²) | **el fogonazo** de un golpe: una estrella de cuchillas **gruesas** que salen a lo largo del golpe (largas delante, cortas detrás) y adelgazan, con chispas | `impact_burst` · `hurt_burst` |
+| `bolt_body` · `bolt_core` | 4 + 4 (128 × 64) | **el *Spirit Bolt* en vuelo**: una gota de energía con llamas que se estiran hacia atrás, en cuatro fotogramas que **arden en bucle**; el corazón, más caliente y blanco, aparte | `render/ProjectileView` |
+| `bolt_impact` | 7 (160²) | **donde cae el rayo**: una flor de puntas con **arcos de choque** que se abren y chispas | `bolt_impact_seq` |
+| `ink_splash` · `ink_splash_gloss` | 6 + 6 (160 × 128 y la mitad) | **la tinta que salta** de lo que cae: una corona de tentáculos gruesos y curvos que acaban en gota, las gotas que se sueltan y vuelan, el charco; el brillo violeta **solo en los bordes que miran arriba y a la izquierda** | `death_splash`/`death_gloss`, `seal_break_*`, `boss_defeat_*` |
+| `ink_column` · `ink_column_glow` | 8 + 8 (96 × 288 y la mitad) | **la columna de tinta** que el jefe levanta donde cae su golpe: sube, aguanta con la corona irregular y se desploma; el hilo de luz por dentro y por los bordes aparte | `boss_strike_column(_glow)` |
+| `pillar` | 6 (48 × 160) | **el pilar de luz** de un lugar que despierta (pie en el suelo) | `checkpoint_pillar`, `ability_pillar`, `death_pillar` |
+| `aura` | 6 (64 × 96) | **la llama de luz** que sube alrededor de un héroe armado | `checkpoint_aura`, `drink_heal_aura` |
+
+**Las etiquetas** (`presentation/vfxArt`, puro): `vfx:shape` + `shape:<nombre>` o `vfx:seq` + `seq:<nombre>`. `vfxArtIssues` (que usa `assets:check`) da **error** si una etiqueta no nombra nada o nombra dos cosas, o si falta el clip `idle`; **aviso** si una forma tiene más de un fotograma, si dos *sprites* reclaman el mismo nombre, si las formas están en más de una página o si falta alguna. `vfxCoverageIssues` mira **los dos paquetes juntos** (las formas están en uno y las secuencias en otro).
+
+**El motor** (todo en la vista; el *chunk* de efectos y el del arte, sin tocar el arranque en frío):
+
+- `assets/vfxAtlas.ts`: el `VfxAtlas` gana `heightPx`, `sequences` y `origin` (`procedural` | `art`); el juego dibuja las **diez** formas (`rune` y `chevron` son nuevas; `PROCEDURAL_SHAPES` lo prueba contra la lista del arte).
+- `assets/vfxArtAtlas.ts#createArtVfxAtlas(art, base)`: toma de la biblioteca los *sprite sets* de los paquetes `vfx` retenidos y construye el atlas **encima del propio**: las formas del arte **solo si son las diez y están en una sola página** (se usa el tamaño **original** del fotograma —el empaquetador recorta el borde transparente y dice dónde estaba—), y **cada secuencia con todos sus fotogramas**. No puede fallar el juego: si el arte no pintó nada, devuelve `null` y el juego sigue con el suyo. `Game2D` lo adopta tras `art.start()` y **reconstruye los efectos** (lo mismo que hace un cambio de calidad); `?vfx=procedural` lo impide (para comparar y para ver el respaldo).
+- `FlipbookVfx` (`kind: 'flipbook'`): la secuencia a lo largo de su `life`, tamaño por **el ancho de la imagen entera** (la altura sigue su proporción), el **pivote del propio arte** sobre el punto del evento, `aim: none | facing | dir` (`dir`: espejada **y girada a lo largo del golpe**), `offset`, `layer`. Sin la secuencia, **no se juega** (`stats.unplayed`) y no es el presupuesto soltándolo.
+- `ArcVfx.sequences`: el corte pintado, **solo si el arte tiene las dos secuencias** (todo o nada). Mantiene la caja del *hitbox* (el golpe visible **es** el área que golpea) agrandada por el factor del arte (su barrido ocupa el centro de su imagen); no gira durante su vida (barre solo) pero sí **se inclina** como la variante y **se voltea** para el remate, que sube.
+- `FlashVfx.offset | turn` y `ParticleVfx.inward` (partículas que nacen dispersas y **vuelan hacia** el punto del efecto: la luz que se junta antes del rayo).
+- `layer: 'back'` + **`fxBack`**, una capa aditiva **detrás de los actores** (entre el terreno y los actores, en el contrato del entorno): el pilar de un lugar que despierta, la llama y la runa van **detrás** del héroe, y su silueta oscura se recorta contra la luz en lugar de perderse en ella. Los tres sitios donde se dibujan los *sprites* (luz delante, tinta, luz detrás) **comparten el presupuesto** (un fallo que cazó la prueba: con tres *pools* cada uno aceptaba el tope entero).
+- `render/ProjectileView`: con las secuencias del *bolt* es un **resplandor suave bajo el cuerpo y el corazón pintados**, que crece en una décima de segundo al salir de la mano; sin ellas, las formas de siempre.
+- `render/GuardianMarks`: **los avisos del jefe en el suelo ya no son geometría** sino sprites de las formas de la luz —la lluvia, una **runa tumbada que gira** con un anillo que se cierra, un anillo blanco que se cierra más deprisa y una columna de luz que sube a medida que cae el golpe; la embestida, una banda de luz, una línea brillante hacia donde terminará y *chevrons* que apuntan hacia donde se deslizará—. La simulación decide cuándo y dónde; esto solo lo dibuja.
+
+**El momento del *Spirit Bolt*, por etapas** (cada una, un disparador con su evento):
+
+1. **Carga** (`boltCharge`, el evento nuevo `skill:castStarted`: la simulación avisa al **empezar** la preparación, sin cambiar nada de lo que ocurre): un anillo que se cierra sobre el cañón, una luz que crece y chispas que **entran** desde alrededor. Los seis ticks de preparación son lo que dura.
+2. **Lanzamiento** (`boltCast`): destello, anillo que se abre, un **rayo de luz hacia delante** y el brillo de la mano, que sigue encendido cuando el rayo ya salió.
+3. **Trayectoria**: el *bolt* pintado (gota con llamas que arden, núcleo blanco).
+4. **Impacto** (`boltImpact`): chispas, destello, anillo, **la flor de puntas con arcos de choque** y un **resplandor remanente** de 0.8 s donde cayó.
+5. **El sello que se rompe** (`sealBroken`: el `actor:died` de algo neutral): el destello blanco-cian de lo que lo rompió, un anillo violeta, la tinta que se lanza con su brillo violeta y las esquirlas.
+
+**Otros momentos pintados:** el tajo y el fogonazo del golpe (y del daño recibido, que se lanza hacia donde empuja), dos ***chevrons*** de velocidad que el *dash* deja atrás, la **runa que se cierra** sobre el enemigo que se prepara, la salpicadura de tinta de su muerte, el **pilar de luz** de un lugar que despierta (`checkpoint`, ya no el brillo de una botella), **la runa grande de un poder ganado** (`abilityGained`), la columna del jefe, su runa al despertar y su caída.
+
+**La luz que lleva el héroe** (`AMBIENT_CONTRACT`, §H.2): una mota cada 0.35 s con la magia llena, nada con la magia gastada: **el héroe con el rayo listo no es el héroe que está vacío**.
+
+**Pintado** (`tools/art/painter/vfx.ts`, determinista; máscaras blancas hechas con el lienzo del navegador: luces aditivas, degradados y desenfoques): cada pieza se hace para leerse **al tamaño de un teléfono** (formas gruesas, núcleo caliente, borde limpio, y un halo que es solo un halo); el corte se dibuja en un espacio donde su elipse es un círculo para que los degradados que corren a lo largo del arco sean verdaderos.
+
+**Medido** (GL por software; sin dispositivo real): ver el registro de la fase.
+
+**Lo que falta de la luz y necesita revisión artística:** todo es **«de generador»**: el corte, el fogonazo, la tinta, el pilar y la llama son correctos y coherentes pero no los dibujó una ilustradora ni un animador de efectos (el corte barre con seis fotogramas; la tinta es una corona simétrica de tentáculos; el pilar y la llama son geométricos); **`rune` es un anillo con marcas**, no un signo con significado; **no hay un lenguaje de runas** (las del escenario, las del sello y las de los efectos son tres familias); el brillo del *dash* y del impacto **tapa al héroe** unos fotogramas (la silueta es de la imagen de referencia: no se retoca, pero se puede afinar la luz alrededor). Y **nada de esto se ha visto en un dispositivo real**: el tamaño de las formas finas (una línea de 2 px a 1×) y el contraste de la luz sobre los fondos más claros es lo que un teléfono debe confirmar.

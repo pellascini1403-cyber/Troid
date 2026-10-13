@@ -494,6 +494,11 @@ export class PlayerController {
     if (Math.abs(this.input.move.x) > 0.25) p.facing = this.input.move.x > 0 ? 1 : -1;
     this.jumping = false; // a cast closes the variable-jump window, like an attack
     this.animSerial++;
+    // the light gathers where the projectile will leave from (the interface and the effects only listen: nothing here depends on it)
+    if (this.castSkill) {
+      const m = this.castSkill.projectile.muzzle;
+      this.sim.bus.emit('skill:castStarted', { skillId: this.castSkill.id, x: p.body.x + p.facing * m.x, y: p.body.y + (this.crouching ? m.yCrouched : m.y), facing: p.facing, ticks: this.castSkill.startup });
+    }
   }
 
   /**

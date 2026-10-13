@@ -88,7 +88,11 @@ export interface GameState {
   /** 2D view only (S35): the art library — what it holds, what it has fetched; `null` for a page with no art (it never loads the library). */
   art?: ArtSnapshot | null;
   /** 2D view only: VFX counters. */
-  vfx?: { particles: number; sprites: number; spawned: number; dropped: number; peakParticles: number; poolCreated: number };
+  vfx?: { particles: number; sprites: number; spawned: number; dropped: number; unplayed: number; peakParticles: number; poolCreated: number };
+  /** 2D view only (phase H): where the light of the effects comes from — the art's shapes or the game's own, and the sequences the art gave — or `null` before the effects have arrived. */
+  vfxLook?: { origin: 'art' | 'procedural'; sequences: string[] } | null;
+  /** 2D view only (phase H): what the bolt in flight and the boss's warnings are drawn with (`null`: there is none now). */
+  looks?: { bolt: boolean | null; marks: number | null };
   /** 2D view only: median / worst GL draw calls per frame over the last 120 frames. */
   draws?: number;
   drawsMax?: number;

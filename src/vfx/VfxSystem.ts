@@ -1,4 +1,4 @@
-import { Container, Particle, ParticleContainer, Sprite } from 'pixi.js';
+import { Container, Particle, ParticleContainer, Sprite, type Texture } from 'pixi.js';
 import type { VfxAtlas } from '@/assets/vfxAtlas';
 import { Pool } from '@/core/pool';
 import { Rng } from '@/core/rng';
@@ -8,6 +8,7 @@ import {
   createParticleMotion,
   initParticle,
   lifeFraction,
+  paintedArcPose,
   particleAlpha,
   particleSize,
   resolveColor,
@@ -15,6 +16,7 @@ import {
   type ArcPose,
   type ArcVfx,
   type FlashVfx,
+  type FlipbookVfx,
   type ParticleMotion,
   type ParticleVfx,
   type VfxBlend,
@@ -28,7 +30,12 @@ export interface VfxLayers {
   add: Container;
   /** Normal-blend layer (ink, dust). */
   normal: Container;
+  /** Additive layer BEHIND the actors (the light that stands behind someone). Without one, what is meant for it is drawn in front. */
+  back?: Container;
 }
+
+/** The pools of sprite effects: one per place they are drawn in (the light, the ink, and the light behind). */
+type SpriteLayer = 'add' | 'normal' | 'back';
 
 export interface VfxSystemOptions {
   /** Live particles allowed (see `PARTICLE_BUDGET`). */
@@ -48,6 +55,8 @@ export interface VfxStats {
   /** Effects started / dropped by the budget since the start. */
   spawned: number;
   dropped: number;
+  /** Effects not played because the art has not the sequence they are made of (nothing to do with the budget). */
+  unplayed: number;
   peakParticles: number;
   /** Objects ever created by the pools: after warm-up it stops growing (a growing number is a leak). */
   poolCreated: number;
@@ -64,9 +73,13 @@ interface FxParticle {
   texW: number;
 }
 
-/** A pooled sprite effect (a slash arc layer, a flash, a ring, a trail puff). */
+/** A pooled sprite effect (a slash arc layer, a flash, a ring, a trail puff, a picture of a sequence). */
 interface FxSprite {
   readonly sprite: Sprite;
+  readonly pool: Pool<FxSprite>;
+  /** The pictures of a sequence it plays over its life (`null`: it is one still picture) and the one it shows now. */
+  frames: readonly Texture[] | null;
+  frame: number;
   age: number;
   life: number;
   x: number;
@@ -80,6 +93,7 @@ interface FxSprite {
   rot0: number;
   rot1: number;
   flip: 1 | -1;
+  flipY: 1 | -1;
   priority: number;
   texW: number;
   texH: number;
@@ -105,12 +119,14 @@ export class VfxSystem {
   private readonly accent: boolean;
   private readonly containers: Record<VfxBlend, ParticleContainer>;
   private readonly particlePools = new Map<string, Pool<FxParticle>>();
-  private readonly spritePool: Pool<FxSprite>;
+  /** One pool of sprite effects per place: the light is additive, the ink is not (and it lives in its own layer, under the light), and some light stands behind the actors. */
+  private readonly spritePools: Record<SpriteLayer, Pool<FxSprite>>;
   private readonly liveParticles: FxParticle[] = [];
   private readonly liveSprites: FxSprite[] = [];
-  private readonly pose: ArcPose = { x: 0, y: 0, width: 0, height: 0, rotation0: 0, rotation1: 0, flip: 1 };
+  private readonly pose: ArcPose = { x: 0, y: 0, width: 0, height: 0, rotation0: 0, rotation1: 0, flip: 1, flipY: 1 };
   private spawned = 0;
   private dropped = 0;
+  private unplayed = 0;
   private peak = 0;
   private destroyed = false;
 
@@ -133,40 +149,48 @@ export class VfxSystem {
       return c;
     };
     this.containers = { add: make('add', layers.add), normal: make('normal', layers.normal) };
-    this.spritePool = new Pool<FxSprite>(
-      () => {
-        const sprite = new Sprite(atlas.frames.glow);
-        sprite.blendMode = 'add';
-        sprite.visible = false;
-        layers.add.addChild(sprite);
-        return { sprite, age: 0, life: 1, x: 0, y: 0, width0: 1, width1: 1, height0: 1, height1: 1, alpha0: 1, alpha1: 0, rot0: 0, rot1: 0, flip: 1, priority: 0, texW: 1, texH: 1 };
-      },
-      (fx) => {
-        fx.sprite.visible = false;
-      },
-      options.spriteBudget,
-    );
+    const spritePool = (blend: VfxBlend, parent: Container): Pool<FxSprite> => {
+      const created: Pool<FxSprite> = new Pool<FxSprite>(
+        () => {
+          const sprite = new Sprite(atlas.frames.glow);
+          sprite.blendMode = blend;
+          sprite.visible = false;
+          parent.addChild(sprite);
+          return { sprite, pool: created, frames: null, frame: 0, age: 0, life: 1, x: 0, y: 0, width0: 1, width1: 1, height0: 1, height1: 1, alpha0: 1, alpha1: 0, rot0: 0, rot1: 0, flip: 1, flipY: 1, priority: 0, texW: 1, texH: 1 };
+        },
+        (fx) => {
+          fx.sprite.visible = false;
+          fx.frames = null;
+        },
+        options.spriteBudget,
+      );
+      return created;
+    };
+    this.spritePools = { add: spritePool('add', layers.add), normal: spritePool('normal', layers.normal), back: spritePool('add', layers.back ?? layers.add) };
   }
 
   get stats(): VfxStats {
-    let created = this.spritePool.created;
+    let created = this.spritePools.add.created + this.spritePools.normal.created + this.spritePools.back.created;
     for (const p of this.particlePools.values()) created += p.created;
     return {
       particles: this.liveParticles.length,
       sprites: this.liveSprites.length,
       spawned: this.spawned,
       dropped: this.dropped,
+      unplayed: this.unplayed,
       peakParticles: this.peak,
       poolCreated: created,
     };
   }
 
   /** Pre-creates pool objects so the first big fight allocates nothing (call while loading). */
-  prewarm(particles = 120, sprites = 16): void {
+  prewarm(particles = 120, sprites = 24): void {
     for (const shape of ['spark', 'shard', 'glow'] as const) this.particlePool('add', shape).prewarm(Math.floor(particles / 3));
     this.particlePool('normal', 'dust').prewarm(Math.floor(particles / 6));
     this.particlePool('normal', 'ink').prewarm(Math.floor(particles / 6));
-    this.spritePool.prewarm(sprites);
+    this.spritePools.add.prewarm(sprites);
+    this.spritePools.normal.prewarm(Math.max(2, Math.floor(sprites / 4)));
+    this.spritePools.back.prewarm(Math.max(2, Math.floor(sprites / 4)));
   }
 
   /** Starts an effect. Returns false when the definition is unknown or the budget dropped it entirely. */
@@ -185,6 +209,16 @@ export class VfxSystem {
       case 'flash':
         made = this.spawnFlash(def, at);
         break;
+      case 'flipbook': {
+        const played = this.spawnFlipbook(def, at);
+        // the art has no such sequence: it is not played, and that is not the budget dropping it
+        if (played === null) {
+          this.unplayed++;
+          return false;
+        }
+        made = played;
+        break;
+      }
     }
     if (made) this.spawned++;
     else this.dropped++;
@@ -230,7 +264,7 @@ export class VfxSystem {
     this.clear();
     this.destroyed = true;
     for (const pool of this.particlePools.values()) pool.dispose();
-    this.spritePool.dispose((fx) => fx.sprite.destroy());
+    for (const pool of Object.values(this.spritePools)) pool.dispose((fx) => fx.sprite.destroy());
     this.containers.add.destroy({ children: true });
     this.containers.normal.destroy({ children: true });
   }
@@ -315,7 +349,7 @@ export class VfxSystem {
 
   // ---------------------------------------------------------------------------------------------------- sprites
 
-  private acquireSprite(priority: number): FxSprite | null {
+  private acquireSprite(priority: number, layer: SpriteLayer = 'add'): FxSprite | null {
     if (this.liveSprites.length >= this.options.spriteBudget) {
       // drop the oldest effect that is less important than the new one
       for (let i = 0; i < this.liveSprites.length; i++) {
@@ -324,11 +358,16 @@ export class VfxSystem {
           break;
         }
       }
+      // the screen is full of effects that matter as much: the new one is the one that waits (the budget is of all the places together, not of each pool)
+      if (this.liveSprites.length >= this.options.spriteBudget) return null;
     }
-    const fx = this.spritePool.acquire();
+    const fx = this.spritePools[layer].acquire();
     if (!fx) return null;
     fx.priority = priority;
     fx.age = 0;
+    fx.frames = null;
+    fx.frame = 0;
+    fx.flipY = 1;
     this.liveSprites.push(fx);
     return fx;
   }
@@ -337,34 +376,51 @@ export class VfxSystem {
     const fx = this.liveSprites[i] as FxSprite;
     const last = this.liveSprites.pop() as FxSprite;
     if (last !== fx) this.liveSprites[i] = last;
-    this.spritePool.release(fx);
+    fx.pool.release(fx);
   }
 
   private spawnArc(def: ArcVfx, at: VfxSpawn): boolean {
-    const pose = arcPose(def, at, this.pose);
+    // the cut the art painted, when it has BOTH of its sequences; the crescent otherwise
+    const body = def.sequences ? this.atlas.sequences[def.sequences.core] : undefined;
+    const edge = def.sequences ? this.atlas.sequences[def.sequences.hot] : undefined;
+    const painted = body !== undefined && edge !== undefined;
+    const pose = painted ? paintedArcPose(def, at, this.pose) : arcPose(def, at, this.pose);
     const frame = this.atlas.frames.arc;
     let made = false;
     for (let k = 0; k < def.layers.length && k < MAX_PER_SPAWN_SPRITES; k++) {
       const layer = def.layers[k]!;
       const fx = this.acquireSprite(def.priority);
       if (!fx) break;
-      fx.sprite.texture = frame;
-      fx.sprite.anchor.set(0.63, 0.5);
+      const seq = painted ? (layer.role === 'hot' ? edge : body) : undefined;
+      if (seq) {
+        fx.frames = seq.frames;
+        fx.sprite.texture = seq.frames[0]!;
+        fx.sprite.anchor.set(seq.pivot[0], seq.pivot[1]);
+        fx.texW = seq.width;
+        fx.texH = seq.height;
+      } else {
+        fx.sprite.texture = frame;
+        fx.sprite.anchor.set(0.63, 0.5);
+        fx.texW = this.atlas.widthPx.arc;
+        fx.texH = this.atlas.heightPx.arc;
+      }
       fx.sprite.tint = resolveColor(def.palette, layer.role, this.accent);
-      fx.texW = this.atlas.widthPx.arc;
-      fx.texH = frame.height;
       fx.life = def.life;
       fx.x = pose.x;
       fx.y = pose.y;
-      fx.width0 = pose.width * layer.scale * def.scale[0];
-      fx.width1 = pose.width * layer.scale * def.scale[1];
-      fx.height0 = pose.height * layer.scale * def.scale[0];
-      fx.height1 = pose.height * layer.scale * def.scale[1];
-      fx.alpha0 = def.alpha[0] * layer.alpha;
-      fx.alpha1 = def.alpha[1] * layer.alpha;
+      // the painted edge lies on the painted body (the crescent's inner "hot" line is smaller than it: a painted one is not), and its frames carry their own fade
+      const scale = seq && layer.role === 'hot' ? 1 : layer.scale;
+      const alpha = (seq && def.sequences?.alpha) || def.alpha;
+      fx.width0 = pose.width * scale * def.scale[0];
+      fx.width1 = pose.width * scale * def.scale[1];
+      fx.height0 = pose.height * scale * def.scale[0];
+      fx.height1 = pose.height * scale * def.scale[1];
+      fx.alpha0 = alpha[0] * layer.alpha;
+      fx.alpha1 = alpha[1] * layer.alpha;
       fx.rot0 = pose.rotation0;
       fx.rot1 = pose.rotation1;
       fx.flip = pose.flip;
+      fx.flipY = pose.flipY;
       fx.sprite.visible = true;
       this.applySprite(fx);
       made = true;
@@ -373,7 +429,7 @@ export class VfxSystem {
   }
 
   private spawnFlash(def: FlashVfx, at: VfxSpawn): boolean {
-    const fx = this.acquireSprite(def.priority);
+    const fx = this.acquireSprite(def.priority, def.layer === 'back' ? 'back' : 'add');
     if (!fx) return false;
     const frame = this.atlas.frames[def.shape];
     const scale = at.scale ?? 1;
@@ -382,18 +438,54 @@ export class VfxSystem {
     fx.sprite.anchor.set(0.5, 0.5);
     fx.sprite.tint = resolveColor(def.palette, def.role, this.accent);
     fx.texW = this.atlas.widthPx[def.shape];
-    fx.texH = frame.height;
+    fx.texH = this.atlas.heightPx[def.shape];
     fx.life = def.life;
-    fx.x = at.x;
-    fx.y = at.y;
+    fx.x = at.x + (def.offset ? def.offset[0] * at.facing : 0);
+    fx.y = at.y + (def.offset ? def.offset[1] : 0);
     fx.width0 = def.size[0] * scale;
     fx.width1 = def.size[1] * scale;
     fx.height0 = fx.width0 / aspect;
     fx.height1 = fx.width1 / aspect;
     fx.alpha0 = def.alpha[0];
     fx.alpha1 = def.alpha[1];
-    fx.rot0 = fx.rot1 = 0;
+    fx.rot0 = def.turn ? def.turn[0] : 0;
+    fx.rot1 = def.turn ? def.turn[1] : 0;
     fx.flip = at.facing;
+    fx.sprite.visible = true;
+    this.applySprite(fx);
+    return true;
+  }
+
+  /** A picture of a sequence the art painted, played over the life of the effect. `null` when the atlas has no such sequence (it is not played); `false` when the budget dropped it. */
+  private spawnFlipbook(def: FlipbookVfx, at: VfxSpawn): boolean | null {
+    const seq = this.atlas.sequences[def.sequence];
+    if (!seq) return null;
+    const fx = this.acquireSprite(def.priority, def.layer === 'back' ? 'back' : def.blend);
+    if (!fx) return false;
+    const scale = at.scale ?? 1;
+    const aspect = seq.height / seq.width;
+    fx.frames = seq.frames;
+    fx.sprite.texture = seq.frames[0]!;
+    fx.sprite.anchor.set(seq.pivot[0], seq.pivot[1]);
+    fx.sprite.tint = resolveColor(def.palette, def.role, this.accent);
+    fx.texW = seq.width;
+    fx.texH = seq.height;
+    fx.life = def.life;
+    // the way it faces: as painted, mirrored by the facing, or mirrored and turned along the direction the spawn gives (a blow lands along the way it went)
+    const dx = at.dirX ?? at.facing;
+    const dy = at.dirY ?? 0;
+    const aim = def.aim ?? 'none';
+    fx.flip = aim === 'none' ? 1 : aim === 'facing' ? at.facing : dx >= 0 ? 1 : -1;
+    const side = aim === 'none' ? 1 : fx.flip;
+    fx.rot0 = fx.rot1 = aim === 'dir' ? -Math.atan2(dy, Math.abs(dx)) * side : 0;
+    fx.x = at.x + (def.offset ? def.offset[0] * side : 0);
+    fx.y = at.y + (def.offset ? def.offset[1] : 0);
+    fx.width0 = def.size[0] * scale;
+    fx.width1 = def.size[1] * scale;
+    fx.height0 = fx.width0 * aspect;
+    fx.height1 = fx.width1 * aspect;
+    fx.alpha0 = def.alpha[0];
+    fx.alpha1 = def.alpha[1];
     fx.sprite.visible = true;
     this.applySprite(fx);
     return true;
@@ -404,8 +496,16 @@ export class VfxSystem {
     const s = fx.sprite;
     const w = fx.width0 + (fx.width1 - fx.width0) * t;
     const h = fx.height0 + (fx.height1 - fx.height0) * t;
+    // a sequence shows the picture its time has come to: the last one is held to the end of the life
+    if (fx.frames) {
+      const at = Math.min(fx.frames.length - 1, Math.floor(t * fx.frames.length));
+      if (at !== fx.frame) {
+        fx.frame = at;
+        s.texture = fx.frames[at]!;
+      }
+    }
     s.position.set(fx.x, -fx.y);
-    s.scale.set((fx.flip * w) / fx.texW, h / fx.texH);
+    s.scale.set((fx.flip * w) / fx.texW, (fx.flipY * h) / fx.texH);
     s.rotation = fx.rot0 + (fx.rot1 - fx.rot0) * t;
     s.alpha = fx.alpha0 + (fx.alpha1 - fx.alpha0) * t * t;
   }

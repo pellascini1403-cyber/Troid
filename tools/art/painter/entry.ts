@@ -13,6 +13,8 @@ export interface Cut {
   tile?: [number, number];
   /** Paint the picture over this colour (for a person looking at a transparent piece, never shipped). */
   bg?: string;
+  /** Keep this fraction of the size of every frame (0 < scale ≤ 1): the piece is painted at full size, with every number tuned for it, and then RESAMPLED — less to hold in memory for light that is soft anyway. */
+  scale?: number;
 }
 
 declare global {
@@ -54,19 +56,24 @@ window.paint = async (id, params = {}, cut = {}) => {
   if (s.w % cols !== 0 || s.h % rows !== 0) throw new Error(`piece "${id}" is ${s.w} × ${s.h}: it does not divide into ${cols} × ${rows} cells`);
   const fw = s.w / cols;
   const fh = s.h / rows;
+  const k = cut.scale !== undefined && cut.scale > 0 && cut.scale < 1 ? cut.scale : 1;
+  const ow = Math.max(1, Math.round(fw * k));
+  const oh = Math.max(1, Math.round(fh * k));
   const frames: Array<{ png: string; w: number; h: number }> = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      if (cols === 1 && rows === 1) {
+      if (cols === 1 && rows === 1 && k === 1) {
         frames.push({ png: toPngBase64(s), w: s.w, h: s.h });
         continue;
       }
-      const f = surface(fw, fh);
-      f.ctx.drawImage(s.canvas, c * fw, r * fh, fw, fh, 0, 0, fw, fh);
-      frames.push({ png: toPngBase64(f), w: fw, h: fh });
+      const f = surface(ow, oh);
+      f.ctx.imageSmoothingEnabled = true;
+      f.ctx.imageSmoothingQuality = 'high';
+      f.ctx.drawImage(s.canvas, c * fw, r * fh, fw, fh, 0, 0, ow, oh);
+      frames.push({ png: toPngBase64(f), w: ow, h: oh });
     }
   }
-  return { w: s.w, h: s.h, frames };
+  return { w: s.w * (ow / fw), h: s.h * (oh / fh), frames };
 };
 window.pieceIds = () => Object.keys(PIECES);
 

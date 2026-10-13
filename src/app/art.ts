@@ -1,6 +1,8 @@
 import type { ImageSource, Texture } from 'pixi.js';
 import { ArtLibrary } from '@/assets/artLibrary';
 import { createBrowserArtIO, pixiArtTextures } from '@/assets/artIO';
+import type { VfxAtlas } from '@/assets/vfxAtlas';
+import { createArtVfxAtlas, type ArtVfx } from '@/assets/vfxArtAtlas';
 import { log } from '@/core/log';
 import type { Layers } from '@/render/layers';
 import { RoomArtView } from '@/render/RoomArtView';
@@ -41,4 +43,12 @@ export function createArt(host: ArtHost): Art {
  */
 export function createRoomArt(layers: Layers, art: Art): RoomArtView {
   return new RoomArtView(layers, art);
+}
+
+/**
+ * The light the art painted, as the effects take it (`assets/vfxArtAtlas`): the shapes and the sequences of the `vfx` packs the library holds, over the game's own atlas — or `null` when the art painted none of it.
+ * It lives in this chunk too: a page with no art never downloads it.
+ */
+export function createVfxArt(art: Art, base: VfxAtlas): ArtVfx | null {
+  return createArtVfxAtlas(art, base);
 }

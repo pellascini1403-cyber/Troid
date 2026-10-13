@@ -1,0 +1,315 @@
+{
+  "manifestVersion": 1,
+  "id": "vfx-flipbooks",
+  "category": "vfx",
+  "status": "provisional",
+  "comment": "THE SEQUENCES OF THE LIGHT: the slash that sweeps (body and edge), the blow that lands, the Spirit Bolt in flight (body and core) and where it lands, the ink that bursts from a creature that falls and the column the boss throws up (each with the rim of light apart), the pillar of light of a place that awakens and the flame of a hero who is armed. White masks that the game tints. Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.",
+  "tags": [
+    "vfx",
+    "generated"
+  ],
+  "atlasMode": "shared",
+  "atlases": [],
+  "sprites": [
+    {
+      "id": "seq_slash_body",
+      "artPxPerMeter": 75,
+      "pivot": [
+        0.62,
+        0.5
+      ],
+      "height": 1.6,
+      "frameSize": [
+        144,
+        120
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:seq",
+        "seq:slash_body",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "seq_slash_body_",
+          "count": 6
+        }
+      }
+    },
+    {
+      "id": "seq_slash_edge",
+      "artPxPerMeter": 75,
+      "pivot": [
+        0.62,
+        0.5
+      ],
+      "height": 1.6,
+      "frameSize": [
+        144,
+        120
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:seq",
+        "seq:slash_edge",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "seq_slash_edge_",
+          "count": 6
+        }
+      }
+    },
+    {
+      "id": "seq_impact",
+      "artPxPerMeter": 75,
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "height": 1.28,
+      "frameSize": [
+        96,
+        96
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:seq",
+        "seq:impact",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "seq_impact_",
+          "count": 6
+        }
+      }
+    },
+    {
+      "id": "seq_bolt_body",
+      "artPxPerMeter": 75,
+      "pivot": [
+        0.66,
+        0.5
+      ],
+      "height": 0.64,
+      "frameSize": [
+        96,
+        48
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:seq",
+        "seq:bolt_body",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "seq_bolt_body_",
+          "count": 4
+        }
+      }
+    },
+    {
+      "id": "seq_bolt_core",
+      "artPxPerMeter": 75,
+      "pivot": [
+        0.66,
+        0.5
+      ],
+      "height": 0.64,
+      "frameSize": [
+        96,
+        48
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:seq",
+        "seq:bolt_core",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "seq_bolt_core_",
+          "count": 4
+        }
+      }
+    },
+    {
+      "id": "seq_bolt_impact",
+      "artPxPerMeter": 75,
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "height": 1.6,
+      "frameSize": [
+        120,
+        120
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:seq",
+        "seq:bolt_impact",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "seq_bolt_impact_",
+          "count": 7
+        }
+      }
+    },
+    {
+      "id": "seq_ink_splash",
+      "artPxPerMeter": 75,
+      "pivot": [
+        0.5,
+        0.52
+      ],
+      "height": 1.28,
+      "frameSize": [
+        120,
+        96
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:seq",
+        "seq:ink_splash",
+        "blend:normal"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "seq_ink_splash_",
+          "count": 6
+        }
+      }
+    },
+    {
+      "id": "seq_ink_splash_gloss",
+      "artPxPerMeter": 75,
+      "pivot": [
+        0.5,
+        0.52
+      ],
+      "height": 0.64,
+      "frameSize": [
+        60,
+        48
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:seq",
+        "seq:ink_splash_gloss",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "seq_ink_splash_gloss_",
+          "count": 6
+        }
+      }
+    },
+    {
+      "id": "seq_ink_column",
+      "artPxPerMeter": 75,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 2.88,
+      "frameSize": [
+        72,
+        216
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:seq",
+        "seq:ink_column",
+        "blend:normal"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "seq_ink_column_",
+          "count": 8
+        }
+      }
+    },
+    {
+      "id": "seq_ink_column_glow",
+      "artPxPerMeter": 75,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.44,
+      "frameSize": [
+        36,
+        108
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:seq",
+        "seq:ink_column_glow",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "seq_ink_column_glow_",
+          "count": 8
+        }
+      }
+    },
+    {
+      "id": "seq_pillar",
+      "artPxPerMeter": 75,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.6,
+      "frameSize": [
+        36,
+        120
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:seq",
+        "seq:pillar",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "seq_pillar_",
+          "count": 6
+        }
+      }
+    },
+    {
+      "id": "seq_aura",
+      "artPxPerMeter": 75,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.96,
+      "frameSize": [
+        48,
+        72
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:seq",
+        "seq:aura",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "seq_aura_",
+          "count": 6
+        }
+      }
+    }
+  ]
+}

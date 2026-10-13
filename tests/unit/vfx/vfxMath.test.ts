@@ -183,7 +183,7 @@ describe('particle integration', () => {
 
 describe('slash arc geometry', () => {
   const arc = VFX['slash_arc'] as ArcVfx;
-  const pose = (): ArcPose => ({ x: 0, y: 0, width: 0, height: 0, rotation0: 0, rotation1: 0, flip: 1 });
+  const pose = (): ArcPose => ({ x: 0, y: 0, width: 0, height: 0, rotation0: 0, rotation1: 0, flip: 1, flipY: 1 });
   const rect = { x0: 10.2, y0: 0.3, x1: 11.6, y1: 1.4 };
 
   it('fits the attack\'s hitbox: centred on it, sized from it (the visible blow IS the hit area)', () => {
@@ -229,7 +229,7 @@ describe('slash arc geometry', () => {
 });
 
 describe('the effect table (content/vfx.ts)', () => {
-  const TRIGGERS: VfxTrigger[] = ['slash', 'slashFinisher', 'hitLanded', 'playerHurt', 'dashStart', 'dashDust', 'dashTrail', 'enemyDied', 'enemyTelegraph', 'playerDied', 'boltCast', 'boltImpact', 'boltEnd', 'drinkStart', 'drinkHeal', 'pickup', 'sealRejected', 'bossWake', 'bossStrike', 'bossPhase', 'bossDefeated'];
+  const TRIGGERS: VfxTrigger[] = ['slash', 'slashFinisher', 'hitLanded', 'playerHurt', 'dashStart', 'dashDust', 'dashTrail', 'enemyDied', 'enemyTelegraph', 'playerDied', 'boltCharge', 'boltCast', 'boltImpact', 'boltEnd', 'drinkStart', 'drinkHeal', 'checkpoint', 'abilityGained', 'pickup', 'sealRejected', 'sealBroken', 'bossWake', 'bossStrike', 'bossPhase', 'bossDefeated'];
 
   it('binds every trigger, and every bound id is a defined effect', () => {
     expect(Object.keys(VFX_BINDINGS).sort()).toEqual([...TRIGGERS].sort());
@@ -253,6 +253,11 @@ describe('the effect table (content/vfx.ts)', () => {
         for (const a of d.alpha) expect(a >= 0 && a <= 1, key).toBe(true);
       } else if (d.kind === 'flash') {
         expect(d.life).toBeGreaterThan(0);
+        for (const a of d.alpha) expect(a >= 0 && a <= 1, key).toBe(true);
+      } else if (d.kind === 'flipbook') {
+        expect(d.life).toBeGreaterThan(0);
+        expect(d.size[0]).toBeGreaterThan(0);
+        expect(d.size[1]).toBeGreaterThan(0);
         for (const a of d.alpha) expect(a >= 0 && a <= 1, key).toBe(true);
       } else {
         expect(d.life).toBeGreaterThan(0);

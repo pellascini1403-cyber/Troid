@@ -115,6 +115,24 @@
       "tags": [
         "enemy"
       ]
+    },
+    {
+      "id": "vfx-shapes",
+      "category": "vfx",
+      "load": "boot",
+      "manifest": "vfx-shapes/vfx-shapes.pack.json",
+      "tags": [
+        "vfx"
+      ]
+    },
+    {
+      "id": "vfx-flipbooks",
+      "category": "vfx",
+      "load": "boot",
+      "manifest": "vfx-flipbooks/vfx-flipbooks.pack.json",
+      "tags": [
+        "vfx"
+      ]
     }
   ]
 }

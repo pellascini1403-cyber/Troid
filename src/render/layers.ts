@@ -17,6 +17,8 @@ export interface Layers {
   backdropNear: Container;
   propsBack: Container;
   terrain: Container;
+  /** Additive, BEHIND the actors: the light that stands behind someone (the pillar of a place that awakens, the rune of a power gained) — the dark silhouette of the hero against it, never lost in it. */
+  fxBack: Container;
   actors: Container;
   /** Normal blend: ink splashes, smoke and dust (dark things cannot be additive). */
   fxNormal: Container;
@@ -51,6 +53,7 @@ export function createLayers(stage: Container): Layers {
     backdropNear: child('backdropNear'),
     propsBack: child('propsBack'),
     terrain: child('terrain'),
+    fxBack: child('fxBack', 'add'),
     actors: child('actors'),
     fxNormal: child('fxNormal'),
     fxWorld: child('fxWorld', 'add'),

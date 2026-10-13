@@ -57,6 +57,7 @@ export const ENV_LAYERS: readonly EnvLayer[] = [
   { id: 'backdropNear', space: 'world', parallax: PARALLAX_FACTOR.backdropNear, blend: 'normal', holds: 'the near scenery: pillars, arches', art: ['backdrop', 'decor'] },
   { id: 'propsBack', space: 'world', parallax: 1, blend: 'normal', holds: 'what stands behind the action: shrines, levers, props', art: ['decor', 'interactive'] },
   { id: 'terrain', space: 'world', parallax: 1, blend: 'normal', holds: 'the ground, the walls, the platforms, the doors and the thorns, and what grows on them', art: ['solid', 'platform', 'door', 'hazard', 'decor'] },
+  { id: 'fxBack', space: 'world', parallax: 1, blend: 'add', holds: 'light that stands BEHIND the actors: the pillar of a place that awakens, the rune of a power gained — the dark silhouette of the hero against it', art: [] },
   { id: 'actors', space: 'world', parallax: 1, blend: 'normal', holds: 'the hero, the enemies and the boss, sorted by depth', art: [] },
   { id: 'fxNormal', space: 'world', parallax: 1, blend: 'normal', holds: 'ink, smoke and dust (dark things cannot be additive)', art: [] },
   { id: 'fxWorld', space: 'world', parallax: 1, blend: 'add', holds: 'light: projectiles, slashes, trails, sparks, the sigil of a seal', art: ['seal'] },

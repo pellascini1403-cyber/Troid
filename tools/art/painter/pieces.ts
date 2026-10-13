@@ -10,6 +10,7 @@ import { beam, glow, mistBank, motes, shaft, veil } from './lights';
 import { rootArch, rootCrawl, rootCurtain, rootPillar, shrine, thorns, vial } from './roots';
 import { cardSpirit, lintel, paving, pedestal, pilaster, relief, runeCircle, runePath, sealSigil } from './seal';
 import { slimeBody, slimeEyes, slimeFlash, slimePool, slimeSigil, slimeSpines } from './slime';
+import { padded, seqAuraFlame, seqBoltHead, seqBoltImpact, seqImpact, seqInkColumn, seqInkSplash, seqLightPillar, seqSlash, shapeArc, shapeChevron, shapeDust, shapeGlow, shapeInk, shapeRing, shapeRune, shapeShard, shapeSpark, shapeStreak } from './vfx';
 import { wardenBody, wardenCrest, wardenEye, wardenPool, wardenShard } from './warden';
 import { airRune, arenaRing, banner, eyeAwake, eyeDead, colossalColumn, colossus, dais, eyeWall, inkPool, portalGrand, sanctumPaving, sanctumShrine } from './sanctum';
 
@@ -106,6 +107,10 @@ const prop = (make: (o: { w: number; h: number; ppm: number; seed: number }) => 
   const ppm = num(p, 'ppm', 96);
   return make({ w: Math.round(num(p, 'wM', wM) * ppm), h: Math.round(num(p, 'hM', hM) * ppm), ppm, seed: num(p, 'seed', 31) });
 };
+/** A piece of the light: its size in PIXELS (the game scales it) and a seed. */
+const vfxPiece = (make: (o: { w: number; h: number; seed: number }) => Surface, w: number, h: number): PieceMaker => async (p) => padded({ w: num(p, 'w', w), h: num(p, 'h', h), seed: num(p, 'seed', 17) }, 2, make);
+/** A sequence of the light: the size of ONE frame in pixels and a seed (the piece is the frames side by side). */
+const seqPiece = (make: (o: { w: number; h: number; seed: number }) => Surface, w: number, h: number, floor = false): PieceMaker => async (p) => padded({ w: num(p, 'w', w), h: num(p, 'h', h), seed: num(p, 'seed', 17) }, 2, make, { floor });
 const light = (make: (o: { w: number; h: number; seed: number; tint?: readonly [number, number, number] }) => Surface, w: number, h: number): PieceMaker => async (p) => {
   const t = p['tint'];
   const tint = Array.isArray(t) && t.length === 3 ? (t as [number, number, number]) : undefined;
@@ -224,6 +229,30 @@ export const PIECES: Record<string, PieceMaker> = {
     return slimeSpines({ w: Math.round(ppm * 2.2), h: Math.round(ppm * 1.45), ppm, seed: num(p, 'seed', 5) });
   },
   slimePool: prop(slimePool, 2.0, 0.3),
+  /** The shapes of the light (docs/PROMPT8-LOG.md phase H): white masks in pixels, not metres — the game tints them. */
+  vfxGlow: vfxPiece(shapeGlow, 96, 96),
+  vfxSpark: vfxPiece(shapeSpark, 64, 64),
+  vfxShard: vfxPiece(shapeShard, 96, 32),
+  vfxRing: vfxPiece(shapeRing, 128, 128),
+  vfxRune: vfxPiece(shapeRune, 128, 128),
+  vfxDust: vfxPiece(shapeDust, 96, 96),
+  vfxInk: vfxPiece(shapeInk, 64, 64),
+  vfxStreak: vfxPiece(shapeStreak, 192, 48),
+  vfxArc: vfxPiece(shapeArc, 256, 192),
+  vfxChevron: vfxPiece(shapeChevron, 64, 48),
+  /** Sequences of the light: `n` frames side by side. */
+  vfxSlashBody: seqPiece((o) => seqSlash(o, 'body'), 192, 160),
+  vfxSlashEdge: seqPiece((o) => seqSlash(o, 'edge'), 192, 160),
+  vfxImpact: seqPiece(seqImpact, 128, 128),
+  vfxBoltBody: seqPiece((o) => seqBoltHead(o, 'body'), 128, 64),
+  vfxBoltCore: seqPiece((o) => seqBoltHead(o, 'core'), 128, 64),
+  vfxBoltImpact: seqPiece(seqBoltImpact, 160, 160),
+  vfxInkSplashBody: seqPiece((o) => seqInkSplash(o, 'body'), 160, 128),
+  vfxInkSplashGloss: seqPiece((o) => seqInkSplash(o, 'gloss'), 80, 64),
+  vfxInkColumnBody: seqPiece((o) => seqInkColumn(o, 'body'), 96, 288, true),
+  vfxInkColumnGlow: seqPiece((o) => seqInkColumn(o, 'glow'), 48, 144, true),
+  vfxPillar: seqPiece(seqLightPillar, 48, 160, true),
+  vfxAura: seqPiece(seqAuraFlame, 64, 96, true),
   columnWhole: prop((o) => columnProp({ ...o, state: 'whole', heightM: 4.6 }), 1.6, 5.2),
   columnBroken: prop((o) => columnProp({ ...o, state: 'broken', heightM: 3.1 }), 1.6, 3.7),
   lightShaft: light(shaft, 192, 640),

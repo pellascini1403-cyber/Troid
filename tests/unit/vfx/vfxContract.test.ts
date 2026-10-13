@@ -141,12 +141,15 @@ const PAYLOAD: Record<string, (x: number, y: number, over?: Record<string, unkno
   'actor:died': (x, y, o) => ({ id: 'e', team: 'enemy', x, y, ...o }),
   'enemy:telegraph': (x, y) => ({ id: 'e', defId: 'ink_slime', x, y, facing: 1, ticks: 20 }),
   'player:died': (x, y) => ({ x, y }),
+  'skill:castStarted': (x, y) => ({ skillId: 'spirit_bolt', x, y, facing: 1, ticks: 6 }),
   'skill:cast': (x, y) => ({ skillId: 'spirit_bolt', x, y, facing: 1, cost: 30 }),
   'projectile:ended': (x, y) => ({ id: 'b', skillId: 'spirit_bolt', x, y, facing: 1, reason: 'wall' }),
   'bottle:drinkStarted': (x, y) => ({ slot: 0, x, y, ticks: 24 }),
   'bottle:drunk': (x, y) => ({ slot: 0, healed: 2, x, y }),
   'checkpoint:set': (x, y) => ({ room: 'r1_gate', entry: 'start', x, y }),
   'interaction:performed': (x, y) => ({ id: 'card', kind: 'pickup', verbKey: 'interact.pickUp', x, y }),
+  // the event names no place: the hero's is where they stand (the recipe puts them at the point it asks for)
+  'ability:unlocked': () => ({ id: 'air_dash' }),
   'seal:rejected': (x, y) => ({ id: 's', attackId: 'slash_1', x, y, direction: 1, shake: 0.1 }),
   'boss:started': (x, y) => ({ id: 'b', defId: 'ink_warden', nameKey: 'k', health: 20, maxHealth: 20, x, y }),
   'boss:strike': (x, y) => ({ id: 'b', defId: 'ink_warden', attack: 'warden_rain', x, y, w: 1.7 }),
@@ -155,7 +158,7 @@ const PAYLOAD: Record<string, (x: number, y: number, over?: Record<string, unkno
 };
 
 /** How to raise each trigger: the event, a payload override that tells it from its siblings, and the way a skill's hit is told from a sword's. */
-const RECIPE: Record<VfxTrigger, { event: string; over?: Record<string, unknown> }> = {
+const RECIPE: Record<VfxTrigger, { event: string; over?: Record<string, unknown>; /** The event gives no place: the effect is born where the HERO stands. */ atPlayer?: boolean }> = {
   slash: { event: 'player:attackActive' },
   slashFinisher: { event: 'player:attackActive', over: { combo: 1, attackId: 'slash_2' } },
   hitLanded: { event: 'combat:hit' },
@@ -166,13 +169,17 @@ const RECIPE: Record<VfxTrigger, { event: string; over?: Record<string, unknown>
   enemyDied: { event: 'actor:died' },
   enemyTelegraph: { event: 'enemy:telegraph' },
   playerDied: { event: 'player:died' },
+  boltCharge: { event: 'skill:castStarted' },
   boltCast: { event: 'skill:cast' },
   boltImpact: { event: 'combat:hit', over: { attackId: 'spirit_bolt' } },
   boltEnd: { event: 'projectile:ended' },
   drinkStart: { event: 'bottle:drinkStarted' },
   drinkHeal: { event: 'bottle:drunk' },
+  checkpoint: { event: 'checkpoint:set' },
+  abilityGained: { event: 'ability:unlocked', atPlayer: true },
   pickup: { event: 'interaction:performed' },
   sealRejected: { event: 'seal:rejected' },
+  sealBroken: { event: 'actor:died', over: { team: 'neutral' } },
   bossWake: { event: 'boss:started' },
   bossStrike: { event: 'boss:strike' },
   bossPhase: { event: 'boss:phase' },
@@ -199,6 +206,7 @@ describe('WHEN and WHERE: each trigger is raised by the events the contract name
     it(`${trigger}: its own event starts exactly its effects, ${VFX_CONTRACT[trigger].originY} m above the point the event gives`, () => {
       const { calls, emit, player, director } = rig();
       const r = RECIPE[trigger];
+      if (r.atPlayer) Object.assign(player, { x: 10, y: 2 });
       emit(r.event, 10, 2, r.over);
       if (trigger === 'dashTrail') {
         player.x = 10 + 3;

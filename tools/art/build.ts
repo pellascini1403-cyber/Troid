@@ -4,7 +4,11 @@ import { fileURLToPath } from 'node:url';
 import { build as bundle } from 'esbuild';
 import { chromium } from 'playwright-core';
 import { CHROMIUM_PATH } from '../e2e/harness';
-import { PACKS } from './packs/ruins';
+import { PACKS as RUINS_PACKS } from './packs/ruins';
+import { VFX_PACKS } from './packs/vfx';
+
+/** Every pack the painter makes: the scenery and the creatures of the ruins, and the light of the effects. */
+const PACKS = [...RUINS_PACKS, ...VFX_PACKS];
 import type { PackSpec } from './spec';
 
 /**
@@ -68,17 +72,19 @@ async function paintPack(pack: PackSpec, page: import('playwright-core').Page): 
       continue;
     }
     const t0 = Date.now();
-    const painted = (await page.evaluate(([piece, params, cut]) => window.paint(piece, params, cut), [spec.piece, { ppm, ...(spec.sizeM ? { wM: spec.sizeM[0], hM: spec.sizeM[1] } : {}), ...(spec.params ?? {}) }, { cols: spec.cols ?? 1, rows: spec.rows ?? 1, mirror: spec.mirror ?? false }] as const)) as Painted;
+    const scale = spec.scale ?? 1;
+    const painted = (await page.evaluate(([piece, params, cut]) => window.paint(piece, params, cut), [spec.piece, { ppm, ...(spec.sizeM ? { wM: spec.sizeM[0], hM: spec.sizeM[1] } : {}), ...(spec.params ?? {}) }, { cols: spec.cols ?? 1, rows: spec.rows ?? 1, mirror: spec.mirror ?? false, ...(scale < 1 ? { scale } : {}) }] as const)) as Painted;
     const folder = join(dir, spec.id);
     rmSync(folder, { recursive: true, force: true });
     mkdirSync(folder, { recursive: true });
     painted.frames.forEach((f, i) => writeFileSync(join(folder, `${spec.id}_${nn(i)}.png`), Buffer.from(f.png, 'base64')));
     const { w, h } = painted.frames[0]!;
+    const density = Math.round(ppm * scale * 1000) / 1000;
     sprites.push({
       id: spec.id,
-      artPxPerMeter: ppm,
+      artPxPerMeter: density,
       pivot: spec.pivot,
-      height: Math.round((h / ppm) * 1000) / 1000,
+      height: Math.round((h / density) * 1000) / 1000,
       frameSize: [w, h],
       missingClips: 'placeholder',
       tags: spec.tags,
@@ -86,7 +92,7 @@ async function paintPack(pack: PackSpec, page: import('playwright-core').Page): 
       clips: { idle: { frames: `${spec.id}_`, count: painted.frames.length } },
       ...(spec.comment ? { comment: spec.comment } : {}),
     });
-    console.log(`${pack.id}/${spec.id}: ${painted.frames.length} frame(s) of ${w} × ${h} at ${ppm} px/m (${Date.now() - t0} ms)`);
+    console.log(`${pack.id}/${spec.id}: ${painted.frames.length} frame(s) of ${w} × ${h} at ${density} px/m (${Date.now() - t0} ms)`);
   }
   // the scenes: made by the pack's own composers, written next to the manifest
   const scenes: Record<string, string> = {};
@@ -116,7 +122,7 @@ async function paintPack(pack: PackSpec, page: import('playwright-core').Page): 
   // the index: this pack's entry is written, the others stay
   const indexFile = join(ART, 'index.json');
   const index = JSON.parse(readFileSync(indexFile, 'utf8')) as { manifestVersion: number; packs: Array<Record<string, unknown>> };
-  const entry = { id: pack.id, category: pack.category ?? 'environment', load: 'zone', zones: pack.zones, manifest: `${pack.id}/${pack.id}.pack.json`, tags: pack.tags ?? ['ruins'] };
+  const entry = { id: pack.id, category: pack.category ?? 'environment', load: pack.load ?? 'zone', ...((pack.load ?? 'zone') === 'zone' ? { zones: pack.zones } : {}), manifest: `${pack.id}/${pack.id}.pack.json`, tags: pack.tags ?? ['ruins'] };
   const at = index.packs.findIndex((p) => p['id'] === pack.id);
   if (at >= 0) index.packs[at] = entry;
   else index.packs.push(entry);

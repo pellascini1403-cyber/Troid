@@ -76,6 +76,8 @@ export const bossDeath: Scenario = {
     // ================================================================================================ the saved game at the shrine, paused at tick 0
     await ctx.open('paused=1', size);
     await seed(ctx);
+    // the room as it will stay: the art arrives a little after the game (the packs of the light boot first), and a baseline taken before it would be the blockout's, not the room's
+    await ctx.page.waitForFunction('window.__troid.state().roomArt', undefined, { timeout: 30000 });
     let s = await state();
     assert.equal(s.now, 0, 'not one tick has run: the replay starts from tick 0');
     assert.equal(s.room, 'r4_sanctum');

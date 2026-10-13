@@ -1,6 +1,7 @@
 import type { Rng } from '@/core/rng';
 import { PALETTE, SLOT_COLORS, type PaletteSlot } from './palette';
 import type { QualityTier } from './viewport';
+import type { VfxSequenceName, VfxShapeName } from './vfxArt';
 
 /**
  * VFX as PURE data and maths (docs/ARCHITECTURE-2D.md §7.7). An effect is a `VfxDefinition` (what it looks like, in
@@ -13,8 +14,14 @@ import type { QualityTier } from './viewport';
 
 export type VfxBlend = 'add' | 'normal';
 
-/** Procedural shapes of the VFX atlas (all white: the colour comes from the palette slot at runtime). */
-export type VfxShape = 'spark' | 'shard' | 'glow' | 'ring' | 'dust' | 'ink' | 'streak' | 'arc';
+/** In front of the actors (the default) or BEHIND them: light that stands behind someone lets their dark silhouette stand out against it. Behind is always additive. */
+export type VfxLayer = 'front' | 'back';
+
+/**
+ * The shapes of the VFX atlas (all white: the colour comes from the palette slot at runtime). The game draws them itself (`assets/vfxAtlas`) and the art may paint them (`presentation/vfxArt`: the same
+ * ten names), so an effect never says where its shape comes from.
+ */
+export type VfxShape = VfxShapeName;
 
 /**
  * Which colour of a palette slot a particle takes. `ink` is the dark body colour of the slot's owner (enemy ink, hero
@@ -77,6 +84,8 @@ export interface ParticleVfx extends VfxBase {
   align?: boolean;
   /** Spawn scatter, metres. */
   radius?: number;
+  /** The particles are born scattered over `radius` and fly TOWARD the spawn point instead of away from it (the light that gathers before a bolt leaves): with `life × speed ≈ radius` they arrive as they end. */
+  inward?: boolean;
 }
 
 /** A crescent that follows the sword: fits the attack's hitbox and sweeps through a few tens of degrees while it fades. */
@@ -97,12 +106,24 @@ export interface ArcVfx extends VfxBase {
   layers: ReadonlyArray<{ role: ColorRole; scale: number; alpha: number }>;
   variants: Readonly<Record<string, ArcVariant>>;
   fallback: ArcVariant;
+  /**
+   * The sweep painted by the art, when it has one (docs/ART-PIPELINE-2D.md §M.14): the sequences played in place of the crescent — `core` is the body of the cut (the layers of the `core` role) and `hot` its edge (the
+   * `hot` ones). The crescent above is what is drawn without them. The painted cut sweeps by itself, so it does not turn over its life: it keeps the mean of the variant's tilt, and flips to sweep UP where the variant does.
+   */
+  sequences?: {
+    readonly core: VfxSequenceName;
+    readonly hot: VfxSequenceName;
+    /** The painted cut is drawn this much bigger than the box of the crescent (width, height): its sweep fills only the middle of its picture. */
+    readonly scale?: readonly [width: number, height: number];
+    /** Its own light envelope, in place of the crescent's (the painted frames fade by themselves, so they need less of one). */
+    readonly alpha?: readonly [from: number, to: number];
+  };
 }
 
 /** A soft glow, a ring or a streak that grows and fades in place: impact flashes, shock rings, dash trail puffs. */
 export interface FlashVfx extends VfxBase {
   kind: 'flash';
-  shape: 'glow' | 'ring' | 'streak';
+  shape: 'glow' | 'ring' | 'streak' | 'rune' | 'chevron';
   role: ColorRole;
   life: number;
   /** Width in metres at birth → at death. */
@@ -112,9 +133,39 @@ export interface FlashVfx extends VfxBase {
   aspect?: number;
   /** Repeat every `spacing` metres along the path of the thing that leaves a trail (the dash). */
   spacing?: number;
+  /** Metres from the spawn point in the effect's own frame: +x is the way it faces (mirrored by the facing), +y up. */
+  offset?: readonly [x: number, y: number];
+  /** Radians it turns over its life, in the view's convention (clockwise positive): a rune that closes, a seal that opens. */
+  turn?: readonly [from: number, to: number];
+  /** Behind the actors instead of in front of them (default front). */
+  layer?: VfxLayer;
 }
 
-export type VfxDefinition = ParticleVfx | ArcVfx | FlashVfx;
+/**
+ * A SEQUENCE the art paints, played once over the life of the effect (docs/ART-PIPELINE-2D.md §M.14): the blow that lands, the ink that bursts, the column the boss throws up, the pillar of light of a place that
+ * awakens. The frames are white masks, tinted with the colour of the palette slot like every other shape; their own time is the effect's `life` (so the art carries no rate), and what is left of a frame's light is
+ * what the art painted into it. WITHOUT the sequence — the art has none, or its pack did not load — the effect is simply not played: the effects it is bound beside it are what is seen (the contract keeps each
+ * trigger whole without it).
+ */
+export interface FlipbookVfx extends VfxBase {
+  kind: 'flipbook';
+  sequence: VfxSequenceName;
+  blend: VfxBlend;
+  role: ColorRole;
+  life: number;
+  /** Width of the whole picture in metres at birth → at death (× the spawn's scale); its height follows its own proportions. The art's pivot is the point that stands on the spawn. */
+  size: readonly [from: number, to: number];
+  /** An envelope over the light the frames paint themselves (1 → 1 leaves it as painted). */
+  alpha: readonly [from: number, to: number];
+  /** Metres from the spawn point in the effect's own frame: +x is the way it faces (mirrored by the facing), +y up. */
+  offset?: readonly [x: number, y: number];
+  /** `none`: as painted; `facing`: mirrored by the facing; `dir`: mirrored AND turned along the direction of the spawn (a blow lands along the way it was going). */
+  aim?: 'none' | 'facing' | 'dir';
+  /** Behind the actors instead of in front of them (default front; behind is additive, so it needs `blend: 'add'`). */
+  layer?: VfxLayer;
+}
+
+export type VfxDefinition = ParticleVfx | ArcVfx | FlashVfx | FlipbookVfx;
 
 /** Triggers the director derives from simulation events; the binding table maps each to effect ids (data). */
 export type VfxTrigger =
@@ -128,13 +179,17 @@ export type VfxTrigger =
   | 'enemyDied'
   | 'enemyTelegraph'
   | 'playerDied'
+  | 'boltCharge'
   | 'boltCast'
   | 'boltImpact'
   | 'boltEnd'
   | 'drinkStart'
   | 'drinkHeal'
+  | 'checkpoint'
+  | 'abilityGained'
   | 'pickup'
   | 'sealRejected'
+  | 'sealBroken'
   | 'bossWake'
   | 'bossStrike'
   | 'bossPhase'
@@ -208,6 +263,14 @@ export function initParticle(def: ParticleVfx, s: VfxSpawn, rng: Rng, accent: bo
   out.y = s.y + Math.sin(around) * scatter;
   out.vx = Math.cos(a) * speed;
   out.vy = Math.sin(a) * speed;
+  if (def.inward) {
+    // gathering: the way is from where it was born to where the effect is
+    const dx = s.x - out.x;
+    const dy = s.y - out.y;
+    const len = Math.hypot(dx, dy) || 1;
+    out.vx = (dx / len) * speed;
+    out.vy = (dy / len) * speed;
+  }
   out.age = 0;
   out.life = rng.range(def.life[0], def.life[1]);
   out.size0 = rng.range(def.size[0], def.size[1]) * (s.scale ?? 1);
@@ -266,6 +329,8 @@ export interface ArcPose {
   rotation1: number;
   /** +1 / −1: mirrors the sprite (the crescent bows toward the facing). */
   flip: 1 | -1;
+  /** +1 / −1: turns the sprite upside down (the painted cut of a blow that rises sweeps from below). */
+  flipY: 1 | -1;
 }
 
 /** Fits a slash arc to the attack's hitbox. Without a rect it falls back to a 1.4 × 1.1 m box in front of `(x, y)`. */
@@ -280,8 +345,29 @@ export function arcPose(def: ArcVfx, s: VfxSpawn, out: ArcPose): ArcPose {
   out.width = w * v.width * scale;
   out.height = h * v.height * scale;
   out.flip = s.facing;
+  out.flipY = 1;
   // simulation rotation is counter-clockwise with +y up; Pixi's is clockwise with +y down: −θ for facing right, +θ mirrored
   out.rotation0 = -v.rotation[0] * s.facing;
   out.rotation1 = -v.rotation[1] * s.facing;
+  return out;
+}
+
+/** How much of the variant's own tilt the painted cut keeps: it sweeps by itself, so it only leans the way the blow does. */
+const PAINTED_TILT = 0.6;
+
+/**
+ * The pose of the cut PAINTED by the art (`ArcVfx.sequences`): the same box as the crescent's — it is fitted to the attack's hitbox the same way — but it does not turn over its life (the sweep is in its frames):
+ * it keeps the mean tilt of the variant, and it is turned upside down where the variant sweeps UP (the finisher rises, the opener falls).
+ */
+export function paintedArcPose(def: ArcVfx, s: VfxSpawn, out: ArcPose): ArcPose {
+  arcPose(def, s, out);
+  const v = (s.variant !== undefined ? def.variants[s.variant] : undefined) ?? def.fallback;
+  const k = def.sequences?.scale;
+  if (k) {
+    out.width *= k[0];
+    out.height *= k[1];
+  }
+  out.rotation0 = out.rotation1 = -((v.rotation[0] + v.rotation[1]) / 2) * PAINTED_TILT * s.facing;
+  out.flipY = v.rotation[1] > v.rotation[0] ? -1 : 1;
   return out;
 }

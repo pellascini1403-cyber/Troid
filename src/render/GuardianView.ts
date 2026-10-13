@@ -3,6 +3,7 @@ import type { ActorViewState } from '@/presentation/actorViewState';
 import { PALETTE } from '@/presentation/palette';
 import { viewY } from '@/presentation/worldTransform';
 import type { EntityView } from './EntityViews';
+import { GuardianMarks, type MarkShapes } from './GuardianMarks';
 
 /** The part of the guardian the view reads (a structural type: the view never imports the entity class). */
 export interface GuardianLike {
@@ -50,6 +51,8 @@ interface ArtNodes {
 export interface GuardianViewOptions {
   /** The soft round light of the VFX atlas: the aura and the glow of the crest and the eye are tinted copies of it. */
   glow: Texture;
+  /** The shapes of the light (the game's own atlas or the art's: the same ten): the warnings on the floor are painted with them (`GuardianMarks`). Without them they are drawn with geometry, as they always were. */
+  marks?: MarkShapes;
 }
 
 const GLOW_PX = 96;
@@ -87,6 +90,8 @@ export class GuardianView implements EntityView {
   private readonly flash = new Graphics();
   private time = 0;
   private nodes: ArtNodes | null = null;
+  /** The warnings on the floor, painted from the shapes of the light (`null`: drawn with geometry). */
+  private readonly marks: GuardianMarks | null;
 
   constructor(
     private readonly source: GuardianLike,
@@ -150,6 +155,8 @@ export class GuardianView implements EntityView {
     this.shape.addChild(this.body, this.eye, this.eyeGlow, this.flash);
     this.actor.addChild(this.aura, this.shape, this.shardL, this.shardR, this.crest);
     this.floor.blendMode = 'add';
+    this.marks = options.marks ? new GuardianMarks(options.marks) : null;
+    if (this.marks) this.root.addChild(this.marks.root);
     this.root.addChild(this.floor, this.actor);
   }
 
@@ -325,11 +332,21 @@ export class GuardianView implements EntityView {
     this.drawMarks(y);
   }
 
+  /** How many sprites of the painted warnings are lit now (0 when none is shown, or when they are drawn with geometry): what the E2E reads. */
+  get paintedMarks(): number {
+    return this.marks ? this.marks.lit : 0;
+  }
+
   /** The warnings on the floor, in world space: a lane for the charge, a disc and a rising column for each strike of the rain. */
   private drawMarks(floorY: number): void {
     const g = this.floor;
     g.clear();
     const marks = this.source.view.marks;
+    // painted from the shapes of the light, when it has them: the same marks, drawn with sprites
+    if (this.marks) {
+      this.marks.update(marks, this.source.view.attack, this.source.view.facing, viewY(floorY), this.time);
+      return;
+    }
     if (marks.length === 0) return;
     const v = this.source.view;
     const y = viewY(floorY);

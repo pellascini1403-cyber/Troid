@@ -25,6 +25,8 @@ export interface GameOptions {
   art?: string;
   /** `?visual=auto|placeholder|art`: which look draws the protagonist (docs/ART-PIPELINE-2D.md part D). `auto` by default: the real art where it has it, the placeholder where not. */
   visual: VisualMode;
+  /** `?vfx=procedural` keeps the effects drawing with the game's own shapes even when the art has painted them (to compare, and to see the fallback); anything else (the default) uses the art's. */
+  vfx: 'auto' | 'procedural';
   camera: Partial<CameraConfig>;
 }
 
@@ -49,6 +51,7 @@ export function optionsFromQuery(q: URLSearchParams): GameOptions {
     safe: q.get('safe') ?? undefined,
     art: q.get('art') ?? undefined,
     visual: (VISUAL_MODES as readonly string[]).includes(q.get('visual') ?? '') ? (q.get('visual') as VisualMode) : 'auto',
+    vfx: q.get('vfx') === 'procedural' ? 'procedural' : 'auto',
     camera: cameraConfigFromQuery(q),
   };
 }

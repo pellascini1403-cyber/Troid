@@ -58,10 +58,12 @@ describe('the director raises it from the interaction event', () => {
     expect(ids()).toEqual([]);
   });
 
-  it('a shrine shows the rest as the warm light of a drink, not as a pickup', () => {
-    const { bus, ids } = setup();
+  it('a shrine shows the rest as the awakening of the place (its pillar of light on the spot where the hero stands), not as a pickup and not as a drink', () => {
+    const { bus, calls, ids } = setup();
     bus.emit('interaction:performed', notice('rest'));
     bus.emit('checkpoint:set', { room: 'r2_hall', entry: 'rest', x: 12.8, y: 0 });
-    expect(ids()).toEqual(VFX_BINDINGS.drinkHeal);
+    expect(ids()).toEqual(VFX_BINDINGS.checkpoint);
+    expect(ids().some((id) => VFX_BINDINGS.drinkHeal.includes(id) || VFX_BINDINGS.pickup.includes(id))).toBe(false);
+    expect(calls[0]!.at).toMatchObject({ x: 12.8, y: 0 });
   });
 });

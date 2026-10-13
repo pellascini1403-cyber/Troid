@@ -20,6 +20,8 @@ export interface SpriteSpec {
   pivot: [number, number];
   /** Pixels per metre of this piece (default: the pack's). */
   ppm?: number;
+  /** Keep this fraction of the size of every frame (default 1): the piece is painted at full size and then resampled, and its manifest says the density it was left at (`ppm × scale`). For light that is soft anyway, which is the cheapest memory there is. */
+  scale?: number;
   /** The size of a prop in metres (the painter makes it at the pack's density): the scenes need it to place the piece. */
   sizeM?: [number, number];
   /** Anchors the art declares (metres from the feet, +x forward, +y up): for a creature's body, `head` is where its eyes stand and `vfx_origin` where its sigil does. */
@@ -29,8 +31,10 @@ export interface SpriteSpec {
 
 export interface PackSpec {
   id: string;
-  /** What the pack draws (default `environment`): the enemies and the boss are of the `enemies` category — they are drawn over the world, with a transparent background. */
-  category?: 'environment' | 'enemies';
+  /** What the pack draws (default `environment`): the enemies and the boss are of the `enemies` category — they are drawn over the world, with a transparent background — and the light of the effects is `vfx`. */
+  category?: 'environment' | 'enemies' | 'vfx';
+  /** When the game fetches it: with the rooms that need it (`zone`, the default) or at the start (`boot`: the effects are needed from the first blow). A `boot` pack has no zones. */
+  load?: 'zone' | 'boot';
   /** The tags of the pack in the index and its manifest (default `ruins`). */
   tags?: string[];
   /** The rooms that need it: the zone policy fetches it when the hero is in one of them. */

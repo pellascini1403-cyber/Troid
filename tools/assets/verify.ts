@@ -9,6 +9,7 @@ import { bossArtIssues } from '../../src/presentation/bossArt';
 import { enemyArtIssues } from '../../src/presentation/enemyArt';
 import { environmentCoverageIssues, environmentPackIssues, environmentSlots } from '../../src/presentation/environment';
 import { parseRoomScene, sceneIssues } from '../../src/presentation/roomScene';
+import { vfxArtIssues, vfxCoverageIssues } from '../../src/presentation/vfxArt';
 import { lackedClips } from '../../src/presentation/visualSource';
 import { inspectPicture, pictureIssues } from './inspect';
 import { decodePng, readPngInfo } from './png';
@@ -73,7 +74,7 @@ function anchorIssues(label: string, sprite: ArtSprite, frames: Record<string, {
 }
 
 /** Checks one pack. `folder` is where its manifest is (relative to the art folder): every path in it is relative to that. */
-function verifyPack(entry: ArtIndexEntry, read: FileReader, issues: ArtIssue[], environment: ArtPack[]): VerifiedPack {
+function verifyPack(entry: ArtIndexEntry, read: FileReader, issues: ArtIssue[], environment: ArtPack[], vfx: ArtPack[]): VerifiedPack {
   const label = entry.id;
   const folder = folderOf(entry.manifest);
   const result: VerifiedPack = { id: entry.id, status: 'unknown', dropped: {}, lacking: [] };
@@ -104,6 +105,11 @@ function verifyPack(entry: ArtIndexEntry, read: FileReader, issues: ArtIssue[], 
   }
   // a boss (phase F) and an ink creature (phase G) are drawn in parts, and say whose and which with their tags
   if (pack.category === 'enemies') issues.push(...tag(label, bossArtIssues(pack)), ...tag(label, enemyArtIssues(pack)));
+  // the light of the effects (phase H): its shapes and sequences say which are which (the whole set is judged over ALL the `vfx` packs together, once, in `verifyArt`)
+  if (pack.category === 'vfx') {
+    issues.push(...tag(label, vfxArtIssues(pack)));
+    vfx.push(pack);
+  }
 
   // ---- every atlas: the files are there and are what the manifest says
   const pages = new Map<string, AtlasPage>();
@@ -233,8 +239,10 @@ export function verifyArt(read: FileReader): VerifyResult {
   const index = parseArtIndex(raw);
   issues.push(...tag('index.json', index.issues));
   const environment: ArtPack[] = [];
-  for (const entry of index.value?.packs ?? []) packs.push(verifyPack(entry, read, issues, environment));
+  const vfx: ArtPack[] = [];
+  for (const entry of index.value?.packs ?? []) packs.push(verifyPack(entry, read, issues, environment, vfx));
   if (environment.length > 0) issues.push(...tag('environment', environmentCoverageIssues(environment, environmentSlots(WORLD.rooms.map((id) => ROOMS[id]!)))));
+  if (vfx.length > 0) issues.push(...tag('vfx', vfxCoverageIssues(vfx)));
   return { issues, packs, ok: index.value !== null && !issues.some((i) => i.level === 'error') };
 }
 

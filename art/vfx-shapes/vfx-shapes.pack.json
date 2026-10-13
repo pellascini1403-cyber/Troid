@@ -1,0 +1,265 @@
+{
+  "manifestVersion": 1,
+  "id": "vfx-shapes",
+  "category": "vfx",
+  "status": "provisional",
+  "comment": "THE SHAPES OF THE LIGHT: glow, flare, shard, ring, rune, smoke, ink, streak, crescent and chevron — white masks that the game tints (cyan for the hero, violet for the enemies). One page: the particles of the effects share one texture. Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.",
+  "tags": [
+    "vfx",
+    "generated"
+  ],
+  "atlasMode": "shared",
+  "atlases": [],
+  "sprites": [
+    {
+      "id": "shape_glow",
+      "artPxPerMeter": 100,
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "height": 0.96,
+      "frameSize": [
+        96,
+        96
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:shape",
+        "shape:glow",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "shape_glow_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "shape_spark",
+      "artPxPerMeter": 100,
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "height": 0.64,
+      "frameSize": [
+        64,
+        64
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:shape",
+        "shape:spark",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "shape_spark_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "shape_shard",
+      "artPxPerMeter": 100,
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "height": 0.32,
+      "frameSize": [
+        96,
+        32
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:shape",
+        "shape:shard",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "shape_shard_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "shape_ring",
+      "artPxPerMeter": 100,
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "height": 1.28,
+      "frameSize": [
+        128,
+        128
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:shape",
+        "shape:ring",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "shape_ring_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "shape_rune",
+      "artPxPerMeter": 100,
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "height": 1.28,
+      "frameSize": [
+        128,
+        128
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:shape",
+        "shape:rune",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "shape_rune_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "shape_dust",
+      "artPxPerMeter": 100,
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "height": 0.96,
+      "frameSize": [
+        96,
+        96
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:shape",
+        "shape:dust",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "shape_dust_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "shape_ink",
+      "artPxPerMeter": 100,
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "height": 0.64,
+      "frameSize": [
+        64,
+        64
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:shape",
+        "shape:ink",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "shape_ink_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "shape_streak",
+      "artPxPerMeter": 100,
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "height": 0.48,
+      "frameSize": [
+        192,
+        48
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:shape",
+        "shape:streak",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "shape_streak_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "shape_arc",
+      "artPxPerMeter": 100,
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "height": 1.92,
+      "frameSize": [
+        256,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:shape",
+        "shape:arc",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "shape_arc_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "shape_chevron",
+      "artPxPerMeter": 100,
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "height": 0.48,
+      "frameSize": [
+        64,
+        48
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "vfx:shape",
+        "shape:chevron",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "shape_chevron_",
+          "count": 1
+        }
+      }
+    }
+  ]
+}

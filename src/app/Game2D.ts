@@ -1,7 +1,7 @@
 import type { Texture } from 'pixi.js';
 import { SpriteAssetManager, type LoadedSpriteSet } from '@/assets/SpriteAssetManager';
 import { createPixiSpriteLoader } from '@/assets/spriteLoader';
-import { createVfxAtlas } from '@/assets/vfxAtlas';
+import { createVfxAtlas, type VfxAtlas } from '@/assets/vfxAtlas';
 import { CAMERA_2D } from '@/camera/camera2d';
 import { resolveCameraView, type CameraView } from '@/camera/cameraZones';
 import type { CameraTarget } from '@/camera/CameraRig';
@@ -121,6 +121,8 @@ export class Game2D {
   private cueLog: CueLog | null = null;
   /** Builds the effects again with the budgets of the profile in force (set once their chunk has arrived). */
   private rebuildEffects: (() => void) | null = null;
+  /** The light the art painted (docs/ART-PIPELINE-2D.md §M.14), once the art has started and its packs of light are in memory: the effects draw from this atlas instead of the game's own, which stays under it. */
+  private vfxArt: { readonly atlas: VfxAtlas; dispose(): void } | null = null;
   /** The art that comes from files (docs/ART-PIPELINE-2D.md, part C): a separate chunk, fetched after the first frame and ONLY when there is an index to read. `null` otherwise. */
   private art: Art | null = null;
   private artRequest: Promise<void> | null = null;
@@ -353,14 +355,15 @@ export class Game2D {
         return actor;
       },
       // a skill's projectile (the Spirit Bolt) is light: it is drawn in the additive layer with the effects
-      projectile: (e) => new ProjectileView(e as unknown as ProjectileLike, vfxAtlas),
+      projectile: (e) => new ProjectileView(e as unknown as ProjectileLike, this.vfxArt?.atlas ?? vfxAtlas),
       // the sigil of a seal (S28): violet light in front of the door it holds
       seal: (e) => new SealView(e as unknown as SealLike),
       // the boss (S29): an abstract column of ink with a violet crest, and the warnings of its attacks on the floor
       // (its code is a chunk of its own: a boss that wakes before it has arrived is drawn the moment it does)
       guardian: (e) => {
         const make = (m: BossViews) => (): EntityView => {
-          const view = new m.GuardianView(e as unknown as GuardianLike, { glow: vfxAtlas.frames.glow });
+          const look = this.vfxArt?.atlas ?? vfxAtlas;
+          const view = new m.GuardianView(e as unknown as GuardianLike, { glow: vfxAtlas.frames.glow, marks: look });
           // the art of the zone may already be in memory (a boss that wakes after the room was dressed): it takes the parts at once
           const art = this.roomArtCover?.guardians.get((e as Guardian).def.view.lookId);
           if (art) view.dress(art);
@@ -401,31 +404,42 @@ export class Game2D {
           this.effects = createEffects({
             renderer: renderer.app.renderer,
             layers: renderer.layers,
-            atlas: vfxAtlas,
+            atlas: this.vfxArt?.atlas ?? vfxAtlas,
             bus: this.session.bus,
             tier: renderer.qualityTier,
             playerPosition: () => ({ x: body.x, y: body.y }),
             projectileSkills: new Set(Object.keys(SKILLS)),
             audioSink: this.cueLog,
             now: () => this.session.now,
+            // the hero carries light as long as their magic is high (and none once they are down)
+            ambientLevel: () => (this.session.player.health.dead ? 0 : this.session.magic.fraction),
           });
         };
         this.rebuildEffects = build;
         build();
       }));
     this.lifecycle.add(() => this.effects?.dispose());
+    this.lifecycle.add(() => this.vfxArt?.dispose());
     // The art that comes from files: its code is fetched with the effects, once the first frame is up, and only when there is an index to read — a page with
     // no art never downloads it, asks for no file and can fail on none. The zone follows the hero: a room's art is fetched while the fade hides the change.
     const artUrl = artIndexUrl(options.art, __TROID_ART_INDEX__, document.baseURI);
     const startArt = (): void => {
       if (!artUrl || this.artRequest) return;
       this.artRequest = import('./art')
-        .then(async ({ createArt, createRoomArt }) => {
+        .then(async ({ createArt, createRoomArt, createVfxArt }) => {
           if (this.closed) return;
           const art = createArt({ indexUrl: artUrl, drawnPxPerMetre: () => renderer.viewport.ppm * renderer.viewport.resolution, dev: import.meta.env.DEV || options.hooks });
           this.art = art;
           this.roomArt = createRoomArt(renderer.layers, art);
           await art.start();
+          // the packs of light boot with the game: the effects draw with what the art painted of them as soon as it is in memory (or keep the game's own when it painted nothing, or the page asks for them: `?vfx=procedural`)
+          if (options.vfx !== 'procedural' && !this.closed) {
+            const made = createVfxArt(art, vfxAtlas);
+            if (made) {
+              this.vfxArt = made;
+              this.rebuildEffects?.();
+            }
+          }
           await art.enterZone(this.session.room.id);
           await this.attachPlayerArt(art, options.hooks || import.meta.env.DEV);
           // the room was built before the art arrived: this is the first time there is anything to dress it with
@@ -649,7 +663,7 @@ export class Game2D {
     this.entityViews.sync(a, animDt);
     // VFX run in real time: only the pause (debug / tests) and the debug time scale affect them, never a hit-stop
     const vfxDt = this.debug.get('paused') ? 0 : realDt * this.debug.get('timeScale');
-    this.effects?.director.update();
+    this.effects?.director.update(vfxDt);
     this.effects?.system.update(vfxDt);
     this.roomView.update(realDt);
     // the scenery that answers the world reads its flags (never writes one)
