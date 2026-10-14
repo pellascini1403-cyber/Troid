@@ -23,6 +23,7 @@
     "assets:verify": "tsx tools/assets/cli.ts --verify",
     "assets:missing": "tsx tools/assets/cli.ts --missing",
     "assets:animate": "tsx tools/assets/animate-cli.ts",
+    "assets:intake": "tsx tools/assets/intake-cli.ts",
     "art:build": "tsx tools/art/build.ts",
     "check": "npm run typecheck && npm test"
   },

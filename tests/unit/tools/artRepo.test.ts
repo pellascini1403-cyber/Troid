@@ -69,9 +69,14 @@ describe('the art of the repository', () => {
 
   it('says exactly what is missing: of the fifteen clips, seven have a drawing of their own (the sheet\'s poses); the other eight move another action\'s drawing; none is the placeholder', () => {
     const d = readDelivery(join(root, 'art'));
-    expect(d).toMatchObject({ pack: 'player', sprite: 'hero', status: 'provisional', delivered: 7, standIns: 8, total: 15 });
-    expect(d.rows.filter((row) => row.delivered).map((row) => row.state).sort()).toEqual(['attack1', 'cast', 'fall', 'hurt', 'idle', 'jump', 'walk']);
-    expect(d.rows.filter((row) => row.standIn).map((row) => row.state).sort()).toEqual(['attack2', 'attackAir', 'attackCrouch', 'crouch', 'dash', 'death', 'drink', 'interact']);
+    // a stand-in that a delivery replaced with drawings of its own (`delivered` in the rig) moves from the second list to the first; none has until one is accepted
+    const handed = ((JSON.parse(readFileSync(join(root, 'art', 'player', 'source', 'hero.rig.json'), 'utf8')) as { delivered?: string[] }).delivered ?? []).map((clip) => ({ aerialAttack: 'attackAir', crouchAttack: 'attackCrouch' } as Record<string, string>)[clip] ?? clip);
+    const own = ['attack1', 'cast', 'fall', 'hurt', 'idle', 'jump', 'walk'];
+    const standIns = ['attack2', 'attackAir', 'attackCrouch', 'crouch', 'dash', 'death', 'drink', 'interact'].filter((state) => !handed.includes(state));
+    expect(d).toMatchObject({ pack: 'player', sprite: 'hero', status: 'provisional', delivered: 15 - standIns.length, standIns: standIns.length, total: 15 });
+    // (`crouchWalk` is a clip the pipeline makes but not one of the fifteen the game asks for: it has no row here)
+    expect(d.rows.filter((row) => row.delivered).map((row) => row.state).sort()).toEqual([...new Set([...own, ...handed])].filter((state) => d.rows.some((row) => row.state === state)).sort());
+    expect(d.rows.filter((row) => row.standIn).map((row) => row.state).sort()).toEqual(standIns);
     expect(d.rows.every((row) => row.prefix !== null && row.missing.length === 0)).toBe(true);
     expect(d.rows.filter((row) => row.standIn).every((row) => (row.standInReason ?? '').length > 0), 'every stand-in says whose drawing it moves and why').toBe(true);
   });

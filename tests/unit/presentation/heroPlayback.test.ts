@@ -40,7 +40,7 @@ describe('the protagonist\'s clips, as the engine plays them', () => {
     expect(parsed.issues.filter((i) => i.level !== 'info')).toEqual([]);
     const atlas = JSON.parse(readFileSync(join(root, 'public', 'art', 'player', 'hero_0.json'), 'utf8')) as { frames: Record<string, unknown> };
     for (const [state, clip] of Object.entries(def.clips)) for (const name of clipFrameNames(clip!)) expect(atlas.frames[name], `${state}: ${name}`).toBeDefined();
-    expect(Object.keys(atlas.frames)).toHaveLength(114);
+    expect(Object.keys(atlas.frames)).toHaveLength(Object.values(def.clips).reduce((n, c) => n + c!.count, 0));
   });
 
   it('every state the game asks of the protagonist is drawn by a clip of its own — never by a fallback — and the art provides every one, so `auto` never shows the placeholder', () => {
@@ -58,7 +58,8 @@ describe('the protagonist\'s clips, as the engine plays them', () => {
   it('the gaits turn over the frames in order, forever: a step a hair under a third of a second', () => {
     const walk = play('walk', 60 * 4);
     const run = play('run', 60 * 4);
-    for (const [id, seq, count, fps] of [['walk', walk, 8, 16], ['run', run, 8, 20]] as const) {
+    for (const [id, seq] of [['walk', walk], ['run', run]] as const) {
+      const { count, fps } = { count: def.clips[id]!.count, fps: def.clips[id]!.fps ?? 12 };
       // every frame of the loop is shown, in order, and the loop comes round again
       const order: number[] = [];
       for (const f of seq) if (order[order.length - 1] !== f) order.push(f);
@@ -85,7 +86,8 @@ describe('the protagonist\'s clips, as the engine plays them', () => {
   });
 
   it('the idle breathes and loops; the crouch breathes and loops; the fall flutters and loops', () => {
-    for (const [state, count] of [['idle', 8], ['crouch', 6], ['fall', 4]] as const) {
+    for (const state of ['idle', 'crouch', 'fall'] as const) {
+      const count = def.clips[state]!.count;
       const seq = play(state, 60 * 6);
       expect(new Set(seq).size, `${state}: all its frames are shown`).toBe(count);
       expect(seq.slice(-60).some((f) => f === 0) || seq.slice(-120).some((f) => f === 0), `${state} loops`).toBe(true);

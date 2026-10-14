@@ -32,7 +32,12 @@ const handDrawn = (shade: number): Buffer => {
 beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), 'troid-animate-'));
   mkdirSync(join(dir, 'source'), { recursive: true });
-  for (const f of ['hero-sheet.png', 'hero.poses.json', 'hero.rig.json']) copyFileSync(join(source, f), join(dir, 'source', f));
+  for (const f of ['hero-sheet.png', 'hero.poses.json']) copyFileSync(join(source, f), join(dir, 'source', f));
+  // the copy starts from the generator alone: the clips the repository's rig lists as handed over (`delivered`; none until a delivery is accepted) have their entry in the repository's manifest,
+  // which this copy does not have — what is tested here is the generator, and the delivery it simulates below
+  const rig = JSON.parse(readFileSync(join(source, 'hero.rig.json'), 'utf8')) as RigFile;
+  rig.delivered = [];
+  writeFileSync(join(dir, 'source', 'hero.rig.json'), `${JSON.stringify(rig, null, 2)}\n`);
   specPath = join(dir, 'source', 'hero.poses.json');
 });
 afterAll(() => rmSync(dir, { recursive: true, force: true }));

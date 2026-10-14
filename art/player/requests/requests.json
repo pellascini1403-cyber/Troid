@@ -1,0 +1,1022 @@
+{
+  "comment": "THE PROTAGONIST'S MISSING DRAWINGS (docs/PROMPT10-LOG.md): the exact list of the PNG frames still to be drawn, what each must show, how long it plays and what the pipeline expects of it. Data, not code: `npm run assets:intake -- kit` builds the reference boards and the briefs from it, and `npm run assets:intake -- <clip>` prepares, checks and (with --accept) delivers what comes back. NOTHING in this file is art: the frames do not exist yet — no image generator was available when it was written — and no clip of it may be marked delivered until the drawings are in art/player/hero/ and have passed the checks.",
+  "version": 1,
+  "canvas": {
+    "width": 280,
+    "height": 230,
+    "pivot": [
+      120,
+      192
+    ],
+    "artPxPerMeter": 65,
+    "margin": 4
+  },
+  "scale": {
+    "tolerance": 0.14,
+    "note": "Los dibujos del usuario no están a una escala común (el ojo mide 25 px en el idle, 21–22 en los tajos, 19,5 en la agachada), así que no hay una constante: se mide en los fotogramas del juego."
+  },
+  "sheetPoses": {
+    "pose1": {
+      "box": [
+        30,
+        60,
+        250,
+        400
+      ],
+      "what": "standing, calm (the idle)"
+    },
+    "pose2": {
+      "box": [
+        290,
+        100,
+        500,
+        400
+      ],
+      "what": "three-quarter stance, the way it walks (the walk's drawing)"
+    },
+    "pose3": {
+      "box": [
+        520,
+        130,
+        790,
+        400
+      ],
+      "what": "the run, a dive forward"
+    },
+    "pose4": {
+      "box": [
+        820,
+        40,
+        1060,
+        410
+      ],
+      "what": "rising in a jump (ignore its speed lines)"
+    },
+    "pose5": {
+      "box": [
+        1060,
+        100,
+        1230,
+        400
+      ],
+      "what": "falling head first (ignore its speed lines)"
+    },
+    "pose6": {
+      "box": [
+        1240,
+        190,
+        1510,
+        430
+      ],
+      "what": "the landing crouch (ignore its dust)"
+    },
+    "pose7": {
+      "box": [
+        60,
+        470,
+        455,
+        725
+      ],
+      "what": "the low lunge with the sword (ignore its red arc)"
+    },
+    "pose8": {
+      "box": [
+        470,
+        470,
+        940,
+        740
+      ],
+      "what": "the second blow as the user drew it: wide stance, the sword swept to the rear, a long slash to the front (ATTITUDE ONLY: no red arc, no red shards)"
+    },
+    "pose9": {
+      "box": [
+        940,
+        400,
+        1380,
+        740
+      ],
+      "what": "the charge, covered in red flames (not usable; shown only so nobody reproduces it)"
+    },
+    "pose10": {
+      "box": [
+        30,
+        740,
+        680,
+        1000
+      ],
+      "what": "the dash as the user drew it: the whole body stretched horizontally, head leading (ATTITUDE ONLY: no red streak)"
+    },
+    "pose11": {
+      "box": [
+        720,
+        740,
+        970,
+        990
+      ],
+      "what": "struck and thrown back (ignore its red sparks)"
+    },
+    "pose12": {
+      "box": [
+        1130,
+        740,
+        1370,
+        990
+      ],
+      "what": "the sword raised in the right hand (the blade's own colours; ignore the red sparks)"
+    }
+  },
+  "character": {
+    "designEn": [
+      "A tiny chibi creature. A huge near-black dome-shaped head (the head is about 55-60% of the whole figure's height) with a jagged leaf-like crest of three or four sharp points at the top and back, and a smooth featureless face: no nose, no mouth, no human features.",
+      "Two enormous round glowing eyes: a soft cyan rim and a bright pale-blue fill with THREE white highlights each (one large, two small). Seen in three-quarter view the near eye is a full circle and the far eye a narrow crescent at the edge of the face.",
+      "Two long, thin, smooth black antennae that rise from the top of the head, curve outward and back and end in a small hook. They are always thin, never thick.",
+      "A small, slim body in black and dark navy armour: pointed shoulder plates, a chest plate with chevron-shaped panels outlined by thin glowing cyan lines, small dark gauntlet hands, short legs ending in pointed dark boots, and a few leaf-shaped translucent blue panels hanging at the sides of the torso (like short wings).",
+      "Palette (measured on the real frames): near-black #101010 and dark navy #101030 for most of the figure; steel-blue accents #103050 to #305070; glowing cyan #70d0f0 to #b0f0f0; white #f0f0f0 only in the eye highlights. Tiny dark-red details only where the reference sword has them.",
+      "The sword, when a pose has one: the SAME long, thin, pointed dark blade as in the reference (about half the height of the figure), with a small darker guard, held by the character's RIGHT hand, which is the hand nearest the viewer when the character faces right."
+    ],
+    "designEs": [
+      "Una criatura chibi diminuta. Cabeza enorme en forma de cúpula casi negra (≈ 55–60 % de la altura de la figura) con una cresta dentada, como una hoja, de tres o cuatro puntas arriba y atrás, y la cara lisa y sin rasgos: sin nariz, sin boca, nada humano.",
+      "Dos ojos enormes, redondos y luminosos: borde cian suave y relleno azul pálido con TRES reflejos blancos cada uno (uno grande, dos pequeños). De tres cuartos, el ojo cercano es un círculo y el lejano una media luna estrecha en el borde de la cara.",
+      "Dos antenas largas, finas y lisas, negras, que salen de lo alto de la cabeza, se curvan hacia fuera y atrás y acaban en un pequeño gancho. Siempre finas, nunca gruesas.",
+      "Cuerpo pequeño y esbelto, de armadura negra y azul marino: hombreras puntiagudas, peto con paneles en «v» marcados por finas líneas cian luminosas, manoplas pequeñas y oscuras, piernas cortas con botas oscuras puntiagudas y unos paneles azules translúcidos, como hojas, colgando de los costados (como alas cortas).",
+      "Paleta (medida en los fotogramas reales): casi negro #101010 y azul marino #101030 en casi toda la figura; acentos azul acero #103050 a #305070; cian luminoso #70d0f0 a #b0f0f0; blanco #f0f0f0 solo en los reflejos de los ojos. Detalles rojo oscuro diminutos solo donde los tiene la espada de referencia.",
+      "La espada, cuando la pose la lleva: LA MISMA hoja larga, fina, puntiaguda y oscura de la referencia (≈ la mitad de la altura de la figura), con una pequeña guarda más oscura, sostenida por la mano DERECHA del personaje: la más cercana al espectador cuando mira a la derecha."
+    ],
+    "rulesEn": [
+      "The attached images are the ONLY source of the character's design. Do not redesign, restyle, humanise, simplify or 'improve' it.",
+      "No human features of any kind: no hair, no human face, no mouth or nose, no mask, no clothing, no skin tones, no new accessories, no extra limbs, no second sword.",
+      "Keep the proportions of the reference: huge head, tiny body, short legs, the same eyes, the same antennae, the same armour details.",
+      "Render it exactly in the reference's style: soft glossy cel shading, a clean dark silhouette with subtle navy gradients and thin glowing cyan lines.",
+      "Side view, facing RIGHT, like the reference poses; the whole body inside the picture, nothing cropped.",
+      "Pure flat white background (#FFFFFF): no gradient, no floor, no ground line, no cast shadow.",
+      "NO effects of any kind: no motion lines, no speed streaks, no dust, no sparks, no glow trails, no energy arcs, no flames, no slash trails, no particles. The game adds its own cyan effects later. In particular NO RED anywhere except the tiny details the reference sword already has.",
+      "The poses must read as the SAME character in different moments of one action: same size of head and eyes in every pose of the sheet, same proportions, same colours."
+    ],
+    "rulesEs": [
+      "Las imágenes adjuntas son la ÚNICA fuente del diseño. No rediseñes, no restilices, no humanices, no simplifiques ni «mejores» nada.",
+      "Nada humano de ningún tipo: ni pelo, ni cara humana, ni boca ni nariz, ni máscara, ni ropa, ni tonos de piel, ni accesorios nuevos, ni extremidades de más, ni una segunda espada.",
+      "Conserva las proporciones de la referencia: cabeza enorme, cuerpo diminuto, piernas cortas, los mismos ojos, las mismas antenas, los mismos detalles de la armadura.",
+      "Renderiza exactamente en el estilo de la referencia: sombreado suave y brillante, silueta oscura limpia con degradados azul marino sutiles y finas líneas cian luminosas.",
+      "De perfil, mirando a la DERECHA, como las poses de referencia; todo el cuerpo dentro de la imagen, sin recortes.",
+      "Fondo blanco liso (#FFFFFF): sin degradado, sin suelo, sin línea de suelo, sin sombra proyectada.",
+      "NINGÚN efecto: ni líneas de movimiento, ni estelas de velocidad, ni polvo, ni chispas, ni rastros de brillo, ni arcos de energía, ni llamas, ni estelas del tajo, ni partículas. El juego pone después sus propios efectos cian. En particular NADA DE ROJO, salvo los detalles diminutos que ya tiene la espada de referencia.",
+      "Las poses han de leerse como el MISMO personaje en momentos distintos de una acción: mismo tamaño de cabeza y de ojos en todas las poses de la hoja, mismas proporciones, mismos colores."
+    ],
+    "negativeEn": "human, person, hair, human face, mouth, nose, lips, mask, clothes, clothing, skin, extra arms, extra legs, extra swords, two swords, text, letters, watermark, signature, frame, border, background scenery, floor, ground, shadow, motion lines, speed lines, dust, sparks, red flames, red arc, red slash, red streak, particles, glow trail, realistic, photo, 3d plastic render, thick antennae, different eyes",
+    "layoutEn": [
+      "ONE image only, landscape, containing every pose of the list in a SINGLE ROW, left to right in the order given.",
+      "Wide empty white gaps between the poses: no pose may touch, overlap or cross another, and none may be cropped by the edge of the image.",
+      "Every pose at exactly the same scale (the eyes must be the same size in all of them) and on the same invisible ground line when the pose stands on the ground.",
+      "No captions, numbers, arrows, guides or frames."
+    ],
+    "layoutEs": [
+      "UNA sola imagen, apaisada, con todas las poses de la lista en UNA SOLA FILA, de izquierda a derecha en el orden dado.",
+      "Huecos blancos anchos entre las poses: ninguna pose puede tocar, solapar ni cruzar a otra, ni quedar recortada por el borde de la imagen.",
+      "Todas las poses exactamente a la misma escala (los ojos del mismo tamaño en todas) y sobre la misma línea de suelo invisible cuando la pose se apoya en el suelo.",
+      "Sin rótulos, números, flechas, guías ni marcos."
+    ]
+  },
+  "clips": {
+    "dash": {
+      "group": "A",
+      "priority": 1,
+      "status": "requested",
+      "title": "Dash",
+      "titleEs": "Dash (carrera corta con i-frames)",
+      "why": "Hoy es la carrera (dibujo 3) lanzada hacia delante: un stand-in. La hoja trae un dibujo del dash (el 10) pero la figura ES una estela roja fundida con el cuerpo: no se puede usar. Hace falta el cuerpo, inclinado y estirado, sin estela.",
+      "gameplay": {
+        "seconds": 0.1667,
+        "ticks": 10,
+        "note": "El dash dura 10 ticks (0.17 s) y el clip entero tiene que durar lo mismo: 3 fotogramas a 18 fps."
+      },
+      "manifest": {
+        "fps": 18,
+        "loop": false,
+        "tags": [
+          "first"
+        ],
+        "phases": null
+      },
+      "placement": {
+        "anchorX": "mass",
+        "anchorY": "ground"
+      },
+      "sword": false,
+      "limits": {
+        "heightM": [
+          0.9,
+          1.9
+        ],
+        "widthM": [
+          1.3,
+          2.7
+        ]
+      },
+      "references": {
+        "sheet": [
+          "pose3",
+          "pose10"
+        ],
+        "frames": [
+          "run_00",
+          "run_04",
+          "idle_00"
+        ],
+        "note": "El dibujo 10 solo vale como ACTITUD (cuerpo casi horizontal, la cabeza por delante): se dibuja SIN la estela roja."
+      },
+      "frames": [
+        {
+          "role": "launch",
+          "phase": null,
+          "en": "LAUNCH. A low spring forward: the body pitched forward about 35 degrees with the head leading, the front knee bent and the rear leg driving back and straight, both arms swept back, the antennae swept back. The sword is held low behind the body in the right hand with its blade pointing backwards (trailing).",
+          "es": "ARRANQUE. Un resorte bajo hacia delante: el cuerpo inclinado unos 35° con la cabeza por delante, la rodilla delantera doblada y la pierna trasera empujando atrás y estirada, los dos brazos echados atrás, las antenas hacia atrás. La espada va baja, detrás del cuerpo, en la mano derecha, con la hoja apuntando hacia atrás (arrastrando)."
+        },
+        {
+          "role": "stretch",
+          "phase": null,
+          "en": "FULL STRETCH. The fastest instant: the body almost horizontal (pitched about 65 to 75 degrees), the head far forward, both legs trailing behind and slightly apart with the feet off the ground or just skimming it, the arms swept back along the body, the sword trailing straight behind in the right hand, the antennae streaming straight back.",
+          "es": "ESTIRADA. El instante más rápido: el cuerpo casi horizontal (inclinado 65–75°), la cabeza muy adelantada, las dos piernas estiradas detrás y algo separadas con los pies en el aire o rozando el suelo, los brazos pegados al cuerpo hacia atrás, la espada arrastrando recta detrás en la mano derecha, las antenas tendidas hacia atrás."
+        },
+        {
+          "role": "brake",
+          "phase": null,
+          "en": "BRAKE. The body rises back toward upright (pitched about 20 degrees), the front foot reaching forward to brake, the rear leg still trailing, the sword coming back to its normal carry beside the right hip, the antennae still swept back.",
+          "es": "FRENADA. El cuerpo vuelve hacia la vertical (inclinado ≈ 20°), el pie delantero se adelanta para frenar, la pierna trasera aún arrastra, la espada vuelve a su sitio junto a la cadera derecha, las antenas aún hacia atrás."
+        }
+      ],
+      "scaleLike": "run",
+      "scaleWhy": "porque se entra al dash desde la carrera"
+    },
+    "attack2": {
+      "group": "B",
+      "priority": 1,
+      "status": "requested",
+      "title": "Attack 2 (second blow of the combo)",
+      "titleEs": "Segundo ataque del combo",
+      "why": "Hoy es el primer tajo (dibujo 7) girado al revés: un stand-in. El dibujo 8 de la hoja es el segundo tajo, pero la hoja y su arco rojo forman un solo dibujo (y el rojo no es la dirección visual). Hace falta un tajo ASCENDENTE distinto del primero (que baja en estocada), con preparación, corte y recuperación legibles.",
+      "gameplay": {
+        "seconds": null,
+        "ticks": 17,
+        "note": "Fases de la simulación (no se tocan): 3 ticks de preparación, 3 activos, 11 de recuperación. Se encadena desde el final del primer tajo. La zona de daño cubre de 0.2 a 1.8 m al frente y de 0.25 a 1.5 m de alto: la hoja ha de pasar por ahí en los fotogramas activos."
+      },
+      "manifest": {
+        "fps": 28,
+        "loop": false,
+        "tags": [
+          "sword"
+        ],
+        "phases": {
+          "startup": [
+            0,
+            1
+          ],
+          "active": [
+            2,
+            3
+          ],
+          "recovery": [
+            4,
+            6
+          ]
+        }
+      },
+      "placement": {
+        "anchorX": "mass",
+        "anchorY": "ground"
+      },
+      "sword": true,
+      "intent": {
+        "tipRises": 0.4,
+        "es": "el segundo golpe SUBE: la punta de la hoja sube al menos 0.4 m entre la preparación (abajo y atrás) y la fase activa (arriba y adelante)"
+      },
+      "limits": {
+        "heightM": [
+          1.4,
+          2.7
+        ],
+        "widthM": [
+          1.5,
+          3.4
+        ]
+      },
+      "references": {
+        "sheet": [
+          "pose7",
+          "pose8",
+          "pose12"
+        ],
+        "frames": [
+          "attack1_00",
+          "attack1_02",
+          "attack1_06",
+          "cast_03",
+          "idle_00"
+        ],
+        "note": "La espada es la del dibujo 7/12. El dibujo 8 solo vale como actitud (postura ancha, la hoja barrida): SIN el arco rojo ni los fragmentos rojos."
+      },
+      "frames": [
+        {
+          "role": "coil",
+          "phase": "startup",
+          "en": "COIL (start of the wind-up). Continuing from a low forward lunge: the torso twists back, the sword is swept back and low behind the rear leg in the right hand, the right arm extended backwards, the head still looking forward, the weight on the rear leg.",
+          "es": "ENROSCARSE (empieza la preparación). Viniendo de una estocada baja: el torso gira hacia atrás, la espada se barre atrás y baja, detrás de la pierna trasera, en la mano derecha, el brazo derecho extendido hacia atrás, la cabeza aún mirando al frente, el peso sobre la pierna trasera."
+        },
+        {
+          "role": "load",
+          "phase": "startup",
+          "en": "LOAD (the deepest wind-up). The blade at its lowest and furthest back point near the ground behind the character, the body crouched and turned, the front foot lifting to step forward.",
+          "es": "CARGA (lo más hondo de la preparación). La hoja en su punto más bajo y más atrás, cerca del suelo, detrás del personaje, el cuerpo agachado y girado, el pie delantero levantándose para adelantarse."
+        },
+        {
+          "role": "cut",
+          "phase": "active",
+          "en": "THE CUT. The blade sweeps UPWARD and FORWARD through the front of the body at waist-to-shoulder height (a rising diagonal cut), the right arm extended, the torso uncoiling, the front foot planted.",
+          "es": "EL CORTE. La hoja barre HACIA ARRIBA y HACIA DELANTE por delante del cuerpo, a la altura de la cintura al hombro (un corte diagonal ascendente), el brazo derecho extendido, el torso desenroscándose, el pie delantero plantado."
+        },
+        {
+          "role": "cut-end",
+          "phase": "active",
+          "en": "END OF THE CUT. The blade at the top of its arc, extended up and forward above head height, the body stretched tall on the toes, the right arm fully extended.",
+          "es": "FIN DEL CORTE. La hoja en lo alto del arco, extendida arriba y adelante por encima de la cabeza, el cuerpo estirado sobre las puntas de los pies, el brazo derecho del todo extendido."
+        },
+        {
+          "role": "follow-through",
+          "phase": "recovery",
+          "en": "FOLLOW-THROUGH. The blade carries on above and slightly behind the head, the body leaning back a little with the momentum, the front foot sliding.",
+          "es": "SEGUIR EL GOLPE. La hoja sigue por encima y algo detrás de la cabeza, el cuerpo inclinado un poco hacia atrás por el impulso, el pie delantero deslizándose."
+        },
+        {
+          "role": "recover",
+          "phase": "recovery",
+          "en": "RECOVER. The blade comes down in front of the body, the right arm bent, the stance narrowing, the weight returning to the rear foot.",
+          "es": "RECUPERAR. La hoja baja delante del cuerpo, el brazo derecho doblado, la postura cerrándose, el peso volviendo al pie trasero."
+        },
+        {
+          "role": "settle",
+          "phase": "recovery",
+          "en": "SETTLE. The neutral combat guard: feet apart, the blade held low in front at the right hip, the body upright and ready to chain another blow.",
+          "es": "ASENTARSE. La guardia de combate neutra: pies separados, la hoja baja delante, junto a la cadera derecha, el cuerpo erguido y listo para encadenar otro golpe."
+        }
+      ],
+      "scaleLike": "attack1",
+      "scaleWhy": "porque el segundo golpe se encadena desde el primer tajo"
+    },
+    "crouch": {
+      "group": "C",
+      "priority": 1,
+      "status": "requested",
+      "title": "Crouch (held)",
+      "titleEs": "Agachado (mantenido)",
+      "why": "Hoy es la agachada del aterrizaje (dibujo 6) sostenida y respirando: un stand-in. Hace falta una agachada de verdad: el cuerpo baja de forma coherente (rodillas dobladas, torso inclinado, cabeza baja), no el dibujo de pie aplastado.",
+      "gameplay": {
+        "seconds": null,
+        "ticks": null,
+        "note": "El cuerpo de colisión agachado mide 1.0 m (de pie, 1.7 m) y la zona vulnerable 0.9 m. La cabeza (sin las antenas) ha de quedar a ≈ 1.0–1.1 m del suelo."
+      },
+      "manifest": {
+        "fps": 2,
+        "loop": true,
+        "tags": [],
+        "phases": null
+      },
+      "placement": {
+        "anchorX": "mass",
+        "anchorY": "ground"
+      },
+      "sword": false,
+      "limits": {
+        "heightM": [
+          1.1,
+          1.8
+        ],
+        "widthM": [
+          0.9,
+          1.9
+        ]
+      },
+      "references": {
+        "sheet": [
+          "pose6",
+          "pose1"
+        ],
+        "frames": [
+          "crouch_00",
+          "land_03",
+          "idle_00"
+        ],
+        "note": "El dibujo 6 es el aterrizaje (piernas abiertas, impacto): sirve de guía de altura y de volumen, no de postura exacta."
+      },
+      "frames": [
+        {
+          "role": "settle",
+          "phase": null,
+          "en": "SETTLED CROUCH. A deep, stable crouch: the knees bent so the body is about 60% of its standing height, the torso leaning slightly forward, the head lowered but still facing right with both eyes visible, the hands resting on the thighs. No sword visible (as in the standing reference). The antennae relaxed.",
+          "es": "AGACHADA ASENTADA. Una agachada honda y estable: las rodillas dobladas de modo que el cuerpo mide ≈ 60 % de su altura de pie, el torso algo inclinado al frente, la cabeza baja pero mirando a la derecha con los dos ojos visibles, las manos sobre los muslos. Sin espada a la vista (como en la referencia de pie). Las antenas relajadas."
+        },
+        {
+          "role": "breath",
+          "phase": null,
+          "en": "BREATH. EXACTLY the same crouch with the chest and the head 2 to 3% higher, as in an inhale: nothing else changes, so that it loops with the first pose.",
+          "es": "RESPIRO. EXACTAMENTE la misma agachada con el pecho y la cabeza un 2–3 % más altos, como al inspirar: nada más cambia, para que haga bucle con la primera pose."
+        }
+      ],
+      "scaleLike": "idle",
+      "scaleWhy": "porque la cabeza no cambia de tamaño al agacharse"
+    },
+    "crouchWalk": {
+      "group": "D",
+      "priority": 2,
+      "status": "requested",
+      "title": "Crouch walk",
+      "titleEs": "Gateo (andar agachado)",
+      "why": "Hoy es la agachada del aterrizaje «a pasitos» (deformada): un stand-in. Hace falta un ciclo corto de pasos agachados con las piernas dibujadas.",
+      "gameplay": {
+        "seconds": null,
+        "ticks": null,
+        "note": "Velocidad agachado 3 m/s. Ciclo de 4 poses a 10 fps = 0.4 s."
+      },
+      "manifest": {
+        "fps": 10,
+        "loop": true,
+        "tags": [],
+        "phases": null
+      },
+      "placement": {
+        "anchorX": "mass",
+        "anchorY": "ground"
+      },
+      "sword": false,
+      "limits": {
+        "heightM": [
+          1.1,
+          1.8
+        ],
+        "widthM": [
+          0.9,
+          2.1
+        ]
+      },
+      "references": {
+        "sheet": [
+          "pose6",
+          "pose2"
+        ],
+        "frames": [
+          "crouch_00",
+          "walk_00",
+          "idle_00"
+        ],
+        "note": "La altura y el volumen son los de la agachada (clip crouch); las piernas, de un paso corto de la marcha."
+      },
+      "frames": [
+        {
+          "role": "contact-A",
+          "phase": null,
+          "en": "CONTACT A. A low shuffle step: the front foot just touching down ahead, the rear foot behind with the heel lifted; the torso stays low and leaning forward; short steps (the feet never more than about one boot-length apart). Same crouch height as the held crouch.",
+          "es": "CONTACTO A. Un paso bajo y arrastrado: el pie delantero apenas toca el suelo delante, el trasero detrás con el talón levantado; el torso sigue bajo e inclinado al frente; pasos cortos (los pies nunca a más de una bota de distancia). La misma altura que la agachada mantenida."
+        },
+        {
+          "role": "passing-A",
+          "phase": null,
+          "en": "PASSING A. The legs together under the body, the rear leg swinging forward; the torso at the highest point of the cycle (3 to 4% higher).",
+          "es": "PASO A. Las piernas juntas bajo el cuerpo, la pierna trasera adelantándose; el torso en lo más alto del ciclo (un 3–4 % más)."
+        },
+        {
+          "role": "contact-B",
+          "phase": null,
+          "en": "CONTACT B. The mirror of contact A: the OTHER foot forward.",
+          "es": "CONTACTO B. El espejo del contacto A: el OTRO pie delante."
+        },
+        {
+          "role": "passing-B",
+          "phase": null,
+          "en": "PASSING B. The legs together again, the other leg swinging forward; the torso at its highest point.",
+          "es": "PASO B. Las piernas juntas otra vez, la otra pierna adelantándose; el torso en lo más alto."
+        }
+      ],
+      "scaleLike": "idle",
+      "scaleWhy": "porque es la misma cabeza que la de la agachada nueva"
+    },
+    "walk": {
+      "group": "E",
+      "priority": 2,
+      "status": "requested",
+      "title": "Walk (legs)",
+      "titleEs": "Marcha (poses de piernas)",
+      "why": "La marcha de hoy es el dibujo 2 deformado: las piernas se turnan pero no se cruzan y los pies resbalan. Hace falta un ciclo de poses COMPLETAS (cuerpo entero, no piezas sueltas) con las piernas dibujadas en cada fase del paso.",
+      "gameplay": {
+        "seconds": null,
+        "ticks": null,
+        "note": "Velocidad de marcha 4.2 m/s; el motor escala la cadencia con la velocidad (½ a 1½). Ciclo de 6 poses a 12 fps = 0.5 s."
+      },
+      "manifest": {
+        "fps": 12,
+        "loop": true,
+        "tags": [
+          "first"
+        ],
+        "phases": null
+      },
+      "placement": {
+        "anchorX": "mass",
+        "anchorY": "ground"
+      },
+      "sword": false,
+      "limits": {
+        "heightM": [
+          1.7,
+          2.45
+        ],
+        "widthM": [
+          1,
+          2.2
+        ]
+      },
+      "references": {
+        "sheet": [
+          "pose2",
+          "pose1"
+        ],
+        "frames": [
+          "walk_00",
+          "walk_04",
+          "idle_00"
+        ],
+        "note": "MISMA vista que el dibujo 2 (tres cuartos, la cabeza girada hacia donde camina, el ojo cercano grande y el lejano en media luna) y la espada llevada baja y atrás, en la mano derecha, como en ese dibujo."
+      },
+      "frames": [
+        {
+          "role": "contact-A",
+          "phase": null,
+          "en": "CONTACT A. A wide stride: the front foot heel-down ahead, the rear foot toe-down behind, the arms swinging opposite to the legs, the head slightly lower. Three-quarter view like the reference walking pose; the sword carried low behind in the right hand.",
+          "es": "CONTACTO A. Zancada ancha: el pie delantero apoya el talón delante, el trasero apoya la punta detrás, los brazos balanceándose al contrario de las piernas, la cabeza algo más baja. Vista de tres cuartos como la pose de marcha de referencia; la espada llevada baja y atrás en la mano derecha."
+        },
+        {
+          "role": "down-A",
+          "phase": null,
+          "en": "DOWN A. The weight drops onto the front leg: the front knee bends, the body at its lowest point, the rear foot lifting.",
+          "es": "BAJADA A. El peso cae sobre la pierna delantera: la rodilla delantera se dobla, el cuerpo en lo más bajo, el pie trasero levantándose."
+        },
+        {
+          "role": "passing-A",
+          "phase": null,
+          "en": "PASSING A. The rear leg passes the standing leg; the body at its highest point, the legs nearly together.",
+          "es": "PASO A. La pierna trasera cruza junto a la de apoyo; el cuerpo en lo más alto, las piernas casi juntas."
+        },
+        {
+          "role": "contact-B",
+          "phase": null,
+          "en": "CONTACT B. The mirror of contact A: the OTHER foot forward, the arms swapped.",
+          "es": "CONTACTO B. El espejo del contacto A: el OTRO pie delante, los brazos al revés."
+        },
+        {
+          "role": "down-B",
+          "phase": null,
+          "en": "DOWN B. The mirror of down A.",
+          "es": "BAJADA B. El espejo de la bajada A."
+        },
+        {
+          "role": "passing-B",
+          "phase": null,
+          "en": "PASSING B. The mirror of passing A.",
+          "es": "PASO B. El espejo del paso A."
+        }
+      ],
+      "scaleLike": "idle",
+      "scaleWhy": "porque se entra y se sale de la marcha parado"
+    },
+    "aerialAttack": {
+      "group": "F",
+      "alias": "attackAir",
+      "priority": 2,
+      "status": "requested",
+      "title": "Air attack",
+      "titleEs": "Ataque aéreo",
+      "why": "Hoy es el primer tajo (dibujo 7) con las piernas recogidas: un stand-in. Hace falta un tajo EN EL AIRE que se distinga del terrestre: cuerpo suspendido, la hoja bajando en diagonal desde arriba.",
+      "gameplay": {
+        "seconds": null,
+        "ticks": 16,
+        "note": "Fases de la simulación (no se tocan): 3 de preparación, 4 activos, 9 de recuperación; en el aire la gravedad se reduce al 60 %. La zona de daño: 0.15–1.55 m al frente y 0.3–1.5 m de alto."
+      },
+      "manifest": {
+        "fps": 26,
+        "loop": false,
+        "tags": [
+          "sword"
+        ],
+        "phases": {
+          "startup": [
+            0,
+            1
+          ],
+          "active": [
+            2,
+            3
+          ],
+          "recovery": [
+            4,
+            5
+          ]
+        }
+      },
+      "placement": {
+        "anchorX": "mass",
+        "anchorY": "mass"
+      },
+      "sword": true,
+      "intent": {
+        "tipDrops": 0.4,
+        "es": "el tajo en el aire BAJA: la punta de la hoja baja al menos 0.4 m entre la preparación (alzada detrás de la cabeza) y la fase activa (delante, a la altura del pecho)"
+      },
+      "limits": {
+        "heightM": [
+          1.3,
+          2.7
+        ],
+        "widthM": [
+          1.2,
+          3.2
+        ]
+      },
+      "references": {
+        "sheet": [
+          "pose4",
+          "pose7",
+          "pose12"
+        ],
+        "frames": [
+          "jump_00",
+          "attack1_02",
+          "cast_03",
+          "idle_00"
+        ],
+        "note": "El cuerpo está EN EL AIRE: los pies no tocan el suelo en ninguna pose."
+      },
+      "frames": [
+        {
+          "role": "tuck",
+          "phase": "startup",
+          "en": "TUCK. Airborne: the knees drawn up, the body slightly curled, the sword raised behind the head in the right hand, the antennae streaming upward.",
+          "es": "RECOGIDA. En el aire: las rodillas recogidas, el cuerpo algo encogido, la espada alzada detrás de la cabeza en la mano derecha, las antenas hacia arriba."
+        },
+        {
+          "role": "wind-up",
+          "phase": "startup",
+          "en": "WIND-UP. The body arched back, the sword at its highest point behind the head, the legs trailing.",
+          "es": "PREPARACIÓN. El cuerpo arqueado hacia atrás, la espada en su punto más alto detrás de la cabeza, las piernas colgando."
+        },
+        {
+          "role": "slash-begins",
+          "phase": "active",
+          "en": "THE SLASH BEGINS. The blade comes down in front diagonally from above, the body uncoiling forward, the legs trailing.",
+          "es": "EMPIEZA EL TAJO. La hoja baja delante en diagonal desde arriba, el cuerpo desenroscándose hacia delante, las piernas colgando."
+        },
+        {
+          "role": "slash",
+          "phase": "active",
+          "en": "THE SLASH. The blade passes through the front of the body at chest height (a downward diagonal cut), the right arm extended, the torso leaning forward.",
+          "es": "EL TAJO. La hoja pasa por delante del cuerpo a la altura del pecho (un corte diagonal descendente), el brazo derecho extendido, el torso inclinado al frente."
+        },
+        {
+          "role": "follow-through",
+          "phase": "recovery",
+          "en": "FOLLOW-THROUGH. The blade ends low in front below the waist, the body leaning forward, the knees bent.",
+          "es": "SEGUIR EL GOLPE. La hoja acaba baja delante, bajo la cintura, el cuerpo inclinado al frente, las rodillas dobladas."
+        },
+        {
+          "role": "ready-to-land",
+          "phase": "recovery",
+          "en": "READY TO LAND. The legs extending downward to meet the ground, the blade returning to a relaxed carry, the body nearly upright.",
+          "es": "LISTO PARA CAER. Las piernas extendiéndose hacia el suelo, la hoja volviendo a una posición relajada, el cuerpo casi erguido."
+        }
+      ],
+      "scaleLike": "attack1",
+      "scaleWhy": "porque es de la misma familia de golpes con espada"
+    },
+    "crouchAttack": {
+      "group": "G",
+      "alias": "attackCrouch",
+      "priority": 2,
+      "status": "requested",
+      "title": "Crouch attack",
+      "titleEs": "Ataque agachado",
+      "why": "Hoy es el primer tajo (dibujo 7) bajado sobre las piernas: un stand-in. Hace falta un tajo desde la agachada nueva: un barrido bajo, a la altura de las rodillas.",
+      "gameplay": {
+        "seconds": null,
+        "ticks": 16,
+        "note": "Fases de la simulación (no se tocan): 4 de preparación, 3 activos, 9 de recuperación. La zona de daño es BAJA: 0.2–1.6 m al frente y de 0 a 0.65 m de alto: la hoja barre a ras de suelo."
+      },
+      "manifest": {
+        "fps": 26,
+        "loop": false,
+        "tags": [
+          "sword"
+        ],
+        "phases": {
+          "startup": [
+            0,
+            1
+          ],
+          "active": [
+            2,
+            3
+          ],
+          "recovery": [
+            4,
+            5
+          ]
+        }
+      },
+      "placement": {
+        "anchorX": "mass",
+        "anchorY": "ground"
+      },
+      "sword": true,
+      "limits": {
+        "heightM": [
+          1,
+          1.85
+        ],
+        "widthM": [
+          1.2,
+          3.3
+        ]
+      },
+      "references": {
+        "sheet": [
+          "pose6",
+          "pose7"
+        ],
+        "frames": [
+          "crouch_00",
+          "attack1_03",
+          "idle_00"
+        ],
+        "note": "Empieza y acaba en la MISMA agachada del clip crouch (primera pose): la altura y la cabeza no cambian entre una y otra."
+      },
+      "frames": [
+        {
+          "role": "from-crouch",
+          "phase": "startup",
+          "en": "FROM THE CROUCH. In the same settled crouch as the crouch clip, the right arm draws the sword back along the ground behind the character, the torso coiling.",
+          "es": "DESDE LA AGACHADA. En la misma agachada asentada del clip crouch, el brazo derecho lleva la espada atrás, a ras de suelo, detrás del personaje, el torso enroscándose."
+        },
+        {
+          "role": "coil",
+          "phase": "startup",
+          "en": "COIL. The blade at its lowest and furthest back, the body twisted, the weight on the rear foot.",
+          "es": "ENROSQUE. La hoja en lo más bajo y atrás, el cuerpo girado, el peso sobre el pie trasero."
+        },
+        {
+          "role": "sweep",
+          "phase": "active",
+          "en": "THE SWEEP. The blade sweeps forward horizontally at knee height (0.2 to 0.5 m above the ground), the right arm extended, the body leaning forward and low.",
+          "es": "EL BARRIDO. La hoja barre hacia delante, horizontal, a la altura de las rodillas (0.2–0.5 m sobre el suelo), el brazo derecho extendido, el cuerpo inclinado al frente y bajo."
+        },
+        {
+          "role": "sweep-end",
+          "phase": "active",
+          "en": "END OF THE SWEEP. The blade fully extended forward at ground level, the body very low, the front knee bent.",
+          "es": "FIN DEL BARRIDO. La hoja del todo extendida al frente a ras de suelo, el cuerpo muy bajo, la rodilla delantera doblada."
+        },
+        {
+          "role": "follow-through",
+          "phase": "recovery",
+          "en": "FOLLOW-THROUGH. The blade carries past, the body starting to rise a little.",
+          "es": "SEGUIR EL GOLPE. La hoja sigue de largo, el cuerpo empieza a subir un poco."
+        },
+        {
+          "role": "settle",
+          "phase": "recovery",
+          "en": "SETTLE. Back in the crouch of the first pose of the crouch clip, the sword held low in front.",
+          "es": "ASENTARSE. De vuelta en la agachada de la primera pose del clip crouch, la espada baja delante."
+        }
+      ],
+      "scaleLike": "idle",
+      "scaleWhy": "porque es la misma cabeza que la de la agachada nueva"
+    },
+    "death": {
+      "group": "H",
+      "priority": 3,
+      "status": "requested",
+      "title": "Death",
+      "titleEs": "Muerte",
+      "why": "Hoy es el dibujo del golpe (11) tumbado y con los ojos apagándose: un stand-in. Hace falta una caída dibujada que acabe en una pose de derrota legible. No cambia ninguna regla de muerte, checkpoint ni persistencia.",
+      "gameplay": {
+        "seconds": 0.714,
+        "ticks": null,
+        "note": "El clip dura entre 0.6 y 1 s y se queda en su último fotograma hasta que la pantalla de derrota toma el relevo: 5 fotogramas a 7 fps."
+      },
+      "manifest": {
+        "fps": 7,
+        "loop": false,
+        "tags": [],
+        "phases": null
+      },
+      "placement": {
+        "anchorX": "mass",
+        "anchorY": "ground"
+      },
+      "sword": false,
+      "limits": {
+        "heightM": [
+          0.6,
+          2
+        ],
+        "widthM": [
+          1.1,
+          2.8
+        ]
+      },
+      "references": {
+        "sheet": [
+          "pose11",
+          "pose6"
+        ],
+        "frames": [
+          "hurt_00",
+          "death_04",
+          "death_08"
+        ],
+        "note": "Los ojos se APAGAN hacia azul marino oscuro (no rojo, no cerrados): la pérdida de luz es lo que dice «derrotado»."
+      },
+      "frames": [
+        {
+          "role": "struck",
+          "phase": null,
+          "en": "STRUCK. The head thrown back, the arms flung out, the sword loosening in the right hand, the eyes wide and at full glow (the last flare), the body bending backwards.",
+          "es": "GOLPEADO. La cabeza echada atrás, los brazos abiertos, la espada aflojándose en la mano derecha, los ojos muy abiertos y a pleno brillo (el último destello), el cuerpo arqueándose hacia atrás."
+        },
+        {
+          "role": "knocked-back",
+          "phase": null,
+          "en": "KNOCKED BACK. The body lifted off the ground and tilted back about 45 degrees, the limbs loose, the eyes dimming (about 60% glow), the antennae whipping forward.",
+          "es": "LANZADO ATRÁS. El cuerpo despegado del suelo e inclinado atrás ≈ 45°, las extremidades flojas, los ojos apagándose (≈ 60 % de brillo), las antenas azotando hacia delante."
+        },
+        {
+          "role": "falling",
+          "phase": null,
+          "en": "FALLING. Tumbling backwards in the air, nearly horizontal, the sword slipping out of the hand but staying close to it (the same sword), the eyes dimming further (about 35%).",
+          "es": "CAYENDO. Dando la vuelta hacia atrás en el aire, casi horizontal, la espada escapándose de la mano pero cerca de ella (la misma espada), los ojos apagándose más (≈ 35 %)."
+        },
+        {
+          "role": "impact",
+          "phase": null,
+          "en": "IMPACT. Hitting the ground on its back, the head bouncing up slightly, the limbs splayed, the eyes at about 20%.",
+          "es": "IMPACTO. Golpeando el suelo de espaldas, la cabeza rebotando un poco, las extremidades abiertas, los ojos al ≈ 20 %."
+        },
+        {
+          "role": "lying",
+          "phase": null,
+          "en": "LYING. Collapsed on its back or side, the limbs loose, the antennae lying limp on the ground, the sword lying close beside it, the eyes nearly dark (about 10%: a faint dark-navy glow, not red, not closed). It must read at a glance as defeated, not asleep.",
+          "es": "TUMBADO. Desplomado de espaldas o de lado, las extremidades flojas, las antenas lacias en el suelo, la espada tirada junto a él, los ojos casi apagados (≈ 10 %: un brillo azul marino tenue, ni rojo ni cerrados). Ha de leerse de un vistazo como derrotado, no dormido."
+        }
+      ],
+      "scaleLike": "hurt",
+      "scaleWhy": "porque se muere desde el golpe"
+    },
+    "drink": {
+      "group": "I",
+      "priority": 3,
+      "status": "requested",
+      "title": "Drink a bottle",
+      "titleEs": "Beber una botella",
+      "why": "Hoy es el dibujo de pie haciendo un gesto, sin botella ni mano a la boca: un stand-in. Hace falta una pose que comunique «bebe de un frasco»: el frasco dibujado con el personaje. No cambia la lógica de la cura.",
+      "gameplay": {
+        "seconds": 0.4,
+        "ticks": 24,
+        "note": "Beber es un canal de 0.4 s (24 ticks) con el héroe quieto: el efecto cae al final. 4 fotogramas a 10 fps = 0.4 s."
+      },
+      "manifest": {
+        "fps": 10,
+        "loop": false,
+        "tags": [],
+        "phases": null
+      },
+      "placement": {
+        "anchorX": "mass",
+        "anchorY": "ground"
+      },
+      "sword": false,
+      "limits": {
+        "heightM": [
+          1.8,
+          2.45
+        ],
+        "widthM": [
+          0.9,
+          1.9
+        ]
+      },
+      "references": {
+        "sheet": [
+          "pose1",
+          "pose12"
+        ],
+        "frames": [
+          "idle_00",
+          "drink_02"
+        ],
+        "extra": [
+          "art/ruins-roots/vial_bottle/vial_bottle_00.png"
+        ],
+        "note": "El frasco: un matraz cilíndrico pequeño con corcho y líquido cian luminoso (como el del juego, adjunto: es un dibujo provisional; vale su silueta y su color, no su acabado)."
+      },
+      "frames": [
+        {
+          "role": "draw",
+          "phase": null,
+          "en": "DRAW. The right hand pulls a small glass vial out from the side of the armour at the hip; the vial is a small cylindrical flask with a cork stopper and softly glowing cyan liquid. The other arm relaxed, the body upright, the eyes at full glow.",
+          "es": "SACAR. La mano derecha saca un frasquito de cristal del costado de la armadura, a la altura de la cadera; el frasco es un matraz cilíndrico pequeño, con tapón de corcho y líquido cian que brilla suave. El otro brazo relajado, el cuerpo erguido, los ojos a pleno brillo."
+        },
+        {
+          "role": "raise",
+          "phase": null,
+          "en": "RAISE. The right hand lifts the vial in front of the lower part of the face, the head tilting slightly toward it.",
+          "es": "LEVANTAR. La mano derecha lleva el frasco delante de la parte baja de la cara, la cabeza inclinándose un poco hacia él."
+        },
+        {
+          "role": "drink",
+          "phase": null,
+          "en": "DRINK. The head tilted back a little, the vial tipped against the lower edge of the face (the face has no mouth: the vial simply touches the chin line), the liquid level lower, the eyes slightly brighter.",
+          "es": "BEBER. La cabeza algo echada atrás, el frasco inclinado contra el borde inferior de la cara (la cara no tiene boca: el frasco solo toca la línea de la barbilla), el nivel del líquido más bajo, los ojos algo más brillantes."
+        },
+        {
+          "role": "refreshed",
+          "phase": null,
+          "en": "REFRESHED. The arm lowers, the empty vial held at the hip, the body straightened with the chest slightly raised, the eyes at full glow.",
+          "es": "REPUESTO. El brazo baja, el frasco vacío junto a la cadera, el cuerpo enderezado con el pecho algo alzado, los ojos a pleno brillo."
+        }
+      ],
+      "scaleLike": "idle",
+      "scaleWhy": "porque se bebe parado"
+    },
+    "interact": {
+      "group": "J",
+      "priority": 3,
+      "status": "requested",
+      "title": "Interact",
+      "titleEs": "Interactuar",
+      "why": "Hoy es el dibujo de pie que se inclina y asiente, sin mano que alcance: un stand-in. Hace falta una pose breve y legible de «tocar algo»; no bloquea el control más de 12 ticks.",
+      "gameplay": {
+        "seconds": 0.2,
+        "ticks": 12,
+        "note": "La interacción retiene al héroe como máximo 12 ticks (0.2 s). 3 fotogramas a 15 fps = 0.2 s."
+      },
+      "manifest": {
+        "fps": 15,
+        "loop": false,
+        "tags": [],
+        "phases": null
+      },
+      "placement": {
+        "anchorX": "mass",
+        "anchorY": "ground"
+      },
+      "sword": false,
+      "limits": {
+        "heightM": [
+          1.8,
+          2.45
+        ],
+        "widthM": [
+          1,
+          2.2
+        ]
+      },
+      "references": {
+        "sheet": [
+          "pose1",
+          "pose12"
+        ],
+        "frames": [
+          "idle_00",
+          "interact_01"
+        ],
+        "note": "La mano es la manopla pequeña y oscura de la referencia (el dibujo 12 la enseña cerrada): aquí abierta, sin inventar dedos nuevos."
+      },
+      "frames": [
+        {
+          "role": "lean",
+          "phase": null,
+          "en": "LEAN. The body leans forward about 10 degrees, the right arm starting to reach forward at chest height, the head tilting toward the target.",
+          "es": "INCLINARSE. El cuerpo se inclina ≈ 10° al frente, el brazo derecho empieza a alcanzar al frente a la altura del pecho, la cabeza inclinándose hacia el objetivo."
+        },
+        {
+          "role": "touch",
+          "phase": null,
+          "en": "TOUCH. The right arm fully extended forward at chest height with the small dark gauntlet hand open, the body leaning a little further.",
+          "es": "TOCAR. El brazo derecho del todo extendido al frente a la altura del pecho con la manopla pequeña y oscura abierta, el cuerpo inclinado un poco más."
+        },
+        {
+          "role": "withdraw",
+          "phase": null,
+          "en": "WITHDRAW. The arm draws back to the body, the body returning toward upright.",
+          "es": "RETIRARSE. El brazo vuelve al cuerpo, el cuerpo vuelve hacia la vertical."
+        }
+      ],
+      "scaleLike": "idle",
+      "scaleWhy": "porque se interactúa parado"
+    }
+  }
+}

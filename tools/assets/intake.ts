@@ -1,0 +1,587 @@
+import { boundsOf, bodyOf, cleanliness, components, eyeDiameter, SOLID, type Cleanliness } from './figure';
+import { median } from './heroRepo';
+import type { ClipRequest } from './kit';
+import type { RgbaImage } from './png';
+import { extractPose, type Box } from './poses';
+import { renderFrame, toDrawing } from './warp';
+
+/**
+ * THE RECEPTION OF THE PROTAGONIST'S NEW DRAWINGS (docs/PROMPT10-LOG.md), the pure half: from a sheet (or a handful of PNGs) a generator or an artist handed back to the frames the pipeline
+ * takes, and the judgement of each. TECHNICAL OPERATIONS ONLY, as in `poses.ts`: the background becomes transparent where the picture says it is background, the whole sheet is scaled by ONE
+ * factor and every pose is moved by a translation to stand on the pivot — nothing is painted, recoloured, redrawn, mirrored to make a pose, or smoothed beyond the resampling of the scale.
+ *
+ *   `cutSheet`      a sheet → the poses on it (transparent, in reading order), or an error that says how many were found and why that is not what was asked for
+ *   `chooseScale`   one factor for the sheet: the big eye of its poses against the big eye of the frames of the clip this one sits next to in play
+ *   `placeFrame`    a pose → a 280 × 230 frame: scaled once, resampled once, its feet (or its centre of mass) on the pivot
+ *   `judgeFrames`   the numbers that say a cut-out is clean — and the verdict a person reads before accepting (it never accepts)
+ */
+
+export type Level = 'ok' | 'warn' | 'fail';
+export interface Check {
+  id: string;
+  level: Level;
+  text: string;
+}
+export const worst = (levels: readonly Level[]): Level => (levels.includes('fail') ? 'fail' : levels.includes('warn') ? 'warn' : 'ok');
+
+/** A problem with what was handed in (not a bug): the message says what to do. `boxes` (a failed cut): where the poses were looked for, for the debug picture. */
+export class IntakeError extends Error {
+  boxes?: Box[];
+}
+
+export interface Canvas {
+  width: number;
+  height: number;
+  pivot: [number, number];
+  artPxPerMeter: number;
+  margin: number;
+}
+
+/** Every threshold of the judgement in one place. Calibrated against the 114 frames of the game (see `figure.ts`): they all pass, with room. */
+export const LIMITS = {
+  /** Share of the soft edge that is pale grey: the fringe of the white a figure was cut from. */
+  paleEdge: { warn: 0.06, fail: 0.15 },
+  /** Share of the figure outside its biggest piece. */
+  loose: { warn: 0.004, fail: 0.025 },
+  /** Share of solid pixels that are the red of an effect (the sword's own dark-red edge is ≤ 0.5 %). */
+  red: { warn: 0.01, fail: 0.03 },
+  /** Share of the figure of a hue the character has none of. */
+  foreign: { warn: 0.01, fail: 0.04 },
+  /** Red in the sheet around a pose, before the cut left it out. */
+  rawRed: { warn: 0.02 },
+  /** How far the centre of mass jumps between two frames, in metres. */
+  massStep: { warn: 0.55, fail: 1.2 },
+  /** How far outside the size the brief gave (as a share of that limit) before it is a failure rather than a warning. */
+  size: { fail: 0.3 },
+  /** How much the eye of a pose may differ from the median of its sheet, as a multiple of the tolerance, before it is a failure. */
+  eyeFail: 2,
+  /** The blade, grip to tip, in metres (the game's is 0.93). */
+  blade: { min: 0.6, max: 1.3 },
+  /** How far (px) an anchor may be from a pixel of the figure (alpha ≥ 40: the last pixels of a thin blade's tip are faint after the scale). */
+  anchorOnFigure: 4,
+} as const;
+
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ the picture
+
+/** The image has real transparency (more than 2 % of its pixels are not opaque). */
+export function hasTransparency(img: RgbaImage): boolean {
+  let n = 0;
+  for (let i = 3; i < img.data.length; i += 4) if (img.data[i]! < 250) n++;
+  return n > img.width * img.height * 0.02;
+}
+
+/** The colour of the background of an opaque picture: the median of its outermost 3 px. */
+export function backgroundOf(img: RgbaImage): [number, number, number] {
+  const r: number[] = [];
+  const g: number[] = [];
+  const b: number[] = [];
+  const edge = (x: number, y: number): boolean => x < 3 || y < 3 || x >= img.width - 3 || y >= img.height - 3;
+  for (let y = 0; y < img.height; y++) {
+    for (let x = 0; x < img.width; x++) {
+      if (!edge(x, y)) {
+        // nothing in the middle of a row is border: jump to the right-hand strip
+        x = Math.max(x, img.width - 4);
+        continue;
+      }
+      const o = (y * img.width + x) * 4;
+      r.push(img.data[o]!);
+      g.push(img.data[o + 1]!);
+      b.push(img.data[o + 2]!);
+    }
+  }
+  return [median(r), median(g), median(b)];
+}
+
+export function crop(img: RgbaImage, box: Box): RgbaImage {
+  const w = box.x1 - box.x0 + 1;
+  const h = box.y1 - box.y0 + 1;
+  const data = new Uint8Array(w * h * 4);
+  for (let y = 0; y < h; y++) data.set(img.data.subarray(((box.y0 + y) * img.width + box.x0) * 4, ((box.y0 + y) * img.width + box.x0 + w) * 4), y * w * 4);
+  return { width: w, height: h, data };
+}
+
+const isEffectRed = (r: number, g: number, b: number): boolean => r >= 120 && r > g + 50 && r > b + 50;
+
+/** The mask of what is NOT background: the alpha of a transparent picture, or whatever differs from the border colour by 70 or more in a channel. */
+export function figureMask(img: RgbaImage): { mask: Uint8Array; transparent: boolean; background: [number, number, number] | null } {
+  const N = img.width * img.height;
+  const mask = new Uint8Array(N);
+  if (hasTransparency(img)) {
+    for (let i = 0; i < N; i++) if (img.data[i * 4 + 3]! >= 40) mask[i] = 1;
+    return { mask, transparent: true, background: null };
+  }
+  const bg = backgroundOf(img);
+  const lum = 0.299 * bg[0] + 0.587 * bg[1] + 0.114 * bg[2];
+  if (lum < 200) throw new IntakeError(`the background is not white or transparent (it is about rgb(${bg.map(Math.round).join(', ')})): ask the generator for a flat white background, or export the sheet with a transparent one`);
+  for (let i = 0; i < N; i++) {
+    const d = Math.max(Math.abs(img.data[i * 4]! - bg[0]), Math.abs(img.data[i * 4 + 1]! - bg[1]), Math.abs(img.data[i * 4 + 2]! - bg[2]));
+    if (d >= 70) mask[i] = 1;
+  }
+  return { mask, transparent: false, background: bg };
+}
+
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ cutting a sheet
+
+export interface Cut {
+  /** The poses, transparent and trimmed to the figure, in reading order. */
+  poses: RgbaImage[];
+  /** Where each came from in the source (the sheet's coordinates), for the debug picture. */
+  boxes: Box[];
+  /** Frames that arrived already on the game's canvas (280 × 230, transparent): used as they are. */
+  final: boolean[];
+  /** The share of red in each pose's region of the source, before the cut left the red out. */
+  rawRed: number[];
+  notes: string[];
+}
+
+/** Reading order: rows from the top, each left to right. Two boxes are in the same row when their centres are within half the median height. */
+export function readingOrder(boxes: readonly Box[]): number[] {
+  const order = boxes.map((_, i) => i);
+  const cy = (i: number): number => (boxes[i]!.y0 + boxes[i]!.y1) / 2;
+  const medH = median(boxes.map((b) => b.y1 - b.y0 + 1));
+  order.sort((a, b) => cy(a) - cy(b));
+  const rows: number[][] = [];
+  for (const i of order) {
+    const row = rows[rows.length - 1];
+    if (row && Math.abs(cy(i) - cy(row[0]!)) <= medH * 0.5) row.push(i);
+    else rows.push([i]);
+  }
+  return rows.flatMap((r) => r.sort((a, b) => boxes[a]!.x0 - boxes[b]!.x0));
+}
+
+function trimmed(img: RgbaImage): RgbaImage | null {
+  const b = boundsOf(img, 8);
+  return b ? crop(img, b) : null;
+}
+
+/** The share of red in `box` of an opaque picture, among the pixels that are not background. */
+function redShare(img: RgbaImage, box: Box, mask: Uint8Array): number {
+  let figure = 0;
+  let red = 0;
+  for (let y = box.y0; y <= box.y1; y++) {
+    for (let x = box.x0; x <= box.x1; x++) {
+      const i = y * img.width + x;
+      if (!mask[i]) continue;
+      figure++;
+      if (isEffectRed(img.data[i * 4]!, img.data[i * 4 + 1]!, img.data[i * 4 + 2]!)) red++;
+    }
+  }
+  return figure === 0 ? 0 : red / figure;
+}
+
+/**
+ * The poses of a sheet. The pieces of each pose are joined by growing the picture of what is not background (so an antenna or a blade held a little apart stays with its figure); a speck
+ * smaller than 3 % of the biggest pose is not a pose (a watermark, a stray mark). If that does not give exactly `expected` poses the grow radius is tried smaller and larger — and if no
+ * radius does, the error says what was found and writes nothing: a sheet whose poses touch is a sheet to ask for again with wider gaps, not one to cut by guessing.
+ */
+export function cutSheet(sheet: RgbaImage, expected: number): Cut {
+  const { mask, transparent } = figureMask(sheet);
+  const { width: w, height: h } = sheet;
+  const base = Math.min(14, Math.max(4, Math.round(Math.max(w, h) * 0.008)));
+  const radii = [...new Set([base, Math.round(base * 1.5), base * 2, Math.max(2, Math.round(base * 0.7)), Math.max(2, Math.round(base * 0.45)), Math.max(2, Math.round(base * 0.3))])];
+  let found: { boxes: Box[]; label: Int32Array; ids: number[] } | null = null;
+  let first: Box[] | null = null;
+  const tried: string[] = [];
+  for (const radius of radii) {
+    const lab = components(mask, w, h, radius);
+    const biggest = Math.max(0, ...lab.areas);
+    const ids = lab.areas.map((a, i) => (a >= biggest * 0.03 ? i : -1)).filter((i) => i >= 0);
+    tried.push(`radius ${radius}: ${ids.length}`);
+    first ??= ids.map((i) => lab.boxes[i]!);
+    if (ids.length === expected) {
+      found = { boxes: ids.map((i) => lab.boxes[i]!), label: lab.label, ids };
+      break;
+    }
+  }
+  if (!found) {
+    const error = new IntakeError(`the sheet should hold ${expected} poses and they could not be told apart (${tried.join('; ')}): the poses touch or overlap, or some are missing — ask for wide empty gaps between them and one pose per slot (the picture segmentation.png shows what the cut saw)`);
+    error.boxes = first ?? [];
+    throw error;
+  }
+  const order = readingOrder(found.boxes);
+  const poses: RgbaImage[] = [];
+  const boxes: Box[] = [];
+  const rawRed: number[] = [];
+  const notes: string[] = [];
+  order.forEach((k, n) => {
+    const tight = found!.boxes[k]!;
+    const pad = 8;
+    const box: Box = { x0: Math.max(0, tight.x0 - pad), y0: Math.max(0, tight.y0 - pad), x1: Math.min(w - 1, tight.x1 + pad), y1: Math.min(h - 1, tight.y1 + pad) };
+    let pose: RgbaImage | null;
+    if (transparent) {
+      // only the pixels of THIS pose's piece: the box of one may reach into the box of a neighbour
+      const piece = crop(sheet, box);
+      const id = found!.ids[k]!;
+      for (let y = 0; y < piece.height; y++) {
+        for (let x = 0; x < piece.width; x++) if (found!.label[(box.y0 + y) * w + box.x0 + x] !== id) piece.data[(y * piece.width + x) * 4 + 3] = 0;
+      }
+      pose = trimmed(piece);
+      rawRed.push(0);
+    } else {
+      const r = extractPose(sheet, box);
+      pose = r.bounds ? crop(r.image, r.bounds) : null;
+      if (r.stats.droppedPieces > 0) notes.push(`pose ${n + 1}: el recorte dejó fuera ${r.stats.droppedPieces} pieza(s) suelta(s)`);
+      rawRed.push(redShare(sheet, box, mask));
+    }
+    if (!pose) throw new IntakeError(`pose ${n + 1} of the sheet (x ${tight.x0}…${tight.x1}, y ${tight.y0}…${tight.y1}): nothing of a figure was left after the cut`);
+    poses.push(pose);
+    boxes.push(tight);
+  });
+  return { poses, boxes, final: poses.map(() => false), rawRed, notes };
+}
+
+/** A handful of separate PNGs, one pose each: transparent ones are trimmed, opaque ones are cut from their background like a sheet's pose; ones already on the game's canvas are used as they are. */
+export function cutLoose(images: readonly RgbaImage[], canvas: Pick<Canvas, 'width' | 'height'>): Cut {
+  const poses: RgbaImage[] = [];
+  const boxes: Box[] = [];
+  const final: boolean[] = [];
+  const rawRed: number[] = [];
+  const notes: string[] = [];
+  images.forEach((img, n) => {
+    const whole: Box = { x0: 0, y0: 0, x1: img.width - 1, y1: img.height - 1 };
+    boxes.push(whole);
+    if (hasTransparency(img)) {
+      const ready = img.width === canvas.width && img.height === canvas.height;
+      final.push(ready);
+      const t = trimmed(img);
+      if (!t) throw new IntakeError(`file ${n + 1}: the picture is empty`);
+      poses.push(ready ? img : t);
+      rawRed.push(0);
+      return;
+    }
+    const { mask } = figureMask(img);
+    const r = extractPose(img, whole);
+    if (!r.bounds) throw new IntakeError(`file ${n + 1}: nothing of a figure was found on the background`);
+    if (r.stats.droppedPieces > 0) notes.push(`archivo ${n + 1}: el recorte dejó fuera ${r.stats.droppedPieces} pieza(s) suelta(s)`);
+    poses.push(crop(r.image, r.bounds));
+    final.push(false);
+    rawRed.push(redShare(img, whole, mask));
+  });
+  if (final.some((f) => f) && !final.every((f) => f)) notes.push('algunos archivos ya son fotogramas de 280 × 230 y otros no: los que lo son conservan su tamaño, los demás se escalan');
+  return { poses, boxes, final, rawRed, notes };
+}
+
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ scaling
+
+export interface Scaling {
+  /** Canvas pixels per pixel of the delivered picture. */
+  factor: number;
+  how: 'eye' | 'given' | 'final';
+  /** The eye the sheet is brought to, in canvas pixels. */
+  target: number | null;
+  /** The big eye of each pose, in the delivered picture's own pixels, or `null`. */
+  eyes: Array<number | null>;
+  /** The median of the measurable eyes, in the delivered picture's pixels. */
+  median: number | null;
+}
+
+/**
+ * ONE factor for the whole delivery: the median big eye of its poses becomes `target` (the big eye of the frames of the neighbouring clip). A `given` factor overrides the measurement; frames that
+ * arrived on the game's canvas keep their size.
+ */
+export function chooseScale(cut: Cut, target: number | null, given?: number): Scaling {
+  const eyes = cut.poses.map((p) => eyeDiameter(p)?.diameter ?? null);
+  const seen = eyes.filter((e): e is number => e !== null);
+  const med = seen.length > 0 ? median(seen) : null;
+  if (cut.final.length > 0 && cut.final.every((f) => f)) return { factor: 1, how: 'final', target, eyes, median: med };
+  if (given !== undefined) {
+    if (!(given > 0 && given < 10)) throw new IntakeError(`--scale ${given}: the factor is canvas pixels per pixel of the delivered picture and must be between 0 and 10`);
+    return { factor: given, how: 'given', target, eyes, median: med };
+  }
+  if (target === null) throw new IntakeError('the frames of the neighbouring clip have no measurable eye to scale this sheet against: pass the factor yourself with --scale <canvas pixels per pixel of the sheet>');
+  if (seen.length < Math.max(1, Math.ceil(cut.poses.length / 2))) {
+    throw new IntakeError(`the big eye could be measured in only ${seen.length} of ${cut.poses.length} poses (it needs a round, glowing eye with its white highlights in view): the scale cannot be taken from the sheet — pass it with --scale <canvas pixels per pixel of the sheet>`);
+  }
+  return { factor: target / med!, how: 'eye', target, eyes, median: med };
+}
+
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ placing
+
+export interface Placement {
+  /** Always the centre of mass of the body (torso and head, without the sword, the antennae or the cape): it is what the player's body box is centred on. */
+  anchorX: 'mass';
+  /** `ground`: the lowest solid pixel of the figure on the pivot row. `mass`: the centre of mass 1.0 m above the pivot (a body in the air). */
+  anchorY: 'ground' | 'mass';
+}
+
+export interface Placed {
+  image: RgbaImage;
+  /** How many canvas pixels the figure would reach beyond each edge (0 = none). */
+  clipped: { left: number; right: number; top: number; bottom: number };
+  /** How far (canvas px) the lowest point of the figure is below the lowest point of the body proper: a big gap means a thin part (a blade, a hand) dips below the feet and the feet may float. */
+  groundGap: number;
+  /** The translation the author asked for on top (canvas px). */
+  nudge: { dx: number; dy: number };
+}
+
+/** The height above the pivot, in metres, at which the centre of mass of an airborne body is put. */
+export const AIR_HEIGHT_M = 1.0;
+
+/** A frame whose lowest point is more than this many canvas pixels under the body's own lowest part is flagged (the soles of the boots are thin: the opened body is 3–5 px short of them in the frames of the game). */
+export const GROUND_GAP_WARN = 8;
+
+/**
+ * A pose on the game's canvas. Scaled by `factor` and resampled ONCE (the P9 renderer, area sampling), with the anchor of the pose landing exactly on its target:
+ *   x      → the centre of mass of the body on the pivot column;
+ *   ground → the lowest solid pixel of the figure on the pivot row; mass → the centre of mass 1.0 m above the pivot (a body in the air).
+ * `nudge` is a translation in canvas pixels the author asks for on top, after looking at the contact sheet (the lowest point may be a blade, not a foot).
+ */
+export function placeFrame(pose: RgbaImage, factor: number, placement: Placement, canvas: Canvas, nudge = { dx: 0, dy: 0 }): Placed {
+  const thin = Math.max(1, Math.round(3 / factor));
+  const body = bodyOf(pose, thin);
+  if (!body) throw new IntakeError('a pose has no body to anchor (it is all thin parts or empty)');
+  const pb = boundsOf(pose, 8)!;
+  const lowest = boundsOf(pose, SOLID)?.y1 ?? pb.y1;
+  const ax = body.cx + 0.5;
+  const ay = placement.anchorY === 'ground' ? lowest + 1 : body.cy + 0.5;
+  const tx = canvas.pivot[0] + 0.5 + nudge.dx;
+  const ty = (placement.anchorY === 'ground' ? canvas.pivot[1] + 1 : canvas.pivot[1] - AIR_HEIGHT_M * canvas.artPxPerMeter + 0.5) + nudge.dy;
+  const samples = Math.min(8, Math.max(3, Math.ceil(1.5 / factor)));
+  const image = renderFrame(toDrawing(pose), { width: canvas.width, height: canvas.height, scale: factor, origin: { x: ax - tx / factor, y: ay - ty / factor } }, { warp: null, samples });
+  const left = (pb.x0 - ax) * factor + tx;
+  const right = (pb.x1 + 1 - ax) * factor + tx;
+  const top = (pb.y0 - ay) * factor + ty;
+  const bottom = (pb.y1 + 1 - ay) * factor + ty;
+  return {
+    image,
+    clipped: { left: Math.max(0, Math.ceil(-left)), right: Math.max(0, Math.ceil(right - canvas.width)), top: Math.max(0, Math.ceil(-top)), bottom: Math.max(0, Math.ceil(bottom - canvas.height)) },
+    groundGap: Math.max(0, (lowest - body.bottom) * factor),
+    nudge,
+  };
+}
+
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ the sword
+
+export interface SwordPoints {
+  /** Where the hand holds the blade, in canvas pixels. */
+  grip: [number, number];
+  tip: [number, number];
+}
+
+/** The anchors of the manifest for a frame, in metres from the pivot (+x forward, +y up): the hand IS the grip, and the VFX and the hit are on the blade by the same proportions as the slash rig's. */
+export function manifestAnchors(p: SwordPoints, canvas: Canvas): Record<string, [number, number]> {
+  const m = (x: number, y: number): [number, number] => [Math.round(((x - canvas.pivot[0]) / canvas.artPxPerMeter) * 1000) / 1000, Math.round(((canvas.pivot[1] - y) / canvas.artPxPerMeter) * 1000) / 1000];
+  const along = (t: number): [number, number] => [p.grip[0] + t * (p.tip[0] - p.grip[0]), p.grip[1] + t * (p.tip[1] - p.grip[1])];
+  return {
+    hand_r: m(...p.grip),
+    weapon_grip: m(...p.grip),
+    weapon_tip: m(...p.tip),
+    hit_origin: m(...along(0.85)),
+    vfx_origin: m(...along(0.48)),
+  };
+}
+
+/** What `anchors.json` says, checked: every frame has a grip and a tip inside the canvas. Problems come back as text, not exceptions, so the report can list them all. */
+export function parseAnchors(text: string | null, frames: readonly string[], canvas: Canvas): { points: Map<string, SwordPoints>; problems: string[] } {
+  const points = new Map<string, SwordPoints>();
+  const problems: string[] = [];
+  if (text === null) return { points, problems: ['no hay anchors.json para este clip'] };
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch (e) {
+    return { points, problems: [`anchors.json no es JSON válido (${e instanceof Error ? e.message : String(e)})`] };
+  }
+  const pair = (v: unknown): [number, number] | null => (Array.isArray(v) && v.length === 2 && v.every((n) => typeof n === 'number' && Number.isFinite(n)) ? [v[0] as number, v[1] as number] : null);
+  for (const name of frames) {
+    const e = (raw as Record<string, { grip?: unknown; tip?: unknown }> | null)?.[name];
+    const grip = pair(e?.grip);
+    const tip = pair(e?.tip);
+    if (!grip || !tip) {
+      problems.push(`${name}: necesita "grip": [x, y] y "tip": [x, y]`);
+      continue;
+    }
+    const inside = ([x, y]: [number, number]): boolean => x >= 0 && y >= 0 && x < canvas.width && y < canvas.height;
+    if (!inside(grip) || !inside(tip)) {
+      problems.push(`${name}: un ancla queda fuera del lienzo de ${canvas.width} × ${canvas.height}`);
+      continue;
+    }
+    if (grip[0] === 0 && grip[1] === 0 && tip[0] === 0 && tip[1] === 0) {
+      problems.push(`${name}: las anclas siguen siendo los ceros de la plantilla`);
+      continue;
+    }
+    points.set(name, { grip, tip });
+  }
+  for (const k of Object.keys((raw as Record<string, unknown>) ?? {})) if (!frames.includes(k)) problems.push(`${k}: anclas de un fotograma que este clip no tiene`);
+  return { points, problems };
+}
+
+/** The distance (px) from `p` to the nearest pixel of the figure (alpha ≥ 40) in `img`, up to `max`; `max + 1` when there is none within it. */
+function distanceToFigure(img: RgbaImage, p: [number, number], max: number): number {
+  const cx = Math.round(p[0]);
+  const cy = Math.round(p[1]);
+  let best = max + 1;
+  for (let dy = -max; dy <= max; dy++) {
+    for (let dx = -max; dx <= max; dx++) {
+      const x = cx + dx;
+      const y = cy + dy;
+      if (x < 0 || y < 0 || x >= img.width || y >= img.height) continue;
+      if (img.data[(y * img.width + x) * 4 + 3]! >= 40) best = Math.min(best, Math.hypot(dx, dy));
+    }
+  }
+  return best;
+}
+
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ judging
+
+export interface FrameJudgement {
+  name: string;
+  role: string;
+  phase: string | null;
+  bounds: Box | null;
+  /** The smallest distance from the figure to an edge of the canvas, in pixels. */
+  margin: number;
+  heightM: number;
+  widthM: number;
+  eye: number | null;
+  /** (eye − median of the sheet) / median, or `null`. */
+  eyeDeviation: number | null;
+  mass: { x: number; y: number } | null;
+  /** How far the centre of mass moved from the previous frame, in metres. */
+  massStep: number | null;
+  clean: Cleanliness;
+  blade: number | null;
+  checks: Check[];
+  level: Level;
+}
+
+export interface JudgeInput {
+  names: readonly string[];
+  frames: readonly RgbaImage[];
+  clipped: ReadonlyArray<Placed['clipped']>;
+  groundGap: readonly number[];
+  request: ClipRequest;
+  canvas: Canvas;
+  scaling: Scaling;
+  tolerance: number;
+  rawRed: readonly number[];
+  anchors: Map<string, SwordPoints>;
+  anchorProblems: readonly string[];
+}
+
+const pct = (v: number): string => `${(v * 100).toFixed(1)} %`;
+
+function limitCheck(id: string, value: number, lim: { warn: number; fail: number }, text: (v: string) => string): Check | null {
+  if (value > lim.fail) return { id, level: 'fail', text: text(pct(value)) };
+  if (value > lim.warn) return { id, level: 'warn', text: text(pct(value)) };
+  return null;
+}
+
+export interface ClipJudgement {
+  frames: FrameJudgement[];
+  /** The checks of the clip as a whole (its scale, its eye against the neighbour's). */
+  checks: Check[];
+  /** The median big eye of the finished frames, in canvas pixels. */
+  eye: number | null;
+  level: Level;
+}
+
+export function judgeFrames(input: JudgeInput): ClipJudgement {
+  const { canvas, request, scaling, tolerance } = input;
+  const out: FrameJudgement[] = [];
+  // the poses are judged against each other: the eye of each against the median of the finished clip
+  const readings = input.frames.map((f) => eyeDiameter(f)?.diameter ?? null);
+  const seen = readings.filter((e): e is number => e !== null);
+  const eyeMedian = seen.length > 0 ? median(seen) : null;
+  let prev: { frame: RgbaImage; mass: { x: number; y: number } | null } | null = null;
+  input.frames.forEach((frame, k) => {
+    const name = input.names[k]!;
+    const spec = request.frames[k]!;
+    const checks: Check[] = [];
+    const b = boundsOf(frame, 8);
+    if (!b) {
+      checks.push({ id: 'empty', level: 'fail', text: 'el fotograma está vacío' });
+      out.push({ name, role: spec.role, phase: spec.phase, bounds: null, margin: 0, heightM: 0, widthM: 0, eye: null, eyeDeviation: null, mass: null, massStep: null, clean: cleanliness(frame), blade: null, checks, level: 'fail' });
+      prev = { frame, mass: null };
+      return;
+    }
+    const margin = Math.min(b.x0, b.y0, canvas.width - 1 - b.x1, canvas.height - 1 - b.y1);
+    const c = input.clipped[k]!;
+    const cutBy = c.left + c.right + c.top + c.bottom;
+    if (cutBy > 0) checks.push({ id: 'clipped', level: 'fail', text: `la figura no cabe en el lienzo de ${canvas.width} × ${canvas.height} (se sale: izquierda ${c.left}, derecha ${c.right}, arriba ${c.top}, abajo ${c.bottom} px): la pose es más grande de lo que admite el clip` });
+    else if (margin < canvas.margin) checks.push({ id: 'margin', level: 'fail', text: `la figura queda a ${margin} px del borde del lienzo (el contrato pide ${canvas.margin})` });
+
+    if (request.placement.anchorY === 'ground' && (input.groundGap[k] ?? 0) > GROUND_GAP_WARN) {
+      checks.push({ id: 'ground', level: 'warn', text: `el punto más bajo de la figura está ${Math.round(input.groundGap[k]!)} px por debajo de lo más bajo de su cuerpo: una hoja o una mano baja más que los pies, y los pies pueden quedar flotando sobre la línea del suelo — mira la hoja de contacto y, si es así, baja el fotograma con placement.json (dy)` });
+    }
+
+    const heightM = (b.y1 - b.y0 + 1) / canvas.artPxPerMeter;
+    const widthM = (b.x1 - b.x0 + 1) / canvas.artPxPerMeter;
+    for (const [what, v, [lo, hi]] of [['height', heightM, request.limits.heightM], ['width', widthM, request.limits.widthM]] as const) {
+      if (v >= lo && v <= hi) continue;
+      const off = v < lo ? (lo - v) / lo : (v - hi) / hi;
+      checks.push({ id: `size-${what}`, level: off > LIMITS.size.fail ? 'fail' : 'warn', text: `la figura mide ${v.toFixed(2)} m de ${what === 'height' ? 'alto' : 'ancho'}; el encargo de este clip dice ${lo}–${hi} m` });
+    }
+
+    const eye = readings[k]!;
+    let eyeDeviation: number | null = null;
+    if (eye !== null && eyeMedian !== null) {
+      eyeDeviation = (eye - eyeMedian) / eyeMedian;
+      const dev = Math.abs(eyeDeviation);
+      if (dev > tolerance * LIMITS.eyeFail) checks.push({ id: 'eye', level: 'fail', text: `el ojo grande mide ${eye.toFixed(1)} px, un ${pct(dev)} de diferencia con los ${eyeMedian.toFixed(1)} px del clip: esta pose se dibujó a otra escala` });
+      else if (dev > tolerance) checks.push({ id: 'eye', level: 'warn', text: `el ojo grande mide ${eye.toFixed(1)} px, un ${pct(dev)} de diferencia con los ${eyeMedian.toFixed(1)} px del clip: comprueba que la pose está a la misma escala que las demás (una cabeza vuelta se lee más pequeña)` });
+    } else if (eye === null) checks.push({ id: 'eye', level: 'ok', text: 'ningún ojo grande a la vista en esta pose (de espaldas, apagado u oculto): no se mide' });
+
+    const clean = cleanliness(frame);
+    for (const chk of [
+      limitCheck('edge', clean.paleEdge, LIMITS.paleEdge, (v) => `${v} del borde suave es gris pálido: un resto del fondo blanco del que se recortó la figura — el recorte no está limpio`),
+      limitCheck('loose', clean.loose, LIMITS.loose, (v) => `${v} de la figura son piezas sueltas aparte del cuerpo (motas, una segunda figura, un efecto que se coló)`),
+      limitCheck('red', clean.red, LIMITS.red, (v) => `${v} de la figura es rojo de efecto (el personaje no tiene; la espada tiene un fino borde rojo oscuro, muy por debajo del 1 %)`),
+      limitCheck('colour', clean.foreign, LIMITS.foreign, (v) => `${v} de la figura es de un tono que el personaje no tiene (amarillo, verde, naranja, tonos de piel)`),
+    ]) {
+      if (chk) checks.push(chk);
+    }
+    const raw = input.rawRed[k] ?? 0;
+    if (raw > LIMITS.rawRed.warn) checks.push({ id: 'sheet-red', level: 'warn', text: `${pct(raw)} de la pose en la hoja entregada es rojo: el recorte deja fuera la energía roja, así que una hoja o un miembro dibujado en rojo puede haber perdido su color — mira la hoja de contacto` });
+
+    const body = bodyOf(frame, 3);
+    const mass = body ? { x: body.cx, y: body.cy } : null;
+    let massStep: number | null = null;
+    if (prev && prev.mass && mass) {
+      massStep = Math.hypot(mass.x - prev.mass.x, mass.y - prev.mass.y) / canvas.artPxPerMeter;
+      if (massStep > LIMITS.massStep.fail) checks.push({ id: 'mass', level: 'fail', text: `el centro de masa del cuerpo salta ${massStep.toFixed(2)} m respecto al fotograma anterior` });
+      else if (massStep > LIMITS.massStep.warn) checks.push({ id: 'mass', level: 'warn', text: `el centro de masa del cuerpo salta ${massStep.toFixed(2)} m respecto al fotograma anterior (un paso grande para un fotograma)` });
+    }
+    if (prev && prev.frame.data.length === frame.data.length && prev.frame.data.every((v, i) => v === frame.data[i])) checks.push({ id: 'repeat', level: 'warn', text: 'idéntico al fotograma anterior (repetir una pose no aporta nada)' });
+
+    let blade: number | null = null;
+    if (request.sword) {
+      const p = input.anchors.get(name);
+      if (!p) checks.push({ id: 'sword', level: 'fail', text: input.anchorProblems.find((t) => t.startsWith(`${name}:`)) ?? 'sin anclas para este fotograma: la espada necesita su empuñadura y su punta (anchors.json)' });
+      else {
+        blade = Math.hypot(p.tip[0] - p.grip[0], p.tip[1] - p.grip[1]) / canvas.artPxPerMeter;
+        if (blade < LIMITS.blade.min || blade > LIMITS.blade.max) checks.push({ id: 'sword', level: 'fail', text: `de la empuñadura a la punta hay ${blade.toFixed(2)} m; la hoja del juego mide 0.93 m (se admite ${LIMITS.blade.min}–${LIMITS.blade.max} m)` });
+        const g = distanceToFigure(frame, p.grip, LIMITS.anchorOnFigure + 1);
+        const t = distanceToFigure(frame, p.tip, LIMITS.anchorOnFigure + 1);
+        if (g > LIMITS.anchorOnFigure) checks.push({ id: 'sword', level: 'fail', text: `el ancla de la empuñadura (${p.grip.join(', ')}) no está sobre la figura` });
+        if (t > LIMITS.anchorOnFigure) checks.push({ id: 'sword', level: 'fail', text: `el ancla de la punta (${p.tip.join(', ')}) no está sobre la figura` });
+      }
+    }
+    out.push({ name, role: spec.role, phase: spec.phase, bounds: b, margin, heightM, widthM, eye, eyeDeviation, mass, massStep, clean, blade, checks, level: worst(checks.map((x) => x.level)) });
+    prev = { frame, mass };
+  });
+
+  const clip: Check[] = [];
+  // what the blow must DO (the second blow comes up, the blow in the air comes down): read off the anchors, in metres above the pivot, as the end-to-end scenario reads it off the game
+  const phases = request.manifest.phases;
+  if (request.sword && phases && request.intent && input.names.every((n) => input.anchors.has(n))) {
+    const height = (a: number, b: number): number[] => input.names.slice(a, b + 1).map((n) => (canvas.pivot[1] - input.anchors.get(n)!.tip[1]) / canvas.artPxPerMeter);
+    const startup = height(...phases.startup);
+    const active = height(...phases.active);
+    if (request.intent.tipRises !== undefined) {
+      const rise = Math.max(...active) - Math.min(...startup);
+      if (rise < request.intent.tipRises) clip.push({ id: 'intent', level: 'fail', text: `el segundo golpe tiene que SUBIR (la punta, al menos ${request.intent.tipRises} m entre la preparación y la fase activa) y sube ${rise.toFixed(2)} m: ¿es el golpe que pide el encargo (un corte ascendente, de abajo y atrás a arriba y delante)?` });
+    }
+    if (request.intent.tipDrops !== undefined) {
+      const drop = Math.max(...startup) - Math.min(...active);
+      if (drop < request.intent.tipDrops) clip.push({ id: 'intent', level: 'warn', text: `el tajo en el aire tiene que BAJAR (la punta, al menos ${request.intent.tipDrops} m entre la preparación y la fase activa) y baja ${drop.toFixed(2)} m: ¿es el golpe que pide el encargo?` });
+    }
+  }
+  if (scaling.how === 'eye' && scaling.factor > 1) {
+    clip.push({ id: 'resolution', level: scaling.factor > 2 ? 'fail' : 'warn', text: `la imagen entregada es MÁS PEQUEÑA que los fotogramas (la escala es ×${scaling.factor.toFixed(2)}): sus píxeles se agrandan y el dibujo se ve borroso — pide una hoja de al menos el doble de tamaño que los fotogramas` });
+  }
+  if (eyeMedian !== null && scaling.target !== null && Math.abs(eyeMedian - scaling.target) / scaling.target > tolerance) {
+    clip.push({ id: 'neighbour', level: 'warn', text: `el ojo grande del clip mide ${eyeMedian.toFixed(1)} px y el de su vecino en el juego ${scaling.target.toFixed(1)} px (${pct(Math.abs(eyeMedian - scaling.target) / scaling.target)} de diferencia)` });
+  }
+  return { frames: out, checks: clip, eye: eyeMedian, level: worst([...out.map((f) => f.level), ...clip.map((c) => c.level)]) };
+}

@@ -4,7 +4,7 @@
 >
 > **Aviso, sin letra pequeña:** **en el repositorio no hay arte real del protagonista** (ni de nada). Todo lo que se dibuja hoy sale de generadores procedurales (un atlas de *canvas*). Este pipeline existe para que, cuando llegue el arte real **del usuario**, entre **sin tocar el gameplay**. **No se ha generado, redibujado ni imitado el protagonista**, y nada de este documento lo hace (§A.12).
 
-> **Actualización (Prompts 8 y 9):** el aviso de arriba es el del Prompt 7. Desde entonces el repositorio **sí** tiene el protagonista del usuario (su hoja de poses, guardada bit a bit; partes **L** y **N**: de la hoja a 114 fotogramas movidos por un rig, **sin dibujar nada**) y un escenario, un jefe, un enemigo y unos efectos **pintados por código** (parte **M**, provisionales). `npm run assets:missing` dice qué falta en cada momento.
+> **Actualización (Prompts 8, 9 y 10):** el aviso de arriba es el del Prompt 7. Desde entonces el repositorio **sí** tiene el protagonista del usuario (su hoja de poses, guardada bit a bit; partes **L** y **N**: de la hoja a 114 fotogramas movidos por un rig, **sin dibujar nada**) y un escenario, un jefe, un enemigo y unos efectos **pintados por código** (parte **M**, provisionales). `npm run assets:missing` dice qué falta en cada momento. **Parte O (Prompt 10): lo que falta son 46 dibujos en 10 clips; no había generador de imágenes, así que no se dibujó nada, y lo que hay es el kit para pedirlos y la herramienta que los recibe, comprueba e integra.**
 
 ---
 
@@ -1550,3 +1550,137 @@ Sale de ahí lo que **no se puede hacer**, y se dice ya: **no hay cruce de piern
 5. **El peso de la hoja del héroe** (N.7): +1.4 MB en el camino crítico del arranque y 7 MiB decodificados; la salida buena es partir el atlas por frecuencia de uso (idle, marcha, salto y golpe primero; el resto, cuando el telón ya se levantó), que **necesita que el motor sepa completar un *sprite set* con arte que llega después**. Y la variante de **media resolución** del paquete (el contrato la admite; ninguno la tiene).
 6. **No se ha visto en un dispositivo real.** Todo se midió en Chromium sin cabeza con GL por software: la fluidez a 60 fps con 114 fotogramas, la decodificación de una página de 1344² en un teléfono viejo y la **sensación** de las animaciones (el peso del golpe, el ritmo de la marcha) **necesitan ojos en un teléfono**. Lo que **sí** está medido es lo contable: qué fotograma se enseña en qué tick, cuánto dura cada clip y que la simulación no sabe nada de él.
 7. **La espada.** Es la que dibujó el usuario y **no se ha tocado**: en el dibujo del tajo es **larga** (casi tan larga como la figura es alta) y el encargo la describe **pequeña**. Si el diseño la quiere más pequeña, lo decide quien posee el diseño y se **vuelve a dibujar**: acortarla con código sería cambiar el dibujo.
+
+---
+
+# Parte O — La recepción de los dibujos nuevos del protagonista (Prompt 10)
+
+> **Estado, sin letra pequeña.** El Prompt 10 pedía **producir los dibujos que faltan**. **En el entorno no había ninguna herramienta de generación de imágenes** (solo ImageMagick y `ffmpeg`, que editan pero no inventan; ni GPU, ni credenciales de ningún servicio; los generadores de terceros que ofrece el catálogo de *plugins* no están activados y usarlos habría subido tus dibujos a un tercero sin que lo hubieras decidido). La regla del encargo es explícita —no sustituir lo que falta por polígonos, siluetas dibujadas con código ni más deformaciones de las mismas poses— y se ha cumplido: **no se ha dibujado nada y ningún clip ha dejado de ser un *stand-in*** (9 de los 18 siguen siéndolo, y `walk` sigue siendo un único dibujo deformado). Lo que sí se ha hecho es lo que hace falta para que, **el día que haya dibujos, entren en minutos y sin discutir nada**: el **kit** (qué dibujar, con qué referencias, con qué *prompt*) y la **herramienta de recepción** (recorta, escala, coloca, comprueba, enseña y, solo con tu aceptación, integra por `delivered`). Los dos están probados con lo único que hay: una hoja **de autoprueba** hecha con los fotogramas que el juego ya tiene, y la hoja real del usuario.
+
+## O.1 Lo que falta, exactamente: 46 PNG en 10 clips
+
+El orden de producción es el del encargo (A→J). Los nombres son los del *pipeline* (`CLIP_ORDER`): el encargo decía `attackAir` y `attackCrouch`; los clips se llaman `aerialAttack` y `crouchAttack` (el manifiesto acepta los dos nombres, pero el generador y `delivered` usan estos). Los fotogramas son `<clip>_NN.png`, 280 × 230, RGBA, transparente, pivote (120, 192), 65 px/m.
+
+| | Clip | PNG | Fotogramas (papel) | Reloj | Hoy |
+|---|---|---|---|---|---|
+| A | `dash` | 3 | `dash_00` lanzarse · `01` estirarse · `02` frenar | 18 fps, 0.167 s (los 10 ticks del *dash*) | la carrera lanzada |
+| B | `attack2` | 7 | `attack2_00` enroscarse · `01` carga · `02` el corte · `03` fin del corte · `04` seguir el golpe · `05` recuperar · `06` asentarse | 28 fps; fases 0–1 / 2–3 / 4–6 (3·3·11 ticks) | el primer tajo girado al revés |
+| C | `crouch` | 2 | `crouch_00` asentada · `01` respiración | 2 fps, bucle | el aterrizaje sostenido |
+| D | `crouchWalk` | 4 | `crouchWalk_00` contacto A · `01` paso A · `02` contacto B · `03` paso B | 10 fps, bucle (0.4 s) | la agachada «a pasitos» |
+| E | `walk` | 6 | `walk_00` contacto A · `01` bajada A · `02` paso A · `03` contacto B · `04` bajada B · `05` paso B | 12 fps, bucle (0.5 s) | el dibujo 2 deformado (sin cruce de piernas) |
+| F | `aerialAttack` | 6 | `aerialAttack_00` recogida · `01` preparación · `02` empieza el tajo · `03` el tajo · `04` seguir el golpe · `05` listo para caer | 26 fps; fases 0–1 / 2–3 / 4–5 (3·4·9) | el primer tajo con las piernas recogidas |
+| G | `crouchAttack` | 6 | `crouchAttack_00` desde la agachada · `01` enroscarse · `02` barrido · `03` fin del barrido · `04` seguir el golpe · `05` asentarse | 26 fps; fases 0–1 / 2–3 / 4–5 (4·3·9) | el primer tajo bajado |
+| H | `death` | 5 | `death_00` golpeado · `01` lanzado atrás · `02` cayendo · `03` impacto · `04` tumbado | 7 fps, una vez (0.71 s) | el golpe tumbado |
+| I | `drink` | 4 | `drink_00` sacar · `01` alzar · `02` beber · `03` repuesto | 10 fps, una vez (0.4 s, el canal de 24 ticks) | de pie haciendo un gesto |
+| J | `interact` | 3 | `interact_00` inclinarse · `01` tocar · `02` retirarse | 15 fps, una vez (0.2 s) | de pie, inclinado |
+
+Cada fila tiene todo lo demás (descripción de cada pose en inglés y en español, límites de tamaño, qué dibujo del usuario sirve de referencia —y cuáles solo de actitud—, qué fija el juego) en `art/player/requests/requests.json`. **Los tiempos de los clips nuevos conservan la duración que el juego da a la acción** (`heroAnimation.test.ts` ya lo comprueba sobre lo versionado: cuando un clip se entregue, esa prueba lo comprueba también).
+
+## O.2 El kit: `art/player/requests/`
+
+Se escribe con `npm run assets:intake -- kit` **desde datos** (`requests.json` + tu hoja + los fotogramas del juego) y `kit --check` dice si lo versionado es lo que producen (hay una prueba): nadie edita un *brief* a mano. Contiene:
+
+- **`README.md`** — los tres pasos, la tabla de los clips y lo que no se hace.
+- **`character-reference.png`** — el tablero del personaje (los dibujos 1, 2, 7 y 12 de tu hoja, **recortados sin tocar**) para adjuntar a **toda** petición.
+- **`<clip>/reference.png`** — el tablero del clip: tus dibujos que importan para él (los que no valen se rotulan «ATTITUDE ONLY» y se ven en rojo) y los fotogramas vecinos del juego, con rótulo.
+- **`<clip>/brief.md`** — por qué hace falta, la tabla de fotogramas, qué fija el juego, la colocación, la espada, el tamaño, **el *prompt* listo para pegar (inglés, que es lo que leen los generadores, y su gemelo en español)**, el *prompt* negativo y los requisitos técnicos de integración.
+- **`canvas-template.png`** y **`canvas-template-idle.png`** — el lienzo a 4× con el suelo, el pivote, las alturas de pie (1.7 m) y agachado (1.0 m) y el margen: guías de composición, **no arte**.
+
+El *prompt* está escrito para **no inventar**: describe el diseño con lo medido en los fotogramas (cabeza ≈ 55–60 % de la altura, ojos con tres reflejos, antenas finas, paleta en hexadecimal), prohíbe lo humano, el rojo y todo efecto (el juego pone los suyos, cian) y pide una hoja con huecos anchos entre poses y **todas a la misma escala**.
+
+## O.3 La recepción: operaciones técnicas, nada más
+
+```
+art/player/inbox/<clip>/sheet.png  (o un PNG por pose, o fotogramas ya de 280 × 230)
+   │  npm run assets:intake -- <clip>
+   ▼
+cutSheet        la hoja → las poses: fondo transparente (el alfa, o lo que no es el color del borde), las piezas unidas por un radio (una
+   │            antena o una hoja que no toca a la figura se queda con ella), las motas < 3 % descartadas; si no salen EXACTAMENTE las poses
+   │            pedidas, error con lo que encontró y un dibujo (`segmentation.png`): no adivina dónde acaba una pose y empieza otra. Después, `extractPose`
+   │            (poses.ts, el mismo recorte que ya se usó con tu hoja: sombras de suelo, líneas, rojo de efecto fuera, el borde suave sin resto de blanco)
+   ▼
+chooseScale     UN factor para toda la hoja: la mediana del ojo grande de sus poses → la del clip vecino del juego (`scaleLike`)
+   ▼
+placeFrame      escala y remuestrea UNA vez (el renderizador del Prompt 9, muestreo por área); el centro de masa del cuerpo (sin espada,
+   │            antenas ni capa) en la columna 120; lo más bajo de la figura en la fila 192 (o el centro de masa a 1.0 m del pivote si el cuerpo está en el aire)
+   ▼
+judgeFrames     las medidas (O.5) → `ok` / `warn` / `fail` por fotograma y por clip
+   ▼
+contact.png · anchors-grid.png · report.md · report.json · frames/*.png      en art/player/inbox/_reports/<clip>/
+```
+
+**Lo que NO hace, nunca:** pintar, recolorear, redibujar, **espejar para fabricar una pose**, suavizar más allá del remuestreo de la escala, ni «arreglar» un dibujo que no se parece al personaje: **si no se parece, se pide de nuevo**. Módulos: `figure.ts` (lo que se puede medir de una figura: el ojo, el cuerpo, la limpieza), `intake.ts` (el recorte, la escala, la colocación, el juicio y las anclas: puro), `intakeReport.ts` (las imágenes y el informe), `intakeRun.ts` (los archivos: preparar, aceptar, estado), `heroRepo.ts` (dónde vive el protagonista), `kit.ts` y `bitmapFont.ts` (el kit y su tipografía de 5 × 7, sin ningún archivo de fuente ni programa de imágenes: los mismos bytes en cualquier máquina).
+
+## O.4 La escala: por el ojo, y por qué no hay una constante
+
+Una hoja generada trae su propio tamaño en píxeles; lo único del personaje que **no depende de la pose** es el **ojo grande** (un blob redondo cian y azul pálido **con sus reflejos blancos**). `eyeDiameter` lo mide con una apertura morfológica cuyo radio sigue el tamaño de la figura (las líneas finas de la armadura desaparecen, el ojo se queda) y exige que sea compacto, casi redondo y con reflejo; **se midió en los 114 fotogramas** y lo encuentra en todos menos en los cinco de la muerte donde la luz se apaga.
+
+Lo que esa medición enseñó: **los dibujos del usuario no están a una escala común.** El ojo mide **25.1 px** en el idle, 24.2 en la marcha, 23.1 en la carrera, 20.3–22.0 en los tajos, 19.5 en la agachada, 18.7–19.4 en el aterrizaje y **16.9 en la caída** (en la hoja, 33.8–50.4 px según la pose). Por eso **no hay una constante**: cada clip nuevo se lleva a lo que miden los fotogramas del clip con el que se encadena en el juego (`scaleLike` en `requests.json`):
+
+| Clip nuevo | se iguala a | porque |
+|---|---|---|
+| `dash` | `run` | se entra al *dash* desde la carrera |
+| `attack2`, `aerialAttack` | `attack1` | misma familia de golpes con espada |
+| `crouch`, `crouchWalk`, `crouchAttack`, `walk`, `drink`, `interact` | `idle` | la cabeza no cambia de tamaño al agacharse, y se entra y sale de ellos parado |
+| `death` | `hurt` | se muere desde el golpe |
+
+El factor es **uno por hoja**: las poses conservan los tamaños relativos que les dio quien las dibujó. Lo que se mide después, sobre los fotogramas ya hechos, es que **ninguna pose se aparte del ojo mediano del clip** más de ±14 % (aviso) o el doble (fallo): una pose dibujada a otra escala. Si el ojo no se puede medir (un generador que lo dibuja distinto), `--scale <k>` da el factor a mano.
+
+## O.5 Qué se comprueba, con qué umbrales — y qué NO se puede comprobar
+
+Los umbrales están en una sola tabla (`LIMITS` en `intake.ts`), **calibrados contra los 114 fotogramas del juego**, que pasan con mucho margen (halo ≤ 1.2 %, piezas sueltas 0 %, rojo ≤ 0.45 % —el borde rojo oscuro de la espada—, color ajeno ≤ 0.07 %; `figure.test.ts` lo fija):
+
+| Comprobación | Aviso | Fallo |
+|---|---|---|
+| **Halo** (borde suave gris pálido: el resto del fondo blanco) | > 6 % | > 15 % |
+| **Piezas sueltas** (motas, una segunda figura) | > 0.4 % | > 2.5 % |
+| **Rojo de efecto** en la figura (el personaje no tiene; los arcos de tus dibujos 8–10 son lo que hay que evitar) | > 1 % | > 3 % |
+| **Color ajeno** (amarillo, verde, naranja, tonos de piel) | > 1 % | > 4 % |
+| **Rojo en la hoja entregada** que el recorte deja fuera (una hoja o un miembro dibujado en rojo pierde su color) | > 2 % | — |
+| **Escala entre poses** (ojo contra la mediana del clip) | > 14 % | > 28 % |
+| **Salto del centro de masa** entre fotogramas | > 0.55 m | > 1.2 m |
+| **Tamaño** frente a lo que dice el encargo del clip | fuera | > 30 % fuera |
+| **Margen** al borde del lienzo (contrato: ≥ 4 px) · la figura **no cabe** | — | sí |
+| **Resolución**: la imagen entregada es más pequeña que los fotogramas (se agranda y se ve borrosa) | factor > 1 | factor > 2 |
+| **Suelo**: lo más bajo de la figura queda más de 8 px bajo lo más bajo del cuerpo (una hoja o una mano baja de los pies: los pies pueden flotar) | sí | — |
+| **Fotograma repetido** | sí | — |
+| **Espada**: anclas en cada fotograma; hoja de 0.6 a 1.3 m (la del juego mide 0.93); empuñadura y punta a ≤ 4 px de la figura | — | cualquiera |
+| **Intención del golpe** (con las anclas, en metros sobre el pivote): el **segundo golpe SUBE** —la punta sube ≥ 0.4 m entre la preparación y la fase activa, que es lo que exige el escenario E2E `player-anim`—; el **tajo en el aire BAJA** ≥ 0.4 m (`requests.json`, `intent`) | el tajo en el aire no baja | el segundo golpe no sube |
+
+**Lo que la herramienta NO puede juzgar, y juzga una persona mirando `contact.png`:** que es **el MISMO personaje** (los ojos con sus tres reflejos, las antenas finas, la cresta, la armadura), que **no hay partes duplicadas ni miembros imposibles**, que **la espada está en la mano derecha**, que **la acción se lee** a tamaño de juego y que **no hay un diseño nuevo** (pelo, máscara, ropa). Por eso `--accept` solo acepta **lo que enseñó el último informe**: si la entrega cambió desde entonces (otra hoja, otras anclas), pide mirar de nuevo.
+
+**`contact.png`** es la hoja de contacto comparativa del encargo: **1** los originales (tus dibujos, intactos, y los fotogramas vecinos del juego) · **2** cada pose nueva a ×2 sobre fondo oscuro (para que un halo claro se vea), con su veredicto en una banda de color y, en los golpes, la empuñadura (amarillo) y la punta (magenta) · **3** la secuencia a 1:1 sobre la línea del suelo y la columna del pivote, **contra la que el juego tiene hoy** · **4** el tamaño real de juego junto al clip vecino.
+
+## O.6 La espada: las anclas
+
+Los golpes (`attack2`, `aerialAttack`, `crouchAttack`) necesitan en cada fotograma `hand_r`, `weapon_grip`, `weapon_tip`, `hit_origin` y `vfx_origin` (el validador del contrato los exige). La herramienta no puede **ver** la hoja (es oscura y está pegada a un cuerpo oscuro), así que **una persona lee dos puntos por fotograma** —la empuñadura y la punta— sobre `anchors-grid.png` (cada fotograma a ×4 con una cuadrícula en píxeles del lienzo, cada 10 y rotulada cada 20) y los escribe en `art/player/inbox/<clip>/anchors.json` (`{"attack2_00": {"grip": [x, y], "tip": [x, y]}, …}`; la herramienta deja una plantilla). Ella calcula el resto **con las proporciones del rig del primer tajo**: la mano **es** la empuñadura, `vfx_origin` a 0.48 y `hit_origin` a 0.85 del camino hacia la punta, todo en metros desde el pivote (+x adelante, +y arriba). Y comprueba que cada punto cae sobre la figura y que la hoja mide lo que debe.
+
+## O.7 Integrar: `--accept`
+
+`npm run assets:intake -- <clip> --accept` se **niega** si hay un fallo, si lo que se acepta no es exactamente lo que enseñó el último informe (los *hashes* de los fotogramas y de las anclas), o si el clip **ya estaba entregado** (los dibujos aprobados no se sobrescriben: hace falta `--replace`, a propósito). Si acepta:
+
+1. borra los fotogramas del *stand-in* (los del generador) y escribe los nuevos en `art/player/hero/`;
+2. escribe la entrada del clip en `art/player/player.pack.json` (`frames`, `count`, `fps`, `loop`, `phases`, `tags` **sin** `stand-in`, `comment`) y, si lleva espada, las anclas de cada fotograma;
+3. añade el clip a `"delivered"` en `hero.rig.json` (con una edición de texto: el resto del archivo, escrito a mano, no se toca);
+4. **vuelve a ejecutar el generador** (que deja el clip en paz) y exige que `assets:animate --check` no encuentre **ninguna diferencia**;
+5. pasa **las mismas comprobaciones que cualquier arte** (`buildArt` sin escribir: contrato del *sprite set*, espada, fases, escala…) sobre todo `art/`;
+6. marca el clip como `delivered` en `requests.json` y reescribe el kit (el clip ya no se pide: su carpeta y su fila desaparecen);
+7. archiva la hoja de la que salió, sus anclas, el ajuste de colocación y el informe en **`art/player/source/delivered/<clip>/`** (lo versionado es producto de una hoja, no de una mano);
+8. empaqueta `public/art/` (`npm run assets:pack`).
+
+Si **cualquier** paso falla después de escribir el primer archivo, **se devuelven todos los archivos tocados a como estaban** (lo prueba un test que sabotea el generador). Las pruebas que describían el estado de los *stand-ins* (`heroAnimation`, `artRepo`, `heroPlayback`, el escenario `player-anim`) **leen ahora la lista `delivered` y el manifiesto** en lugar de contarlos de memoria: aceptar un clip no deja la batería en rojo.
+
+## O.8 Probado, y con qué
+
+Con lo único que hay —**no hay dibujos nuevos**—:
+
+- **La hoja real del usuario** (`hero-sheet.png`, tres filas, sombras, líneas de velocidad, polvo y energía roja): `cutSheet(hoja, 12)` devuelve **las 12 poses, en el orden de la hoja, en 1 s**, y mide el ojo grande en las 12 (`docs/img/prompt10/cut-of-the-real-sheet.png`).
+- **Una hoja de autoprueba** hecha con los fotogramas `attack2_00…06` **del propio juego** (los del *stand-in* del segundo golpe), ampliados ×3 sobre blanco con sombras de suelo: se recorta, se escala **por el ojo** (factor **0.3326** cuando la hoja se había ampliado ×3, es decir 0.3333: el 0.2 % de error de medir el ojo en una hoja grande y en un fotograma pequeño) y se coloca; las figuras reconstruidas coinciden con las originales con **IoU 0.93–0.97** tras alinear sus centros de masa, y la herramienta **avisa exactamente en los dos fotogramas donde la hoja de la espada baja por debajo de los pies** (la preparación, con la hoja cerca del suelo: 23 y 32 px bajo el cuerpo). **No es arte nuevo y la imagen lo dice:** `docs/img/prompt10/self-test-contact-sheet.png`.
+- **Pruebas** (`figure.test.ts`, `intake.test.ts`: 42): el ojo y la calibración contra los 114 fotogramas; el recorte (orden, sombras, hoja transparente, poses que se tocan, fondo oscuro, PNG sueltos); la escala y la colocación; cada fallo hecho a propósito sobre un fotograma bueno (halo, rojo, mota, color ajeno, otra escala, no cabe, repetido, salto, espada); las anclas; la bandeja; `delivered` en el rig; y **una entrega entera en una copia del repositorio**: informe → rechazo sin anclas → rechazo si cambió → aceptación → el generador y las comprobaciones de arte no encuentran nada → archivo → se niega a sobrescribir → **reversión** cuando el generador falla.
+
+## O.9 Lo que sigue, y lo que sigue sin resolver
+
+1. **Los 46 dibujos.** Una generación por clip (10), con el `brief.md` de cada uno, adjuntando `reference.png`, `character-reference.png` y el retrato. Quien los genere puede ser un artista o un generador que acepte imágenes de referencia; **cualquier servicio de terceros recibiría tus dibujos, y eso lo decides tú**. Después, `npm run assets:intake -- <clip>` y mirar `contact.png`.
+2. **Dos decisiones de diseño que el encargo no cierra.** (a) La hoja de la espada: en tus dibujos 7/8 el filo es **rojo** y en el 12 **cian**; los *prompts* piden el filo de la referencia (el del dibujo 7/12: lo que ya tiene el juego, con un borde rojo oscuro finísimo) y **ningún rojo de efecto**; si quieres el filo cian, hay que decirlo antes de generar. (b) La espada es **larga** en los dibujos (0.93 m) y el encargo la llama pequeña: acortarla con código sería cambiar el dibujo.
+3. **La marcha (`walk`)**: es el único clip con dibujo propio que también se pide (6 poses de las piernas); la herramienta la recibe como cualquier otra y exigirá pies sobre la línea del suelo en cada pose.
+4. **Nada visto en un dispositivo real.** La recepción no cambia el juego (el motor, el cargador, el atlas y las reglas son los del Prompt 9); cuando entren dibujos, el peso del atlas del héroe cambiará (PROMPT10-LOG §E: 95 fotogramas en vez de 114) y habrá que medirlo de nuevo.

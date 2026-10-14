@@ -130,7 +130,7 @@ export const playerAnim: Scenario = {
     const walking = seq.filter((x) => x.anim === 'walk');
     assert.ok(walking.length >= 28, `a half push walks (${walking.length} of 36 ticks)`);
     drawnByItsClip(walking, 'walk');
-    assert.ok(framesIn(walking, 'walk').length >= 6 && cyclesInOrder(framesIn(walking, 'walk'), CLIPS['walk']!.count), `the walk turns over its frames in order: ${framesIn(walking, 'walk').join(' ')}`);
+    assert.ok(framesIn(walking, 'walk').length >= Math.min(6, CLIPS['walk']!.count) && cyclesInOrder(framesIn(walking, 'walk'), CLIPS['walk']!.count), `the walk turns over its frames in order: ${framesIn(walking, 'walk').join(' ')}`);
     await ctx.shot('a-02-walk');
 
     await release(ctx, 'ControlLeft'); // a full push: the run
@@ -179,7 +179,7 @@ export const playerAnim: Scenario = {
     const dashing = seq.filter((x) => x.anim === 'dash');
     assert.ok(dashing.length >= 8, `a dash is ticks of dash (${dashing.length})`);
     drawnByItsClip(dashing, 'dash');
-    assert.deepEqual(framesIn(dashing, 'dash'), [0, 1, 2, 3], 'the dash plays its four frames in order');
+    assert.deepEqual(framesIn(dashing, 'dash'), [...Array(CLIPS['dash']!.count).keys()], 'the dash plays every frame of its clip, in order');
     assert.ok(dashing.every((x) => x.facing === seq[0]!.facing), 'a dash keeps the way the hero faces');
     await ctx.step(50);
 
@@ -243,13 +243,13 @@ export const playerAnim: Scenario = {
     const crouched = seq.filter((x) => x.anim === 'crouch');
     assert.ok(crouched.length >= 30, 'down is a crouch');
     drawnByItsClip(crouched, 'crouch');
-    assert.ok(framesIn(crouched, 'crouch').length >= 3, 'the crouch breathes');
+    assert.ok(framesIn(crouched, 'crouch').length >= Math.min(3, CLIPS['crouch']!.count), 'the crouch breathes');
     await hold(ctx, 'KeyD');
     seq = await run(ctx, 36);
     const crawling = seq.filter((x) => x.anim === 'crouchWalk');
     assert.ok(crawling.length >= 28, `down and forward is a crawl (${crawling.length})`);
     drawnByItsClip(crawling, 'crawl');
-    assert.ok(cyclesInOrder(framesIn(crawling, 'crouchWalk'), CLIPS['crouchWalk']!.count) && framesIn(crawling, 'crouchWalk').length >= 5, `the crawl turns over its frames: ${framesIn(crawling, 'crouchWalk').join(' ')}`);
+    assert.ok(cyclesInOrder(framesIn(crawling, 'crouchWalk'), CLIPS['crouchWalk']!.count) && framesIn(crawling, 'crouchWalk').length >= Math.min(5, CLIPS['crouchWalk']!.count), `the crawl turns over its frames: ${framesIn(crawling, 'crouchWalk').join(' ')}`);
     await release(ctx, 'KeyD');
     await run(ctx, 20);
     seq = await tap(ctx, 'KeyJ');
@@ -305,7 +305,7 @@ export const playerAnim: Scenario = {
     const dead = seq.filter((x) => x.anim === 'death');
     assert.ok(dead.length >= 70, `a hit that takes the last of the life is a death (${collapse(seq.map((x) => x.anim)).join(' → ')})`);
     drawnByItsClip(dead, 'death');
-    assert.deepEqual(framesIn(dead, 'death'), [...Array(CLIPS['death']!.count).keys()], 'the death plays its nine frames in order');
+    assert.deepEqual(framesIn(dead, 'death'), [...Array(CLIPS['death']!.count).keys()], 'the death plays every frame of its clip, in order');
     assert.equal(dead[dead.length - 1]!.frame, 'death_08', 'and the hero lies on the last, until the screen takes over');
     await ctx.shot('e-02-death');
 
@@ -318,7 +318,7 @@ export const playerAnim: Scenario = {
     const touched = seq.filter((x) => x.anim === 'interact');
     assert.equal(touched.length, 12, 'an interaction holds the hero for its twelve ticks');
     drawnByItsClip(touched, 'interact');
-    assert.deepEqual(framesIn(touched, 'interact'), [0, 1, 2, 3], 'the interaction plays its four frames, once, in order');
+    assert.deepEqual(framesIn(touched, 'interact'), [...Array(CLIPS['interact']!.count).keys()], 'the interaction plays every frame of its clip, once, in order');
     await ctx.shot('e-03-interact');
 
     // ===================================================================================================== F · the looks, and the simulation that does not know

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -53,6 +53,15 @@ const CLIPS = {
   interact: { frames: 4, loop: false, standIn: true },
 } as const;
 type ClipId = keyof typeof CLIPS;
+
+/**
+ * The clips an artist drew anew and handed over (`delivered` in the rig; none until a delivery is accepted with `npm run assets:intake -- <clip> --accept`): the generator makes none of their
+ * frames, so what it guarantees of its own clips (the feet on the pivot to the pixel, an eye that never changes size) is not asked of them — the reception judges them (tools/assets/intake.ts),
+ * and the clip's entry, its frames and its anchors are checked below and by `assets:check`.
+ */
+const HANDED = new Set(rig.delivered ?? []);
+const GENERATED = (Object.entries(CLIPS) as Array<[ClipId, (typeof CLIPS)[ClipId]]>).filter(([id]) => !HANDED.has(id));
+const generated = (ids: readonly ClipId[]): ClipId[] => ids.filter((id) => !HANDED.has(id));
 
 /** Frames of the clips that stand on the ground: their lowest pixel is ON the pivot's row, in every frame (a clip that floats or sinks is a position jump at the cut). */
 const GROUNDED: readonly ClipId[] = ['idle', 'walk', 'run', 'land', 'crouch', 'crouchWalk', 'dash', 'attack1', 'attack2', 'crouchAttack', 'hurt', 'death', 'cast', 'drink', 'interact'];
@@ -163,22 +172,30 @@ describe('the protagonist\'s animation, made from the user\'s sheet', () => {
 
   it('makes the eighteen clips: the fifteen the game asks of it, the landing, the run and the crawl — with the frames the table says', () => {
     expect([...CLIP_ORDER]).toEqual(Object.keys(CLIPS));
-    expect(built.frames.size).toBe(Object.values(CLIPS).reduce((n, c) => n + c.frames, 0));
-    expect(built.frames.size).toBe(114);
+    expect(built.frames.size).toBe(GENERATED.reduce((n, [, c]) => n + c.frames, 0));
+    if (HANDED.size === 0) expect(built.frames.size).toBe(114);
     const sprite = manifestSprite();
-    for (const [id, c] of Object.entries(CLIPS)) {
+    for (const [id, c] of GENERATED) {
       const m = sprite.clips[id]!;
       expect(m, id).toBeDefined();
       expect({ id, count: m.count, loop: m.loop, prefix: m.frames }).toEqual({ id, count: c.frames, loop: c.loop, prefix: `${id}_` });
       for (let k = 0; k < c.frames; k++) expect(built.frames.has(`${id}_${pad2(k)}`), `${id}_${pad2(k)}`).toBe(true);
     }
     expect(Object.keys(sprite.clips)).toHaveLength(18);
+    // the clips handed over: an entry that says how many frames, and every one of them committed; no leftover of the clip it replaced
+    for (const id of HANDED) {
+      const m = sprite.clips[id]!;
+      expect(m, `${id} was handed over: the manifest has its entry`).toBeDefined();
+      expect(m.tags.includes('stand-in'), `${id}: a clip drawn anew is no stand-in`).toBe(false);
+      const files = readdirSync(join(root, 'art', 'player', 'hero')).filter((f) => f.startsWith(m.frames) && /^\d+\.png$/.test(f.slice(m.frames.length)));
+      expect(files.sort(), `${id}: its frames are the ones its entry counts`).toEqual(Array.from({ length: m.count }, (_, k) => `${m.frames}${pad2(k)}.png`));
+    }
   });
 
   it('the design is kept: the big eye keeps its size and its colour in every frame of every clip — the death alone puts it out, on purpose', () => {
     // the blows that lunge squash and stretch the body and, with it, the eye a little more than the rest
     const LUNGE: readonly ClipId[] = ['attack1', 'crouchAttack'];
-    for (const [id, c] of Object.entries(CLIPS) as Array<[ClipId, (typeof CLIPS)[ClipId]]>) {
+    for (const [id, c] of GENERATED) {
       const eyes = Array.from({ length: c.frames }, (_, k) => eyeOf(frameOf(id, k)));
       const first = eyes[0];
       expect(first, `${id}: its first frame has the eye`).not.toBeNull();
@@ -196,7 +213,7 @@ describe('the protagonist\'s animation, made from the user\'s sheet', () => {
   });
 
   it('every clip is really in motion — the most different pair of frames is a good part of the picture — and a loop closes without a jump', () => {
-    for (const [id, c] of Object.entries(CLIPS)) {
+    for (const [id, c] of GENERATED) {
       const frames = Array.from({ length: c.frames }, (_, k) => frameOf(id, k));
       let widest = 0;
       for (let i = 0; i < frames.length; i++) for (let j = i + 1; j < frames.length; j++) widest = Math.max(widest, moved(frames[i]!, frames[j]!));
@@ -214,7 +231,7 @@ describe('the protagonist\'s animation, made from the user\'s sheet', () => {
   it('the feet are on the pivot in every frame of every clip that stands on the ground, and no frame touches the edge of its canvas', () => {
     const sprite = manifestSprite();
     const [, pivotY] = sprite.pivotPx;
-    for (const id of GROUNDED) {
+    for (const id of generated(GROUNDED)) {
       for (let k = 0; k < CLIPS[id].frames; k++) {
         const f = frameOf(id, k);
         let low = -1;
@@ -238,7 +255,7 @@ describe('the protagonist\'s animation, made from the user\'s sheet', () => {
     const restLength = Math.hypot(rest['weapon_tip']![0] - rest['weapon_grip']![0], rest['weapon_tip']![1] - rest['weapon_grip']![1]);
     expect(restLength).toBeGreaterThan(0.9);
     expect(restLength).toBeLessThan(1.0);
-    for (const id of SWORD_CLIPS) {
+    for (const id of generated(SWORD_CLIPS)) {
       for (let k = 0; k < CLIPS[id].frames; k++) {
         const name = `${id}_${pad2(k)}`;
         const a = sprite.frames[name]!.anchors;
@@ -310,12 +327,12 @@ describe('the protagonist\'s animation, made from the user\'s sheet', () => {
 
   it('the stand-ins say so and say why: the sheet has no drawing of their action, and the drawing that moves instead is named', () => {
     const sprite = manifestSprite();
-    for (const [id, c] of Object.entries(CLIPS)) {
+    for (const [id, c] of GENERATED) {
       const m = sprite.clips[id]!;
       expect(m.tags.includes('stand-in'), `${id} stand-in tag`).toBe(c.standIn);
       if (c.standIn) expect(m.comment.length, `${id}: why it is a stand-in`).toBeGreaterThan(30);
     }
-    expect(built.clips.filter((r) => r.standIn).map((r) => r.clip)).toEqual(['crouch', 'crouchWalk', 'dash', 'attack2', 'aerialAttack', 'crouchAttack', 'death', 'drink', 'interact']);
+    expect(built.clips.filter((r) => r.standIn).map((r) => r.clip)).toEqual(['crouch', 'crouchWalk', 'dash', 'attack2', 'aerialAttack', 'crouchAttack', 'death', 'drink', 'interact'].filter((id) => !HANDED.has(id)));
     // the six to validate first, and the four blows carrying the sword
     expect(Object.entries(sprite.clips).filter(([, c]) => c.tags.includes('first')).map(([id]) => id).sort()).toEqual(['attack1', 'dash', 'hurt', 'idle', 'jump', 'walk']);
     expect(Object.entries(sprite.clips).filter(([, c]) => c.tags.includes('sword')).map(([id]) => id).sort()).toEqual([...SWORD_CLIPS].sort());

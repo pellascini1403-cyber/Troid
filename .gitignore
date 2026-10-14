@@ -18,3 +18,7 @@ coverage/
 
 # Screenshots and scratch output produced by tools/e2e
 /.shots/
+
+# The reception of the protagonist's new drawings (`npm run assets:intake`): what is dropped in art/player/inbox/<clip>/ and the reports it writes are local working files;
+# a delivery that is accepted is archived, with its anchors, in art/player/source/delivered/<clip>/ (that one is committed)
+/art/player/inbox/*/
