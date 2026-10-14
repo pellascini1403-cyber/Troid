@@ -211,7 +211,12 @@ export const playerAnim: Scenario = {
       const startupTip = Math.max(...blow.filter((x) => x.phase === 'startup').map(rel));
       const activeTip = Math.min(...blow.filter((x) => x.phase === 'active').map(rel));
       if (state === 'attack') assert.ok(startupTip - activeTip > 0.5, `the first blow comes DOWN: tip ${startupTip.toFixed(2)} m high in the wind-up, ${activeTip.toFixed(2)} m in the cut`);
-      else assert.ok(Math.max(...blow.filter((x) => x.phase === 'active').map(rel)) - Math.min(...blow.filter((x) => x.phase === 'startup').map(rel)) > 0.4, 'the second blow comes UP: from low to high');
+      else {
+        // the second blow SWINGS FORWARD: in the drawings it is a low slash that goes from behind the body (the wind-up) to in front of it (the cut), measured along the way the hero faces
+        const along = (x: Sample): number => (x.tip.x - x.x) * x.facing;
+        const advance = Math.max(...blow.filter((x) => x.phase === 'active').map(along)) - Math.min(...blow.filter((x) => x.phase === 'startup').map(along));
+        assert.ok(advance > 1.0, `the second blow comes FORWARD: the tip travels ${advance.toFixed(2)} m from behind the body in the wind-up to in front of it in the cut`);
+      }
     }
     // the first blow of the chain is drawn by the same clip, up to where the second takes over
     const chained = combo.filter((x) => x.anim === 'attack');

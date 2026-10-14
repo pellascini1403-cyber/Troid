@@ -1,0 +1,41 @@
+{
+  "clip": "crouchWalk",
+  "level": "ok",
+  "inputs": [
+    {
+      "file": "sheet.png",
+      "sha256": "ff53fcc5670da224961ba42bff4fadc253649f44b8ac0b7777856841bde29096"
+    }
+  ],
+  "scale": {
+    "factor": 0.600858,
+    "how": "eye",
+    "proxy": "eye",
+    "target": 25.33,
+    "headTarget": 58.86
+  },
+  "anchors": null,
+  "placement": null,
+  "frames": [
+    {
+      "name": "crouchWalk_00",
+      "sha256": "463403a21192cc9aa6aab7c14b6050aa95f65be5a149fb91ebcd1eb75a5308bd",
+      "level": "ok"
+    },
+    {
+      "name": "crouchWalk_01",
+      "sha256": "a09d0833414d4f8bb3e1dfe076fd305c27699f8f1669c188d61ace46f1a25c6a",
+      "level": "ok"
+    },
+    {
+      "name": "crouchWalk_02",
+      "sha256": "d024e28167dd4bf34e1cf84b021272c8e721c0685068a1f6496c8cfffeec5e6a",
+      "level": "ok"
+    },
+    {
+      "name": "crouchWalk_03",
+      "sha256": "a8cd14629eec226a6a6fdfda2b2e8d34d1b04f27f0fe30c6ff5a2a5d6cff6ba1",
+      "level": "ok"
+    }
+  ]
+}

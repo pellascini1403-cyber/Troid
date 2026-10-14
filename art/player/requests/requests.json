@@ -250,7 +250,7 @@
     "attack2": {
       "group": "B",
       "priority": 1,
-      "status": "requested",
+      "status": "delivered",
       "title": "Attack 2 (second blow of the combo)",
       "titleEs": "Segundo ataque del combo",
       "why": "Hoy es el primer tajo (dibujo 7) girado al revés: un stand-in. El dibujo 8 de la hoja es el segundo tajo, pero la hoja y su arco rojo forman un solo dibujo (y el rojo no es la dirección visual). Hace falta un tajo ASCENDENTE distinto del primero (que baja en estocada), con preparación, corte y recuperación legibles.",
@@ -276,7 +276,7 @@
           ],
           "recovery": [
             4,
-            6
+            4
           ]
         }
       },
@@ -286,8 +286,8 @@
       },
       "sword": true,
       "intent": {
-        "tipRises": 0.4,
-        "es": "el segundo golpe SUBE: la punta de la hoja sube al menos 0.4 m entre la preparación (abajo y atrás) y la fase activa (arriba y adelante)"
+        "tipAdvances": 1,
+        "es": "el golpe AVANZA: la punta de la hoja pasa de detrás del cuerpo (la preparación) a delante de él (la fase activa), al menos 1 m hacia delante"
       },
       "limits": {
         "heightM": [
@@ -296,7 +296,7 @@
         ],
         "widthM": [
           1.5,
-          3.4
+          3.8
         ]
       },
       "references": {
@@ -318,53 +318,62 @@
         {
           "role": "coil",
           "phase": "startup",
-          "en": "COIL (start of the wind-up). Continuing from a low forward lunge: the torso twists back, the sword is swept back and low behind the rear leg in the right hand, the right arm extended backwards, the head still looking forward, the weight on the rear leg.",
-          "es": "ENROSCARSE (empieza la preparación). Viniendo de una estocada baja: el torso gira hacia atrás, la espada se barre atrás y baja, detrás de la pierna trasera, en la mano derecha, el brazo derecho extendido hacia atrás, la cabeza aún mirando al frente, el peso sobre la pierna trasera."
+          "en": "COIL. A low lunge, the torso turned, the sword swept back and low behind the rear leg in the right hand, the head looking forward, the weight on the rear leg.",
+          "es": "ENROSCARSE. Una estocada baja, el torso girado, la espada barrida atrás y baja, detrás de la pierna trasera, en la mano derecha, la cabeza mirando al frente, el peso sobre la pierna trasera."
         },
         {
-          "role": "load",
+          "role": "swing-begins",
           "phase": "startup",
-          "en": "LOAD (the deepest wind-up). The blade at its lowest and furthest back point near the ground behind the character, the body crouched and turned, the front foot lifting to step forward.",
-          "es": "CARGA (lo más hondo de la preparación). La hoja en su punto más bajo y más atrás, cerca del suelo, detrás del personaje, el cuerpo agachado y girado, el pie delantero levantándose para adelantarse."
+          "en": "THE SWING BEGINS. The body drives forward, the blade still behind, and a big cyan arc sweeps across the front of the character (the arc is drawn in the picture).",
+          "es": "EMPIEZA EL GIRO. El cuerpo se lanza adelante, la hoja sigue atrás y un gran arco cian barre por delante del personaje (el arco viene dibujado en la imagen)."
+        },
+        {
+          "role": "swing",
+          "phase": "active",
+          "en": "THE SWING. The body low and stretched forward, the blade behind, the cyan arcs spiralling under and in front of it (drawn in the picture).",
+          "es": "EL GIRO. El cuerpo bajo y estirado hacia delante, la hoja atrás, los arcos cian en espiral por debajo y por delante (dibujados en la imagen)."
         },
         {
           "role": "cut",
           "phase": "active",
-          "en": "THE CUT. The blade sweeps UPWARD and FORWARD through the front of the body at waist-to-shoulder height (a rising diagonal cut), the right arm extended, the torso uncoiling, the front foot planted.",
-          "es": "EL CORTE. La hoja barre HACIA ARRIBA y HACIA DELANTE por delante del cuerpo, a la altura de la cintura al hombro (un corte diagonal ascendente), el brazo derecho extendido, el torso desenroscándose, el pie delantero plantado."
-        },
-        {
-          "role": "cut-end",
-          "phase": "active",
-          "en": "END OF THE CUT. The blade at the top of its arc, extended up and forward above head height, the body stretched tall on the toes, the right arm fully extended.",
-          "es": "FIN DEL CORTE. La hoja en lo alto del arco, extendida arriba y adelante por encima de la cabeza, el cuerpo estirado sobre las puntas de los pies, el brazo derecho del todo extendido."
-        },
-        {
-          "role": "follow-through",
-          "phase": "recovery",
-          "en": "FOLLOW-THROUGH. The blade carries on above and slightly behind the head, the body leaning back a little with the momentum, the front foot sliding.",
-          "es": "SEGUIR EL GOLPE. La hoja sigue por encima y algo detrás de la cabeza, el cuerpo inclinado un poco hacia atrás por el impulso, el pie delantero deslizándose."
-        },
-        {
-          "role": "recover",
-          "phase": "recovery",
-          "en": "RECOVER. The blade comes down in front of the body, the right arm bent, the stance narrowing, the weight returning to the rear foot.",
-          "es": "RECUPERAR. La hoja baja delante del cuerpo, el brazo derecho doblado, la postura cerrándose, el peso volviendo al pie trasero."
+          "en": "THE CUT. The right arm extended forward with the blade horizontal in front at waist height, the legs wide; the other hand holds a second blade behind (both are drawn in the picture).",
+          "es": "EL CORTE. El brazo derecho extendido al frente con la hoja horizontal delante, a la altura de la cintura, las piernas abiertas; la otra mano sostiene una segunda hoja atrás (las dos vienen dibujadas en la imagen)."
         },
         {
           "role": "settle",
           "phase": "recovery",
-          "en": "SETTLE. The neutral combat guard: feet apart, the blade held low in front at the right hip, the body upright and ready to chain another blow.",
-          "es": "ASENTARSE. La guardia de combate neutra: pies separados, la hoja baja delante, junto a la cadera derecha, el cuerpo erguido y listo para encadenar otro golpe."
+          "en": "SETTLE. The guard again: the blade held low behind in the right hand, the body upright and ready to chain another blow.",
+          "es": "ASENTARSE. La guardia otra vez: la hoja baja y atrás en la mano derecha, el cuerpo erguido y listo para encadenar otro golpe."
         }
       ],
       "scaleLike": "attack1",
-      "scaleWhy": "porque el segundo golpe se encadena desde el primer tajo"
+      "scaleWhy": "porque el segundo golpe se encadena desde el primer tajo",
+      "delivery": {
+        "asked": {
+          "frames": 7,
+          "fps": 28,
+          "phases": {
+            "startup": [
+              0,
+              1
+            ],
+            "active": [
+              2,
+              3
+            ],
+            "recovery": [
+              4,
+              6
+            ]
+          }
+        },
+        "note": "la fila 1 de la Hoja 2 trae CINCO dibujos (no siete), así que el golpe es de cinco fotogramas: salida [0, 1], corte activo [2, 3] y recuperación [4]; las fases de la simulación (3 + 3 + 11 ticks) no cambian y cada fase tiene tantos fotogramas como ticks admite. Los arcos cian de los dibujos 2, 3 y 4 vienen dibujados en la propia imagen y se tocan entre sí: la hoja no se puede cortar sola (cutSheet) y cada pose se recortó a mano, sin reescalar, con un rectángulo (los restos de la vecina que cayeron dentro los descarta el recorte como piezas sueltas). El dibujo 4 muestra DOS hojas, una en cada mano: las anclas siguen la de la mano derecha, la de delante. La intención del golpe cambia con los dibujos: se pedía un corte ASCENDENTE (la punta sube ≥ 0.4 m) y el segundo golpe que se dibujó es un tajo hacia delante a ras de suelo (la punta pasa de 1.6 m detrás del pivote a 1.4 m delante), así que la intención pasó de «sube» a «avanza» (≥ 1 m) y el escenario E2E player-anim comprueba eso."
+      }
     },
     "crouch": {
       "group": "C",
       "priority": 1,
-      "status": "requested",
+      "status": "delivered",
       "title": "Crouch (held)",
       "titleEs": "Agachado (mantenido)",
       "why": "Hoy es la agachada del aterrizaje (dibujo 6) sostenida y respirando: un stand-in. Hace falta una agachada de verdad: el cuerpo baja de forma coherente (rodillas dobladas, torso inclinado, cabeza baja), no el dibujo de pie aplastado.",
@@ -387,11 +396,11 @@
       "limits": {
         "heightM": [
           1.1,
-          1.8
+          2.1
         ],
         "widthM": [
           0.9,
-          1.9
+          3
         ]
       },
       "references": {
@@ -421,12 +430,20 @@
         }
       ],
       "scaleLike": "idle",
-      "scaleWhy": "porque la cabeza no cambia de tamaño al agacharse"
+      "scaleWhy": "porque la cabeza no cambia de tamaño al agacharse",
+      "delivery": {
+        "asked": {
+          "frames": 2,
+          "fps": 2,
+          "phases": null
+        },
+        "note": "la hoja trae CUATRO agachadas (fila 1 de la Hoja 3), no dos: se han tomado la 1 (asentada) y la 4 (la misma agachada con el pecho y la cabeza algo más altos, para respirar), que son las más parecidas entre sí (solapamiento de siluetas 0.71 con la cabeza alineada); la 2 y la 3 (más baja, a rastras) quedan en la hoja sin usar. Los dibujos llevan la espada VISIBLE, baja y atrás (el encargo decía «sin espada»): los límites de tamaño se ensancharon a 0.9–3.0 m de ancho y 1.1–2.1 m de alto."
+      }
     },
     "crouchWalk": {
       "group": "D",
       "priority": 2,
-      "status": "requested",
+      "status": "delivered",
       "title": "Crouch walk",
       "titleEs": "Gateo (andar agachado)",
       "why": "Hoy es la agachada del aterrizaje «a pasitos» (deformada): un stand-in. Hace falta un ciclo corto de pasos agachados con las piernas dibujadas.",
@@ -449,11 +466,11 @@
       "limits": {
         "heightM": [
           1.1,
-          1.8
+          2.1
         ],
         "widthM": [
           0.9,
-          2.1
+          3
         ]
       },
       "references": {
@@ -495,22 +512,25 @@
         }
       ],
       "scaleLike": "idle",
-      "scaleWhy": "porque es la misma cabeza que la de la agachada nueva"
+      "scaleWhy": "porque es la misma cabeza que la de la agachada nueva",
+      "delivery": {
+        "note": "los dibujos entregados llevan la espada VISIBLE, baja y atrás (el encargo decía «sin espada»): con la hoja la figura mide hasta 2.8 m de ancho y con las antenas hasta 2.0 m de alto, así que los límites de tamaño se ensancharon a 0.9–3.0 m de ancho y 1.1–2.1 m de alto."
+      }
     },
     "walk": {
       "group": "E",
       "priority": 2,
-      "status": "requested",
+      "status": "delivered",
       "title": "Walk (legs)",
       "titleEs": "Marcha (poses de piernas)",
       "why": "La marcha de hoy es el dibujo 2 deformado: las piernas se turnan pero no se cruzan y los pies resbalan. Hace falta un ciclo de poses COMPLETAS (cuerpo entero, no piezas sueltas) con las piernas dibujadas en cada fase del paso.",
       "gameplay": {
         "seconds": null,
         "ticks": null,
-        "note": "Velocidad de marcha 4.2 m/s; el motor escala la cadencia con la velocidad (½ a 1½). Ciclo de 6 poses a 12 fps = 0.5 s."
+        "note": "Velocidad de marcha 4.2 m/s; el motor escala la cadencia con la velocidad (½ a 1½). Ciclo de 4 poses a 8 fps = 0.5 s (la misma duración que las 6 poses a 12 fps que se pidieron)."
       },
       "manifest": {
-        "fps": 12,
+        "fps": 8,
         "loop": true,
         "tags": [
           "first"
@@ -546,50 +566,46 @@
       },
       "frames": [
         {
-          "role": "contact-A",
+          "role": "passing",
           "phase": null,
-          "en": "CONTACT A. A wide stride: the front foot heel-down ahead, the rear foot toe-down behind, the arms swinging opposite to the legs, the head slightly lower. Three-quarter view like the reference walking pose; the sword carried low behind in the right hand.",
-          "es": "CONTACTO A. Zancada ancha: el pie delantero apoya el talón delante, el trasero apoya la punta detrás, los brazos balanceándose al contrario de las piernas, la cabeza algo más baja. Vista de tres cuartos como la pose de marcha de referencia; la espada llevada baja y atrás en la mano derecha."
+          "en": "PASSING. The legs close together under the body, the body upright and at its highest, the sword carried low behind in the right hand.",
+          "es": "PASO. Las piernas juntas bajo el cuerpo, el cuerpo erguido y en lo más alto, la espada llevada baja y atrás en la mano derecha."
         },
         {
-          "role": "down-A",
+          "role": "stride-A",
           "phase": null,
-          "en": "DOWN A. The weight drops onto the front leg: the front knee bends, the body at its lowest point, the rear foot lifting.",
-          "es": "BAJADA A. El peso cae sobre la pierna delantera: la rodilla delantera se dobla, el cuerpo en lo más bajo, el pie trasero levantándose."
+          "en": "STRIDE A. The legs apart in a wide step, the body leaning forward, the near arm swinging ahead, the sword low behind.",
+          "es": "ZANCADA A. Las piernas separadas en un paso ancho, el cuerpo inclinado al frente, el brazo cercano balanceándose delante, la espada baja y atrás."
         },
         {
-          "role": "passing-A",
+          "role": "stride-B",
           "phase": null,
-          "en": "PASSING A. The rear leg passes the standing leg; the body at its highest point, the legs nearly together.",
-          "es": "PASO A. La pierna trasera cruza junto a la de apoyo; el cuerpo en lo más alto, las piernas casi juntas."
+          "en": "STRIDE B. The step carries on: the legs still apart, the weight moving over the front leg.",
+          "es": "ZANCADA B. El paso sigue: las piernas aún separadas, el peso pasando sobre la pierna delantera."
         },
         {
-          "role": "contact-B",
+          "role": "stride-C",
           "phase": null,
-          "en": "CONTACT B. The mirror of contact A: the OTHER foot forward, the arms swapped.",
-          "es": "CONTACTO B. El espejo del contacto A: el OTRO pie delante, los brazos al revés."
-        },
-        {
-          "role": "down-B",
-          "phase": null,
-          "en": "DOWN B. The mirror of down A.",
-          "es": "BAJADA B. El espejo de la bajada A."
-        },
-        {
-          "role": "passing-B",
-          "phase": null,
-          "en": "PASSING B. The mirror of passing A.",
-          "es": "PASO B. El espejo del paso A."
+          "en": "STRIDE C. The legs apart the other way round, the near arm forward, the sword low behind; the next frame is the passing pose again.",
+          "es": "ZANCADA C. Las piernas separadas al revés, el brazo cercano delante, la espada baja y atrás; el siguiente fotograma es otra vez el paso."
         }
       ],
       "scaleLike": "idle",
-      "scaleWhy": "porque se entra y se sale de la marcha parado"
+      "scaleWhy": "porque se entra y se sale de la marcha parado",
+      "delivery": {
+        "asked": {
+          "frames": 6,
+          "fps": 12,
+          "phases": null
+        },
+        "note": "la hoja trae 4 poses de marcha (no 6), así que el ciclo es de 4 dibujos a 8 fps: dura 0.5 s, lo mismo que las 6 poses a 12 fps que se pedían. La espada va baja y atrás, como se pedía, y los límites de tamaño no cambian."
+      }
     },
     "aerialAttack": {
       "group": "F",
       "alias": "attackAir",
       "priority": 2,
-      "status": "requested",
+      "status": "delivered",
       "title": "Air attack",
       "titleEs": "Ataque aéreo",
       "why": "Hoy es el primer tajo (dibujo 7) con las piernas recogidas: un stand-in. Hace falta un tajo EN EL AIRE que se distinga del terrestre: cuerpo suspendido, la hoja bajando en diagonal desde arriba.",
@@ -631,7 +647,7 @@
       "limits": {
         "heightM": [
           1.3,
-          2.7
+          3
         ],
         "widthM": [
           1.2,
@@ -691,13 +707,34 @@
         }
       ],
       "scaleLike": "attack1",
-      "scaleWhy": "porque es de la misma familia de golpes con espada"
+      "scaleWhy": "porque es de la misma familia de golpes con espada",
+      "delivery": {
+        "asked": {
+          "frames": 6,
+          "fps": 26,
+          "phases": {
+            "startup": [
+              0,
+              1
+            ],
+            "active": [
+              2,
+              3
+            ],
+            "recovery": [
+              4,
+              5
+            ]
+          }
+        },
+        "note": "son los seis dibujos de la fila 2 de la Hoja 2, uno por fotograma y en el orden pedido. La pose 3 (el tajo en picado) lleva dibujada una estela cian que la hace medir 2.95 m de alto: se subió 22 px con placement.json para que la estela cupiera en el lienzo (límite de alto ensanchado a 3.0 m). La pose 6 (la caída) está dibujada SIN espada a la vista: sus anclas son una estimación aceptada a propósito con waivers.json. Las estelas y destellos cian de las poses 3 y 6 vienen en el propio dibujo."
+      }
     },
     "crouchAttack": {
       "group": "G",
       "alias": "attackCrouch",
       "priority": 2,
-      "status": "requested",
+      "status": "delivered",
       "title": "Crouch attack",
       "titleEs": "Ataque agachado",
       "why": "Hoy es el primer tajo (dibujo 7) bajado sobre las piernas: un stand-in. Hace falta un tajo desde la agachada nueva: un barrido bajo, a la altura de las rodillas.",
@@ -723,7 +760,7 @@
           ],
           "recovery": [
             4,
-            5
+            4
           ]
         }
       },
@@ -735,11 +772,11 @@
       "limits": {
         "heightM": [
           1,
-          1.85
+          2.4
         ],
         "widthM": [
           1.2,
-          3.3
+          3.6
         ]
       },
       "references": {
@@ -758,42 +795,57 @@
         {
           "role": "from-crouch",
           "phase": "startup",
-          "en": "FROM THE CROUCH. In the same settled crouch as the crouch clip, the right arm draws the sword back along the ground behind the character, the torso coiling.",
-          "es": "DESDE LA AGACHADA. En la misma agachada asentada del clip crouch, el brazo derecho lleva la espada atrás, a ras de suelo, detrás del personaje, el torso enroscándose."
+          "en": "FROM THE CROUCH. A low lunge, the knees bent, the head down and forward, the sword held low behind the character (the blade pointing down and back) in the right hand.",
+          "es": "DESDE LA AGACHADA. Una estocada baja, las rodillas dobladas, la cabeza baja y adelantada, la espada llevada baja y atrás (la hoja hacia abajo y atrás) en la mano derecha."
         },
         {
-          "role": "coil",
+          "role": "sweep-begins",
           "phase": "startup",
-          "en": "COIL. The blade at its lowest and furthest back, the body twisted, the weight on the rear foot.",
-          "es": "ENROSQUE. La hoja en lo más bajo y atrás, el cuerpo girado, el peso sobre el pie trasero."
+          "en": "THE SWEEP BEGINS. The lunge deepens and the body drives forward; the blade is still behind and a cyan arc sweeps low across the front, down to the ground (the arc is drawn in the picture).",
+          "es": "EMPIEZA EL BARRIDO. La estocada se hace más honda y el cuerpo se lanza adelante; la hoja sigue atrás y un arco cian barre bajo por delante, hasta el suelo (el arco viene dibujado en la imagen)."
         },
         {
           "role": "sweep",
           "phase": "active",
-          "en": "THE SWEEP. The blade sweeps forward horizontally at knee height (0.2 to 0.5 m above the ground), the right arm extended, the body leaning forward and low.",
-          "es": "EL BARRIDO. La hoja barre hacia delante, horizontal, a la altura de las rodillas (0.2–0.5 m sobre el suelo), el brazo derecho extendido, el cuerpo inclinado al frente y bajo."
+          "en": "THE SWEEP. The body very low, the right arm extended forward with the blade low in front, and the cyan arc around it (drawn in the picture).",
+          "es": "EL BARRIDO. El cuerpo muy bajo, el brazo derecho extendido al frente con la hoja baja delante, y el arco cian alrededor (dibujado en la imagen)."
         },
         {
           "role": "sweep-end",
           "phase": "active",
-          "en": "END OF THE SWEEP. The blade fully extended forward at ground level, the body very low, the front knee bent.",
-          "es": "FIN DEL BARRIDO. La hoja del todo extendida al frente a ras de suelo, el cuerpo muy bajo, la rodilla delantera doblada."
-        },
-        {
-          "role": "follow-through",
-          "phase": "recovery",
-          "en": "FOLLOW-THROUGH. The blade carries past, the body starting to rise a little.",
-          "es": "SEGUIR EL GOLPE. La hoja sigue de largo, el cuerpo empieza a subir un poco."
+          "en": "END OF THE SWEEP. The blade fully extended forward horizontally at knee height, the legs wide, the cyan arc fading behind the tip (drawn in the picture).",
+          "es": "FIN DEL BARRIDO. La hoja del todo extendida al frente, horizontal, a la altura de las rodillas, las piernas abiertas, el arco cian apagándose tras la punta (dibujado en la imagen)."
         },
         {
           "role": "settle",
           "phase": "recovery",
-          "en": "SETTLE. Back in the crouch of the first pose of the crouch clip, the sword held low in front.",
-          "es": "ASENTARSE. De vuelta en la agachada de la primera pose del clip crouch, la espada baja delante."
+          "en": "SETTLE. Back in a low crouch, the sword carried low behind (the blade pointing down and back), ready for the next move.",
+          "es": "ASENTARSE. De vuelta en una agachada baja, la espada llevada baja y atrás (la hoja hacia abajo y atrás), lista para lo que siga."
         }
       ],
       "scaleLike": "idle",
-      "scaleWhy": "porque es la misma cabeza que la de la agachada nueva"
+      "scaleWhy": "porque es la misma cabeza que la de la agachada nueva",
+      "delivery": {
+        "asked": {
+          "frames": 6,
+          "fps": 26,
+          "phases": {
+            "startup": [
+              0,
+              1
+            ],
+            "active": [
+              2,
+              3
+            ],
+            "recovery": [
+              4,
+              5
+            ]
+          }
+        },
+        "note": "la fila 3 de la Hoja 2 trae CINCO dibujos (no seis), así que el golpe es de cinco fotogramas: salida [0, 1], barrido activo [2, 3] y recuperación [4]; las fases de la simulación (4 + 3 + 9 ticks) no cambian y cada fase tiene tantos fotogramas como ticks admite. Los dibujos 2, 3 y 4 traen el arco cian del barrido dibujado en la propia imagen (el motor pone además el suyo). La figura es más alta y ancha de lo pedido (la espada visible, las antenas y los arcos): límites de tamaño ensanchados a 1.0–2.4 m de alto y 1.2–3.6 m de ancho. El fotograma crouchAttack_01 (el segundo) se corrió 6 px a la derecha con placement.json porque la punta de la espada quedaba a 3 px del borde izquierdo del lienzo (el contrato pide 4)."
+      }
     },
     "death": {
       "group": "H",

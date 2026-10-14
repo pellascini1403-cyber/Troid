@@ -1,34 +1,38 @@
-# Los dibujos que faltan del protagonista — kit de producción
+# Los dibujos del protagonista — kit de producción (todo entregado)
 
-> **Lo que es esto.** El Prompt 9 animó al protagonista moviendo los dibujos de tu hoja; **los clips de esta lista siguen siendo *stand-ins*** (o, en el caso de `walk`, un único dibujo deformado): el movimiento es real, pero el dibujo es el de otra acción, porque la hoja no tiene uno para ella. Un dibujo solo se puede deformar, **no mirar desde otro lado**: esos clips necesitan DIBUJOS NUEVOS del mismo personaje. En el Prompt 10 **no había ninguna herramienta de generación de imágenes** en el entorno (ni de edición que pudiera hacerlo sin inventar), así que **no se ha dibujado nada**: este kit es lo que hace falta para que alguien (tú, un artista o un generador de imágenes) los dibuje sin ambigüedad, y la herramienta que los recibe, comprueba e integra.
->
-> **Cuánto es:** 6 clips y **31 dibujos** en total (sin contar los clips que ya tienen dibujo propio). Cada clip es **una hoja** (todas sus poses en una fila, sobre fondo blanco, como tu hoja de poses): 6 generaciones. Este archivo y los `brief.md` los escribe `npm run assets:intake -- kit` desde `requests.json`. Ya entregados y aceptados (ya no se piden): `dash`, `death`, `drink`, `interact`.
+> **Estado: no queda ningún clip por pedir.** Los 10 clips que pedía este kit se han entregado y aceptado con `npm run assets:intake` y hoy son **dibujos del usuario** en `art/player/hero/`: `dash`, `attack2`, `crouch`, `crouchWalk`, `walk`, `aerialAttack`, `crouchAttack`, `death`, `drink`, `interact`. De cada uno se archivó la hoja de la que salió, sus anclas, su colocación, los fallos que se aceptaron a propósito y el informe en `art/player/source/delivered/<clip>/`: la misma hoja con los mismos archivos da los mismos fotogramas. Este archivo lo escribe `npm run assets:intake -- kit` desde `requests.json`.
 
-## Los tres pasos
+## Lo entregado
 
-1. **Genera** una hoja por clip (en este orden: A, B, C, luego D–G, luego H–J). De cada clip: `<clip>/brief.md` tiene el *prompt* listo para pegar; `<clip>/reference.png` y `character-reference.png` (y `../source/hero-portrait.jpg`) son lo que se adjunta al generador.
-2. **Suelta** el resultado en `art/player/inbox/<clip>/` (la hoja entera como `sheet.png`, o un PNG por pose `<clip>_00.png` …).
-3. **`npm run assets:intake -- <clip>`**: recorta, escala, coloca y comprueba, y escribe la hoja de contacto comparativa (el dibujo original · la pose nueva · la secuencia · el tamaño real de juego) en `art/player/inbox/_reports/<clip>/`. Cuando la hoja se vea bien: **`npm run assets:intake -- <clip> --accept`** la integra por el mecanismo `delivered`. **`npm run assets:intake -- status`** dice, clip por clip, qué tiene dibujo propio, qué es *stand-in* y qué hay en la bandeja.
-
-## Los clips, por orden de producción
-
-| Grupo | Clip | Dibujos | Qué sustituye | Brief |
+| Grupo | Clip | Fotogramas | Se pedían | Archivo de la entrega |
 |---|---|---|---|---|
-| B | `attack2` | 7 | Hoy es el primer tajo (dibujo 7) girado al revés: un stand-in. | [`attack2/brief.md`](attack2/brief.md) |
-| C | `crouch` | 2 | Hoy es la agachada del aterrizaje (dibujo 6) sostenida y respirando: un stand-in. | [`crouch/brief.md`](crouch/brief.md) |
-| D | `crouchWalk` | 4 | Hoy es la agachada del aterrizaje «a pasitos» (deformada): un stand-in. | [`crouchWalk/brief.md`](crouchWalk/brief.md) |
-| E | `walk` | 6 | La marcha de hoy es el dibujo 2 deformado: las piernas se turnan pero no se cruzan y los pies resbalan. | [`walk/brief.md`](walk/brief.md) |
-| F | `aerialAttack` | 6 | Hoy es el primer tajo (dibujo 7) con las piernas recogidas: un stand-in. | [`aerialAttack/brief.md`](aerialAttack/brief.md) |
-| G | `crouchAttack` | 6 | Hoy es el primer tajo (dibujo 7) bajado sobre las piernas: un stand-in. | [`crouchAttack/brief.md`](crouchAttack/brief.md) |
+| A | `dash` | 3 | 3 | [`dash/`](../source/delivered/dash/) |
+| B | `attack2` | 5 | 7 | [`attack2/`](../source/delivered/attack2/) |
+| C | `crouch` | 2 | 2 | [`crouch/`](../source/delivered/crouch/) |
+| D | `crouchWalk` | 4 | 4 | [`crouchWalk/`](../source/delivered/crouchWalk/) |
+| E | `walk` | 4 | 6 | [`walk/`](../source/delivered/walk/) |
+| F | `aerialAttack` | 6 | 6 | [`aerialAttack/`](../source/delivered/aerialAttack/) |
+| G | `crouchAttack` | 5 | 6 | [`crouchAttack/`](../source/delivered/crouchAttack/) |
+| H | `death` | 5 | 5 | [`death/`](../source/delivered/death/) |
+| I | `drink` | 4 | 4 | [`drink/`](../source/delivered/drink/) |
+| J | `interact` | 3 | 3 | [`interact/`](../source/delivered/interact/) |
 
-## Lo que NO se hace (reglas del encargo)
+## Lo que llegó distinto de lo pedido
 
-- No se rediseña al protagonista: nada humano, ni pelo, ni máscara nueva, ni ropa inventada; la cabeza, la silueta, las proporciones y la paleta son las de tus dibujos.
-- No se pinta rojo: los efectos (el arco del tajo, la estela del *dash*) los pone el juego, en cian. Los dibujos 8, 9 y 10 de tu hoja (con el rojo fundido) **no se usan**: solo se enseñan como actitud.
-- `hero-sheet.png` y `hero-portrait.jpg` no se tocan jamás.
-- La espada, en la mano derecha, es **la misma hoja de tus dibujos**.
+El encargo se reescribió a lo que son los dibujos para que la herramienta los pudiera juzgar (el número de fotogramas, las fases, los límites de tamaño), y cada entrega dice en qué se aparta:
+
+- **`attack2`** (se pedían 7 dibujos a 28 fps): la fila 1 de la Hoja 2 trae CINCO dibujos (no siete), así que el golpe es de cinco fotogramas: salida [0, 1], corte activo [2, 3] y recuperación [4]; las fases de la simulación (3 + 3 + 11 ticks) no cambian y cada fase tiene tantos fotogramas como ticks admite. Los arcos cian de los dibujos 2, 3 y 4 vienen dibujados en la propia imagen y se tocan entre sí: la hoja no se puede cortar sola (cutSheet) y cada pose se recortó a mano, sin reescalar, con un rectángulo (los restos de la vecina que cayeron dentro los descarta el recorte como piezas sueltas). El dibujo 4 muestra DOS hojas, una en cada mano: las anclas siguen la de la mano derecha, la de delante. La intención del golpe cambia con los dibujos: se pedía un corte ASCENDENTE (la punta sube ≥ 0.4 m) y el segundo golpe que se dibujó es un tajo hacia delante a ras de suelo (la punta pasa de 1.6 m detrás del pivote a 1.4 m delante), así que la intención pasó de «sube» a «avanza» (≥ 1 m) y el escenario E2E player-anim comprueba eso.
+- **`crouch`** (se pedían 2 dibujos a 2 fps): la hoja trae CUATRO agachadas (fila 1 de la Hoja 3), no dos: se han tomado la 1 (asentada) y la 4 (la misma agachada con el pecho y la cabeza algo más altos, para respirar), que son las más parecidas entre sí (solapamiento de siluetas 0.71 con la cabeza alineada); la 2 y la 3 (más baja, a rastras) quedan en la hoja sin usar. Los dibujos llevan la espada VISIBLE, baja y atrás (el encargo decía «sin espada»): los límites de tamaño se ensancharon a 0.9–3.0 m de ancho y 1.1–2.1 m de alto.
+- **`crouchWalk`**: los dibujos entregados llevan la espada VISIBLE, baja y atrás (el encargo decía «sin espada»): con la hoja la figura mide hasta 2.8 m de ancho y con las antenas hasta 2.0 m de alto, así que los límites de tamaño se ensancharon a 0.9–3.0 m de ancho y 1.1–2.1 m de alto.
+- **`walk`** (se pedían 6 dibujos a 12 fps): la hoja trae 4 poses de marcha (no 6), así que el ciclo es de 4 dibujos a 8 fps: dura 0.5 s, lo mismo que las 6 poses a 12 fps que se pedían. La espada va baja y atrás, como se pedía, y los límites de tamaño no cambian.
+- **`aerialAttack`** (se pedían 6 dibujos a 26 fps): son los seis dibujos de la fila 2 de la Hoja 2, uno por fotograma y en el orden pedido. La pose 3 (el tajo en picado) lleva dibujada una estela cian que la hace medir 2.95 m de alto: se subió 22 px con placement.json para que la estela cupiera en el lienzo (límite de alto ensanchado a 3.0 m). La pose 6 (la caída) está dibujada SIN espada a la vista: sus anclas son una estimación aceptada a propósito con waivers.json. Las estelas y destellos cian de las poses 3 y 6 vienen en el propio dibujo.
+- **`crouchAttack`** (se pedían 6 dibujos a 26 fps): la fila 3 de la Hoja 2 trae CINCO dibujos (no seis), así que el golpe es de cinco fotogramas: salida [0, 1], barrido activo [2, 3] y recuperación [4]; las fases de la simulación (4 + 3 + 9 ticks) no cambian y cada fase tiene tantos fotogramas como ticks admite. Los dibujos 2, 3 y 4 traen el arco cian del barrido dibujado en la propia imagen (el motor pone además el suyo). La figura es más alta y ancha de lo pedido (la espada visible, las antenas y los arcos): límites de tamaño ensanchados a 1.0–2.4 m de alto y 1.2–3.6 m de ancho. El fotograma crouchAttack_01 (el segundo) se corrió 6 px a la derecha con placement.json porque la punta de la espada quedaba a 3 px del borde izquierdo del lienzo (el contrato pide 4).
+
+## Si hay que pedir algo otra vez
+
+Poner `"status": "requested"` al clip en `requests.json` y `npm run assets:intake -- kit`: el kit vuelve a escribir su *brief* y su tablero de referencias. La entrega nueva se suelta en `art/player/inbox/<clip>/` y se acepta con `npm run assets:intake -- <clip> --accept --replace` (lo ya aprobado no se sobrescribe sin pedirlo por su nombre). Guía: [`docs/guides/deliver-protagonist-art.md`](../../../docs/guides/deliver-protagonist-art.md).
 
 ## Guías
 
 - `canvas-template.png` y `canvas-template-idle.png`: el lienzo a 4× con el suelo, el pivote, las alturas del cuerpo de pie (1.7 m) y agachado (1.0 m) y el margen: **guías de composición, no arte**.
-- Cómo se entrega y por qué no se sobrescribe lo ya aprobado: [`docs/guides/deliver-protagonist-art.md`](../../../docs/guides/deliver-protagonist-art.md) §4.
+- `character-reference.png`: las poses que definen el diseño, de la hoja del usuario.

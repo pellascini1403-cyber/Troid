@@ -1,0 +1,63 @@
+{
+  "clip": "attack2",
+  "level": "warn",
+  "inputs": [
+    {
+      "file": "attack2_00.png",
+      "sha256": "1d1bdea500a9daaf66ee7d8cfb31f554ae8f66d23b6eca12392036ab359723d3"
+    },
+    {
+      "file": "attack2_01.png",
+      "sha256": "805a9795666078940b1f7950fa297788044a6bab5429e273c3a0922363f3191f"
+    },
+    {
+      "file": "attack2_02.png",
+      "sha256": "1ec9454693077d08a3e47163619bb91f2373fcf2dbeb81da0a81c7b02540e109"
+    },
+    {
+      "file": "attack2_03.png",
+      "sha256": "c6a52c126f4827b3050be7bfedab3c7d4351613f2fe785ec5d7247b969e66cd9"
+    },
+    {
+      "file": "attack2_04.png",
+      "sha256": "cd341148dfdaa4b0d6cbd4c63cce7aebb0b503f1df30fbdbf5204d01755a7902"
+    }
+  ],
+  "scale": {
+    "factor": 0.627853,
+    "how": "eye",
+    "proxy": "eye",
+    "target": 21.62,
+    "headTarget": 56.54
+  },
+  "anchors": "e2aa5fbaa26371703e5e69cb0685c9dee36d535669eddad7166eef8750223952",
+  "placement": null,
+  "waivers": "29680b915f6be1e595c5521bcbf26f5949bb72c6f80563247f82a9b4575bdc30",
+  "frames": [
+    {
+      "name": "attack2_00",
+      "sha256": "086ec686f2f2fe5dac1b0286cb7b9e4d8efb9ea6963f5804c79383fdee1ebd5f",
+      "level": "ok"
+    },
+    {
+      "name": "attack2_01",
+      "sha256": "e9a21f68e6c4a3ec16e11abb4a3f4434f76a4229b445633a0a1a4fa6578b2900",
+      "level": "warn"
+    },
+    {
+      "name": "attack2_02",
+      "sha256": "5cf66c6a1f5bcb4647bf44c5b5d76ad6ffd1b4e841bffed9ea5e5c848a9e32d7",
+      "level": "warn"
+    },
+    {
+      "name": "attack2_03",
+      "sha256": "4bde6194b6b5b72f7844bf64a088cc0f8367023e9bc609b4512a0d0541987f7c",
+      "level": "ok"
+    },
+    {
+      "name": "attack2_04",
+      "sha256": "66d4cebdd36082c3a7f12910363b4a9cfaccde2eae9b9b1f483ba94083e2f88f",
+      "level": "ok"
+    }
+  ]
+}

@@ -3,7 +3,7 @@
   "id": "player",
   "category": "player",
   "status": "provisional",
-  "comment": "THE PROTAGONIST, from the user's own pose sheet (art/player/source/hero-sheet.png) — made by `npm run assets:animate` from art/player/source/hero.poses.json (which drawing is which), hero.rig.json (where the parts of each drawing are) and tools/assets/heroClips.ts (how they move): 91 frames in 14 clips, every pixel of every frame a pixel of the user's drawings, moved and never drawn, recoloured or smoothed (a rigid, smooth warp bends the body, the head, the antennae, the legs; the blade of the sword is a rigid piece that turns about its hilt). 4 more clip(s) were drawn by hand and handed over (dash, death, drink, interact): their frames and their entry here are the artist's, and `npm run assets:animate` leaves them alone. 5 clips are STAND-INS (tag \"stand-in\"): the motion is real but the sheet has no drawing of their action, so the drawing of another one is what moves — crouch: the sheet has no crouch: the drawing of the landing crouch is held, breathing; crouchWalk: the sheet has no crouched walk: the drawing of the landing crouch shuffles along; attack2: the sheet's second blow cannot be separated from its red arc: the drawing of the first blow is swung the other way; aerialAttack: the sheet has no blow in the air: the drawing of the first blow is moved to fit one (legs drawn up); crouchAttack: the sheet has no blow from the crouch: the drawing of the first blow is lowered onto its legs. `npm run assets:missing` counts them as NOT delivered. Hand over drawn frames for a clip and the stand-in goes away.",
+  "comment": "THE PROTAGONIST, from the user's own pose sheet (art/player/source/hero-sheet.png) — made by `npm run assets:animate` from art/player/source/hero.poses.json (which drawing is which), hero.rig.json (where the parts of each drawing are) and tools/assets/heroClips.ts (how they move): 49 frames in 8 clips, every pixel of every frame a pixel of the user's drawings, moved and never drawn, recoloured or smoothed (a rigid, smooth warp bends the body, the head, the antennae, the legs; the blade of the sword is a rigid piece that turns about its hilt). 10 more clip(s) were drawn by hand and handed over (walk, crouch, crouchWalk, dash, attack2, aerialAttack, crouchAttack, death, drink, interact): their frames and their entry here are the artist's, and `npm run assets:animate` leaves them alone. 0 clips are STAND-INS (tag \"stand-in\"): the motion is real but the sheet has no drawing of their action, so the drawing of another one is what moves — . `npm run assets:missing` counts them as NOT delivered. Hand over drawn frames for a clip and the stand-in goes away.",
   "tags": [
     "protagonist"
   ],
@@ -41,13 +41,13 @@
         },
         "walk": {
           "frames": "walk_",
-          "count": 8,
-          "fps": 16,
+          "count": 4,
+          "fps": 8,
           "loop": true,
           "tags": [
             "first"
           ],
-          "comment": "drawing 2 (the three-quarter stance, facing the way it walks): each leg in turn lifts and swings forward while the other stands and slides back, the body rises as the feet come together and sinks as they part, the head and the antennae drag a beat behind, the cape trails"
+          "comment": "DRAWN ANEW and handed over through `npm run assets:intake` (Walk (legs)): 4 frames of the same character from a delivered sheet, every pixel the sheet's — scaled once by the big eye, placed by a translation, nothing redrawn"
         },
         "run": {
           "frames": "run_",
@@ -85,23 +85,19 @@
         },
         "crouch": {
           "frames": "crouch_",
-          "count": 6,
-          "fps": 6,
+          "count": 2,
+          "fps": 2,
           "loop": true,
-          "tags": [
-            "stand-in"
-          ],
-          "comment": "the sheet has no crouch: the drawing of the landing crouch is held, breathing"
+          "tags": [],
+          "comment": "DRAWN ANEW and handed over through `npm run assets:intake` (Crouch (held)): 2 frames of the same character from a delivered sheet, every pixel the sheet's — scaled once by the big eye, placed by a translation, nothing redrawn"
         },
         "crouchWalk": {
           "frames": "crouchWalk_",
-          "count": 6,
-          "fps": 14,
+          "count": 4,
+          "fps": 10,
           "loop": true,
-          "tags": [
-            "stand-in"
-          ],
-          "comment": "the sheet has no crouched walk: the drawing of the landing crouch shuffles along"
+          "tags": [],
+          "comment": "DRAWN ANEW and handed over through `npm run assets:intake` (Crouch walk): 4 frames of the same character from a delivered sheet, every pixel the sheet's — scaled once by the big eye, placed by a translation, nothing redrawn"
         },
         "dash": {
           "frames": "dash_",
@@ -140,7 +136,7 @@
         },
         "attack2": {
           "frames": "attack2_",
-          "count": 8,
+          "count": 5,
           "fps": 28,
           "loop": false,
           "phases": {
@@ -154,18 +150,17 @@
             ],
             "recovery": [
               4,
-              7
+              4
             ]
           },
           "tags": [
-            "sword",
-            "stand-in"
+            "sword"
           ],
-          "comment": "the sheet's second blow cannot be separated from its red arc: the drawing of the first blow is swung the other way"
+          "comment": "DRAWN ANEW and handed over through `npm run assets:intake` (Attack 2 (second blow of the combo)): 5 frames of the same character from a delivered sheet, every pixel the sheet's — scaled once by the big eye, placed by a translation, nothing redrawn"
         },
         "aerialAttack": {
           "frames": "aerialAttack_",
-          "count": 7,
+          "count": 6,
           "fps": 26,
           "loop": false,
           "phases": {
@@ -179,18 +174,17 @@
             ],
             "recovery": [
               4,
-              6
+              5
             ]
           },
           "tags": [
-            "sword",
-            "stand-in"
+            "sword"
           ],
-          "comment": "the sheet has no blow in the air: the drawing of the first blow is moved to fit one (legs drawn up)"
+          "comment": "DRAWN ANEW and handed over through `npm run assets:intake` (Air attack): 6 frames of the same character from a delivered sheet, every pixel the sheet's — scaled once by the size of the head (it turns, so the eye is no fair measure of it), placed by a translation, nothing redrawn"
         },
         "crouchAttack": {
           "frames": "crouchAttack_",
-          "count": 7,
+          "count": 5,
           "fps": 26,
           "loop": false,
           "phases": {
@@ -204,14 +198,13 @@
             ],
             "recovery": [
               4,
-              6
+              4
             ]
           },
           "tags": [
-            "sword",
-            "stand-in"
+            "sword"
           ],
-          "comment": "the sheet has no blow from the crouch: the drawing of the first blow is lowered onto its legs"
+          "comment": "DRAWN ANEW and handed over through `npm run assets:intake` (Crouch attack): 5 frames of the same character from a delivered sheet, every pixel the sheet's — scaled once by the big eye, placed by a translation, nothing redrawn"
         },
         "hurt": {
           "frames": "hurt_",
@@ -442,528 +435,384 @@
         "attack2_00": {
           "anchors": {
             "hand_r": [
-              0.414,
-              0.711
+              -0.569,
+              0.738
             ],
             "weapon_grip": [
-              0.414,
-              0.711
+              -0.569,
+              0.738
             ],
             "weapon_tip": [
-              1.027,
-              -0.012
+              -1.492,
+              0.123
             ],
             "hit_origin": [
-              0.939,
-              0.098
+              -1.354,
+              0.215
             ],
             "vfx_origin": [
-              0.723,
-              0.359
+              -1.012,
+              0.443
             ]
           }
         },
         "attack2_01": {
           "anchors": {
             "hand_r": [
-              0.373,
-              0.836
+              -0.462,
+              0.938
             ],
             "weapon_grip": [
-              0.373,
-              0.836
+              -0.462,
+              0.938
             ],
             "weapon_tip": [
-              0.779,
-              -0.016
+              -1.615,
+              0.385
             ],
             "hit_origin": [
-              0.722,
-              0.114
+              -1.442,
+              0.468
             ],
             "vfx_origin": [
-              0.58,
-              0.421
+              -1.015,
+              0.673
             ]
           }
         },
         "attack2_02": {
           "anchors": {
             "hand_r": [
-              0.547,
-              0.42
+              -0.523,
+              0.862
             ],
             "weapon_grip": [
-              0.547,
-              0.42
+              -0.523,
+              0.862
             ],
             "weapon_tip": [
-              1.397,
-              -0.013
+              -1.338,
+              0.446
             ],
             "hit_origin": [
-              1.272,
-              0.055
+              -1.216,
+              0.508
             ],
             "vfx_origin": [
-              0.972,
-              0.21
+              -0.914,
+              0.662
             ]
           }
         },
         "attack2_03": {
           "anchors": {
             "hand_r": [
-              0.613,
-              0.439
+              0.385,
+              0.369
             ],
             "weapon_grip": [
-              0.613,
-              0.439
+              0.385,
+              0.369
             ],
             "weapon_tip": [
-              1.493,
-              0.649
+              1.4,
+              0.2
             ],
             "hit_origin": [
-              1.355,
-              0.615
+              1.248,
+              0.225
             ],
             "vfx_origin": [
-              1.028,
-              0.53
+              0.872,
+              0.288
             ]
           }
         },
         "attack2_04": {
           "anchors": {
             "hand_r": [
-              0.545,
-              0.45
+              -0.554,
+              0.646
             ],
             "weapon_grip": [
-              0.545,
-              0.45
+              -0.554,
+              0.646
             ],
             "weapon_tip": [
-              1.4,
-              0.717
+              -1.492,
+              0.015
             ],
             "hit_origin": [
-              1.266,
-              0.674
+              -1.352,
+              0.11
             ],
             "vfx_origin": [
-              0.945,
-              0.566
-            ]
-          }
-        },
-        "attack2_05": {
-          "anchors": {
-            "hand_r": [
-              0.506,
-              0.424
-            ],
-            "weapon_grip": [
-              0.506,
-              0.424
-            ],
-            "weapon_tip": [
-              1.436,
-              0.406
-            ],
-            "hit_origin": [
-              1.295,
-              0.41
-            ],
-            "vfx_origin": [
-              0.956,
-              0.411
-            ]
-          }
-        },
-        "attack2_06": {
-          "anchors": {
-            "hand_r": [
-              0.485,
-              0.372
-            ],
-            "weapon_grip": [
-              0.485,
-              0.372
-            ],
-            "weapon_tip": [
-              1.4,
-              0.133
-            ],
-            "hit_origin": [
-              1.264,
-              0.171
-            ],
-            "vfx_origin": [
-              0.936,
-              0.254
-            ]
-          }
-        },
-        "attack2_07": {
-          "anchors": {
-            "hand_r": [
-              0.462,
-              0.369
-            ],
-            "weapon_grip": [
-              0.462,
-              0.369
-            ],
-            "weapon_tip": [
-              1.354,
-              0.023
-            ],
-            "hit_origin": [
-              1.223,
-              0.077
-            ],
-            "vfx_origin": [
-              0.908,
-              0.2
+              -1.004,
+              0.343
             ]
           }
         },
         "aerialAttack_00": {
           "anchors": {
             "hand_r": [
-              0.386,
-              0.453
+              -0.477,
+              1.385
             ],
             "weapon_grip": [
-              0.386,
-              0.453
+              -0.477,
+              1.385
             ],
             "weapon_tip": [
-              1.265,
-              0.646
+              -1.4,
+              0.677
             ],
             "hit_origin": [
-              1.127,
-              0.615
+              -1.262,
+              0.783
             ],
             "vfx_origin": [
-              0.798,
-              0.535
+              -0.92,
+              1.045
             ]
           }
         },
         "aerialAttack_01": {
           "anchors": {
             "hand_r": [
-              0.318,
-              0.505
+              -0.108,
+              1.877
             ],
             "weapon_grip": [
-              0.318,
-              0.505
+              -0.108,
+              1.877
             ],
             "weapon_tip": [
-              1.084,
-              0.935
+              -1.046,
+              1.4
             ],
             "hit_origin": [
-              0.961,
-              0.865
+              -0.905,
+              1.472
             ],
             "vfx_origin": [
-              0.67,
-              0.692
+              -0.558,
+              1.648
             ]
           }
         },
         "aerialAttack_02": {
           "anchors": {
             "hand_r": [
-              0.563,
-              0.322
+              0.323,
+              0.431
             ],
             "weapon_grip": [
-              0.563,
-              0.322
+              0.323,
+              0.431
             ],
             "weapon_tip": [
-              1.456,
-              0.049
+              0.738,
+              -0.338
             ],
             "hit_origin": [
-              1.321,
-              0.091
+              0.676,
+              -0.223
             ],
             "vfx_origin": [
-              0.996,
-              0.186
+              0.522,
+              0.062
             ]
           }
         },
         "aerialAttack_03": {
           "anchors": {
             "hand_r": [
-              0.661,
-              0.261
+              -0.692,
+              0.877
             ],
             "weapon_grip": [
-              0.661,
-              0.261
+              -0.692,
+              0.877
             ],
             "weapon_tip": [
-              1.433,
-              -0.302
+              -1.4,
+              0.323
             ],
             "hit_origin": [
-              1.321,
-              -0.217
+              -1.294,
+              0.406
             ],
             "vfx_origin": [
-              1.048,
-              -0.016
+              -1.032,
+              0.611
             ]
           }
         },
         "aerialAttack_04": {
           "anchors": {
             "hand_r": [
-              0.606,
-              0.305
+              -0.646,
+              0.954
             ],
             "weapon_grip": [
-              0.606,
-              0.305
+              -0.646,
+              0.954
             ],
             "weapon_tip": [
-              1.28,
-              -0.365
+              -1.523,
+              0.4
             ],
             "hit_origin": [
-              1.183,
-              -0.263
+              -1.392,
+              0.483
             ],
             "vfx_origin": [
-              0.945,
-              -0.022
+              -1.067,
+              0.688
             ]
           }
         },
         "aerialAttack_05": {
           "anchors": {
             "hand_r": [
-              0.53,
-              0.351
+              -0.708,
+              0.923
             ],
             "weapon_grip": [
-              0.53,
-              0.351
+              -0.708,
+              0.923
             ],
             "weapon_tip": [
-              1.334,
-              -0.161
-            ],
-            "hit_origin": [
-              1.217,
-              -0.082
-            ],
-            "vfx_origin": [
-              0.932,
-              0.101
-            ]
-          }
-        },
-        "aerialAttack_06": {
-          "anchors": {
-            "hand_r": [
-              0.476,
+              -1.585,
               0.369
             ],
-            "weapon_grip": [
-              0.476,
-              0.369
-            ],
-            "weapon_tip": [
-              1.341,
-              -0.037
-            ],
             "hit_origin": [
-              1.215,
-              0.026
+              -1.453,
+              0.452
             ],
             "vfx_origin": [
-              0.909,
-              0.17
+              -1.129,
+              0.657
             ]
           }
         },
         "crouchAttack_00": {
           "anchors": {
             "hand_r": [
-              0.41,
-              0.379
+              -0.585,
+              0.708
             ],
             "weapon_grip": [
-              0.41,
-              0.379
+              -0.585,
+              0.708
             ],
             "weapon_tip": [
-              1.324,
-              0.17
+              -1.554,
+              0.108
             ],
             "hit_origin": [
-              1.187,
-              0.203
+              -1.408,
+              0.198
             ],
             "vfx_origin": [
-              0.856,
-              0.275
+              -1.05,
+              0.42
             ]
           }
         },
         "crouchAttack_01": {
           "anchors": {
             "hand_r": [
-              0.38,
-              0.405
+              -0.8,
+              0.708
             ],
             "weapon_grip": [
-              0.38,
-              0.405
+              -0.8,
+              0.708
             ],
             "weapon_tip": [
-              1.298,
-              0.319
+              -1.646,
+              0.123
             ],
             "hit_origin": [
-              1.157,
-              0.333
+              -1.519,
+              0.211
             ],
             "vfx_origin": [
-              0.82,
-              0.358
+              -1.206,
+              0.427
             ]
           }
         },
         "crouchAttack_02": {
           "anchors": {
             "hand_r": [
-              0.576,
-              0.615
+              0.615,
+              0.369
             ],
             "weapon_grip": [
-              0.576,
-              0.615
+              0.615,
+              0.369
             ],
             "weapon_tip": [
-              1.296,
-              -0.01
+              1.754,
+              0.169
             ],
             "hit_origin": [
-              1.191,
-              0.085
+              1.583,
+              0.199
             ],
             "vfx_origin": [
-              0.937,
-              0.309
+              1.162,
+              0.273
             ]
           }
         },
         "crouchAttack_03": {
           "anchors": {
             "hand_r": [
-              0.669,
-              0.685
+              0.615,
+              0.385
             ],
             "weapon_grip": [
-              0.669,
-              0.685
+              0.615,
+              0.385
             ],
             "weapon_tip": [
-              1.32,
-              -0.01
+              1.908,
+              0.262
             ],
             "hit_origin": [
-              1.226,
-              0.096
+              1.714,
+              0.28
             ],
             "vfx_origin": [
-              0.997,
-              0.345
+              1.236,
+              0.326
             ]
           }
         },
         "crouchAttack_04": {
           "anchors": {
             "hand_r": [
-              0.616,
-              0.625
+              -0.615,
+              0.646
             ],
             "weapon_grip": [
-              0.616,
-              0.625
+              -0.615,
+              0.646
             ],
             "weapon_tip": [
-              1.325,
-              -0.012
+              -1.554,
+              0.108
             ],
             "hit_origin": [
-              1.222,
-              0.085
+              -1.413,
+              0.188
             ],
             "vfx_origin": [
-              0.972,
-              0.313
-            ]
-          }
-        },
-        "crouchAttack_05": {
-          "anchors": {
-            "hand_r": [
-              0.543,
-              0.508
-            ],
-            "weapon_grip": [
-              0.543,
-              0.508
-            ],
-            "weapon_tip": [
-              1.343,
-              -0.012
-            ],
-            "hit_origin": [
-              1.226,
-              0.068
-            ],
-            "vfx_origin": [
-              0.943,
-              0.254
-            ]
-          }
-        },
-        "crouchAttack_06": {
-          "anchors": {
-            "hand_r": [
-              0.478,
-              0.419
-            ],
-            "weapon_grip": [
-              0.478,
-              0.419
-            ],
-            "weapon_tip": [
-              1.333,
-              -0.009
-            ],
-            "hit_origin": [
-              1.208,
-              0.057
-            ],
-            "vfx_origin": [
-              0.906,
-              0.21
+              -1.066,
+              0.388
             ]
           }
         },

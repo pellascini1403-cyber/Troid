@@ -1,0 +1,35 @@
+{
+  "clip": "crouch",
+  "level": "ok",
+  "inputs": [
+    {
+      "file": "crouch_00.png",
+      "sha256": "92b549c8db59fdbedb352521d18798bc0a3e1d751628dc689caf1781ad2e972b"
+    },
+    {
+      "file": "crouch_01.png",
+      "sha256": "76dbbae85fe962f4ee96941133be0f1f7268237bd8f487a057b1a7beebffb2df"
+    }
+  ],
+  "scale": {
+    "factor": 0.533766,
+    "how": "eye",
+    "proxy": "eye",
+    "target": 25.33,
+    "headTarget": 58.86
+  },
+  "anchors": null,
+  "placement": null,
+  "frames": [
+    {
+      "name": "crouch_00",
+      "sha256": "d52a6c23c93a8b674a047395c033ce0e0048206976f9f5f2d6321e8728fa9770",
+      "level": "ok"
+    },
+    {
+      "name": "crouch_01",
+      "sha256": "ed8c2fcdcdc063e92b29eae473010fab6961e5b5e647523c8699b5eb19fdcf87",
+      "level": "ok"
+    }
+  ]
+}

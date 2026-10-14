@@ -328,7 +328,8 @@ export const playerArt: Scenario = {
     const feet = s.boxes!.body.y0;
     assert.ok(Math.abs(s.boxes!.visual.y0 - feet) < 0.06, `the picture stands on the ground: its lowest pixel is ${(s.boxes!.visual.y0 - feet).toFixed(3)} m from the feet`);
     assert.ok((s.boxes!.visual.x0 + s.boxes!.visual.x1) / 2 > s.boxes!.body.x0 - 0.5 && (s.boxes!.visual.x0 + s.boxes!.visual.x1) / 2 < s.boxes!.body.x1 + 0.5, 'and sits over the body');
-    assert.ok(s.boxes!.visual.y1 - s.boxes!.visual.y0 > 1.7, 'with its antennae it is taller than the body it stands for');
+    const standingHeight = s.boxes!.visual.y1 - s.boxes!.visual.y0;
+    assert.ok(standingHeight > 1.7, 'with its antennae it is taller than the body it stands for');
     await ctx.shot('e-01-idle');
 
     // run, jump, fall, land
@@ -379,8 +380,10 @@ export const playerArt: Scenario = {
     s = await ctx.state();
     watch(s);
     assert.equal(s.anim, 'crouch');
-    assert.match(s.sprite!.frame ?? '', /^crouch_0[0-5]$/, 'the art\'s crouch (six frames)');
-    assert.ok(s.boxes!.visual.y1 - s.boxes!.visual.y0 < 2.0, 'crouched, the picture is lower than standing');
+    assert.match(s.sprite!.frame ?? '', /^crouch_0[0-5]$/, 'the art\'s crouch');
+    // lower than when standing (the head sinks), whatever the drawing's own height: the crouch the user drew keeps its antennae and its big head, so it is not a fixed fraction of the standing picture
+    const crouchedHeight = s.boxes!.visual.y1 - s.boxes!.visual.y0;
+    assert.ok(crouchedHeight < standingHeight - 0.1, `crouched, the picture is lower than standing: ${crouchedHeight.toFixed(2)} m against ${standingHeight.toFixed(2)} m`);
     await ctx.shot('e-02-crouch');
     await ctx.page.keyboard.down('KeyJ');
     await ctx.step(1);
@@ -389,7 +392,7 @@ export const playerArt: Scenario = {
       await ctx.step(1);
       const x = await ctx.state();
       watch(x);
-      if (x.anim === 'attackCrouch') assert.match(x.sprite!.frame ?? '', /^crouchAttack_0[0-6]$/, 'the art\'s blow from the crouch (seven frames)');
+      if (x.anim === 'attackCrouch') assert.match(x.sprite!.frame ?? '', /^crouchAttack_0[0-6]$/, 'the art\'s blow from the crouch');
     }
     await ctx.page.keyboard.up('KeyS');
     await ctx.step(30);

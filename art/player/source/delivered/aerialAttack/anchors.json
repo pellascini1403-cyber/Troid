@@ -1,0 +1,8 @@
+{
+  "aerialAttack_00": { "grip": [89, 102], "tip": [29, 148] },
+  "aerialAttack_01": { "grip": [113, 70], "tip": [52, 101] },
+  "aerialAttack_02": { "grip": [141, 164], "tip": [168, 214] },
+  "aerialAttack_03": { "grip": [75, 135], "tip": [29, 171] },
+  "aerialAttack_04": { "grip": [78, 130], "tip": [21, 166] },
+  "aerialAttack_05": { "grip": [74, 132], "tip": [17, 168] }
+}

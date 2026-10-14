@@ -1,0 +1,41 @@
+{
+  "clip": "walk",
+  "level": "ok",
+  "inputs": [
+    {
+      "file": "sheet.png",
+      "sha256": "17d87e4472c034e6de3200bb691d608e0be65ade0b3ec07f2951e5d4bcf3d192"
+    }
+  ],
+  "scale": {
+    "factor": 0.624476,
+    "how": "eye",
+    "proxy": "eye",
+    "target": 25.33,
+    "headTarget": 58.86
+  },
+  "anchors": null,
+  "placement": null,
+  "frames": [
+    {
+      "name": "walk_00",
+      "sha256": "55e83d622289a5d5bf37529b6f88dd7256e87bc939b70c5f129bcd3e822f6001",
+      "level": "ok"
+    },
+    {
+      "name": "walk_01",
+      "sha256": "d3ec373ad5bd9c1e68ada69c9a03a1fe621be204d63192bba5cd4228e03b7a75",
+      "level": "ok"
+    },
+    {
+      "name": "walk_02",
+      "sha256": "d241ab8bbd6ce7fb3e2142a4c93fe01d526279779899e0c8341fbf7c46c3a407",
+      "level": "ok"
+    },
+    {
+      "name": "walk_03",
+      "sha256": "48c5c8a8449fcbf0b013feaaf9aec180951bb935b0560e55939b7fe24e923007",
+      "level": "ok"
+    }
+  ]
+}

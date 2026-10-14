@@ -1,0 +1,7 @@
+{
+  "crouchAttack_00": { "grip": [82, 146], "tip": [19, 185] },
+  "crouchAttack_01": { "grip": [68, 146], "tip": [13, 184] },
+  "crouchAttack_02": { "grip": [160, 168], "tip": [234, 181] },
+  "crouchAttack_03": { "grip": [160, 167], "tip": [244, 175] },
+  "crouchAttack_04": { "grip": [80, 150], "tip": [19, 185] }
+}
