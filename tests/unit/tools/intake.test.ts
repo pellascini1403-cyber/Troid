@@ -1,6 +1,6 @@
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { animate } from '../../../tools/assets/animate';
@@ -609,7 +609,9 @@ describe('handing a clip over, in a copy of the repository', () => {
 
   beforeAll(() => {
     tmp = mkdtempSync(join(tmpdir(), 'troid-intake-'));
-    cpSync(join(root, 'art'), join(tmp, 'art'), { recursive: true });
+    // the copy starts with an EMPTY inbox: what a person has dropped in the real one (sheets, reports) is theirs, and must not change what this test asserts
+    const realInbox = join(root, 'art', 'player', 'inbox');
+    cpSync(join(root, 'art'), join(tmp, 'art'), { recursive: true, filter: (src) => src !== realInbox && !src.startsWith(`${realInbox}${sep}`) });
     mkdirSync(inbox(), { recursive: true });
     writeFileSync(join(inbox(), 'sheet.png'), encodePng(composeSheet(source, { up: 3, cols: 4, gap: 90, shadow: true }).sheet));
   }, 120_000);
