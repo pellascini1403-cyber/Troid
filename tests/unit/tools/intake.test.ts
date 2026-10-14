@@ -6,8 +6,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { animate } from '../../../tools/assets/animate';
 import { bodyOf, boundsOf, eyeDiameter, headDiameter, SOLID } from '../../../tools/assets/figure';
 import { CLIP_ORDER } from '../../../tools/assets/heroClips';
-import { clipEye, clipFrameNames, readClips, readDelivered } from '../../../tools/assets/heroRepo';
+import { clipEye, readClips, readDelivered } from '../../../tools/assets/heroRepo';
 import {
+  applyWaivers,
   chooseScale,
   cutLoose,
   cutSheet,
@@ -15,7 +16,9 @@ import {
   judgeFrames,
   LIMITS,
   manifestAnchors,
+  MIN_WAIVER_REASON,
   parseAnchors,
+  parseWaivers,
   placeFrame,
   scaleProxy,
   spreadOf,
@@ -25,7 +28,7 @@ import {
   type SwordPoints,
 } from '../../../tools/assets/intake';
 import { acceptClip, addDelivered, prepareClip, readInbox, statusOf, writeReport } from '../../../tools/assets/intakeRun';
-import { buildKit, readKitSources } from '../../../tools/assets/kit';
+import { buildKit, buildReadme, readKitSources, type ClipRequest, type Requests } from '../../../tools/assets/kit';
 import { decodePng, encodePng, type RgbaImage } from '../../../tools/assets/png';
 import { renderFrame, toDrawing } from '../../../tools/assets/warp';
 
@@ -39,6 +42,30 @@ const root = fileURLToPath(new URL('../../../', import.meta.url));
 const canvas: Canvas = { width: 280, height: 230, pivot: [120, 192], artPxPerMeter: 65, margin: 4 };
 const frame = (name: string): RgbaImage => decodePng(readFileSync(join(root, 'art', 'player', 'hero', `${name}.png`)));
 const SWORD_FRAMES = ['attack1_00', 'attack1_01', 'attack1_02', 'attack1_03', 'attack1_04', 'attack1_05', 'attack1_06'] as const;
+
+/**
+ * THE REQUEST THE TESTS JUDGE BY: a blow of seven frames in the three phases of the simulation, with the sword — the definition `attack2` had when it was asked for. The tests of the tool judge and deliver the seven
+ * frames of the first blow (which the generator draws clean), so they ask for what those frames are and not for whatever the data of a clip of the game says today: the clips are handed over, redefined to the
+ * drawings that came (their count, their phases, their limits) and handed over again, and the tool must keep being tested on a fixed ask.
+ */
+const BLOW: ClipRequest = {
+  group: 'B',
+  priority: 1,
+  status: 'requested',
+  title: 'Second blow (the tests\' fixture)',
+  titleEs: 'Segundo golpe (el de las pruebas)',
+  why: 'a blow of seven frames with a sword',
+  gameplay: { seconds: null, ticks: 17, note: '3 ticks of wind-up, 3 active, 11 of recovery' },
+  manifest: { fps: 28, loop: false, tags: ['sword'], phases: { startup: [0, 1], active: [2, 3], recovery: [4, 6] } },
+  placement: { anchorX: 'mass', anchorY: 'ground' },
+  scaleLike: 'attack1',
+  scaleWhy: 'the second blow chains from the first',
+  sword: true,
+  intent: { tipRises: 0.4, es: 'the tip rises at least 0.4 m between the wind-up and the active phase' },
+  limits: { heightM: [1.4, 2.7], widthM: [1.5, 3.4] },
+  references: { sheet: ['pose7', 'pose8', 'pose12'], frames: ['attack1_00', 'attack1_02', 'attack1_06', 'cast_03', 'idle_00'], note: 'the sword of the drawing 7/12' },
+  frames: ['coil', 'load', 'cut', 'cut-end', 'follow-through', 'recover', 'settle'].map((role, k) => ({ role, phase: k < 2 ? ('startup' as const) : k < 4 ? ('active' as const) : ('recovery' as const), en: role, es: role })),
+};
 
 /**
  * A pose made of exactly what the measurements look at: a dark dome `head` pixels across, a round glowing eye `eye` pixels across with white highlights (none when `eye` is `null`: the head has
@@ -427,7 +454,7 @@ describe('scaling by the head when the head turns (an eye seen small, or not at 
 
   /** `judgeFrames` as the delivery does it, for a clip with no sword and generous limits (only the scale of the poses is in question). */
   function judgeAny(frames: readonly RgbaImage[], scaling: Scaling) {
-    const request = JSON.parse(readFileSync(join(root, 'art', 'player', 'requests', 'requests.json'), 'utf8')).clips.attack2;
+    const request = BLOW;
     return judgeFrames({
       names: frames.map((_, k) => `attack2_0${k}`),
       frames,
@@ -475,7 +502,7 @@ describe('scaling by the head when the head turns (an eye seen small, or not at 
 
 describe('judging a delivery', () => {
   const names = SWORD_FRAMES.map((_, k) => `attack2_0${k}`);
-  const request = JSON.parse(readFileSync(join(root, 'art', 'player', 'requests', 'requests.json'), 'utf8')).clips.attack2;
+  const request = BLOW;
   const tolerance = 0.14;
   const judge = (frames: readonly RgbaImage[], extra: Partial<Parameters<typeof judgeFrames>[0]> = {}) =>
     judgeFrames({
@@ -596,7 +623,7 @@ describe('judging a delivery', () => {
 });
 
 describe('what a blow must do', () => {
-  const requests = JSON.parse(readFileSync(join(root, 'art', 'player', 'requests', 'requests.json'), 'utf8')).clips as Record<string, { sword: boolean; intent?: { tipRises?: number; tipDrops?: number }; frames: unknown[] }>;
+  const requests = JSON.parse(readFileSync(join(root, 'art', 'player', 'requests', 'requests.json'), 'utf8')).clips as Record<string, { sword: boolean; intent?: { tipRises?: number; tipDrops?: number; tipAdvances?: number }; frames: unknown[] }>;
   const names = SWORD_FRAMES.map((_, k) => `attack1_0${k}`);
   const judgeBlow = (request: Parameters<typeof judgeFrames>[0]['request']) => {
     const frames = placed.map((p) => p.image);
@@ -615,16 +642,31 @@ describe('what a blow must do', () => {
     });
   };
 
-  it('the second blow is asked to come UP and the blow in the air to come DOWN, as the brief and the end-to-end scenario have them', () => {
-    expect(requests['attack2']!.intent).toMatchObject({ tipRises: 0.4 });
+  it('the second blow is asked to come FORWARD (the drawn one is a low slash from behind the body to in front of it) and the blow in the air to come DOWN, as the end-to-end scenario has them', () => {
+    expect(requests['attack2']!.intent).toMatchObject({ tipAdvances: 1 });
+    expect(requests['attack2']!.intent).not.toHaveProperty('tipRises');
     expect(requests['aerialAttack']!.intent).toMatchObject({ tipDrops: 0.4 });
     expect(requests['crouchAttack']!.intent).toBeUndefined();
+  });
+
+  it('a blow that must ADVANCE is judged by how far its tip travels forward of the pivot between the wind-up and the cut: the distance it reports is the one the rule uses', () => {
+    const phases = { startup: [0, 1], active: [2, 3], recovery: [4, 6] } as never;
+    const asks = (tipAdvances: number) => judgeBlow({ ...BLOW, manifest: { ...BLOW.manifest, phases }, intent: { tipAdvances, es: '' } });
+    const far = asks(9);
+    expect(far.checks.map((c) => `${c.level}:${c.id}`)).toContain('fail:intent');
+    const text = far.checks.find((c) => c.id === 'intent')!.text;
+    expect(text).toMatch(/tiene que AVANZAR.*y avanza -?\d+\.\d\d m/);
+    expect(far.level).toBe('fail');
+    // the distance it says is the one the rule uses: asking a little less lets the blow through, asking a little more does not
+    const advance = Number(/y avanza (-?\d+\.\d\d) m/.exec(text)![1]);
+    expect(asks(advance - 0.05).checks.map((c) => c.id)).not.toContain('intent');
+    expect(asks(advance + 0.05).checks.map((c) => `${c.level}:${c.id}`)).toContain('fail:intent');
   });
 
   it('a blow that goes the wrong way is caught before it is accepted: the first blow\'s drawings (the tip comes DOWN) are no second blow (a failure) and they are what the blow in the air does (no remark)', () => {
     // `attack1` is phased 0–1 / 2–3 / 4–6 like the second blow and the one in the air: its tip is raised in the wind-up and low in the cut
     const phases = { startup: [0, 1], active: [2, 3], recovery: [4, 6] } as never;
-    const base = JSON.parse(readFileSync(join(root, 'art', 'player', 'requests', 'requests.json'), 'utf8')).clips.attack2;
+    const base = BLOW;
     const asSecond = judgeBlow({ ...base, sword: true, manifest: { ...base.manifest, phases }, intent: { tipRises: 0.4, es: '' } });
     expect(asSecond.checks.map((c) => `${c.level}:${c.id}`)).toContain('fail:intent');
     expect(asSecond.checks.find((c) => c.id === 'intent')!.text).toMatch(/tiene que SUBIR/);
@@ -633,6 +675,70 @@ describe('what a blow must do', () => {
     expect(asAir.checks.map((c) => c.id)).not.toContain('intent');
     // a clip with no intent is not asked anything
     expect(judgeBlow({ ...base, sword: true, manifest: { ...base.manifest, phases }, intent: undefined }).checks.map((c) => c.id)).not.toContain('intent');
+  });
+});
+
+describe('accepting a failure on purpose (waivers.json)', () => {
+  const names = SWORD_FRAMES.map((_, k) => `attack1_0${k}`);
+  const REASON = 'The pose is drawn with no sword in sight: its anchors are an estimate that only keeps the manifest whole.';
+  const judge = (extra: Partial<Parameters<typeof judgeFrames>[0]> = {}) => {
+    const frames = placed.map((p) => p.image);
+    return judgeFrames({ names, frames, clipped: frames.map(() => ({ left: 0, right: 0, top: 0, bottom: 0 })), groundGap: frames.map(() => 0), request: BLOW, canvas, scaling, tolerance: 0.14, rawRed: frames.map(() => 0), anchors: new Map(), anchorProblems: [], ...extra });
+  };
+
+  it('reads waivers.json: nothing when there is none; an object of reasons — each long enough to be one — and everything else is said, not guessed', () => {
+    expect(parseWaivers(null)).toEqual({});
+    expect(parseWaivers(JSON.stringify({ 'x_00:sword': `  ${REASON}  ` }))).toEqual({ 'x_00:sword': REASON });
+    expect(() => parseWaivers('{ nope')).toThrow(/not valid JSON/);
+    expect(() => parseWaivers('[]')).toThrow(/must be an object/);
+    expect(() => parseWaivers('"fine"')).toThrow(/must be an object/);
+    expect(() => parseWaivers(JSON.stringify({ 'x_00:sword': 'ok' }))).toThrow(new RegExp(`"x_00:sword" needs a reason of at least ${MIN_WAIVER_REASON} characters`));
+    expect(() => parseWaivers(JSON.stringify({ 'x_00:sword': 7 }))).toThrow(/needs a reason/);
+  });
+
+  it('turns the failure it names — and only that one — into a warning that says it was accepted on purpose, and keeps what the tool said and why it was accepted', () => {
+    const j = judge();
+    expect(j.level).toBe('fail');
+    expect(j.frames.every((f) => f.checks.some((c) => c.id === 'sword' && c.level === 'fail'))).toBe(true);
+    const { judgement, waived } = applyWaivers(j, { [`${names[1]}:sword`]: REASON });
+    expect(judgement.frames[1]!.level).toBe('warn');
+    const turned = judgement.frames[1]!.checks.find((c) => c.id === 'sword')!;
+    expect(turned.level).toBe('warn');
+    expect(turned.text).toMatch(/^FALLO ACEPTADO A PROPÓSITO/);
+    expect(turned.text).toContain(j.frames[1]!.checks.find((c) => c.id === 'sword')!.text);
+    // the others stay failures, and so does the clip
+    for (const k of [0, 2, 3, 4, 5, 6]) expect(judgement.frames[k]!.level, names[k]).toBe('fail');
+    expect(judgement.level).toBe('fail');
+    expect(waived).toEqual([{ key: `${names[1]}:sword`, reason: REASON, was: [j.frames[1]!.checks.find((c) => c.id === 'sword')!.text] }]);
+    // what was judged is not touched: the waiver builds a new judgement
+    expect(j.frames[1]!.level).toBe('fail');
+    // every failure waived: the clip is no longer a failure (the frames are warnings), and nothing is waived without being listed
+    const all = applyWaivers(j, Object.fromEntries(names.map((n) => [`${n}:sword`, REASON])));
+    expect(all.judgement.level).not.toBe('fail');
+    expect(all.waived).toHaveLength(7);
+  });
+
+  it('waives a failure of the clip as a whole by its check alone (the blow that does not do what was asked)', () => {
+    const frames = placed.map((p) => p.image);
+    const j = judge({ anchors: anchorsFor(names, frames, built.frames, SWORD_FRAMES) });
+    expect(j.checks.map((c) => `${c.level}:${c.id}`)).toContain('fail:intent');
+    const { judgement, waived } = applyWaivers(j, { intent: REASON });
+    expect(judgement.checks.find((c) => c.id === 'intent')!.level).toBe('warn');
+    expect(judgement.level).not.toBe('fail');
+    expect(waived[0]!.key).toBe('intent');
+  });
+
+  it('refuses a waiver that matches no failure — a stale one would accept whatever comes next — and says which failures there are', () => {
+    const j = judge();
+    expect(() => applyWaivers(j, { 'attack1_09:sword': REASON })).toThrow(IntakeError);
+    expect(() => applyWaivers(j, { 'attack1_09:sword': REASON })).toThrow(/"attack1_09:sword" does not match any failure of this delivery.*attack1_00:sword/);
+    // a check that passes, or one that is only a warning, is not a failure to accept
+    expect(() => applyWaivers(j, { [`${names[0]}:loose`]: REASON })).toThrow(/does not match any failure/);
+    const twice = judge({ request: { ...BLOW, sword: false }, frames: [placed[0]!.image, placed[0]!.image], names: names.slice(0, 2), clipped: [placed[0]!.clipped, placed[0]!.clipped], groundGap: [0, 0], rawRed: [0, 0] });
+    expect(twice.frames[1]!.checks.map((c) => `${c.level}:${c.id}`)).toContain('warn:repeat');
+    expect(() => applyWaivers(twice, { [`${names[1]}:repeat`]: REASON })).toThrow(/does not match any failure/);
+    // and with no waivers nothing changes
+    expect(applyWaivers(j, {})).toEqual({ judgement: j, waived: [] });
   });
 });
 
@@ -670,7 +776,7 @@ describe('what is in the inbox, the rig\'s list of clips handed over, and the st
     const a = join(tmp, 'poses');
     mkdirSync(a);
     const png = encodePng({ width: 2, height: 2, data: new Uint8Array(16).fill(255) });
-    for (const n of ['dash_10.png', 'dash_2.png', 'dash_1.png', 'anchors.json', 'placement.json', '.DS_Store']) writeFileSync(join(a, n), n.endsWith('.png') ? png : '{}');
+    for (const n of ['dash_10.png', 'dash_2.png', 'dash_1.png', 'anchors.json', 'placement.json', 'waivers.json', '.DS_Store']) writeFileSync(join(a, n), n.endsWith('.png') ? png : '{}');
     const poses = readInbox(a)!;
     expect(poses.mode).toBe('poses');
     expect(poses.files).toEqual(['dash_1.png', 'dash_2.png', 'dash_10.png']);
@@ -700,8 +806,10 @@ describe('what is in the inbox, the rig\'s list of clips handed over, and the st
     const requests = JSON.parse(readFileSync(join(root, 'art', 'player', 'requests', 'requests.json'), 'utf8')).clips as Record<string, { status: string }>;
     for (const r of rows) expect(r.requested, r.clip).toBe(requests[r.clip]?.status === 'requested');
     expect(rows.find((r) => r.clip === 'idle')).toMatchObject({ kind: 'own', requested: false });
-    // every clip asked for is one that is not made of a drawing of its own — or is the walk, whose legs the sheet's one drawing only bends
+    // a clip that is still asked for is not made of a drawing of its own — or is the walk, whose legs the sheet's one drawing only bent; the clips drawn anew are the rig's list of those handed over
     for (const r of rows.filter((x) => x.requested && x.clip !== 'walk')) expect(r.kind, `${r.clip} is asked for, so it is a stand-in`).toBe('stand-in');
+    expect(rows.filter((r) => r.kind === 'delivered').map((r) => r.clip).sort()).toEqual([...readDelivered(root)].sort());
+    for (const r of rows.filter((x) => x.kind === 'delivered')) expect(r.requested, `${r.clip} was handed over: it is no longer asked for`).toBe(false);
   });
 });
 
@@ -717,6 +825,24 @@ describe('the production kit', () => {
     const folders = readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name).sort();
     expect(folders).toEqual([...new Set([...files.keys()].filter((f) => f.includes('/')).map((f) => f.split('/')[0]!))].sort());
   }, 60_000);
+
+  it('says so when nothing is asked for any more — what was delivered, how each delivery differs from what was asked — and goes back to asking when a clip is requested again', () => {
+    const data = JSON.parse(readFileSync(join(root, 'art', 'player', 'requests', 'requests.json'), 'utf8')) as Requests;
+    const all = structuredClone(data);
+    for (const c of Object.values(all.clips)) c.status = 'delivered';
+    const done = buildReadme(all);
+    expect(done).toMatch(/no queda ningún clip por pedir/);
+    expect(done).not.toMatch(/Los tres pasos/);
+    for (const [id, c] of Object.entries(all.clips)) {
+      expect(done, `${id} is in the table`).toContain(`| \`${id}\` | ${c.frames.length} | ${c.delivery?.asked?.frames ?? c.frames.length} |`);
+      if (c.delivery) expect(done, `${id}: what differs from the ask`).toContain(c.delivery.note);
+    }
+    // one clip asked for again: the kit is the one it always was
+    const again = structuredClone(all);
+    again.clips['dash']!.status = 'requested';
+    expect(buildReadme(again)).toMatch(/Los tres pasos/);
+    expect(buildReadme(again)).not.toMatch(/no queda ningún clip por pedir/);
+  });
 
   it('asks for what the pipeline can take: every clip is a clip of the generator, its frames add up to what its phases cover, and its timing keeps the length the game gives the action', () => {
     const data = JSON.parse(readFileSync(join(root, 'art', 'player', 'requests', 'requests.json'), 'utf8')) as {
@@ -750,15 +876,13 @@ describe('the production kit', () => {
 
 describe('handing a clip over, in a copy of the repository', () => {
   let tmp = '';
-  // a blow with a sword that is still asked for (so the delivery replaces a stand-in); the day every blow has been handed over, the first one is replaced on purpose (`replace`)
-  const asked = JSON.parse(readFileSync(join(root, 'art', 'player', 'requests', 'requests.json'), 'utf8')).clips as Record<string, { sword: boolean; status: string; priority: number; group: string; frames: unknown[]; manifest: { fps: number; tags: string[]; phases: unknown } }>;
-  const swordClips = Object.entries(asked).filter(([, c]) => c.sword).sort((a, b) => a[1].priority - b[1].priority || a[1].group.localeCompare(b[1].group));
-  const pending = swordClips.find(([, c]) => c.status === 'requested');
-  const [clip, spec] = pending ?? swordClips[0]!;
-  const replace = pending === undefined;
+  // Every blow of the game has been handed over by now, so a delivery REPLACES one (`replace`): in the copy, `attack2` is made to ask for what the test's sheet holds — the seven frames of the first blow, which the generator
+  // draws clean and whose anchors the manifest has — so what is exercised is the tool and not the drawings of a delivery (which carry their own baked effects, their anchors and their waivers)
+  const clip = 'attack2';
+  const replace = true;
+  const spec = BLOW;
   const N = spec.frames.length;
-  // the sheet is made of the clip's OWN frames in the game today (a stand-in's, or the delivered ones): they rise or drop as that blow must, so the check of what the blow does passes as it would for a good delivery
-  const source = clipFrameNames(readClips(root)[clip]!).slice(0, N);
+  const source: string[] = [...SWORD_FRAMES];
   const delivered0 = readDelivered(root);
   const names = source.map((_, k) => `${clip}_0${k}`);
   const inbox = (): string => join(tmp, 'art', 'player', 'inbox', clip);
@@ -777,6 +901,11 @@ describe('handing a clip over, in a copy of the repository', () => {
     // the copy starts with an EMPTY inbox: what a person has dropped in the real one (sheets, reports) is theirs, and must not change what this test asserts
     const realInbox = join(root, 'art', 'player', 'inbox');
     cpSync(join(root, 'art'), join(tmp, 'art'), { recursive: true, filter: (src) => src !== realInbox && !src.startsWith(`${realInbox}${sep}`) });
+    // in the copy the clip asks for the test's blow (the data of the real one is what its own delivery needed, not what the tool is tested on); no clip of the copy is asked for, as in the repository
+    const requestsFile = join(tmp, 'art', 'player', 'requests', 'requests.json');
+    const data = JSON.parse(readFileSync(requestsFile, 'utf8')) as { clips: Record<string, unknown> };
+    data.clips[clip] = { ...(data.clips[clip] as object), ...BLOW, intent: undefined, delivery: undefined, status: 'delivered' };
+    writeFileSync(requestsFile, `${JSON.stringify(data, null, 2)}\n`);
     mkdirSync(inbox(), { recursive: true });
     writeFileSync(join(inbox(), 'sheet.png'), encodePng(composeSheet(source, { up: 3, cols: 4, gap: 90, shadow: true }).sheet));
   }, 120_000);
@@ -870,5 +999,37 @@ describe('handing a clip over, in a copy of the repository', () => {
     expect(state(), 'every file touched was put back').toEqual(before);
     expect(logs.join('\n')).toMatch(/was NOT applied/);
     writeFileSync(poses, original);
+  }, 240_000);
+
+  it('accepts a failure on purpose, and only that one: waivers.json makes the named failure a warning with its reason in the report, the file goes into the archive, and a changed waiver asks to look again', () => {
+    const REASON = 'The sword of this frame is a stub in the sheet by design of the test: the failure is known and accepted.';
+    // the same delivery with the grip and the tip of the first frame a hand's breadth apart: a stub of a blade is a failure
+    const anchors = JSON.parse(readFileSync(join(inbox(), 'anchors.json'), 'utf8')) as Record<string, { grip: [number, number]; tip: [number, number] }>;
+    anchors[names[0]!]!.tip = [anchors[names[0]!]!.grip[0] + 6, anchors[names[0]!]!.grip[1]];
+    writeFileSync(join(inbox(), 'anchors.json'), JSON.stringify(anchors, null, 2));
+    const failing = prepareClip(tmp, clip);
+    expect(failing.judgement.level).toBe('fail');
+    expect(failing.judgement.frames[0]!.checks.some((c) => c.id === 'sword' && c.level === 'fail')).toBe(true);
+    expect(() => acceptClip(tmp, clip, { replace, pack: false, verify: false })).toThrow(/has failures/);
+    // with the waiver the delivery is a warning, the report says so and why, and the contact sheet shows the frame as a warning
+    writeFileSync(join(inbox(), 'waivers.json'), JSON.stringify({ [`${names[0]}:sword`]: REASON }, null, 2));
+    const waived = prepareClip(tmp, clip);
+    expect(waived.judgement.level).toBe('warn');
+    expect(waived.waived.map((w) => w.key)).toEqual([`${names[0]}:sword`]);
+    writeReport(tmp, waived);
+    const report = readFileSync(join(tmp, 'art', 'player', 'inbox', '_reports', clip, 'report.md'), 'utf8');
+    expect(report).toMatch(/Fallos aceptados a propósito/);
+    expect(report).toContain(REASON);
+    expect(report).toMatch(/la herramienta decía: de la empuñadura a la punta hay 0\.\d\d m/);
+    // the waivers are part of what the report showed: a waiver changed after it must be looked at again
+    writeFileSync(join(inbox(), 'waivers.json'), JSON.stringify({ [`${names[0]}:sword`]: `${REASON} (changed)` }, null, 2));
+    expect(() => acceptClip(tmp, clip, { replace, pack: false, verify: false })).toThrow(/changed since the report/);
+    writeFileSync(join(inbox(), 'waivers.json'), JSON.stringify({ [`${names[0]}:sword`]: REASON }, null, 2));
+    expect(() => acceptClip(tmp, clip, { replace, pack: false, verify: false })).not.toThrow();
+    // the archive keeps the file with the delivery, and the fingerprint knows it was there
+    expect(readdirSync(archiveDir()).sort()).toEqual(['anchors.json', 'delivery.json', 'report.md', 'sheet.png', 'waivers.json']);
+    expect(readFileSync(join(archiveDir(), 'waivers.json'), 'utf8')).toBe(readFileSync(join(inbox(), 'waivers.json'), 'utf8'));
+    expect(JSON.parse(readFileSync(join(archiveDir(), 'delivery.json'), 'utf8'))).toMatchObject({ clip, level: 'warn', waivers: expect.stringMatching(/^[0-9a-f]{64}$/) });
+    expect(readFileSync(join(archiveDir(), 'report.md'), 'utf8')).toContain(REASON);
   }, 240_000);
 });

@@ -1,6 +1,6 @@
 import { drawText, FONT_H, textWidth, type Rgba } from './bitmapFont';
 import { boundsOf } from './figure';
-import { crop, type ClipJudgement, type Canvas, type Check, type Level, type Scaling, type SwordPoints } from './intake';
+import { crop, type ClipJudgement, type Canvas, type Check, type Level, type Scaling, type SwordPoints, type Waived } from './intake';
 import { board, blank, blit, type BoardItem } from './kit';
 import type { ClipRequest } from './kit';
 import type { RgbaImage } from './png';
@@ -258,6 +258,8 @@ export interface ReportMeta {
   notes: string[];
   nudges: Record<string, { dx: number; dy: number }>;
   anchorProblems: string[];
+  /** The failures a person accepted on purpose (`waivers.json`): listed with their reasons, never hidden. */
+  waived: Waived[];
 }
 
 const LEVEL_ES: Record<Level, string> = { ok: 'correcto', warn: 'aviso', fail: 'FALLO' };
@@ -276,6 +278,7 @@ export function reportMarkdown(r: ReportInput, meta: ReportMeta): string {
     `- **Entrada:** ${meta.mode === 'sheet' ? 'una hoja' : 'un PNG por pose'} — ${meta.inputs.map((i) => `\`${i.file}\``).join(', ')}.`,
     `- **Escala:** ×${r.scaling.factor.toFixed(4)} (${r.scaling.how === 'eye' ? 'por el ojo grande' : r.scaling.how === 'head' ? 'por el tamaño de la cabeza: la cabeza gira y el ojo se ve más pequeño o desaparece, así que no mide el tamaño de la pose' : r.scaling.how === 'given' ? 'dada con --scale' : 'fotogramas ya en el lienzo'}). Ojo de las poses de la hoja: ${r.scaling.eyes.map((e) => (e === null ? '—' : e.toFixed(1))).join(' · ')} px; mediana ${r.scaling.median === null ? '—' : r.scaling.median.toFixed(1)} px${r.scaling.proxy === 'head' ? '' : ` → ${r.scaling.target === null ? '—' : r.scaling.target.toFixed(1)} px en el lienzo`}. Cabeza de las poses de la hoja (el círculo más grande que cabe en la figura): ${r.scaling.heads.map((h) => (h === null ? '—' : h.toFixed(1))).join(' · ')} px; mediana ${r.scaling.headMedian === null ? '—' : r.scaling.headMedian.toFixed(1)} px${r.scaling.proxy === 'head' ? ` → ${r.scaling.headTarget === null ? '—' : r.scaling.headTarget.toFixed(1)} px en el lienzo` : ''}.`,
     `- **Fotogramas:** ${r.frames.length} de ${r.request.frames.length} pedidos, ${r.canvas.width} × ${r.canvas.height}, pivote (${r.canvas.pivot.join(', ')}).`,
+    ...r.request.delivery ? [`- **Lo entregado frente a lo pedido:** ${r.request.delivery.asked ? `se pedían ${r.request.delivery.asked.frames} dibujos a ${r.request.delivery.asked.fps} fps; ` : ''}${r.request.delivery.note}`] : [],
     ...Object.keys(meta.nudges).length > 0 ? [`- **Ajustes de colocación (placement.json):** ${Object.entries(meta.nudges).map(([k, v]) => `\`${k}\` dx ${v.dx} dy ${v.dy}`).join(', ')}.`] : [],
     ...meta.notes.map((n) => `- ${n}`),
     '',
@@ -286,6 +289,9 @@ export function reportMarkdown(r: ReportInput, meta: ReportMeta): string {
     '## Avisos y fallos',
     '',
     ...(notes.length + clipNotes.length > 0 ? [...clipNotes, ...notes] : ['Ninguno.']),
+    ...(meta.waived.length > 0
+      ? ['', '## Fallos aceptados a propósito (`waivers.json`)', '', 'La herramienta los daba por FALLO; una persona los acepta con el motivo que se lee aquí (el archivo se archiva con la entrega). En las tablas figuran como avisos.', '', ...meta.waived.flatMap((w) => [`- \`${w.key}\` — ${w.reason}`, ...w.was.map((t) => `  - la herramienta decía: ${t}`)])]
+      : []),
     ...(meta.anchorProblems.length > 0 ? ['', '## Anclas de la espada', '', ...meta.anchorProblems.map((p) => `- ${p}`)] : []),
     '',
     '## Qué mirar en `contact.png`',

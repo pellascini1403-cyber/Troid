@@ -624,7 +624,7 @@ export function judgeFrames(input: JudgeInput): ClipJudgement {
   });
 
   const clip: Check[] = [];
-  // what the blow must DO (the second blow comes up, the blow in the air comes down): read off the anchors, in metres above the pivot, as the end-to-end scenario reads it off the game
+  // what the blow must DO (the second blow comes forward, the blow in the air comes down): read off the anchors, in metres from the pivot, as the end-to-end scenario reads it off the game
   const phases = request.manifest.phases;
   if (request.sword && phases && request.intent && input.names.every((n) => input.anchors.has(n))) {
     const height = (a: number, b: number): number[] => input.names.slice(a, b + 1).map((n) => (canvas.pivot[1] - input.anchors.get(n)!.tip[1]) / canvas.artPxPerMeter);
@@ -638,6 +638,11 @@ export function judgeFrames(input: JudgeInput): ClipJudgement {
       const drop = Math.max(...startup) - Math.min(...active);
       if (drop < request.intent.tipDrops) clip.push({ id: 'intent', level: 'warn', text: `el tajo en el aire tiene que BAJAR (la punta, al menos ${request.intent.tipDrops} m entre la preparación y la fase activa) y baja ${drop.toFixed(2)} m: ¿es el golpe que pide el encargo?` });
     }
+    if (request.intent.tipAdvances !== undefined) {
+      const ahead = (a: number, b: number): number[] => input.names.slice(a, b + 1).map((n) => (input.anchors.get(n)!.tip[0] - canvas.pivot[0]) / canvas.artPxPerMeter);
+      const advance = Math.max(...ahead(...phases.active)) - Math.min(...ahead(...phases.startup));
+      if (advance < request.intent.tipAdvances) clip.push({ id: 'intent', level: 'fail', text: `el golpe tiene que AVANZAR (la punta, al menos ${request.intent.tipAdvances} m hacia delante entre la preparación y la fase activa) y avanza ${advance.toFixed(2)} m: ¿es el golpe que pide el encargo (la hoja pasa de detrás del cuerpo a delante)?` });
+    }
   }
   if ((scaling.how === 'eye' || scaling.how === 'head') && scaling.factor > 1) {
     clip.push({ id: 'resolution', level: scaling.factor > 2 ? 'fail' : 'warn', text: `la imagen entregada es MÁS PEQUEÑA que los fotogramas (la escala es ×${scaling.factor.toFixed(2)}): sus píxeles se agrandan y el dibujo se ve borroso — pide una hoja de al menos el doble de tamaño que los fotogramas` });
@@ -650,4 +655,72 @@ export function judgeFrames(input: JudgeInput): ClipJudgement {
     clip.push({ id: 'neighbour', level: 'warn', text: `el ojo grande del clip mide ${eyeMedian.toFixed(1)} px y el de su vecino en el juego ${scaling.target.toFixed(1)} px (${pct(Math.abs(eyeMedian - scaling.target) / scaling.target)} de diferencia)` });
   }
   return { frames: out, checks: clip, eye: eyeMedian, head: headMedian, level: worst([...out.map((f) => f.level), ...clip.map((c) => c.level)]) };
+}
+
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ failures accepted on purpose
+
+/** The shortest reason a person may give for accepting a failure: a word is not a reason. */
+export const MIN_WAIVER_REASON = 20;
+
+/** A failure of the judgement that a person accepted on purpose, with what they said and what the tool had said. */
+export interface Waived {
+  /** `"<frame>:<check>"` (a check of one frame) or `"<check>"` (a check of the clip). */
+  key: string;
+  reason: string;
+  /** The texts of the failures it covers, as the tool wrote them. */
+  was: string[];
+}
+
+/**
+ * `waivers.json` of a clip's inbox: `{ "<frame>:<check>": "why", "<check>": "why" }` — the failures a person accepts ON PURPOSE (a drawing that has no visible sword where the clip needs its anchors,
+ * a pose that has to move by a translation to fit). The file is what makes the acceptance explicit and reviewable: it is archived with the delivery, the report lists every waived failure with its reason,
+ * and a waiver that matches no failure is refused (a stale one would silently accept whatever comes next). Nothing here lowers a threshold; it only lets a named failure through with its reason attached.
+ */
+export function parseWaivers(text: string | null): Record<string, string> {
+  if (text === null) return {};
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch (e) {
+    throw new IntakeError(`waivers.json is not valid JSON (${e instanceof Error ? e.message : String(e)})`);
+  }
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new IntakeError('waivers.json must be an object: { "<frame>:<check>": "why this failure is accepted", … }');
+  const out: Record<string, string> = {};
+  for (const [key, reason] of Object.entries(raw)) {
+    if (typeof reason !== 'string' || reason.trim().length < MIN_WAIVER_REASON) throw new IntakeError(`waivers.json: "${key}" needs a reason of at least ${MIN_WAIVER_REASON} characters (say why this failure is accepted)`);
+    out[key] = reason.trim();
+  }
+  return out;
+}
+
+/** The judgement with the failures named in `waivers` turned into warnings that say they were accepted and why. A waiver that matches no failure is an error. */
+export function applyWaivers(judgement: ClipJudgement, waivers: Record<string, string>): { judgement: ClipJudgement; waived: Waived[] } {
+  const keys = Object.keys(waivers);
+  if (keys.length === 0) return { judgement, waived: [] };
+  const waived: Waived[] = [];
+  const turn = (check: Check): Check => ({ ...check, level: 'warn', text: `FALLO ACEPTADO A PROPÓSITO (waivers.json; el motivo, en el informe) — ${check.text}` });
+  const touched = new Map<string, string[]>();
+  const frames = judgement.frames.map((f) => {
+    const checks = f.checks.map((c) => {
+      const reason = waivers[`${f.name}:${c.id}`];
+      if (reason === undefined || c.level !== 'fail') return c;
+      const k = `${f.name}:${c.id}`;
+      touched.set(k, [...(touched.get(k) ?? []), c.text]);
+      return turn(c);
+    });
+    return checks.some((c, i) => c !== f.checks[i]) ? { ...f, checks, level: worst(checks.map((c) => c.level)) } : f;
+  });
+  const clipChecks = judgement.checks.map((c) => {
+    const reason = waivers[c.id];
+    if (reason === undefined || c.level !== 'fail') return c;
+    touched.set(c.id, [...(touched.get(c.id) ?? []), c.text]);
+    return turn(c);
+  });
+  const unused = keys.filter((k) => !touched.has(k));
+  if (unused.length > 0) {
+    const failing = [...judgement.frames.flatMap((f) => f.checks.filter((c) => c.level === 'fail').map((c) => `${f.name}:${c.id}`)), ...judgement.checks.filter((c) => c.level === 'fail').map((c) => c.id)];
+    throw new IntakeError(`waivers.json: ${unused.map((k) => `"${k}"`).join(', ')} ${unused.length === 1 ? 'does' : 'do'} not match any failure of this delivery (a waiver is for a failure that is there; the failures now: ${failing.length === 0 ? 'none' : [...new Set(failing)].join(', ')}) — remove it`);
+  }
+  for (const k of keys) waived.push({ key: k, reason: waivers[k]!, was: touched.get(k)! });
+  return { judgement: { ...judgement, frames, checks: clipChecks, level: worst([...frames.map((f) => f.level), ...clipChecks.map((c) => c.level)]) }, waived };
 }

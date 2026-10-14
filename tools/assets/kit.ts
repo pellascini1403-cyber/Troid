@@ -40,11 +40,13 @@ export interface ClipRequest {
   scaleLike: string;
   scaleWhy: string;
   sword: boolean;
-  /** What the blow must DO, which the tool checks on the anchors: its tip rises (the second blow) or drops (the blow in the air) by at least this many metres from the wind-up to the active phase. */
-  intent?: { tipRises?: number; tipDrops?: number; es: string };
+  /** What the blow must DO, which the tool checks on the anchors: its tip rises (an ascending cut) or drops (the blow in the air) by at least this many metres from the wind-up to the active phase — or ADVANCES (a blow that swings from behind the body to in front of it) by at least this many metres. */
+  intent?: { tipRises?: number; tipDrops?: number; tipAdvances?: number; es: string };
   limits: { heightM: [number, number]; widthM: [number, number] };
   references: { sheet: string[]; frames: string[]; extra?: string[]; note: string };
   frames: ClipFrameRequest[];
+  /** Set when what came back is not exactly what was asked: the request is then rewritten to what the drawings ARE (so the tool can judge them) and this keeps what was asked and how they differ. */
+  delivery?: { note: string; asked?: { frames: number; fps: number; phases: ClipRequest['manifest']['phases'] } };
 }
 
 export interface Requests {
@@ -410,11 +412,48 @@ export function buildBrief(r: Requests, clip: string, eye: number | null = null)
   ].join('\n');
 }
 
+/** The README when nothing is asked for any more: what was delivered, how it differs from what was asked, and how to ask for something again. */
+function allDelivered(done: ReadonlyArray<[string, ClipRequest]>): string {
+  const differs = done.filter(([, c]) => c.delivery);
+  return [
+    '# Los dibujos del protagonista — kit de producción (todo entregado)',
+    '',
+    `> **Estado: no queda ningún clip por pedir.** Los ${done.length} clips que pedía este kit se han entregado y aceptado con \`npm run assets:intake\` y hoy son **dibujos del usuario** en \`art/player/hero/\`: ${done.map(([k]) => `\`${k}\``).join(', ')}. De cada uno se archivó la hoja de la que salió, sus anclas, su colocación, los fallos que se aceptaron a propósito y el informe en \`art/player/source/delivered/<clip>/\`: la misma hoja con los mismos archivos da los mismos fotogramas. Este archivo lo escribe \`npm run assets:intake -- kit\` desde \`requests.json\`.`,
+    '',
+    '## Lo entregado',
+    '',
+    '| Grupo | Clip | Fotogramas | Se pedían | Archivo de la entrega |',
+    '|---|---|---|---|---|',
+    ...done.map(([k, c]) => `| ${c.group} | \`${k}\` | ${c.frames.length} | ${c.delivery?.asked?.frames ?? c.frames.length} | [\`${k}/\`](../source/delivered/${k}/) |`),
+    '',
+    ...(differs.length > 0
+      ? [
+          '## Lo que llegó distinto de lo pedido',
+          '',
+          'El encargo se reescribió a lo que son los dibujos para que la herramienta los pudiera juzgar (el número de fotogramas, las fases, los límites de tamaño), y cada entrega dice en qué se aparta:',
+          '',
+          ...differs.map(([k, c]) => `- **\`${k}\`**${c.delivery!.asked ? ` (se pedían ${c.delivery!.asked.frames} dibujos a ${c.delivery!.asked.fps} fps)` : ''}: ${c.delivery!.note}`),
+          '',
+        ]
+      : []),
+    '## Si hay que pedir algo otra vez',
+    '',
+    'Poner `"status": "requested"` al clip en `requests.json` y `npm run assets:intake -- kit`: el kit vuelve a escribir su *brief* y su tablero de referencias. La entrega nueva se suelta en `art/player/inbox/<clip>/` y se acepta con `npm run assets:intake -- <clip> --accept --replace` (lo ya aprobado no se sobrescribe sin pedirlo por su nombre). Guía: [`docs/guides/deliver-protagonist-art.md`](../../../docs/guides/deliver-protagonist-art.md).',
+    '',
+    '## Guías',
+    '',
+    '- `canvas-template.png` y `canvas-template-idle.png`: el lienzo a 4× con el suelo, el pivote, las alturas del cuerpo de pie (1.7 m) y agachado (1.0 m) y el margen: **guías de composición, no arte**.',
+    '- `character-reference.png`: las poses que definen el diseño, de la hoja del usuario.',
+    '',
+  ].join('\n');
+}
+
 export function buildReadme(r: Requests): string {
   const byOrder = (a: [string, ClipRequest], b: [string, ClipRequest]): number => a[1].priority - b[1].priority || a[1].group.localeCompare(b[1].group);
   const clips = Object.entries(r.clips).filter(([, c]) => c.status === 'requested').sort(byOrder);
   const done = Object.entries(r.clips).filter(([, c]) => c.status === 'delivered').sort(byOrder);
   const total = clips.reduce((n, [, c]) => n + c.frames.length, 0);
+  if (clips.length === 0) return allDelivered(done);
   return [
     '# Los dibujos que faltan del protagonista — kit de producción',
     '',
