@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, wri
 import { dirname, join, relative, sep } from 'node:path';
 import { animate } from './animate';
 import { buildArt, formatReport } from './build';
-import { clipFrameNames, heroPaths, readClips, readDelivered, readHeroFrame } from './heroRepo';
+import { clipFrameNames, clipHead, heroPaths, readClips, readDelivered, readHeroFrame } from './heroRepo';
 import { chooseScale, cutLoose, cutSheet, IntakeError, judgeFrames, manifestAnchors, parseAnchors, placeFrame, type Canvas, type ClipJudgement, type Cut, type Level, type Placed, type Scaling, type SwordPoints } from './intake';
 import { anchorsGrid, contactSheet, reportMarkdown, segmentationPicture, type ReportInput, type ReportMeta } from './intakeReport';
 import { buildKit, readKitSources, referenceItems, type ClipRequest, type Requests } from './kit';
@@ -84,7 +84,7 @@ export interface Fingerprint {
   clip: string;
   level: Level;
   inputs: Array<{ file: string; sha256: string }>;
-  scale: { factor: number; how: string; target: number | null };
+  scale: { factor: number; how: string; proxy: string; target: number | null; headTarget: number | null };
   anchors: string | null;
   placement: string | null;
   frames: Array<{ name: string; sha256: string; level: Level }>;
@@ -128,7 +128,7 @@ export function prepareClip(root: string, clip: string, options: { scale?: numbe
 
   const cut = inbox.mode === 'sheet' ? cutSheet(images[0]!, expected) : cutLoose(images, canvas);
   if (inbox.ignored.length > 0) cut.notes.push(`hay más PNG en la carpeta (${inbox.ignored.join(', ')}): se lee solo sheet.png`);
-  const scaling = chooseScale(cut, src.eye(request.scaleLike), options.scale);
+  const scaling = chooseScale(cut, src.eye(request.scaleLike), options.scale, { headTarget: clipHead(root, request.scaleLike), tolerance: requests.scale.tolerance });
   const names = request.frames.map((_, k) => `${clip}_${pad2(k)}`);
   const placementText = readText(join(inboxDir, 'placement.json'));
   const nudges = readNudges(placementText, names);
@@ -166,7 +166,7 @@ export function prepareClip(root: string, clip: string, options: { scale?: numbe
     clip,
     level: judgement.level,
     inputs: meta.inputs,
-    scale: { factor: Math.round(scaling.factor * 1e6) / 1e6, how: scaling.how, target: scaling.target === null ? null : Math.round(scaling.target * 100) / 100 },
+    scale: { factor: Math.round(scaling.factor * 1e6) / 1e6, how: scaling.how, proxy: scaling.proxy, target: scaling.target === null ? null : Math.round(scaling.target * 100) / 100, headTarget: scaling.headTarget === null ? null : Math.round(scaling.headTarget * 100) / 100 },
     anchors: anchorText === null ? null : sha(anchorText),
     placement: placementText === null ? null : sha(placementText),
     frames: names.map((name, k) => ({ name, sha256: sha(frameBytes[k]!), level: judgement.frames[k]!.level })),
@@ -202,7 +202,10 @@ export function writeCutFailure(root: string, clip: string, error: IntakeError):
 /** One line per frame and the notes, for the terminal. */
 export function summary(p: Prepared): string[] {
   const j = p.judgement;
-  const out = [`${p.clip}: ${p.frames.length} frames from ${p.inbox.mode === 'sheet' ? 'the sheet' : `${p.inbox.files.length} files`}, scale x${p.scaling.factor.toFixed(4)} (${p.scaling.how}), the clip's big eye ${j.eye === null ? '—' : `${j.eye.toFixed(1)} px`}${p.scaling.target === null ? '' : ` (neighbour ${p.scaling.target.toFixed(1)} px)`}`];
+  const measure = p.scaling.proxy === 'head'
+    ? `the clip's head ${j.head === null ? '—' : `${j.head.toFixed(1)} px`}${p.scaling.headTarget === null ? '' : ` (neighbour ${p.scaling.headTarget.toFixed(1)} px)`} — the head turns, so the eyes (${j.eye === null ? '—' : `${j.eye.toFixed(1)} px`}) are not what it is scaled by`
+    : `the clip's big eye ${j.eye === null ? '—' : `${j.eye.toFixed(1)} px`}${p.scaling.target === null ? '' : ` (neighbour ${p.scaling.target.toFixed(1)} px)`}`;
+  const out = [`${p.clip}: ${p.frames.length} frames from ${p.inbox.mode === 'sheet' ? 'the sheet' : `${p.inbox.files.length} files`}, scale x${p.scaling.factor.toFixed(4)} (${p.scaling.how}), ${measure}`];
   for (const f of j.frames) out.push(`  ${f.level === 'ok' ? 'ok  ' : f.level === 'warn' ? 'warn' : 'FAIL'}  ${f.name}  ${f.role}${f.phase ? ` (${f.phase})` : ''}  ${f.heightM.toFixed(2)} × ${f.widthM.toFixed(2)} m`);
   for (const c of j.checks) out.push(`  ${c.level.toUpperCase()}  ${c.id}: ${c.text}`);
   for (const f of j.frames) for (const c of f.checks) if (c.level !== 'ok') out.push(`  ${c.level.toUpperCase()}  ${f.name} · ${c.id}: ${c.text}`);
@@ -270,7 +273,8 @@ export interface AcceptOptions {
 }
 
 /** The manifest's entry of a clip handed over, as `npm run assets:animate` carries it over verbatim. */
-export function deliveredEntry(clip: string, request: ClipRequest, count: number): Record<string, unknown> {
+export function deliveredEntry(clip: string, request: ClipRequest, count: number, how: Scaling['how'] = 'eye'): Record<string, unknown> {
+  const scaledBy = { eye: 'the big eye', head: 'the size of the head (it turns, so the eye is no fair measure of it)', given: 'a factor given by hand', final: 'nothing (the frames arrived at the size of the game)' }[how];
   const m = request.manifest;
   return {
     frames: `${clip}_`,
@@ -279,7 +283,7 @@ export function deliveredEntry(clip: string, request: ClipRequest, count: number
     loop: m.loop,
     ...(m.phases ? { phases: m.phases } : {}),
     tags: [...m.tags],
-    comment: `DRAWN ANEW and handed over through \`npm run assets:intake\` (${request.title}): ${count} frames of the same character from a delivered sheet, every pixel the sheet's — scaled once by the big eye, placed by a translation, nothing redrawn`,
+    comment: `DRAWN ANEW and handed over through \`npm run assets:intake\` (${request.title}): ${count} frames of the same character from a delivered sheet, every pixel the sheet's — scaled once by ${scaledBy}, placed by a translation, nothing redrawn`,
   };
 }
 
@@ -318,7 +322,7 @@ export function acceptClip(root: string, clip: string, options: AcceptOptions = 
     // 2 · the manifest: the clip's entry and the anchors of its frames (the generator carries both over as they are)
     const manifest = JSON.parse(readFileSync(paths.manifest, 'utf8')) as { sprites: Array<{ clips: Record<string, unknown>; frames: Record<string, unknown> }> };
     const sprite = manifest.sprites[0]!;
-    sprite.clips[clip] = deliveredEntry(clip, request, prepared.frames.length);
+    sprite.clips[clip] = deliveredEntry(clip, request, prepared.frames.length, prepared.scaling.how);
     for (const key of Object.keys(sprite.frames)) if (key.startsWith(prefix) && /^\d+$/.test(key.slice(prefix.length))) delete sprite.frames[key];
     if (request.sword) for (const name of prepared.names) sprite.frames[name] = { anchors: manifestAnchors(prepared.anchors.points.get(name)!, prepared.canvas) };
     writeFileSync(paths.manifest, `${JSON.stringify(manifest, null, 2)}\n`);

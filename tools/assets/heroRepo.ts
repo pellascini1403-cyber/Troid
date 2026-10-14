@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { eyeDiameter } from './figure';
+import { eyeDiameter, headDiameter } from './figure';
 import { frameFile, keptFrom } from './heroAnimation';
 import { decodePng, type RgbaImage } from './png';
 
@@ -67,4 +67,16 @@ export function clipEye(root: string, clipName: string): number | null {
     if (e) eyes.push(e.diameter);
   }
   return eyes.length === 0 ? null : median(eyes);
+}
+
+/** The head of a clip of the game, in pixels: the biggest circle inside the figure (`headDiameter`), the median over its frames — the measure a sheet is scaled by when its head turns and its eyes cannot say. */
+export function clipHead(root: string, clipName: string): number | null {
+  const clip = readClips(root)[clipName];
+  if (!clip) return null;
+  const heads: number[] = [];
+  for (const name of clipFrameNames(clip)) {
+    const h = headDiameter(readHeroFrame(root, name));
+    if (h !== null) heads.push(h);
+  }
+  return heads.length === 0 ? null : median(heads);
 }

@@ -1599,7 +1599,8 @@ cutSheet        la hoja → las poses: fondo transparente (el alfa, o lo que no 
    │            pedidas, error con lo que encontró y un dibujo (`segmentation.png`): no adivina dónde acaba una pose y empieza otra. Después, `extractPose`
    │            (poses.ts, el mismo recorte que ya se usó con tu hoja: sombras de suelo, líneas, rojo de efecto fuera, el borde suave sin resto de blanco)
    ▼
-chooseScale     UN factor para toda la hoja: la mediana del ojo grande de sus poses → la del clip vecino del juego (`scaleLike`)
+chooseScale     UN factor para toda la hoja: la mediana del ojo grande de sus poses → la del clip vecino del juego (`scaleLike`); si la cabeza
+   │            gira y los ojos de la hoja discrepan mientras sus cabezas no (O.4.1), la mediana de la CABEZA → la de la cabeza del vecino
    ▼
 placeFrame      escala y remuestrea UNA vez (el renderizador del Prompt 9, muestreo por área); el centro de masa del cuerpo (sin espada,
    │            antenas ni capa) en la columna 120; lo más bajo de la figura en la fila 192 (o el centro de masa a 1.0 m del pivote si el cuerpo está en el aire)
@@ -1626,6 +1627,20 @@ Lo que esa medición enseñó: **los dibujos del usuario no están a una escala 
 
 El factor es **uno por hoja**: las poses conservan los tamaños relativos que les dio quien las dibujó. Lo que se mide después, sobre los fotogramas ya hechos, es que **ninguna pose se aparte del ojo mediano del clip** más de ±14 % (aviso) o el doble (fallo): una pose dibujada a otra escala. Si el ojo no se puede medir (un generador que lo dibuja distinto), `--scale <k>` da el factor a mano.
 
+### O.4.1 La cabeza que gira: cuando el ojo no mide el tamaño de la pose
+
+El ojo solo mide el tamaño de una pose **mientras la cara mira de frente**. Cuando la cabeza se gira, cae o queda de lado, el ojo se ve más estrecho, más pequeño o desaparece, y una hoja entera de una caída —la primera pose de frente, las últimas con la cabeza vuelta— discrepa **consigo misma** aunque todas las poses estén dibujadas al mismo tamaño. Con la hoja real de `death` (Prompt 11) el ojo medía **41.6 · 35.0 · 31.2 · 24.3 · 25.8 px** (una dispersión del **33.5 %** respecto a la mediana) y la herramienta falló la primera pose «por haberse dibujado a otra escala»; además escalaba por la **mediana** de esos ojos, que es la de una cabeza ya vuelta, y la primera pose salía un tercio más grande que `hurt_00`, el fotograma que la precede en el juego. Ningún `--scale` lo arreglaba: la comparación es contra la mediana de la propia hoja y esa proporción no cambia con el factor.
+
+Lo que **no** cambia cuando la cabeza gira es **la cabeza**. Este personaje es una cúpula enorme sobre un cuerpo pequeño: en toda pose lo más grueso es la cabeza (antenas, hoja, miembros y placas son más finas), así que `headDiameter` mide **el círculo más grande que cabe dentro de la figura** (con sus huecos rellenos; distancia exacta al exterior, una pasada lineal por eje) y da lo mismo gire como gire. Calibrado con los 114 fotogramas: **dentro de un clip la cabeza no se aparta de su mediana más del 8.5 %** (el salto; casi siempre menos del 4 %), y en la muerte de entonces —cinco de nueve fotogramas sin ojo medible— se mantiene en el **1.3 %**. La proporción cabeza/ojo de las poses de frente es **2.2–3.0** en los fotogramas del juego y **2.3–2.6** en las hojas nuevas: es el mismo personaje.
+
+**La regla** (`scaleProxy`, una sola, con la misma tolerancia de siempre, ±14 %):
+
+1. Si los ojos de la hoja **coinciden** entre sí (se ven en la mitad o más de las poses y ninguno se aparta de la mediana más de la tolerancia): **se mide por el ojo, como siempre** (`dash`, `drink` e `interact` de la Hoja 1 salen con **exactamente** la misma escala que antes: ×0.5336, ×0.6596, ×0.6794).
+2. Si los ojos **discrepan** (o se ven en menos de la mitad) **y las cabezas coinciden** (ninguna se aparta de su mediana más de la tolerancia): la cabeza gira, no hay otra escala. La hoja se escala **por la cabeza** —la mediana de las cabezas de la hoja → la mediana de las cabezas de los fotogramas del clip vecino (`clipHead`)— y las poses se **juzgan por la cabeza** (aviso a > 14 %, fallo a > 28 %, el mismo criterio que tenía el ojo). El ojo se sigue midiendo y mostrando, pero no se juzga.
+3. Si **ambas** discrepan, es una diferencia de escala real —se ve en las dos medidas—: **se mide por el ojo y falla**, como siempre. Nada pasa por «cabeza girada» solo porque convenga.
+
+`--scale <k>` sigue ganando sobre la medición, y lo que se juzga sigue la regla. El informe lo dice (`Escala: ×0.5528 (por el tamaño de la cabeza: …)`, una columna **Cabeza (px)** y la mediana de las cabezas), igual que la hoja de contacto, la terminal y el comentario que `--accept` escribe en el manifiesto.
+
 ## O.5 Qué se comprueba, con qué umbrales — y qué NO se puede comprobar
 
 Los umbrales están en una sola tabla (`LIMITS` en `intake.ts`), **calibrados contra los 114 fotogramas del juego**, que pasan con mucho margen (halo ≤ 1.2 %, piezas sueltas 0 %, rojo ≤ 0.45 % —el borde rojo oscuro de la espada—, color ajeno ≤ 0.07 %; `figure.test.ts` lo fija):
@@ -1637,7 +1652,7 @@ Los umbrales están en una sola tabla (`LIMITS` en `intake.ts`), **calibrados co
 | **Rojo de efecto** en la figura (el personaje no tiene; los arcos de tus dibujos 8–10 son lo que hay que evitar) | > 1 % | > 3 % |
 | **Color ajeno** (amarillo, verde, naranja, tonos de piel) | > 1 % | > 4 % |
 | **Rojo en la hoja entregada** que el recorte deja fuera (una hoja o un miembro dibujado en rojo pierde su color) | > 2 % | — |
-| **Escala entre poses** (ojo contra la mediana del clip) | > 14 % | > 28 % |
+| **Escala entre poses** (ojo contra la mediana del clip; **la cabeza**, si la cabeza gira: O.4.1) | > 14 % | > 28 % |
 | **Salto del centro de masa** entre fotogramas | > 0.55 m | > 1.2 m |
 | **Tamaño** frente a lo que dice el encargo del clip | fuera | > 30 % fuera |
 | **Margen** al borde del lienzo (contrato: ≥ 4 px) · la figura **no cabe** | — | sí |

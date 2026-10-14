@@ -175,6 +175,98 @@ export function eyeDiameter(img: RgbaImage): EyeReading | null {
   return best;
 }
 
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ the head
+
+/**
+ * The squared distance from every pixel of `figure` to the nearest pixel that is not (exact, in two linear passes: Felzenszwalb & Huttenlocher). The picture is padded by one pixel of "not figure",
+ * so a figure that touches the edge of its image ends there, as a cut-out does.
+ */
+function distanceToOutside(figure: Uint8Array, w: number, h: number): { d2: Float64Array; pw: number; ph: number } {
+  const pw = w + 2;
+  const ph = h + 2;
+  const INF = 1e20;
+  const d2 = new Float64Array(pw * ph).fill(0);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (figure[y * w + x]) d2[(y + 1) * pw + x + 1] = INF;
+  const n = Math.max(pw, ph);
+  const f = new Float64Array(n);
+  const out = new Float64Array(n);
+  const v = new Int32Array(n);
+  const z = new Float64Array(n + 1);
+  const pass = (len: number): void => {
+    let k = 0;
+    v[0] = 0;
+    z[0] = -INF;
+    z[1] = INF;
+    for (let q = 1; q < len; q++) {
+      let s = (f[q]! + q * q - (f[v[k]!]! + v[k]! * v[k]!)) / (2 * q - 2 * v[k]!);
+      while (s <= z[k]!) {
+        k--;
+        s = (f[q]! + q * q - (f[v[k]!]! + v[k]! * v[k]!)) / (2 * q - 2 * v[k]!);
+      }
+      k++;
+      v[k] = q;
+      z[k] = s;
+      z[k + 1] = INF;
+    }
+    k = 0;
+    for (let q = 0; q < len; q++) {
+      while (z[k + 1]! < q) k++;
+      out[q] = (q - v[k]!) * (q - v[k]!) + f[v[k]!]!;
+    }
+  };
+  for (let x = 0; x < pw; x++) {
+    for (let y = 0; y < ph; y++) f[y] = d2[y * pw + x]!;
+    pass(ph);
+    for (let y = 0; y < ph; y++) d2[y * pw + x] = out[y]!;
+  }
+  for (let y = 0; y < ph; y++) {
+    for (let x = 0; x < pw; x++) f[x] = d2[y * pw + x]!;
+    pass(pw);
+    for (let x = 0; x < pw; x++) d2[y * pw + x] = out[x]!;
+  }
+  return { d2, pw, ph };
+}
+
+/**
+ * The head: the diameter of the biggest circle that fits inside the figure (its holes filled). This character is a huge dome of a head on a small body, so in every pose the thickest part of it is the
+ * head — antennae, blade, limbs and plates are all thinner — and the circle does not care which way the head is turned. That is what the eye cannot say: when the head turns away the eye is seen
+ * narrower, smaller, or not at all, while the head keeps its size (`eyeDiameter` is the exact measure of a face that looks at us; this is the measure of the head however it looks).
+ * `null` for an empty image.
+ */
+export function headDiameter(img: RgbaImage): number | null {
+  const { width: w, height: h } = img;
+  const solid = solidMask(img);
+  if (!solid.some((v) => v === 1)) return null;
+  // what the figure encloses is the figure (the highlights of an eye, a gap between a hand and the body): the background is only what can be reached from the border without crossing it
+  const reach = new Uint8Array(w * h);
+  const stack: number[] = [];
+  const open = (x: number, y: number): void => {
+    const i = y * w + x;
+    if (!solid[i] && !reach[i]) {
+      reach[i] = 1;
+      stack.push(i);
+    }
+  };
+  for (let x = 0; x < w; x++) (open(x, 0), open(x, h - 1));
+  for (let y = 0; y < h; y++) (open(0, y), open(w - 1, y));
+  while (stack.length > 0) {
+    const p = stack.pop()!;
+    const x = p % w;
+    const y = (p / w) | 0;
+    if (x > 0) open(x - 1, y);
+    if (x < w - 1) open(x + 1, y);
+    if (y > 0) open(x, y - 1);
+    if (y < h - 1) open(x, y + 1);
+  }
+  const figure = new Uint8Array(w * h);
+  for (let i = 0; i < figure.length; i++) figure[i] = reach[i] ? 0 : 1;
+  const { d2 } = distanceToOutside(figure, w, h);
+  let best = 0;
+  for (let i = 0; i < d2.length; i++) if (d2[i]! > best) best = d2[i]!;
+  // measured between the centres of pixels, the circle comes out about a pixel narrower than the figure it sits in: half of that is given back (a disc of 20 to 100 pixels is read within one pixel)
+  return 2 * Math.sqrt(best) + 0.5;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ the body
 
 export interface Body {

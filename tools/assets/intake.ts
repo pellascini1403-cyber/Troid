@@ -1,4 +1,4 @@
-import { boundsOf, bodyOf, cleanliness, components, eyeDiameter, SOLID, type Cleanliness } from './figure';
+import { boundsOf, bodyOf, cleanliness, components, eyeDiameter, headDiameter, SOLID, type Cleanliness } from './figure';
 import { median } from './heroRepo';
 import type { ClipRequest } from './kit';
 import type { RgbaImage } from './png';
@@ -11,7 +11,8 @@ import { renderFrame, toDrawing } from './warp';
  * factor and every pose is moved by a translation to stand on the pivot — nothing is painted, recoloured, redrawn, mirrored to make a pose, or smoothed beyond the resampling of the scale.
  *
  *   `cutSheet`      a sheet → the poses on it (transparent, in reading order), or an error that says how many were found and why that is not what was asked for
- *   `chooseScale`   one factor for the sheet: the big eye of its poses against the big eye of the frames of the clip this one sits next to in play
+ *   `chooseScale`   one factor for the sheet: the big eye of its poses against the big eye of the frames of the clip this one sits next to in play — or, when the head turns and the eyes of the sheet
+ *                   disagree while its heads do not, the head against the head
  *   `placeFrame`    a pose → a 280 × 230 frame: scaled once, resampled once, its feet (or its centre of mass) on the pivot
  *   `judgeFrames`   the numbers that say a cut-out is clean — and the verdict a person reads before accepting (it never accepts)
  */
@@ -266,33 +267,76 @@ export function cutLoose(images: readonly RgbaImage[], canvas: Pick<Canvas, 'wid
 export interface Scaling {
   /** Canvas pixels per pixel of the delivered picture. */
   factor: number;
-  how: 'eye' | 'given' | 'final';
+  /** What the factor came from: the big eye, the head (when it turns: see `scaleProxy`), a factor given by hand, or frames that arrived on the game's canvas. */
+  how: 'eye' | 'head' | 'given' | 'final';
+  /** What tells a pose drawn at another scale from one that is only turned: the big eye, or the head. It also decides what `judgeFrames` compares between the poses. */
+  proxy: 'eye' | 'head';
   /** The eye the sheet is brought to, in canvas pixels. */
   target: number | null;
   /** The big eye of each pose, in the delivered picture's own pixels, or `null`. */
   eyes: Array<number | null>;
   /** The median of the measurable eyes, in the delivered picture's pixels. */
   median: number | null;
+  /** The head of each pose (the biggest circle inside the figure: see `headDiameter`), in the delivered picture's own pixels. */
+  heads: Array<number | null>;
+  /** The median of the heads, in the delivered picture's pixels. */
+  headMedian: number | null;
+  /** The head the sheet is brought to when it is scaled by the head, in canvas pixels, or `null`. */
+  headTarget: number | null;
+}
+
+/** How far a set of measurements strays from its median: the biggest distance, as a share of the median (0 for fewer than two). */
+export function spreadOf(values: readonly number[]): number {
+  if (values.length < 2) return 0;
+  const m = median(values);
+  return m > 0 ? Math.max(...values.map((v) => Math.abs(v - m) / m)) : 0;
 }
 
 /**
- * ONE factor for the whole delivery: the median big eye of its poses becomes `target` (the big eye of the frames of the neighbouring clip). A `given` factor overrides the measurement; frames that
- * arrived on the game's canvas keep their size.
+ * What a sheet is measured by. The big eye, as always — unless the eyes of its poses disagree by more than the tolerance (or most of them cannot be seen) while its HEADS agree within it: then the
+ * poses are the same size and the head is turned (an eye seen narrower, smaller, or not at all), and the head is the measure that is true. A real difference of scale shows in both measures,
+ * so it still fails by the eye: nothing here lets a pose that was drawn at another size through.
  */
-export function chooseScale(cut: Cut, target: number | null, given?: number): Scaling {
+export function scaleProxy(eyes: ReadonlyArray<number | null>, heads: ReadonlyArray<number | null>, tolerance: number): 'eye' | 'head' {
+  const e = eyes.filter((v): v is number => v !== null);
+  const h = heads.filter((v): v is number => v !== null);
+  const eyesSeen = e.length >= Math.max(1, Math.ceil(eyes.length / 2));
+  if (eyesSeen && spreadOf(e) <= tolerance) return 'eye';
+  return h.length > 0 && h.length === heads.length && spreadOf(h) <= tolerance ? 'head' : 'eye';
+}
+
+export interface ScaleOptions {
+  /** The head of the frames of the neighbouring clip, in canvas pixels (`clipHead`). Without it the sheet is scaled by the eye only, as it always was. */
+  headTarget?: number | null;
+  /** How far the size of a pose may stray from its sheet's median before it is told apart (`requests.json`: `scale.tolerance`). */
+  tolerance?: number;
+}
+
+/**
+ * ONE factor for the whole delivery: the median big eye of its poses becomes `target` (the big eye of the frames of the neighbouring clip) — or, when the head turns (`scaleProxy`), the median head
+ * of its poses becomes `headTarget`. A `given` factor overrides the measurement; frames that arrived on the game's canvas keep their size.
+ */
+export function chooseScale(cut: Cut, target: number | null, given?: number, options: ScaleOptions = {}): Scaling {
   const eyes = cut.poses.map((p) => eyeDiameter(p)?.diameter ?? null);
   const seen = eyes.filter((e): e is number => e !== null);
   const med = seen.length > 0 ? median(seen) : null;
-  if (cut.final.length > 0 && cut.final.every((f) => f)) return { factor: 1, how: 'final', target, eyes, median: med };
+  const heads = cut.poses.map((p) => headDiameter(p));
+  const headsSeen = heads.filter((h): h is number => h !== null);
+  const headMedian = headsSeen.length > 0 ? median(headsSeen) : null;
+  const headTarget = options.headTarget ?? null;
+  const proxy = headTarget === null ? 'eye' : scaleProxy(eyes, heads, options.tolerance ?? 0.14);
+  const known = { proxy, target, eyes, median: med, heads, headMedian, headTarget };
+  if (cut.final.length > 0 && cut.final.every((f) => f)) return { factor: 1, how: 'final', ...known };
   if (given !== undefined) {
     if (!(given > 0 && given < 10)) throw new IntakeError(`--scale ${given}: the factor is canvas pixels per pixel of the delivered picture and must be between 0 and 10`);
-    return { factor: given, how: 'given', target, eyes, median: med };
+    return { factor: given, how: 'given', ...known };
   }
+  if (proxy === 'head' && headMedian !== null && headTarget !== null) return { factor: headTarget / headMedian, how: 'head', ...known };
   if (target === null) throw new IntakeError('the frames of the neighbouring clip have no measurable eye to scale this sheet against: pass the factor yourself with --scale <canvas pixels per pixel of the sheet>');
   if (seen.length < Math.max(1, Math.ceil(cut.poses.length / 2))) {
     throw new IntakeError(`the big eye could be measured in only ${seen.length} of ${cut.poses.length} poses (it needs a round, glowing eye with its white highlights in view): the scale cannot be taken from the sheet — pass it with --scale <canvas pixels per pixel of the sheet>`);
   }
-  return { factor: target / med!, how: 'eye', target, eyes, median: med };
+  return { factor: target / med!, how: 'eye', ...known };
 }
 
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ placing
@@ -436,6 +480,9 @@ export interface FrameJudgement {
   eye: number | null;
   /** (eye − median of the sheet) / median, or `null`. */
   eyeDeviation: number | null;
+  /** The head (the biggest circle inside the figure), in canvas pixels, and its deviation from the median of the clip. */
+  head: number | null;
+  headDeviation: number | null;
   mass: { x: number; y: number } | null;
   /** How far the centre of mass moved from the previous frame, in metres. */
   massStep: number | null;
@@ -473,16 +520,21 @@ export interface ClipJudgement {
   checks: Check[];
   /** The median big eye of the finished frames, in canvas pixels. */
   eye: number | null;
+  /** The median head of the finished frames, in canvas pixels. */
+  head: number | null;
   level: Level;
 }
 
 export function judgeFrames(input: JudgeInput): ClipJudgement {
   const { canvas, request, scaling, tolerance } = input;
   const out: FrameJudgement[] = [];
-  // the poses are judged against each other: the eye of each against the median of the finished clip
+  // the poses are judged against each other: the eye of each against the median of the finished clip — or, when the head turns and the sheet was scaled by the head, the head of each
   const readings = input.frames.map((f) => eyeDiameter(f)?.diameter ?? null);
   const seen = readings.filter((e): e is number => e !== null);
   const eyeMedian = seen.length > 0 ? median(seen) : null;
+  const headReadings = input.frames.map((f) => headDiameter(f));
+  const headSeen = headReadings.filter((h): h is number => h !== null);
+  const headMedian = headSeen.length > 0 ? median(headSeen) : null;
   let prev: { frame: RgbaImage; mass: { x: number; y: number } | null } | null = null;
   input.frames.forEach((frame, k) => {
     const name = input.names[k]!;
@@ -491,7 +543,7 @@ export function judgeFrames(input: JudgeInput): ClipJudgement {
     const b = boundsOf(frame, 8);
     if (!b) {
       checks.push({ id: 'empty', level: 'fail', text: 'el fotograma está vacío' });
-      out.push({ name, role: spec.role, phase: spec.phase, bounds: null, margin: 0, heightM: 0, widthM: 0, eye: null, eyeDeviation: null, mass: null, massStep: null, clean: cleanliness(frame), blade: null, checks, level: 'fail' });
+      out.push({ name, role: spec.role, phase: spec.phase, bounds: null, margin: 0, heightM: 0, widthM: 0, eye: null, eyeDeviation: null, head: null, headDeviation: null, mass: null, massStep: null, clean: cleanliness(frame), blade: null, checks, level: 'fail' });
       prev = { frame, mass: null };
       return;
     }
@@ -514,9 +566,19 @@ export function judgeFrames(input: JudgeInput): ClipJudgement {
     }
 
     const eye = readings[k]!;
+    const head = headReadings[k]!;
     let eyeDeviation: number | null = null;
-    if (eye !== null && eyeMedian !== null) {
-      eyeDeviation = (eye - eyeMedian) / eyeMedian;
+    let headDeviation: number | null = null;
+    if (eye !== null && eyeMedian !== null) eyeDeviation = (eye - eyeMedian) / eyeMedian;
+    if (head !== null && headMedian !== null) headDeviation = (head - headMedian) / headMedian;
+    if (scaling.proxy === 'head') {
+      // the head turns, so the eye is no fair measure of the size of the pose (it is seen narrower, smaller, or not at all): the head is
+      if (head !== null && headMedian !== null && headDeviation !== null) {
+        const dev = Math.abs(headDeviation);
+        if (dev > tolerance * LIMITS.eyeFail) checks.push({ id: 'head', level: 'fail', text: `la cabeza mide ${head.toFixed(1)} px, un ${pct(dev)} de diferencia con los ${headMedian.toFixed(1)} px del clip: esta pose se dibujó a otra escala` });
+        else if (dev > tolerance) checks.push({ id: 'head', level: 'warn', text: `la cabeza mide ${head.toFixed(1)} px, un ${pct(dev)} de diferencia con los ${headMedian.toFixed(1)} px del clip: comprueba que la pose está a la misma escala que las demás` });
+      }
+    } else if (eye !== null && eyeMedian !== null && eyeDeviation !== null) {
       const dev = Math.abs(eyeDeviation);
       if (dev > tolerance * LIMITS.eyeFail) checks.push({ id: 'eye', level: 'fail', text: `el ojo grande mide ${eye.toFixed(1)} px, un ${pct(dev)} de diferencia con los ${eyeMedian.toFixed(1)} px del clip: esta pose se dibujó a otra escala` });
       else if (dev > tolerance) checks.push({ id: 'eye', level: 'warn', text: `el ojo grande mide ${eye.toFixed(1)} px, un ${pct(dev)} de diferencia con los ${eyeMedian.toFixed(1)} px del clip: comprueba que la pose está a la misma escala que las demás (una cabeza vuelta se lee más pequeña)` });
@@ -557,7 +619,7 @@ export function judgeFrames(input: JudgeInput): ClipJudgement {
         if (t > LIMITS.anchorOnFigure) checks.push({ id: 'sword', level: 'fail', text: `el ancla de la punta (${p.tip.join(', ')}) no está sobre la figura` });
       }
     }
-    out.push({ name, role: spec.role, phase: spec.phase, bounds: b, margin, heightM, widthM, eye, eyeDeviation, mass, massStep, clean, blade, checks, level: worst(checks.map((x) => x.level)) });
+    out.push({ name, role: spec.role, phase: spec.phase, bounds: b, margin, heightM, widthM, eye, eyeDeviation, head, headDeviation, mass, massStep, clean, blade, checks, level: worst(checks.map((x) => x.level)) });
     prev = { frame, mass };
   });
 
@@ -577,11 +639,15 @@ export function judgeFrames(input: JudgeInput): ClipJudgement {
       if (drop < request.intent.tipDrops) clip.push({ id: 'intent', level: 'warn', text: `el tajo en el aire tiene que BAJAR (la punta, al menos ${request.intent.tipDrops} m entre la preparación y la fase activa) y baja ${drop.toFixed(2)} m: ¿es el golpe que pide el encargo?` });
     }
   }
-  if (scaling.how === 'eye' && scaling.factor > 1) {
+  if ((scaling.how === 'eye' || scaling.how === 'head') && scaling.factor > 1) {
     clip.push({ id: 'resolution', level: scaling.factor > 2 ? 'fail' : 'warn', text: `la imagen entregada es MÁS PEQUEÑA que los fotogramas (la escala es ×${scaling.factor.toFixed(2)}): sus píxeles se agrandan y el dibujo se ve borroso — pide una hoja de al menos el doble de tamaño que los fotogramas` });
   }
-  if (eyeMedian !== null && scaling.target !== null && Math.abs(eyeMedian - scaling.target) / scaling.target > tolerance) {
+  if (scaling.proxy === 'head') {
+    if (headMedian !== null && scaling.headTarget !== null && Math.abs(headMedian - scaling.headTarget) / scaling.headTarget > tolerance) {
+      clip.push({ id: 'neighbour', level: 'warn', text: `la cabeza del clip mide ${headMedian.toFixed(1)} px y la de su vecino en el juego ${scaling.headTarget.toFixed(1)} px (${pct(Math.abs(headMedian - scaling.headTarget) / scaling.headTarget)} de diferencia)` });
+    }
+  } else if (eyeMedian !== null && scaling.target !== null && Math.abs(eyeMedian - scaling.target) / scaling.target > tolerance) {
     clip.push({ id: 'neighbour', level: 'warn', text: `el ojo grande del clip mide ${eyeMedian.toFixed(1)} px y el de su vecino en el juego ${scaling.target.toFixed(1)} px (${pct(Math.abs(eyeMedian - scaling.target) / scaling.target)} de diferencia)` });
   }
-  return { frames: out, checks: clip, eye: eyeMedian, level: worst([...out.map((f) => f.level), ...clip.map((c) => c.level)]) };
+  return { frames: out, checks: clip, eye: eyeMedian, head: headMedian, level: worst([...out.map((f) => f.level), ...clip.map((c) => c.level)]) };
 }

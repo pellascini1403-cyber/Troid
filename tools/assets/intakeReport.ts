@@ -116,7 +116,7 @@ function poseItem(r: ReportInput, k: number): BoardItem {
   // a coloured band along the bottom: the verdict, readable from a distance
   img = { ...img, data: new Uint8Array(img.data) };
   fill(img, 0, img.height - 5, img.width - 1, img.height - 1, levelColor(j.level));
-  const caption = [`${name.toUpperCase()}  ${LEVEL_WORD[j.level]}`, `${j.role.toUpperCase()} ${j.phase ? `(${j.phase.toUpperCase()})` : ''}`, `EYE ${j.eye === null ? '-' : j.eye.toFixed(1)}  EDGE ${(j.clean.paleEdge * 100).toFixed(1)}%  RED ${(j.clean.red * 100).toFixed(1)}%`, ids.length > 0 ? ids.join(' ').toUpperCase() : 'NO NOTES'].join(' ');
+  const caption = [`${name.toUpperCase()}  ${LEVEL_WORD[j.level]}`, `${j.role.toUpperCase()} ${j.phase ? `(${j.phase.toUpperCase()})` : ''}`, `EYE ${j.eye === null ? '-' : j.eye.toFixed(1)}  HEAD ${j.head === null ? '-' : j.head.toFixed(1)}  EDGE ${(j.clean.paleEdge * 100).toFixed(1)}%  RED ${(j.clean.red * 100).toFixed(1)}%`, ids.length > 0 ? ids.join(' ').toUpperCase() : 'NO NOTES'].join(' ');
   return { image: img, scale: 1, caption, warn: j.level !== 'ok' };
 }
 
@@ -166,7 +166,7 @@ export function contactSheet(r: ReportInput): RgbaImage {
   const j = r.judgement;
   const head = `${r.clip.toUpperCase()} - CONTACT SHEET - ${LEVEL_WORD[j.level]}`;
   const legend = [
-    `${r.frames.length} NEW FRAMES. SCALE X${r.scaling.factor.toFixed(3)} (${r.scaling.how === 'eye' ? 'BY THE BIG EYE' : r.scaling.how === 'given' ? 'GIVEN' : 'FRAMES ALREADY ON THE CANVAS'}); THE CLIP'S EYE ${j.eye === null ? 'NOT MEASURED' : `${j.eye.toFixed(1)} PX`}${r.scaling.target !== null ? ` VS ${r.scaling.target.toFixed(1)} PX OF ITS NEIGHBOUR` : ''}.`,
+    `${r.frames.length} NEW FRAMES. SCALE X${r.scaling.factor.toFixed(3)} (${r.scaling.how === 'eye' ? 'BY THE BIG EYE' : r.scaling.how === 'head' ? 'BY THE HEAD: IT TURNS, SO THE EYE IS NO FAIR MEASURE' : r.scaling.how === 'given' ? 'GIVEN' : 'FRAMES ALREADY ON THE CANVAS'}); ${r.scaling.proxy === 'head' ? `THE CLIP'S HEAD ${j.head === null ? 'NOT MEASURED' : `${j.head.toFixed(1)} PX`}${r.scaling.headTarget !== null ? ` VS ${r.scaling.headTarget.toFixed(1)} PX OF ITS NEIGHBOUR` : ''}` : `THE CLIP'S EYE ${j.eye === null ? 'NOT MEASURED' : `${j.eye.toFixed(1)} PX`}${r.scaling.target !== null ? ` VS ${r.scaling.target.toFixed(1)} PX OF ITS NEIGHBOUR` : ''}`}.`,
     ...j.checks.filter((c) => c.level !== 'ok').map((c: Check) => `${LEVEL_WORD[c.level]}: ${c.text}`.slice(0, 190)),
   ];
   const sections: RgbaImage[] = [];
@@ -265,7 +265,7 @@ const LEVEL_ES: Record<Level, string> = { ok: 'correcto', warn: 'aviso', fail: '
 export function reportMarkdown(r: ReportInput, meta: ReportMeta): string {
   const j = r.judgement;
   const row = (f: ClipJudgement['frames'][number]): string =>
-    `| \`${f.name}\` | ${f.role} | ${f.phase ?? '—'} | **${LEVEL_ES[f.level]}** | ${f.eye === null ? '—' : f.eye.toFixed(1)} | ${(f.clean.paleEdge * 100).toFixed(1)} % | ${(f.clean.loose * 100).toFixed(2)} % | ${(f.clean.red * 100).toFixed(2)} % | ${f.massStep === null ? '—' : f.massStep.toFixed(2)} | ${f.heightM.toFixed(2)} × ${f.widthM.toFixed(2)} |`;
+    `| \`${f.name}\` | ${f.role} | ${f.phase ?? '—'} | **${LEVEL_ES[f.level]}** | ${f.eye === null ? '—' : f.eye.toFixed(1)} | ${f.head === null ? '—' : f.head.toFixed(1)} | ${(f.clean.paleEdge * 100).toFixed(1)} % | ${(f.clean.loose * 100).toFixed(2)} % | ${(f.clean.red * 100).toFixed(2)} % | ${f.massStep === null ? '—' : f.massStep.toFixed(2)} | ${f.heightM.toFixed(2)} × ${f.widthM.toFixed(2)} |`;
   const notes = j.frames.flatMap((f) => f.checks.filter((c) => c.level !== 'ok').map((c) => `- \`${f.name}\` · **${LEVEL_ES[c.level]}** · ${c.id}: ${c.text}`));
   const clipNotes = j.checks.map((c) => `- **${LEVEL_ES[c.level]}** · ${c.id}: ${c.text}`);
   return [
@@ -274,13 +274,13 @@ export function reportMarkdown(r: ReportInput, meta: ReportMeta): string {
     `> Lo escribe \`npm run assets:intake -- ${r.clip}\`. **Veredicto: ${LEVEL_ES[j.level]}.** ${j.level === 'fail' ? 'No se puede aceptar: hay fallos.' : j.level === 'warn' ? 'Se puede aceptar, pero mira primero los avisos en la hoja de contacto.' : 'Sin avisos: aun así, mira la hoja de contacto antes de aceptar (lo que no se puede medir —que es el MISMO personaje, que la espada está en la mano derecha, que la acción se lee— lo juzga una persona).'}`,
     '',
     `- **Entrada:** ${meta.mode === 'sheet' ? 'una hoja' : 'un PNG por pose'} — ${meta.inputs.map((i) => `\`${i.file}\``).join(', ')}.`,
-    `- **Escala:** ×${r.scaling.factor.toFixed(4)} (${r.scaling.how === 'eye' ? 'por el ojo grande' : r.scaling.how === 'given' ? 'dada con --scale' : 'fotogramas ya en el lienzo'}). Ojo de las poses de la hoja: ${r.scaling.eyes.map((e) => (e === null ? '—' : e.toFixed(1))).join(' · ')} px; mediana ${r.scaling.median === null ? '—' : r.scaling.median.toFixed(1)} px → ${r.scaling.target === null ? '—' : r.scaling.target.toFixed(1)} px en el lienzo.`,
+    `- **Escala:** ×${r.scaling.factor.toFixed(4)} (${r.scaling.how === 'eye' ? 'por el ojo grande' : r.scaling.how === 'head' ? 'por el tamaño de la cabeza: la cabeza gira y el ojo se ve más pequeño o desaparece, así que no mide el tamaño de la pose' : r.scaling.how === 'given' ? 'dada con --scale' : 'fotogramas ya en el lienzo'}). Ojo de las poses de la hoja: ${r.scaling.eyes.map((e) => (e === null ? '—' : e.toFixed(1))).join(' · ')} px; mediana ${r.scaling.median === null ? '—' : r.scaling.median.toFixed(1)} px${r.scaling.proxy === 'head' ? '' : ` → ${r.scaling.target === null ? '—' : r.scaling.target.toFixed(1)} px en el lienzo`}. Cabeza de las poses de la hoja (el círculo más grande que cabe en la figura): ${r.scaling.heads.map((h) => (h === null ? '—' : h.toFixed(1))).join(' · ')} px; mediana ${r.scaling.headMedian === null ? '—' : r.scaling.headMedian.toFixed(1)} px${r.scaling.proxy === 'head' ? ` → ${r.scaling.headTarget === null ? '—' : r.scaling.headTarget.toFixed(1)} px en el lienzo` : ''}.`,
     `- **Fotogramas:** ${r.frames.length} de ${r.request.frames.length} pedidos, ${r.canvas.width} × ${r.canvas.height}, pivote (${r.canvas.pivot.join(', ')}).`,
     ...Object.keys(meta.nudges).length > 0 ? [`- **Ajustes de colocación (placement.json):** ${Object.entries(meta.nudges).map(([k, v]) => `\`${k}\` dx ${v.dx} dy ${v.dy}`).join(', ')}.`] : [],
     ...meta.notes.map((n) => `- ${n}`),
     '',
-    '| Fotograma | Papel | Fase | Veredicto | Ojo (px) | Halo | Sueltos | Rojo | Salto de masa (m) | Alto × ancho (m) |',
-    '|---|---|---|---|---|---|---|---|---|---|',
+    '| Fotograma | Papel | Fase | Veredicto | Ojo (px) | Cabeza (px) | Halo | Sueltos | Rojo | Salto de masa (m) | Alto × ancho (m) |',
+    '|---|---|---|---|---|---|---|---|---|---|---|',
     ...j.frames.map(row),
     '',
     '## Avisos y fallos',

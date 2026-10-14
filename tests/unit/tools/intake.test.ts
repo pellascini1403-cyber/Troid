@@ -4,7 +4,7 @@ import { join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { animate } from '../../../tools/assets/animate';
-import { bodyOf, boundsOf, eyeDiameter, SOLID } from '../../../tools/assets/figure';
+import { bodyOf, boundsOf, eyeDiameter, headDiameter, SOLID } from '../../../tools/assets/figure';
 import { CLIP_ORDER } from '../../../tools/assets/heroClips';
 import { clipEye, clipFrameNames, readClips, readDelivered } from '../../../tools/assets/heroRepo';
 import {
@@ -17,6 +17,8 @@ import {
   manifestAnchors,
   parseAnchors,
   placeFrame,
+  scaleProxy,
+  spreadOf,
   type Canvas,
   type Cut,
   type Scaling,
@@ -37,6 +39,41 @@ const root = fileURLToPath(new URL('../../../', import.meta.url));
 const canvas: Canvas = { width: 280, height: 230, pivot: [120, 192], artPxPerMeter: 65, margin: 4 };
 const frame = (name: string): RgbaImage => decodePng(readFileSync(join(root, 'art', 'player', 'hero', `${name}.png`)));
 const SWORD_FRAMES = ['attack1_00', 'attack1_01', 'attack1_02', 'attack1_03', 'attack1_04', 'attack1_05', 'attack1_06'] as const;
+
+/**
+ * A pose made of exactly what the measurements look at: a dark dome `head` pixels across, a round glowing eye `eye` pixels across with white highlights (none when `eye` is `null`: the head has
+ * turned away) and a body much slimmer than the head. Nothing of the game's art, so no delivery can take it from under a test.
+ */
+function pose(head: number, eye: number | null): RgbaImage {
+  const w = Math.ceil(head * 1.4);
+  const h = Math.ceil(head * 1.7);
+  const data = new Uint8Array(w * h * 4);
+  const paint = (x: number, y: number, rgba: readonly [number, number, number, number]): void => {
+    if (x >= 0 && y >= 0 && x < w && y < h) data.set(rgba, (y * w + x) * 4);
+  };
+  const disc = (cx: number, cy: number, r: number, rgba: readonly [number, number, number, number]): void => {
+    for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y++) for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++) if (Math.hypot(x + 0.5 - cx, y + 0.5 - cy) <= r) paint(x, y, rgba);
+  };
+  const cx = w / 2;
+  const cy = head / 2 + 2;
+  disc(cx, cy, head / 2, [16, 16, 32, 255]);
+  for (let y = Math.round(cy + head * 0.4); y < h - 1; y++) for (let x = Math.round(cx - head * 0.18); x <= Math.round(cx + head * 0.18); x++) paint(x, y, [16, 16, 32, 255]);
+  if (eye !== null) {
+    const ex = cx + head * 0.1;
+    disc(ex, cy, eye / 2, [150, 225, 245, 255]);
+    for (const [dx, dy, k] of [[-0.18, -0.2, 0.14], [0.12, 0.12, 0.08], [0.2, -0.1, 0.07]] as const) disc(ex + dx * eye, cy + dy * eye, Math.max(1.5, k * eye), [255, 255, 255, 255]);
+  }
+  return { width: w, height: h, data };
+}
+
+/** The poses as `cutSheet` would hand them over: as they are, in the order given. */
+const cutOf = (poses: readonly RgbaImage[]): Cut => ({
+  poses: [...poses],
+  boxes: poses.map((p) => ({ x0: 0, y0: 0, x1: p.width - 1, y1: p.height - 1 })),
+  final: poses.map(() => false),
+  rawRed: poses.map(() => 0),
+  notes: [],
+});
 
 interface SheetOptions {
   /** Enlargement of each pose (one number, or one per pose). */
@@ -262,7 +299,8 @@ describe('scaling by the eye and placing on the canvas', () => {
     expect(chooseScale(cut, target, 0.25)).toMatchObject({ factor: 0.25, how: 'given' });
     expect(() => chooseScale(cut, target, 0)).toThrow(/between 0 and 10/);
     expect(() => chooseScale(cut, null)).toThrow(/--scale/);
-    const eyeless = cutSheet(composeSheet(['death_05', 'death_06', 'death_07', 'death_08'], { up: 3, cols: 2, gap: 80, shadow: true }).sheet, 4);
+    // poses with no eye at all (the head turned away, the light out): the eye cannot scale them, and no factor is an error that says what to pass
+    const eyeless = cutOf([pose(80, null), pose(80, null), pose(80, null), pose(80, null)]);
     expect(() => chooseScale(eyeless, target)).toThrow(/only 0 of 4 poses/);
     expect(chooseScale(eyeless, target, 0.33).how).toBe('given');
   });
@@ -305,6 +343,133 @@ describe('scaling by the eye and placing on the canvas', () => {
     expect(placed[6]!.groundGap).toBeLessThan(8);
     // the lunge with the blade low: the sword goes under the boots
     expect(Math.max(...placed.map((p) => p.groundGap))).toBeGreaterThan(8);
+  });
+});
+
+describe('scaling by the head when the head turns (an eye seen small, or not at all, is not a pose drawn small)', () => {
+  const TOL = 0.14;
+  const HEAD_TARGET = 40;
+  // a neighbour whose head is 2.5 times its eye, as the game's frames are (and the poses below: a head of 80 with an eye of 32 when it faces us)
+  const EYE_TARGET = 16;
+  const opts = { headTarget: HEAD_TARGET, tolerance: TOL };
+  /** Four poses of one size whose head turns: the eye is seen big, then smaller, then tiny, then not at all. */
+  const turning = (): RgbaImage[] => [pose(80, 32), pose(80, 24), pose(80, 16), pose(80, null)];
+
+  it('measures the heads that were drawn, whatever the eye does, and says how far a set of measurements strays from its median', () => {
+    for (const p of turning()) expect(Math.abs(headDiameter(p)! - 80), 'the head').toBeLessThan(1.2);
+    expect(eyeDiameter(pose(80, 32))!.diameter).toBeGreaterThan(30);
+    expect(eyeDiameter(pose(80, 16))!.diameter).toBeLessThan(18);
+    expect(eyeDiameter(pose(80, null))).toBeNull();
+    expect(spreadOf([10, 10, 10])).toBe(0);
+    expect(spreadOf([8, 10, 13])).toBeCloseTo(0.3, 6);
+    expect(spreadOf([7])).toBe(0);
+    expect(spreadOf([])).toBe(0);
+  });
+
+  it('chooses what a sheet is measured by: the eye when the eyes agree (whatever the heads do), the head when the eyes disagree and the heads do not, the eye again when both disagree', () => {
+    expect(scaleProxy([24, 24, 24, 24], [76, 80, 84, 80], TOL)).toBe('eye');
+    expect(scaleProxy([24, 24, 24, 24], [40, 80, 120, 80], TOL)).toBe('eye');
+    expect(scaleProxy([32, 24, 16, null], [80, 80, 80, 80], TOL)).toBe('head');
+    expect(scaleProxy([32, 24, 16, null], [80, 80, 80, 90], TOL)).toBe('head');
+    // a real difference of scale shows in both measures: it is not let through as "a turned head"
+    expect(scaleProxy([18, 24, 24, 36], [60, 80, 80, 120], TOL)).toBe('eye');
+    // the heads agree only if each is within the tolerance of their median
+    expect(scaleProxy([32, 24, 16, null], [80, 80, 80, 100], TOL)).toBe('eye');
+    // eyes in too few poses to say anything: the heads, if they agree
+    expect(scaleProxy([null, null, null, 24], [80, 80, 80, 80], TOL)).toBe('head');
+    expect(scaleProxy([null, null, null, 24], [60, 80, 100, 80], TOL)).toBe('eye');
+  });
+
+  it('eyes that agree: the factor is what it always was — the eye against the neighbour\'s — and the heads are not asked', () => {
+    const s = chooseScale(cutOf([pose(76, 24), pose(80, 24), pose(84, 24), pose(80, 24)]), EYE_TARGET, undefined, opts);
+    expect(s.how).toBe('eye');
+    expect(s.proxy).toBe('eye');
+    expect(s.factor).toBeCloseTo(EYE_TARGET / s.median!, 9);
+  });
+
+  it('the head turns: the eyes disagree (a third and more) and the heads do not, so the sheet comes back to the NEIGHBOUR\'S HEAD — one factor, and the poses keep their sizes', () => {
+    const s = chooseScale(cutOf(turning()), EYE_TARGET, undefined, opts);
+    expect(s.how).toBe('head');
+    expect(s.proxy).toBe('head');
+    expect(s.factor).toBeCloseTo(HEAD_TARGET / s.headMedian!, 9);
+    expect(s.factor).toBeGreaterThan(0.49);
+    expect(s.factor).toBeLessThan(0.51);
+    // by the eye, the same sheet would have come back a third too big: the median eye (24) is the turned head's, not the face's (32)
+    expect(EYE_TARGET / s.median!).toBeGreaterThan(s.factor * 1.25);
+    expect(s.heads.every((h) => h !== null)).toBe(true);
+  });
+
+  it('a real difference of scale is NOT let through as a turned head: both measures disagree, so it is the eye that judges, and fails', () => {
+    const wrong = cutOf([pose(60, 18), pose(80, 24), pose(80, 24), pose(120, 36)]);
+    const s = chooseScale(wrong, EYE_TARGET, undefined, opts);
+    expect(s.how).toBe('eye');
+    expect(s.proxy).toBe('eye');
+    const frames = wrong.poses.map((p) => placeFrame(p, s.factor, { anchorX: 'mass', anchorY: 'ground' }, canvas).image);
+    const j = judgeAny(frames, s);
+    expect(j.frames[3]!.checks.some((c) => c.id === 'eye' && c.level === 'fail')).toBe(true);
+    expect(j.level).toBe('fail');
+  });
+
+  it('too few eyes in view to scale by: the heads do, if they agree (no error); if they do not, the error says what to pass, as before', () => {
+    const turnedAway = cutOf([pose(80, null), pose(80, null), pose(80, null), pose(80, 24)]);
+    expect(chooseScale(turnedAway, EYE_TARGET, undefined, opts)).toMatchObject({ how: 'head', proxy: 'head' });
+    expect(() => chooseScale(turnedAway, EYE_TARGET)).toThrow(/only 1 of 4 poses/);
+    const uneven = cutOf([pose(60, null), pose(80, null), pose(100, null), pose(80, 24)]);
+    expect(() => chooseScale(uneven, EYE_TARGET, undefined, opts)).toThrow(/only 1 of 4 poses/);
+  });
+
+  it('without the neighbour\'s head the choice is what it was; a factor given by hand still wins — and what is judged still follows the head', () => {
+    expect(chooseScale(cutOf(turning()), EYE_TARGET)).toMatchObject({ how: 'eye', proxy: 'eye', headTarget: null });
+    expect(chooseScale(cutOf(turning()), EYE_TARGET, 0.5, opts)).toMatchObject({ factor: 0.5, how: 'given', proxy: 'head' });
+    // the eye of the neighbour could be missing: the head can still scale the sheet
+    expect(chooseScale(cutOf(turning()), null, undefined, opts)).toMatchObject({ how: 'head' });
+  });
+
+  /** `judgeFrames` as the delivery does it, for a clip with no sword and generous limits (only the scale of the poses is in question). */
+  function judgeAny(frames: readonly RgbaImage[], scaling: Scaling) {
+    const request = JSON.parse(readFileSync(join(root, 'art', 'player', 'requests', 'requests.json'), 'utf8')).clips.attack2;
+    return judgeFrames({
+      names: frames.map((_, k) => `attack2_0${k}`),
+      frames,
+      clipped: frames.map(() => ({ left: 0, right: 0, top: 0, bottom: 0 })),
+      groundGap: frames.map(() => 0),
+      request: { ...request, sword: false, limits: { heightM: [0.1, 5], widthM: [0.1, 5] } },
+      canvas,
+      scaling,
+      tolerance: TOL,
+      rawRed: frames.map(() => 0),
+      anchors: new Map(),
+      anchorProblems: [],
+    });
+  }
+  const finish = (poses: readonly RgbaImage[], factor: number): RgbaImage[] => poses.map((p) => placeFrame(p, factor, { anchorX: 'mass', anchorY: 'ground' }, canvas).image);
+
+  it('judges a clip scaled by the head by its heads: the eye that went small is no remark, a head a fifth off is warned, a third off failed', () => {
+    const sheet = chooseScale(cutOf(turning()), EYE_TARGET, undefined, opts);
+    const good = judgeAny(finish(turning(), sheet.factor), sheet);
+    expect(good.level, good.frames.flatMap((f) => f.checks.filter((c) => c.level !== 'ok').map((c) => `${f.name} ${c.id}: ${c.text}`)).join('\n')).toBe('ok');
+    expect(good.frames.map((f) => f.eye === null ? null : Math.round(f.eye))).not.toEqual([null, null, null, null]);
+    expect(good.frames.every((f) => f.head !== null && Math.abs(f.headDeviation!) < 0.03)).toBe(true);
+    expect(good.frames[0]!.eyeDeviation!, 'the eye of the first pose is far from the median: reported, not judged').toBeGreaterThan(0.2);
+    expect(good.frames.flatMap((f) => f.checks).some((c) => c.id === 'eye')).toBe(false);
+    // the same frames judged by the eye (what the tool did before) fail the first pose: that is the false alarm this removes
+    const byEye = judgeAny(finish(turning(), sheet.factor), { ...sheet, proxy: 'eye' });
+    expect(byEye.frames[0]!.checks.some((c) => c.id === 'eye' && c.level === 'fail')).toBe(true);
+    // a head a fifth bigger than the others is warned, a third bigger is a failure
+    const fifth = judgeAny(finish([pose(80, 24), pose(80, 24), pose(80, 24), pose(96, 28)], sheet.factor), sheet);
+    expect(fifth.frames[3]!.checks.find((c) => c.id === 'head')?.level).toBe('warn');
+    const third = judgeAny(finish([pose(80, 24), pose(80, 24), pose(80, 24), pose(110, 33)], sheet.factor), sheet);
+    expect(third.frames[3]!.checks.find((c) => c.id === 'head')?.level).toBe('fail');
+    expect(third.level).toBe('fail');
+  });
+
+  it('compares the clip with its neighbour by the head too: a head far from the neighbour\'s is a warning that says so', () => {
+    const sheet = chooseScale(cutOf(turning()), EYE_TARGET, undefined, opts);
+    const big = judgeAny(finish(turning(), sheet.factor * 1.3), sheet);
+    const note = big.checks.find((c) => c.id === 'neighbour');
+    expect(note?.level).toBe('warn');
+    expect(note?.text).toMatch(/cabeza/);
+    expect(judgeAny(finish(turning(), sheet.factor), sheet).checks.find((c) => c.id === 'neighbour')).toBeUndefined();
   });
 });
 

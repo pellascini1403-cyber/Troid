@@ -306,7 +306,7 @@ export const playerAnim: Scenario = {
     assert.ok(dead.length >= 70, `a hit that takes the last of the life is a death (${collapse(seq.map((x) => x.anim)).join(' → ')})`);
     drawnByItsClip(dead, 'death');
     assert.deepEqual(framesIn(dead, 'death'), [...Array(CLIPS['death']!.count).keys()], 'the death plays every frame of its clip, in order');
-    assert.equal(dead[dead.length - 1]!.frame, 'death_08', 'and the hero lies on the last, until the screen takes over');
+    assert.equal(dead[dead.length - 1]!.frame, `${CLIPS['death']!.frames}${String(CLIPS['death']!.count - 1).padStart(2, '0')}`, 'and the hero lies on the last, until the screen takes over');
     await ctx.shot('e-02-death');
 
     await ctx.open('room=interaction_test&unlock=dash', SIZE);

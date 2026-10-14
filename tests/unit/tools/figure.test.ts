@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { bodyOf, boundsOf, cleanliness, components, eyeDiameter } from '../../../tools/assets/figure';
+import { bodyOf, boundsOf, cleanliness, components, eyeDiameter, headDiameter } from '../../../tools/assets/figure';
 import { readDelivered } from '../../../tools/assets/heroRepo';
 import { LIMITS } from '../../../tools/assets/intake';
 import { decodePng, type RgbaImage } from '../../../tools/assets/png';
@@ -69,6 +69,56 @@ describe('the measurements of a figure', () => {
     expect(lunge.cx).toBeLessThan(whole.x0 + 0.65 * (whole.x1 - whole.x0));
   });
 
+  it('the head is the biggest circle that fits inside the figure: a disc of 20 to 100 pixels is read within one pixel, an eye-sized hole in it changes nothing, and neither do an antenna or a blade', () => {
+    const disc = (d: number, hole: boolean, thin: boolean): RgbaImage => {
+      const w = d + 80;
+      const h = d + 80;
+      const data = new Uint8Array(w * h * 4);
+      const cx = w / 2;
+      const cy = h / 2;
+      const put = (x: number, y: number): void => void data.set([16, 16, 32, 255], (y * w + x) * 4);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          if (Math.hypot(x + 0.5 - cx, y + 0.5 - cy) > d / 2) continue;
+          if (hole && Math.hypot(x + 0.5 - (cx + d / 6), y + 0.5 - cy) <= d / 5) continue;
+          put(x, y);
+        }
+      }
+      if (thin) for (let t = 0; t < 40; t++) for (const k of [0, 1]) (put(Math.round(cx + d / 2 + t), Math.round(cy + k)), put(Math.round(cx - d / 2 - t), Math.round(cy + 8 + k)));
+      return { width: w, height: h, data };
+    };
+    for (const d of [20, 41, 60, 100, 101]) {
+      for (const [hole, thin] of [[false, false], [true, false], [false, true], [true, true]] as const) {
+        expect(Math.abs(headDiameter(disc(d, hole, thin))! - d), `a disc of ${d} px (hole ${hole}, thin parts ${thin})`).toBeLessThan(1);
+      }
+    }
+    expect(headDiameter({ width: 8, height: 8, data: new Uint8Array(8 * 8 * 4) })).toBeNull();
+    // a figure that touches the edge of its picture ends there (a cut-out is trimmed to the figure): the circle is not measured past it
+    const corner = new Uint8Array(40 * 40 * 4);
+    for (let i = 0; i < 40 * 40; i++) corner[i * 4 + 3] = 255;
+    expect(Math.abs(headDiameter({ width: 40, height: 40, data: corner })! - 40)).toBeLessThan(1);
+  });
+
+  it('the head is at the size the frames have — the idle 59 px, the fall 45 — and it does not change when the eye goes out: the thing that stays when the head turns away', () => {
+    expect(headDiameter(frame('idle_00'))!).toBeGreaterThan(57);
+    expect(headDiameter(frame('idle_00'))!).toBeLessThan(61);
+    expect(headDiameter(frame('fall_00'))!).toBeGreaterThan(43);
+    expect(headDiameter(frame('fall_00'))!).toBeLessThan(47);
+    // paint the near eye of the idle out with the dark of the face: the eye is gone, the head is as big as it was
+    const idle = frame('idle_00');
+    const eye = eyeDiameter(idle)!;
+    const dark: RgbaImage = { ...idle, data: new Uint8Array(idle.data) };
+    const reach = eye.diameter * 0.9;
+    for (let y = 0; y < dark.height; y++) {
+      for (let x = 0; x < dark.width; x++) {
+        if (Math.hypot(x - eye.cx, y - eye.cy) <= reach && dark.data[(y * dark.width + x) * 4 + 3]! > 0) dark.data.set([16, 16, 32], (y * dark.width + x) * 4);
+      }
+    }
+    const left = eyeDiameter(dark);
+    expect(left === null || left.diameter < eye.diameter * 0.6, 'the eye that was painted out is not measured any more').toBe(true);
+    expect(Math.abs(headDiameter(dark)! - headDiameter(idle)!)).toBeLessThan(1);
+  });
+
   it('components: pieces within the bridge are one, farther apart are two, and each says how many pixels it has', () => {
     const w = 40;
     const h = 10;
@@ -102,6 +152,21 @@ describe('the calibration: the frames the game has are far inside every limit of
     expect(loose, 'the loosest').toBeLessThan(LIMITS.loose.warn / 2);
     expect(red, 'the reddest (a sword frame)').toBeLessThan(LIMITS.red.warn / 2);
     expect(foreign, 'the most foreign').toBeLessThan(LIMITS.foreign.warn / 5);
+  });
+
+  it('the head of a clip is steady from frame to frame: within a clip of the game no head strays from the median by more than a tenth (the most, today, is a jump\'s 8.5 %) — and the clips handed over stay inside the tolerance of the reception', () => {
+    const byClip = new Map<string, number[]>();
+    for (const [name, img] of frames) {
+      const clip = name.replace(/_\d+$/, '');
+      (byClip.get(clip) ?? byClip.set(clip, []).get(clip)!).push(headDiameter(img)!);
+    }
+    for (const [clip, heads] of byClip) {
+      const sorted = [...heads].sort((a, b) => a - b);
+      const mid = sorted.length >> 1;
+      const med = sorted.length % 2 === 1 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
+      const spread = Math.max(...heads.map((h) => Math.abs(h - med) / med));
+      expect(spread, `${clip}: the head strays ${(spread * 100).toFixed(1)} % from its median`).toBeLessThan(handed.has(clip) ? 0.14 : 0.1);
+    }
   });
 });
 
