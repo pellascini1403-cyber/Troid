@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { ROOMS } from '@/content';
+import { MEMORY_BUDGET_MIB, MIB } from '@/presentation/stressModel';
 import { createArtFixture, type FixturePack } from '../artFixture';
 import type { Ctx, GameState, Scenario } from '../scenario';
 
@@ -133,7 +134,7 @@ export const roomArt: Scenario = {
     }
     const library = (await ctx.state()).art!;
     console.log(`  room-art: R1 = ${art.sprites} sprites · worst ${worst} draw calls (budget 60) · art ${library.pages} pages, ${(library.bytes / 1048576).toFixed(1)} MiB resident, ready in ${Math.round(library.loadMs)} ms`);
-    assert.ok(library.bytes < 32 * 1048576, `the zone's pages fit the proposed memory budget of 32 MiB (${(library.bytes / 1048576).toFixed(1)} MiB)`);
+    assert.ok(library.bytes < MEMORY_BUDGET_MIB.zone * MIB, `the zone's pages fit the proposed memory budget of ${MEMORY_BUDGET_MIB.zone} MiB (${(library.bytes / 1048576).toFixed(1)} MiB)`);
     assert.deepEqual(ctx.warnings.filter((w) => w.includes('[art]')), [], 'the library had nothing to say about the art');
 
     // ================================================================================================ C · the door follows its gate
@@ -247,7 +248,7 @@ export const roomArt: Scenario = {
     }
     const lib2 = (await ctx.state()).art!;
     console.log(`  room-art: R2 = ${gallery.sprites} sprites · worst ${worstGallery} draw calls (budget 60) · art ${lib2.pages} pages, ${(lib2.bytes / 1048576).toFixed(1)} MiB resident`);
-    assert.ok(lib2.bytes < 32 * 1048576, `R2's pages fit the proposed memory budget of 32 MiB (${(lib2.bytes / 1048576).toFixed(1)} MiB)`);
+    assert.ok(lib2.bytes < MEMORY_BUDGET_MIB.zone * MIB, `R2's pages fit the proposed memory budget of ${MEMORY_BUDGET_MIB.zone} MiB (${(lib2.bytes / 1048576).toFixed(1)} MiB)`);
     assert.deepEqual(ctx.warnings.filter((w) => w.includes('[art]')), [], 'the library had nothing to say about the art of R2');
     // no art: the blockout draws the thorns and the marks, as it always did
     await ctx.open('room=r2_hall&paused=1&art=', PHONE);
@@ -308,7 +309,7 @@ export const roomArt: Scenario = {
     }
     const lib3 = (await ctx.state()).art!;
     console.log(`  room-art: R3 = ${chamber.sprites} sprites · worst ${worstChamber} draw calls (budget 60) · art ${lib3.pages} pages, ${(lib3.bytes / 1048576).toFixed(1)} MiB resident`);
-    assert.ok(lib3.bytes < 32 * 1048576, `R3's pages fit the proposed memory budget of 32 MiB (${(lib3.bytes / 1048576).toFixed(1)} MiB)`);
+    assert.ok(lib3.bytes < MEMORY_BUDGET_MIB.zone * MIB, `R3's pages fit the proposed memory budget of ${MEMORY_BUDGET_MIB.zone} MiB (${(lib3.bytes / 1048576).toFixed(1)} MiB)`);
     assert.deepEqual(ctx.warnings.filter((w) => w.includes('[art]')), [], 'the library had nothing to say about the art of R3');
     // the door of the ward follows its gate, like any door: whole while the ward holds it, gone once it is broken
     const doorOf = (): Promise<{ alpha: number; visible: boolean } | null> =>
@@ -372,7 +373,7 @@ export const roomArt: Scenario = {
     }
     const lib4 = (await ctx.state()).art!;
     console.log(`  room-art: R4 = ${sanctum.sprites} sprites · worst ${worstSanctum} draw calls (budget 60) · art ${lib4.pages} pages, ${(lib4.bytes / 1048576).toFixed(1)} MiB resident`);
-    assert.ok(lib4.bytes < 32 * 1048576, `R4's pages fit the proposed memory budget of 32 MiB (${(lib4.bytes / 1048576).toFixed(1)} MiB)`);
+    assert.ok(lib4.bytes < MEMORY_BUDGET_MIB.zone * MIB, `R4's pages fit the proposed memory budget of ${MEMORY_BUDGET_MIB.zone} MiB (${(lib4.bytes / 1048576).toFixed(1)} MiB)`);
     assert.deepEqual(ctx.warnings.filter((w) => w.includes('[art]')), [], 'the library had nothing to say about the art of R4');
     // no art: the blockout draws the doors, the shrine and the reward, as it always did
     await ctx.open('room=r4_sanctum&paused=1&art=', PHONE);

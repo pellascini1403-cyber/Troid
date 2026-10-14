@@ -84,10 +84,10 @@ describe('readDelivery', () => {
     expect(row(r, 'attackAir')).toMatchObject({ delivered: false, standIn: true, standInReason: null });
     expect(r).toMatchObject({ delivered: 1, standIns: 2, total: 15 });
     const text = formatDelivery(r);
-    expect(text).toMatch(/Delivered: 1 of 15 clips of its own\. 2 more are drawn with ANOTHER clip's pose/);
+    expect(text).toMatch(/Delivered: 1 of 15 clips of its own\. 2 more are made by moving ANOTHER action's drawing/);
     expect(text).toMatch(/The game draws the other 12 with its placeholder/);
-    expect(text).toMatch(/crouch .*STAND-IN, no art of its own: reuses the landing crouch/);
-    expect(text).toMatch(/attackAir .*STAND-IN, no art of its own: shows another clip's pose/);
+    expect(text).toMatch(/crouch .*STAND-IN, no drawing of its own: reuses the landing crouch/);
+    expect(text).toMatch(/attackAir .*STAND-IN, no drawing of its own: it moves another clip's drawing/);
   });
 
   it('a stand-in with a frame missing is a missing clip, not a stand-in: nothing is hidden by the tag', () => {

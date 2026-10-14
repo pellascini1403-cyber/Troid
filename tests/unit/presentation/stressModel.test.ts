@@ -89,8 +89,8 @@ describe('medianOf and the budgets', () => {
     expect(pageBytes(1, 1)).toBe(4);
   });
 
-  it('the budgets are the ones the documents state: 60 draw calls a frame; 24 MiB booting, 32 MiB a zone, 96 MiB resident', () => {
+  it('the budgets are the ones the documents state: 60 draw calls a frame; 24 MiB booting, 40 MiB a zone (32 before the protagonist was animated), 96 MiB resident', () => {
     expect(DRAW_CALL_BUDGET).toBe(60);
-    expect(MEMORY_BUDGET_MIB).toEqual({ boot: 24, zone: 32, resident: 96 });
+    expect(MEMORY_BUDGET_MIB).toEqual({ boot: 24, zone: 40, resident: 96 });
   });
 });

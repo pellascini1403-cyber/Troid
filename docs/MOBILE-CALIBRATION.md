@@ -132,9 +132,9 @@ Para **cada** dispositivo (iPhone con Safari, iPad con Safari, Android con Chrom
 
 ---
 
-## 7. Calibración visual del Prompt 8 — **SIN MEDIR**
+## 7. Calibración visual de los Prompts 8 y 9 — **SIN MEDIR**
 
-Lo anterior es la geometría de los controles. El Prompt 8 añadió arte, luz y un telón de arranque, y **nada de ello se ha visto en un dispositivo real**: todo lo medido (contraste, llamadas de dibujo, bytes, tiempos) es de Chromium sin cabeza con GL por software. Estos son los datos que mandan en lo que se ve; **calibrarlos es editar un objeto, no un algoritmo**.
+Lo anterior es la geometría de los controles. El Prompt 8 añadió arte, luz y un telón de arranque y el Prompt 9 **animó al protagonista**, y **nada de ello se ha visto en un dispositivo real**: todo lo medido (contraste, llamadas de dibujo, bytes, tiempos) es de Chromium sin cabeza con GL por software. Estos son los datos que mandan en lo que se ve; **calibrarlos es editar un objeto, no un algoritmo**.
 
 | Dato | Valor hoy | Dónde | Síntoma de que está mal | Qué probar |
 |---|---|---|---|---|
@@ -148,6 +148,10 @@ Lo anterior es la geometría de los controles. El Prompt 8 añadió arte, luz y 
 | espera máxima del telón | 10 s | `app/curtain.ts` (`CURTAIN_TIMEOUT_MS`) | en una red lenta el juego empieza como *blockout* y salta al arte | arrancar en frío con datos móviles flojos (3G, 4G a mitad de barras) |
 | tamaño de lo que se lee | el Slime mide 29 px de ancho a 1× (29 px/m); las formas finas de los efectos son 2 px | las piezas de `art/` (`tools/art`) | no se distingue la silueta del Slime del suelo, o los efectos finos desaparecen | R1 y R2 con el Slime, a 1× y a la escala de un móvil pequeño |
 | contraste de la silueta | 2.5 : 1 (aviso del spec); medido 1.6–3.25 : 1 (**2 de 8** puntos lo superan) | `docs/GAME-SPEC-2D.md` §3.3 | no se ve al héroe sobre el fondo | los 8 puntos de `PROMPT8-LOG` (fase I) sobre el aparato |
+| **la marcha del héroe** (Prompt 9) | `walk` 16 fps, 8 fotogramas (0.5 s por ciclo); `run` 20 fps (0.4 s); la cadencia sigue a la velocidad con el tope de ½ a 1½ | `art/player/player.pack.json`, que genera `tools/assets/heroClips.ts` (`npm run assets:animate`) | los pies resbalan sobre el suelo (**las piernas no se cruzan**: es un límite del dibujo), el paso parece rápido o lento | caminar y correr en la pantalla de un móvil a 1× |
+| **el ritmo de reposo** (Prompt 9) | `idle` 8 fps, 8 fotogramas (una respiración por segundo) | ídem | el héroe parece nervioso, o muerto | mirarlo parado en R1 diez segundos |
+| **el peso de un golpe** (Prompt 9) | `attack1` 7 fotogramas pintados por las fases de la simulación: anticipación 4 *ticks* (67 ms) · activa 3 · recuperación 8 | ídem (la duración es de `content/attacks.ts`, que **no se tocó**) | no se lee la anticipación, la hoja «salta», el corte no pesa | el primer y el segundo golpe, a 1×, a 844 × 390 |
+| **el peso del atlas del héroe** (Prompt 9) | 1.76 MB de PNG, 7.0 MiB decodificados (1344 × 1344), en el camino crítico del arranque | `public/art/player/hero_0.png` | el telón tarda más (la primera imagen espera 4.1 MB); un teléfono viejo tarda en decodificar la página | el arranque en frío con datos flojos (paso 2 del protocolo) y la memoria en R2 y R4 (34.8 y 35.9 MiB de arte, sobre un presupuesto **propuesto** de 40) |
 
 ### Protocolo (para quien tenga un dispositivo)
 
@@ -158,7 +162,8 @@ Lo anterior es la geometría de los controles. El Prompt 8 añadió arte, luz y 
 5. **Los avisos violetas**: el Slime que carga y los avisos del Custodio (lluvia, embestida) con la luz del héroe encendida: ¿se leen a la distancia a la que se juega?
 6. **Los bordes de la pantalla**: la viñeta en una pantalla clara y en una oscura; el pulso rojo de la herida; ¿se ve *banding*?
 7. **Calidad**: los fotogramas con la calidad en Baja, Equilibrada y Alta, y si el teléfono se calienta tras 10 minutos.
-8. **Escribir lo observado en la tabla de abajo con lo que se vio, no con lo que se esperaba.** Si un dato cambia, cambiar el dato y anotar el valor viejo y el nuevo.
+8. **Ver moverse al héroe** (Prompt 9): quieto, andando, corriendo, un salto con su caída y aterrizaje, los dos golpes, agacharse y andar agachado, un golpe recibido, beber, morir. ¿Se leen **las poses** a 1×? ¿Alguna se ve como un salto de un dibujo a otro (**los cortes entre dibujos** son un límite conocido)? ¿Los 9 *stand-ins* (agachado, *dash*, muerte, beber…) **se ven provisionales**?
+9. **Escribir lo observado en la tabla de abajo con lo que se vio, no con lo que se esperaba.** Si un dato cambia, cambiar el dato y anotar el valor viejo y el nuevo.
 
 ### Resultados en dispositivo — **SIN MEDIR**
 

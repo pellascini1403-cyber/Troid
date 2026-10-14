@@ -1,48 +1,21 @@
 {
-  "comment": "HOW THE USER'S POSE SHEET BECOMES THE PROTAGONIST'S FRAMES (docs/ART-PIPELINE-2D.md part L). The sheet (hero-sheet.png, 1536 x 1024, no alpha) is the user's own drawing and is kept here bit for bit: the frames in art/player/hero/ are made FROM it by `npm run assets:poses`, with technical operations only — a transparent background, the figure's pixels untouched, what is not the figure (ground shadow, speed lines, dust, red energy) left out, one pose facing left mirrored so every pose faces right. Nothing is drawn, recoloured or smoothed. Each pose is one rectangle of the sheet; the decisions a person makes (where a pose is, where its feet are, where the sword is held) are in this file, and are checked by looking at the result in ?lab=player.",
+  "comment": "HOW THE USER'S POSE SHEET BECOMES DRAWINGS (docs/ART-PIPELINE-2D.md parts L and N). The sheet (hero-sheet.png, 1536 x 1024, no alpha) is the user's own drawing and is kept here bit for bit. Each pose of it is one rectangle: `npm run assets:animate` cuts it out with technical operations only — a transparent background, the figure's pixels untouched, what is not the figure (ground shadow, speed lines, dust, red energy) left out, one pose that faces left mirrored so every pose faces right — and `hero.rig.json` says how the drawing is moved to animate it. Nothing is drawn, recoloured or smoothed.",
   "sheet": "hero-sheet.png",
   "sheetSha256": "9146b74eb8b6b2edc38df37c97f46160b61d482d815396d63d371275a805d472",
-  "out": "../hero",
-  "canvas": [344, 320],
-  "pivotPx": [140, 306],
-  "artPxPerMeter": 130,
   "poses": {
-    "idle":  { "box": [30, 60, 250, 400],   "feet": [97, 318],  "what": "pose 1 of the sheet: standing, calm" },
-    "run":   { "box": [520, 130, 790, 400], "feet": [158, 238], "what": "pose 3: the run, leaning forward" },
-    "jump":  { "box": [820, 40, 1060, 410], "feet": [92, 283],  "what": "pose 4: rising (its speed lines are left out)" },
-    "fall":  { "box": [1060, 100, 1230, 400], "feet": [73, 285], "what": "pose 5: falling head first (its speed lines are left out)" },
-    "land":  { "box": [1240, 190, 1510, 430], "feet": [145, 222], "what": "pose 6: the landing crouch (its dust is left out)" },
-    "slash": { "box": [60, 470, 455, 725],  "feet": [150, 236], "what": "pose 7: the low lunge with the sword out (its red arc is left out)" },
-    "hurt":  { "box": [720, 740, 970, 990], "feet": [155, 220], "what": "pose 11: struck, thrown back (its red sparks are left out)" },
-    "guard": { "box": [1130, 740, 1370, 990], "flip": true, "feet": [131, 238], "what": "pose 12: the sword raised; drawn facing left in the sheet, mirrored" }
+    "idle": {"box": [30, 60, 250, 400], "what": "pose 1 of the sheet: standing, calm"},
+    "idle2": {"box": [290, 100, 500, 400], "what": "pose 2: a second standing pose, a three-quarter stance — the one the walk is made from"},
+    "run": {"box": [520, 130, 790, 400], "what": "pose 3: the run, leaning forward"},
+    "jump": {"box": [820, 40, 1060, 410], "what": "pose 4: rising (its speed lines are left out)"},
+    "fall": {"box": [1060, 100, 1230, 400], "what": "pose 5: falling head first (its speed lines are left out)"},
+    "land": {"box": [1240, 190, 1510, 430], "what": "pose 6: the landing crouch (its dust is left out)"},
+    "slash": {"box": [60, 470, 455, 725], "what": "pose 7: the low lunge with the sword out (its red arc is left out)"},
+    "hurt": {"box": [720, 740, 970, 990], "what": "pose 11: struck, thrown back (its red sparks are left out)"},
+    "guard": {"box": [1130, 740, 1370, 990], "flip": true, "what": "pose 12: the sword raised; drawn facing left in the sheet, mirrored"}
   },
   "unused": {
-    "pose 2": "a second standing pose, a three-quarter stance: no state asks for it yet",
     "pose 8": "the second blow: the sword and a red arc fused into one drawing; the arc is the effect and cannot be taken out without taking the blade with it",
     "pose 9": "the charge: red flames cover the figure",
     "pose 10": "the dash: the figure is a red streak"
-  },
-  "frames": [
-    { "name": "idle_00",         "pose": "idle" },
-    { "name": "walk_00",         "pose": "run" },
-    { "name": "jump_00",         "pose": "jump" },
-    { "name": "fall_00",         "pose": "fall" },
-    { "name": "land_00",         "pose": "land" },
-    { "name": "attack1_00",      "pose": "slash", "scale": 1 },
-    { "name": "hurt_00",         "pose": "hurt" },
-    { "name": "cast_00",         "pose": "guard", "scale": 1.3 },
-
-    { "name": "dash_00",         "pose": "run",   "standIn": "the run: the sheet's dash pose is a red streak, not a figure" },
-    { "name": "attack2_00",      "pose": "slash", "standIn": "the first blow: the sheet's second blow cannot be separated from its red arc" },
-    { "name": "aerialAttack_00", "pose": "slash", "standIn": "the first blow: the sheet has no blow in the air" },
-    { "name": "crouch_00",       "pose": "land",  "standIn": "the landing crouch: the sheet has no crouch" },
-    { "name": "crouchAttack_00", "pose": "slash", "standIn": "the first blow, a low lunge: the sheet has no blow from the crouch" },
-    { "name": "death_00",        "pose": "hurt",  "standIn": "the hit: the sheet has no death" },
-    { "name": "drink_00",        "pose": "idle",  "standIn": "standing: the sheet has no drinking" },
-    { "name": "interact_00",     "pose": "idle",  "standIn": "standing: the sheet has no interaction" }
-  ],
-  "anchors": {
-    "slash": { "hand_r": [210, 188], "weapon_grip": [210, 188], "weapon_tip": [326, 233], "hit_origin": [309, 226], "vfx_origin": [268, 210] },
-    "guard": { "hand_r": [183, 126], "projectile_origin": [201, 113] }
   }
 }

@@ -16,6 +16,7 @@ import { boss } from './scenarios/boss';
 import { bossDeath } from './scenarios/bossDeath';
 import { bottles } from './scenarios/bottles';
 import { bottle4 } from './scenarios/bottle4';
+import { playerAnim } from './scenarios/playerAnim';
 import { playerArt } from './scenarios/playerArt';
 import { playerLab } from './scenarios/playerLab';
 import { audioCues } from './scenarios/audioCues';
@@ -57,7 +58,7 @@ import { vfx } from './scenarios/vfx';
 import { vfxArt } from './scenarios/vfxArt';
 import { world, worldArt } from './scenarios/world';
 
-const ALL: Scenario[] = [assets, playerArt, playerLab, playerR1, audioCues, environment, artPerformance, roomArt, movement, crouch, combat, slime, r1, room, death, render, camera, sprites, vfx, vfxArt, lighting, fallbacks, boot, stress, touch, gamepad, hud, magic, bolt, bottles, bottle4, progression, interaction, devtools, language, vertical, transition, world, worldArt, boss, bossDeath, checkpoint, save, settings, hazard, mobile, finale, soak];
+const ALL: Scenario[] = [assets, playerArt, playerAnim, playerLab, playerR1, audioCues, environment, artPerformance, roomArt, movement, crouch, combat, slime, r1, room, death, render, camera, sprites, vfx, vfxArt, lighting, fallbacks, boot, stress, touch, gamepad, hud, magic, bolt, bottles, bottle4, progression, interaction, devtools, language, vertical, transition, world, worldArt, boss, bossDeath, checkpoint, save, settings, hazard, mobile, finale, soak];
 const filter = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice('--only='.length).split(',').filter((n) => n !== '');
 const prod = process.argv.includes('--prod');

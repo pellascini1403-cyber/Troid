@@ -1,35 +1,36 @@
 # Cómo entregar el arte del protagonista (y qué falta exactamente)
 
-> **Estado (Prompt 8, fase A): el protagonista se dibuja ya con tu hoja de poses —provisional—, y esta guía dice qué falta para que sea arte completo.**
-> Tu hoja (`art/player/source/hero-sheet.png`, guardada bit a bit) es una hoja de **concepto**: **una pose por acción**, sobre fondo casi blanco, con sombras, líneas de velocidad, polvo y energía roja alrededor.
-> De ella salen, **solo con operaciones técnicas** (fondo transparente, nada dibujado, recoloreado ni suavizado: [ART-PIPELINE-2D](../ART-PIPELINE-2D.md) parte L), **7 de los 15 clips con arte propio —de un fotograma cada uno—** y
-> **8 estados que enseñan la pose de otro clip** (*stand-ins*: `dash`, `attack2`, `attackAir`, `crouch`, `attackCrouch`, `death`, `drink`, `interact`). `npm run assets:missing` los cuenta como **no entregados**.
-> **No hay animación**: ni un fotograma intermedio, y no se ha dibujado ninguno. Lo que sigue (§1 y §4) es lo que falta y cómo entregarlo; un clip que llegue **sustituye** a su *stand-in*.
+> **Estado (Prompt 9): el protagonista está animado —con tus dibujos, movidos— y esta guía dice qué falta para que sea arte completo.**
+> Tu hoja (`art/player/source/hero-sheet.png`, guardada bit a bit) es una hoja de **concepto**: **una pose por acción**, sobre fondo casi blanco, con sombras, líneas de velocidad, polvo y energía roja alrededor. De ella, **solo con operaciones técnicas**
+> (fondo transparente y una deformación rígida y suave guiada por puntos de control: **nada dibujado, recoloreado ni suavizado**; [ART-PIPELINE-2D](../ART-PIPELINE-2D.md) partes L y N), `npm run assets:animate` hace **114 fotogramas en 18 clips**.
+> **7 de los 15 clips tienen un dibujo tuyo de esa misma acción** (`idle`, `walk`, `jump`, `fall`, `attack1`, `hurt`, `cast`: respiran, andan, saltan, golpean con la hoja girando sobre la empuñadura…) y **8 son *stand-ins***
+> (`dash`, `attack2`, `attackAir`, `crouch`, `attackCrouch`, `death`, `drink`, `interact`): **el movimiento es real, pero el dibujo es el de otra acción**, porque la hoja no tiene uno para esta. `npm run assets:missing` los cuenta como **no entregados**.
+> Lo que sigue (§1 y §4) es lo que falta y cómo entregarlo; un clip que llegue **sustituye** a su *stand-in*, y el generador **lo deja en paz** (§4).
 >
-> Esta guía dice **exactamente qué falta** y **cómo se entrega**. Para el detalle técnico: [ART-PIPELINE-2D.md](../ART-PIPELINE-2D.md) (partes B–F y L). Para sustituir el arte de otros personajes: [replace-sprites.md](replace-sprites.md).
+> Esta guía dice **exactamente qué falta** y **cómo se entrega**. Para el detalle técnico: [ART-PIPELINE-2D.md](../ART-PIPELINE-2D.md) (partes B–F, L y N). Para sustituir el arte de otros personajes: [replace-sprites.md](replace-sprites.md).
 
 ## 1. Qué falta, exactamente: 15 clips
 
 El juego pide al protagonista **un solo *sprite set*** — el paquete `player`, el set `hero` (declarado en `art/player/player.pack.json`, hoy `status: "provisional"`) — con estos **15 clips**.
 Cada clip es una **secuencia de fotogramas** (cuántos, lo decide el arte: de 1 a 96). `npm run assets:missing` te dice **en cada momento** cuáles están entregados y cuáles no.
 
-| # | Clip | Otros nombres válidos | Qué es | Tipo | Espada | Validar primero |
-|---|---|---|---|---|---|---|
-| 1 | `idle` | — | de pie, quieto (el **último recurso** de todo estado: sin él, el arte no se usa) | bucle | — | **sí** |
-| 2 | `walk` | — | caminar/correr (el juego usa el mismo clip para ambas marchas) | bucle | — | **sí** |
-| 3 | `jump` | — | el salto, subiendo | una vez | — | **sí** |
-| 4 | `fall` | — | cayendo | bucle | — | |
-| 5 | `dash` | — | la carrera corta / esquiva | una vez | — | **sí** |
-| 6 | `attack1` | — | el primer tajo | una vez | **sí** | **sí** |
-| 7 | `attack2` | — | el segundo tajo del combo | una vez | **sí** | |
-| 8 | `attackAir` | `aerialAttack`, `airAttack` | el tajo en el aire | una vez | **sí** | |
-| 9 | `crouch` | — | agachado (quieto) | bucle | — | |
-| 10 | `attackCrouch` | `crouchAttack` | el tajo agachado | una vez | **sí** | |
-| 11 | `hurt` | `damage` | recibir un golpe | una vez | — | **sí** |
-| 12 | `death` | `die` | la muerte | una vez | — | |
-| 13 | `cast` | — | lanzar el Spirit Bolt (preparar y soltar) | una vez | — | |
-| 14 | `drink` | — | beber una botella | una vez | — | |
-| 15 | `interact` | — | interactuar (palanca, tarjeta, altar) | una vez | — | |
+| # | Clip | Otros nombres válidos | Qué es | Tipo | Espada | Validar primero | Hoy |
+|---|---|---|---|---|---|---|---|
+| 1 | `idle` | — | de pie, quieto (el **último recurso** de todo estado: sin él, el arte no se usa) | bucle | — | **sí** | **tu dibujo 1**, 8 fotogramas |
+| 2 | `walk` | — | caminar/correr (el juego usa el mismo clip para ambas marchas) | bucle | — | **sí** | **tu dibujo 2**, 8 fotogramas (y `run`, extra, con el 3) |
+| 3 | `jump` | — | el salto, subiendo | una vez | — | **sí** | **tu dibujo 4**, 6 fotogramas |
+| 4 | `fall` | — | cayendo | bucle | — | | **tu dibujo 5**, 4 fotogramas |
+| 5 | `dash` | — | la carrera corta / esquiva | una vez | — | **sí** | *stand-in*: la carrera lanzada, 4 |
+| 6 | `attack1` | — | el primer tajo | una vez | **sí** | **sí** | **tu dibujo 7**, 7 fotogramas |
+| 7 | `attack2` | — | el segundo tajo del combo | una vez | **sí** | | *stand-in*: el primer tajo al revés, 8 |
+| 8 | `attackAir` | `aerialAttack`, `airAttack` | el tajo en el aire | una vez | **sí** | | *stand-in*: el primer tajo, piernas recogidas, 7 |
+| 9 | `crouch` | — | agachado (quieto) | bucle | — | | *stand-in*: la agachada del aterrizaje, 6 |
+| 10 | `attackCrouch` | `crouchAttack` | el tajo agachado | una vez | **sí** | | *stand-in*: el primer tajo bajado, 7 |
+| 11 | `hurt` | `damage` | recibir un golpe | una vez | — | **sí** | **tu dibujo 11**, 5 fotogramas |
+| 12 | `death` | `die` | la muerte | una vez | — | | *stand-in*: el golpe, tumbado, 9 |
+| 13 | `cast` | — | lanzar el Spirit Bolt (preparar y soltar) | una vez | — | | **tu dibujo 12**, 7 fotogramas |
+| 14 | `drink` | — | beber una botella | una vez | — | | *stand-in*: el dibujo de pie, 6 |
+| 15 | `interact` | — | interactuar (palanca, tarjeta, altar) | una vez | — | | *stand-in*: el dibujo de pie, 4 |
 
 *(«Una vez» = se juega entero y se queda en su último fotograma; «bucle» = se repite. «Espada» = cada fotograma lleva las anclas de la espada, §3. «Validar primero» = los seis que se miran antes: de pie, andando, el primer tajo, el *dash*, el salto y el golpe recibido, que es donde una escala mala, un pivote fuera de los pies o una espada fuera de la mano se ven de inmediato.)*
 
@@ -77,7 +78,14 @@ Un clip de golpe cuya espada **no esté en la mano** (o sin anclas) **se deja fu
 6. **Reinicia `npm run dev`**: el héroe usa el arte solo, estado por estado. **`?visual=placeholder` vuelve al *placeholder* al instante**, `?visual=art` enseña solo el arte.
 7. Para ver cada clip con las anclas dibujadas: el laboratorio `?lab=player` (S39).
 
-> **Hoy el manifiesto y los fotogramas de `art/player/` los escribe `npm run assets:poses`** a partir de tu hoja y de `art/player/source/hero.poses.json` (parte L): una prueba comprueba que lo versionado es exactamente eso, así que **no se editan a mano mientras se usen**. Cuando entregues fotogramas de verdad para un clip: ponlos en `art/player/hero/` con su prefijo, declara el clip **sin** la etiqueta `stand-in` en el manifiesto y quita del `hero.poses.json` el fotograma que reusaba una pose; el día que ya no quede ningún *stand-in*, el manifiesto pasa a ser tuyo y `assets:poses` deja de hacer falta.
+> **Hoy el manifiesto y los fotogramas de `art/player/` los escribe `npm run assets:animate`** a partir de tu hoja, de `art/player/source/hero.poses.json` (qué rectángulo es qué dibujo), de `art/player/source/hero.rig.json` (dónde están las partes de cada dibujo) y de `tools/assets/heroClips.ts` (cómo se mueven): una prueba comprueba que lo versionado es exactamente eso, así que **lo que esté en `art/player/hero/` y no lo haya hecho el generador se considera una desviación** y **`assets:animate` borra y reescribe esa carpeta**. Por eso el camino para entregar **fotogramas dibujados a mano** de un clip es este, y **no** copiarlos sin más:
+>
+> 1. Pon tus PNG en `art/player/hero/` con el prefijo del clip (`dash_00.png`, `dash_01.png`…): **PNG sueltos**, no una hoja; del mismo lienzo que los demás (280 × 230, pies en el pivote 120, 192, 65 px de arte por metro; los pies del héroe de pie ocupan la fila 192).
+> 2. En `art/player/player.pack.json` **cambia la entrada del clip** a la tuya: `{ "frames": "dash_", "count": 5, "fps": 24, "loop": false, "tags": ["first"], "comment": "…" }` **sin** la etiqueta `stand-in` (y, en los golpes, `phases` y `sword`), y las anclas de la espada por fotograma en `frames` (§3). Borra del directorio los fotogramas que el generador hizo para ese clip y no vayan a seguir (los tuyos son los únicos que cuentan).
+> 3. En `art/player/source/hero.rig.json` añade el clip a **`"delivered": ["dash"]`**: a partir de ahí el generador **no hace ninguno de sus fotogramas, no borra tus archivos y conserva tu entrada del manifiesto tal cual** (`assets:animate -- --check` solo comprueba que están todos y que no sobra ninguno).
+> 4. `npm run assets:animate` (los demás clips salen **idénticos byte a byte**), `npm run assets:missing` (el clip pasa a **entregado**) y `npm run assets:pack`.
+>
+> Cuando ya no quede ningún *stand-in*, el manifiesto pasa a ser tuyo del todo y `assets:animate` deja de hacer falta.
 
 ## 4 bis. Qué hace el motor con tu arte — y qué NO
 

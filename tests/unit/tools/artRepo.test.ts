@@ -13,8 +13,8 @@ import { verifyArtFolder } from '../../../tools/assets/verify';
 /**
  * THE ART IN THE REPOSITORY (docs/ART-PIPELINE-2D.md, parts E, L and M): whatever `art/` declares must build, and whatever `public/art` ships must verify — the very check
  * `npm run build` runs before a browser is ever opened, held in the unit tests too so that a broken asset cannot be committed unnoticed. What is there today is the
- * protagonist, made from the user's own pose sheet (`art/player/source`), provisional: one frame per clip, eight of the fifteen clips stand-ins that reuse another
- * pose; and the scenery of the four rooms (the six `ruins-*` packs, painted by `tools/art`: every piece of the environment the world asks for is delivered). The enemies, the boss and the effects have no
+ * protagonist, made from the user's own pose sheet (`art/player/source`), provisional: 114 frames in eighteen clips, every pixel one of the user's drawings moved by the rig
+ * (docs/ART-PIPELINE-2D.md part N); eight of the fifteen clips the game asks of it are stand-ins (the sheet has no drawing of their action: the drawing of another one is what moves); and the scenery of the four rooms (the six `ruins-*` packs, painted by `tools/art`: every piece of the environment the world asks for is delivered). The enemies, the boss and the effects have no
  * art in the repository yet, and that is said, not hidden: `STILL_THE_BLOCKOUT` lists what the world asks for of the ENVIRONMENT and the art does not have (empty since the phase that dressed R4), and the
  * clips of the protagonist that are still stand-ins are listed below.
  */
@@ -35,7 +35,7 @@ describe('the art of the repository', () => {
     expect(r.ok).toBe(true);
   }, PACKING);
 
-  it('declares the protagonist\'s sprite set `player/hero` — the fifteen clips the game asks of it, and the landing — as a provisional pack that ships', () => {
+  it('declares the protagonist\'s sprite set `player/hero` — the fifteen clips the game asks of it, the landing, the run and the crawl — as a provisional pack that ships', () => {
     const raw = JSON.parse(readFileSync(join(root, 'art', 'player', 'player.pack.json'), 'utf8')) as Record<string, unknown>;
     // read the way the packer reads a source manifest: the atlases are what the packer writes
     const sprites = (raw['sprites'] as Array<Record<string, unknown>>).map((sp) => ({ ...sp, atlases: [] }));
@@ -44,8 +44,8 @@ describe('the art of the repository', () => {
     expect(raw['status']).toBe('provisional');
     expect(value).toMatchObject({ id: PLAYER_VISUAL.art.pack, category: 'player' });
     const hero = value!.sprites.find((s) => s.id === PLAYER_VISUAL.art.sprite)!;
-    // the clips of the delivery (the manifest says `aerialAttack` and `crouchAttack`; the engine reads them as `attackAir` and `attackCrouch`), plus the landing the sheet has a pose for
-    expect(Object.keys(hero.clips).sort()).toEqual([...PLAYER_VISUAL.required, 'land'].sort());
+    // the clips of the delivery (the manifest says `aerialAttack` and `crouchAttack`; the engine reads them as `attackAir` and `attackCrouch`), plus the landing and the run the sheet has a drawing for, and the crawl
+    expect(Object.keys(hero.clips).sort()).toEqual([...PLAYER_VISUAL.required, 'land', 'run', 'crouchWalk'].sort());
     expect(hero.height).toBe(1.7);
     // the six to validate first are tagged as such in the declaration, and the four blows carry the sword
     expect(Object.entries(hero.clips).filter(([, c]) => c!.tags.includes('first')).map(([s]) => s).sort()).toEqual([...PLAYER_VISUAL.first].sort());
@@ -67,13 +67,13 @@ describe('the art of the repository', () => {
     expect(existsSync(join(root, 'public', 'art', 'index.json')), 'the generated folder is committed: the game fetches it').toBe(true);
   }, PACKING);
 
-  it('says exactly what is missing: of the fifteen clips, seven have art of their own (the sheet\'s poses); the other eight show another clip\'s pose; none is the placeholder', () => {
+  it('says exactly what is missing: of the fifteen clips, seven have a drawing of their own (the sheet\'s poses); the other eight move another action\'s drawing; none is the placeholder', () => {
     const d = readDelivery(join(root, 'art'));
     expect(d).toMatchObject({ pack: 'player', sprite: 'hero', status: 'provisional', delivered: 7, standIns: 8, total: 15 });
     expect(d.rows.filter((row) => row.delivered).map((row) => row.state).sort()).toEqual(['attack1', 'cast', 'fall', 'hurt', 'idle', 'jump', 'walk']);
     expect(d.rows.filter((row) => row.standIn).map((row) => row.state).sort()).toEqual(['attack2', 'attackAir', 'attackCrouch', 'crouch', 'dash', 'death', 'drink', 'interact']);
     expect(d.rows.every((row) => row.prefix !== null && row.missing.length === 0)).toBe(true);
-    expect(d.rows.filter((row) => row.standIn).every((row) => (row.standInReason ?? '').length > 0), 'every stand-in says what it reuses and why').toBe(true);
+    expect(d.rows.filter((row) => row.standIn).every((row) => (row.standInReason ?? '').length > 0), 'every stand-in says whose drawing it moves and why').toBe(true);
   });
 
   it('ships what `npm run assets:pack` writes from `art/`: nobody forgot to pack, nobody edited the generated folder', () => {

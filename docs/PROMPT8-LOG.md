@@ -16,6 +16,8 @@
 
 ## Fase A — el protagonista definitivo (S45)
 
+> **Nota (Prompt 9):** lo que sigue es el estado de la fase A, **un fotograma por clip**. En el Prompt 9 el protagonista **se animó** (114 fotogramas en 18 clips, moviendo los mismos dibujos, sin dibujar nada) y `npm run assets:poses`, `heroFrames.ts` y `poses-cli.ts` se **retiraron** en favor de `npm run assets:animate`: ver [PROMPT9-LOG](PROMPT9-LOG.md). Las cuentas (7 de 15 clips con dibujo propio, 8 *stand-ins*) **no cambiaron**.
+
 **Resultado en una frase:** el protagonista **se dibuja con los píxeles de la hoja de poses del usuario** (`art/player/source/hero-sheet.png`, guardada bit a bit) en **todos** los estados del juego; la cápsula ya no aparece en
 modo `auto`. Pero la hoja es **de concepto** —una pose por acción—, así que **no es un protagonista animado**: es lo que la hoja permite, dicho con todas sus letras más abajo.
 

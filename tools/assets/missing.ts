@@ -30,7 +30,7 @@ export interface DeliveryRow {
   /** Frames the manifest says it has (nominal 1 while the pack awaits its art), and the names of those that are not there. */
   wanted: number;
   missing: string[];
-  /** The clip is drawn with another clip's pose (tag `stand-in`): it has frames, so the game draws it with the art, but they are not art OF ITS OWN — it is not delivered. */
+  /** The clip is made by moving another clip's drawing (tag `stand-in`): it has frames, so the game draws it with the art, but they are not a drawing OF ITS OWN — it is not delivered. */
   standIn: boolean;
   /** What the manifest says about the stand-in (which pose it reuses and why), or `null`. */
   standInReason: string | null;
@@ -118,7 +118,7 @@ export function formatDelivery(r: DeliveryReport): string {
   const rest = r.total - r.delivered - r.standIns;
   lines.push(
     `Delivered: ${r.delivered} of ${r.total} clips of its own.` +
-      (r.standIns > 0 ? ` ${r.standIns} more are drawn with ANOTHER clip's pose (stand-ins: art is still to be delivered for them).` : '') +
+      (r.standIns > 0 ? ` ${r.standIns} more are made by moving ANOTHER action's drawing (stand-ins: the sheet has none of their own, so drawn art is still to be delivered for them).` : '') +
       (rest > 0 ? ` The game draws the other ${rest} with its placeholder.` : r.delivered === r.total ? ' The game draws the protagonist entirely with it.' : ' Nothing is drawn with the placeholder.'),
   );
   lines.push('');
@@ -127,7 +127,7 @@ export function formatDelivery(r: DeliveryReport): string {
     const state = row.delivered
       ? `delivered (${row.wanted} frame${row.wanted === 1 ? '' : 's'})`
       : row.standIn && row.missing.length === 0
-        ? `STAND-IN, no art of its own: ${row.standInReason ?? 'shows another clip\'s pose'}`
+        ? `STAND-IN, no drawing of its own: ${row.standInReason ?? 'it moves another clip\'s drawing'}`
         : row.prefix === null
         ? 'NOT DECLARED in the manifest'
         : row.missing.length === 0 && r.status === 'awaiting-art'

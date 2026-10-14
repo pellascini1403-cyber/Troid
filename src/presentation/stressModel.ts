@@ -55,5 +55,8 @@ export const MIB = 1024 * 1024;
 /** The draw-call budget of a frame (docs/GAME-SPEC-2D.md §3.5). */
 export const DRAW_CALL_BUDGET = 60;
 
-/** The memory budgets PROPOSED for art, decoded, in MiB (docs/ART-PIPELINE-2D.md part C): design targets, not measurements. */
-export const MEMORY_BUDGET_MIB = { boot: 24, zone: 32, resident: 96 } as const;
+/**
+ * The memory budgets PROPOSED for art, decoded, in MiB (docs/ART-PIPELINE-2D.md part C): design targets, not measurements. The zone's went from 32 to 40 when the protagonist became
+ * animated (docs/PROMPT9-LOG.md): his 114 frames are 6.9 MiB where his 16 single frames were 1.6, and he is resident in every zone.
+ */
+export const MEMORY_BUDGET_MIB = { boot: 24, zone: 40, resident: 96 } as const;

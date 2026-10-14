@@ -171,6 +171,14 @@ export function createTestHooks(h: HookHost) {
     },
     /** Lets the camera run `seconds` of its own time at 60 Hz right now: a test need not wait on slow software-GL frames to see where it settles. */
     settleCamera: (seconds = 4) => h.settleCamera(seconds),
+    /**
+     * Lets the protagonist's ANIMATION clock run `seconds` right now. It stands still while the game is paused (stable screenshots), so a test that follows a clip over time —
+     * the frames of a walk, of a fall, of a blow — advances it by hand, a tick (1/60 s) at a time, next to `step`: what it sees is what a player sees over the same seconds.
+     */
+    advanceAnimation: (seconds: number) => {
+      if (!(seconds > 0)) return;
+      h.playerVisual.sync(session.player.view, 1, seconds);
+    },
     /** Lets the effects run `seconds` of their own (real) time right now — they stand still while the game is paused, so a test photographs a moment of one without waiting on the clock of a slow frame. */
     advanceEffects: (seconds: number) => {
       const e = h.effects();
