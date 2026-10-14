@@ -559,7 +559,7 @@
         ],
         "frames": [
           "walk_00",
-          "walk_04",
+          "walk_02",
           "idle_00"
         ],
         "note": "MISMA vista que el dibujo 2 (tres cuartos, la cabeza girada hacia donde camina, el ojo cercano grande y el lejano en media luna) y la espada llevada baja y atrás, en la mano derecha, como en ese dibujo."
@@ -887,8 +887,8 @@
         ],
         "frames": [
           "hurt_00",
-          "death_04",
-          "death_08"
+          "death_02",
+          "death_04"
         ],
         "note": "Los ojos se APAGAN hacia azul marino oscuro (no rojo, no cerrados): la pérdida de luz es lo que dice «derrotado»."
       },

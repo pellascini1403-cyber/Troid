@@ -9,6 +9,8 @@
 >
 > **Estado (Prompt 10): no se ha dibujado nada nuevo** —no había ninguna herramienta de generación de imágenes en el entorno, y la regla del encargo prohíbe sustituir lo que falta por polígonos, siluetas hechas con código o más deformaciones—, **así que ningún clip ha dejado de ser un *stand-in***. Lo que hay es **el kit para pedir los dibujos** (`art/player/requests/`: la lista exacta de **46 PNG en 10 clips**, una referencia y un *prompt* por clip) y **la herramienta que los recibe** (`npm run assets:intake`: recorta, escala, coloca, comprueba y, con tu aceptación, integra por `delivered`; §4, «El camino corto»). Detalle: [ART-PIPELINE-2D parte O](../ART-PIPELINE-2D.md) y [PROMPT10-LOG](../PROMPT10-LOG.md).
 >
+> **Estado (Prompts 11 y 12): los 46 dibujos llegaron** (tres hojas del usuario, generadas con el kit) **y entraron por `npm run assets:intake`**: **10 de los 18 clips son dibujos suyos y ninguno es un *stand-in*** (`npm run assets:missing`: «15 de 15 clips entregados»; 106 → 90 fotogramas). Lo que llegó **no era exactamente lo pedido** —`attack2` trajo 5 poses (de 7), `crouchAttack` 5 (de 6), `walk` 4 (de 6), `crouch` 4 agachadas de las que se eligieron 2, y los golpes traen **efectos cian dibujados en la propia imagen**— y **el encargo se reescribió a lo que son los dibujos** (con `delivery` en `requests.json`: lo pedido y en qué se aparta). La tabla de abajo es la de lo que se **pidió**; la columna «Hoy» dice lo que hay. Los pasos de §4 siguen siendo el camino para **cambiar** un clip (`--replace`). Detalle: [PROMPT11-LOG](../PROMPT11-LOG.md) y [PROMPT12-LOG](../PROMPT12-LOG.md).
+>
 > Esta guía dice **exactamente qué falta** y **cómo se entrega**. Para el detalle técnico: [ART-PIPELINE-2D.md](../ART-PIPELINE-2D.md) (partes B–F, L y N). Para sustituir el arte de otros personajes: [replace-sprites.md](replace-sprites.md).
 
 ## 1. Qué falta, exactamente: 15 clips
@@ -19,20 +21,20 @@ Cada clip es una **secuencia de fotogramas** (cuántos, lo decide el arte: de 1 
 | # | Clip | Otros nombres válidos | Qué es | Tipo | Espada | Validar primero | Hoy |
 |---|---|---|---|---|---|---|---|
 | 1 | `idle` | — | de pie, quieto (el **último recurso** de todo estado: sin él, el arte no se usa) | bucle | — | **sí** | **tu dibujo 1**, 8 fotogramas |
-| 2 | `walk` | — | caminar/correr (el juego usa el mismo clip para ambas marchas) | bucle | — | **sí** | **tu dibujo 2**, 8 fotogramas (y `run`, extra, con el 3) |
+| 2 | `walk` | — | caminar/correr (el juego usa el mismo clip para ambas marchas) | bucle | — | **sí** | **dibujos nuevos** (Hoja 3), 4 fotogramas a 8 fps (y `run`, extra, con el dibujo 3) |
 | 3 | `jump` | — | el salto, subiendo | una vez | — | **sí** | **tu dibujo 4**, 6 fotogramas |
 | 4 | `fall` | — | cayendo | bucle | — | | **tu dibujo 5**, 4 fotogramas |
-| 5 | `dash` | — | la carrera corta / esquiva | una vez | — | **sí** | *stand-in*: la carrera lanzada, 4 |
+| 5 | `dash` | — | la carrera corta / esquiva | una vez | — | **sí** | **dibujos nuevos** (Hoja 1), 3 fotogramas |
 | 6 | `attack1` | — | el primer tajo | una vez | **sí** | **sí** | **tu dibujo 7**, 7 fotogramas |
-| 7 | `attack2` | — | el segundo tajo del combo | una vez | **sí** | | *stand-in*: el primer tajo al revés, 8 |
-| 8 | `attackAir` | `aerialAttack`, `airAttack` | el tajo en el aire | una vez | **sí** | | *stand-in*: el primer tajo, piernas recogidas, 7 |
-| 9 | `crouch` | — | agachado (quieto) | bucle | — | | *stand-in*: la agachada del aterrizaje, 6 |
-| 10 | `attackCrouch` | `crouchAttack` | el tajo agachado | una vez | **sí** | | *stand-in*: el primer tajo bajado, 7 |
+| 7 | `attack2` | — | el segundo tajo del combo | una vez | **sí** | | **dibujos nuevos** (Hoja 2), 5 fotogramas |
+| 8 | `attackAir` | `aerialAttack`, `airAttack` | el tajo en el aire | una vez | **sí** | | **dibujos nuevos** (Hoja 2), 6 fotogramas |
+| 9 | `crouch` | — | agachado (quieto) | bucle | — | | **dibujos nuevos** (Hoja 3), 2 fotogramas |
+| 10 | `attackCrouch` | `crouchAttack` | el tajo agachado | una vez | **sí** | | **dibujos nuevos** (Hoja 2), 5 fotogramas |
 | 11 | `hurt` | `damage` | recibir un golpe | una vez | — | **sí** | **tu dibujo 11**, 5 fotogramas |
-| 12 | `death` | `die` | la muerte | una vez | — | | *stand-in*: el golpe, tumbado, 9 |
+| 12 | `death` | `die` | la muerte | una vez | — | | **dibujos nuevos** (Hoja 1), 5 fotogramas |
 | 13 | `cast` | — | lanzar el Spirit Bolt (preparar y soltar) | una vez | — | | **tu dibujo 12**, 7 fotogramas |
-| 14 | `drink` | — | beber una botella | una vez | — | | *stand-in*: el dibujo de pie, 6 |
-| 15 | `interact` | — | interactuar (palanca, tarjeta, altar) | una vez | — | | *stand-in*: el dibujo de pie, 4 |
+| 14 | `drink` | — | beber una botella | una vez | — | | **dibujos nuevos** (Hoja 1), 4 fotogramas |
+| 15 | `interact` | — | interactuar (palanca, tarjeta, altar) | una vez | — | | **dibujos nuevos** (Hoja 1), 3 fotogramas |
 
 *(«Una vez» = se juega entero y se queda en su último fotograma; «bucle» = se repite. «Espada» = cada fotograma lleva las anclas de la espada, §3. «Validar primero» = los seis que se miran antes: de pie, andando, el primer tajo, el *dash*, el salto y el golpe recibido, que es donde una escala mala, un pivote fuera de los pies o una espada fuera de la mano se ven de inmediato.)*
 
@@ -86,8 +88,9 @@ Un clip de golpe cuya espada **no esté en la mano** (o sin anclas) **se deja fu
 > 2. **Suelta** el resultado en `art/player/inbox/<clip>/`: `sheet.png` (la hoja entera, fondo blanco liso o transparente) **o** un PNG por pose (`<clip>_00.png`…, o ya de 280 × 230). Solo PNG. (`art/player/inbox/` no se sube al repositorio.)
 > 3. **`npm run assets:intake -- <clip>`** recorta las poses, las escala **con un único factor por el ojo grande** (contra el del clip vecino del juego; si la cabeza gira —una caída, una pose de espaldas— y el ojo se ve más pequeño o desaparece, **por el tamaño de la cabeza**, que no cambia: `docs/ART-PIPELINE-2D.md` O.4.1), las coloca (el centro del cuerpo en la columna 120, lo más bajo en la fila 192), las **comprueba** (halo, piezas sueltas, rojo, color ajeno, escala entre poses, salto del centro de masa, margen, tamaño, espada) y escribe en `art/player/inbox/_reports/<clip>/` la **hoja de contacto** (`contact.png`: tu dibujo original · las poses nuevas · la secuencia contra la de hoy · el tamaño real de juego) y `report.md`. Si la hoja no tiene exactamente las poses pedidas, **no adivina**: dice qué encontró y dibuja `segmentation.png`. `--scale <k>` fija el factor a mano.
 > 4. **Los golpes con espada** (`attack2`, `aerialAttack`, `crouchAttack`) necesitan dos puntos por fotograma, la empuñadura y la punta: léelos en `anchors-grid.png` (cuadrícula en píxeles del lienzo) y escríbelos en `art/player/inbox/<clip>/anchors.json` (hay una plantilla). Un fotograma que queda flotando (lo más bajo de la figura es la hoja de la espada, no el pie) se baja con `placement.json`: `{"<clip>_03": {"dx": 0, "dy": 4}}`.
+> 4 bis. **Lo que la herramienta da por fallo y tú decides aceptar** (una pose dibujada sin espada donde el golpe exige las anclas; unos arcos pintados que son píxeles del dibujo y la herramienta cuenta como «piezas sueltas») se acepta **a propósito, con su motivo**, en `art/player/inbox/<clip>/waivers.json`: `{"<clip>_05:sword": "motivo de al menos 20 caracteres…"}`. Solo vale para el **fallo que nombra** (los demás siguen siéndolo), una excepción que no corresponde a ningún fallo se rechaza, el informe la lista con el motivo y `--accept` pide mirar otra vez si la cambias; se archiva con la entrega. Si lo que llegó no es el número de poses pedido, se **reescribe el encargo** (`requests.json`: fotogramas, fases, límites) y se anota en `delivery` lo pedido y en qué se aparta. Y una hoja cuyas poses se tocan por los arcos se entrega **un PNG por pose** (`<clip>_00.png`…), recortados sin reescalar de la hoja.
 > 5. **Mira `contact.png`.** Lo que la herramienta no puede juzgar lo juzgas tú: que es **el mismo personaje**, que la espada está **en la mano derecha**, que no hay partes duplicadas ni miembros imposibles y que la acción se lee a tamaño de juego.
-> 6. **`npm run assets:intake -- <clip> --accept`**: solo lo que enseñó el último informe y sin ningún fallo. Escribe los fotogramas y la entrada del manifiesto (con las anclas), añade el clip a `delivered`, vuelve a ejecutar el generador (que no debe encontrar nada que corregir), pasa las comprobaciones de arte, **archiva la hoja y las anclas en `art/player/source/delivered/<clip>/`** y empaqueta `public/art/`. Un clip ya entregado **no se sobrescribe** (`--replace` si de verdad se quiere). Si algo falla, devuelve todos los archivos a como estaban.
+> 6. **`npm run assets:intake -- <clip> --accept`**: solo lo que enseñó el último informe y sin ningún fallo. Escribe los fotogramas y la entrada del manifiesto (con las anclas), añade el clip a `delivered`, vuelve a ejecutar el generador (que no debe encontrar nada que corregir), pasa las comprobaciones de arte, **archiva la hoja, las anclas, la colocación y lo aceptado a propósito en `art/player/source/delivered/<clip>/`** y empaqueta `public/art/`. Un clip ya entregado **no se sobrescribe** (`--replace` si de verdad se quiere). Si algo falla, devuelve todos los archivos a como estaban.
 > 7. `npm run assets:intake -- status` dice qué es cada clip (dibujo de la hoja, *stand-in* o dibujado de nuevo) y qué sigue pidiéndose.
 >
 > **El camino manual** (lo que hace la herramienta, por si hay que hacerlo a mano):

@@ -7,6 +7,7 @@ art/player/inbox/<clip>/sheet.png        la hoja entera (todas las poses, fondo 
 art/player/inbox/<clip>/<clip>_00.png …  o un PNG por pose, en orden
 art/player/inbox/<clip>/anchors.json     solo los clips con espada: la empuñadura y la punta de cada fotograma
 art/player/inbox/<clip>/placement.json   opcional: desplazar a mano un fotograma ({"<clip>_03": {"dx": 0, "dy": 4}})
+art/player/inbox/<clip>/waivers.json     opcional: aceptar a propósito un FALLO concreto, con su motivo ({"<clip>_05:sword": "motivo de al menos 20 caracteres"})
 art/player/inbox/_reports/<clip>/        lo escribe la herramienta: hoja de contacto, informe, fotogramas preparados
 ```
 

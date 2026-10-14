@@ -5,6 +5,7 @@
 > Para que entrara `death` hizo falta **ampliar la herramienta** (con permiso expreso): cuando la cabeza gira, el ojo ya no mide el tamaño de la pose, y la hoja se escala y se juzga por **la cabeza**.
 > **Las Hojas 2 y 3 se han revisado y NO se han integrado**: tienen **16 y 12 poses**, no las 19 y 12 previstas en el reparto de clips (la 2 trae además efectos azules pintados en 8 poses). Los resultados y lo que hay que decidir están en el apartado 6.
 > **El repositorio:** `src/`, el motor, la física, los controles, los dibujos originales del usuario (`hero-sheet.png`, `hero-portrait.jpg`) y los otros 14 clips **no se han tocado**; los otros 91 fotogramas del protagonista son **byte a byte los mismos**.
+> **Después (Prompt 12):** el usuario contestó «Integralas igualmente» y **las Hojas 2 y 3 también entraron**, con lo que traían: [PROMPT12-LOG](PROMPT12-LOG.md). Lo que aquí figura como «sin integrar» y «lo que queda por decidir» (§6 y §7) está resuelto allí, decisión por decisión.
 
 ---
 
