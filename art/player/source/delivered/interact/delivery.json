@@ -1,0 +1,36 @@
+{
+  "clip": "interact",
+  "level": "warn",
+  "inputs": [
+    {
+      "file": "sheet.png",
+      "sha256": "92c1cabaab686ccbe55c55e21bf4c8262aac653bbcb73d31d88e819f8211ffc9"
+    }
+  ],
+  "scale": {
+    "factor": 0.679365,
+    "how": "eye",
+    "proxy": "eye",
+    "target": 25.33,
+    "headTarget": 58.86
+  },
+  "anchors": null,
+  "placement": null,
+  "frames": [
+    {
+      "name": "interact_00",
+      "sha256": "57bea972b07fb544f64167730ab86dc0bdaef8e2a96f6e98ff6ecfd856883ff3",
+      "level": "warn"
+    },
+    {
+      "name": "interact_01",
+      "sha256": "f0d68b5ed4d629e6ed8dea9a2998eebf4b0e9c1c3736ab40009e4c1508f1a249",
+      "level": "warn"
+    },
+    {
+      "name": "interact_02",
+      "sha256": "6296a6e7132729b36ca1082c80dd4d5a2b07c8996dda6a23609c7ad85a795b9d",
+      "level": "ok"
+    }
+  ]
+}

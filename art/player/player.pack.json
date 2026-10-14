@@ -3,7 +3,7 @@
   "id": "player",
   "category": "player",
   "status": "provisional",
-  "comment": "THE PROTAGONIST, from the user's own pose sheet (art/player/source/hero-sheet.png) — made by `npm run assets:animate` from art/player/source/hero.poses.json (which drawing is which), hero.rig.json (where the parts of each drawing are) and tools/assets/heroClips.ts (how they move): 114 frames in 18 clips, every pixel of every frame a pixel of the user's drawings, moved and never drawn, recoloured or smoothed (a rigid, smooth warp bends the body, the head, the antennae, the legs; the blade of the sword is a rigid piece that turns about its hilt). 9 clips are STAND-INS (tag \"stand-in\"): the motion is real but the sheet has no drawing of their action, so the drawing of another one is what moves — crouch: the sheet has no crouch: the drawing of the landing crouch is held, breathing; crouchWalk: the sheet has no crouched walk: the drawing of the landing crouch shuffles along; dash: the sheet's dash drawing is a red streak, not a figure: the dive drawing of the run is thrown forward instead; attack2: the sheet's second blow cannot be separated from its red arc: the drawing of the first blow is swung the other way; aerialAttack: the sheet has no blow in the air: the drawing of the first blow is moved to fit one (legs drawn up); crouchAttack: the sheet has no blow from the crouch: the drawing of the first blow is lowered onto its legs; death: the sheet has no death: the drawing of the hit is turned onto the floor; drink: the sheet has no drinking: the standing drawing does the gesture (there is no drawing of a bottle; the potion's light is the effect's); interact: the sheet has no interaction: the standing drawing leans in and nods (no hand reaching is made up). `npm run assets:missing` counts them as NOT delivered. Hand over drawn frames for a clip and the stand-in goes away.",
+  "comment": "THE PROTAGONIST, from the user's own pose sheet (art/player/source/hero-sheet.png) — made by `npm run assets:animate` from art/player/source/hero.poses.json (which drawing is which), hero.rig.json (where the parts of each drawing are) and tools/assets/heroClips.ts (how they move): 91 frames in 14 clips, every pixel of every frame a pixel of the user's drawings, moved and never drawn, recoloured or smoothed (a rigid, smooth warp bends the body, the head, the antennae, the legs; the blade of the sword is a rigid piece that turns about its hilt). 4 more clip(s) were drawn by hand and handed over (dash, death, drink, interact): their frames and their entry here are the artist's, and `npm run assets:animate` leaves them alone. 5 clips are STAND-INS (tag \"stand-in\"): the motion is real but the sheet has no drawing of their action, so the drawing of another one is what moves — crouch: the sheet has no crouch: the drawing of the landing crouch is held, breathing; crouchWalk: the sheet has no crouched walk: the drawing of the landing crouch shuffles along; attack2: the sheet's second blow cannot be separated from its red arc: the drawing of the first blow is swung the other way; aerialAttack: the sheet has no blow in the air: the drawing of the first blow is moved to fit one (legs drawn up); crouchAttack: the sheet has no blow from the crouch: the drawing of the first blow is lowered onto its legs. `npm run assets:missing` counts them as NOT delivered. Hand over drawn frames for a clip and the stand-in goes away.",
   "tags": [
     "protagonist"
   ],
@@ -105,14 +105,13 @@
         },
         "dash": {
           "frames": "dash_",
-          "count": 4,
-          "fps": 24,
+          "count": 3,
+          "fps": 18,
           "loop": false,
           "tags": [
-            "first",
-            "stand-in"
+            "first"
           ],
-          "comment": "the sheet's dash drawing is a red streak, not a figure: the dive drawing of the run is thrown forward instead"
+          "comment": "DRAWN ANEW and handed over through `npm run assets:intake` (Dash): 3 frames of the same character from a delivered sheet, every pixel the sheet's — scaled once by the big eye, placed by a translation, nothing redrawn"
         },
         "attack1": {
           "frames": "attack1_",
@@ -226,13 +225,11 @@
         },
         "death": {
           "frames": "death_",
-          "count": 9,
-          "fps": 12,
+          "count": 5,
+          "fps": 7,
           "loop": false,
-          "tags": [
-            "stand-in"
-          ],
-          "comment": "the sheet has no death: the drawing of the hit is turned onto the floor"
+          "tags": [],
+          "comment": "DRAWN ANEW and handed over through `npm run assets:intake` (Death): 5 frames of the same character from a delivered sheet, every pixel the sheet's — scaled once by the size of the head (it turns, so the eye is no fair measure of it), placed by a translation, nothing redrawn"
         },
         "cast": {
           "frames": "cast_",
@@ -258,23 +255,19 @@
         },
         "drink": {
           "frames": "drink_",
-          "count": 6,
-          "fps": 15,
+          "count": 4,
+          "fps": 10,
           "loop": false,
-          "tags": [
-            "stand-in"
-          ],
-          "comment": "the sheet has no drinking: the standing drawing does the gesture (there is no drawing of a bottle; the potion's light is the effect's)"
+          "tags": [],
+          "comment": "DRAWN ANEW and handed over through `npm run assets:intake` (Drink a bottle): 4 frames of the same character from a delivered sheet, every pixel the sheet's — scaled once by the big eye, placed by a translation, nothing redrawn"
         },
         "interact": {
           "frames": "interact_",
-          "count": 4,
-          "fps": 20,
+          "count": 3,
+          "fps": 15,
           "loop": false,
-          "tags": [
-            "stand-in"
-          ],
-          "comment": "the sheet has no interaction: the standing drawing leans in and nods (no hand reaching is made up)"
+          "tags": [],
+          "comment": "DRAWN ANEW and handed over through `npm run assets:intake` (Interact): 3 frames of the same character from a delivered sheet, every pixel the sheet's — scaled once by the big eye, placed by a translation, nothing redrawn"
         }
       },
       "frames": {

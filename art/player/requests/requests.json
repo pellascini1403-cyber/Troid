@@ -180,7 +180,7 @@
     "dash": {
       "group": "A",
       "priority": 1,
-      "status": "requested",
+      "status": "delivered",
       "title": "Dash",
       "titleEs": "Dash (carrera corta con i-frames)",
       "why": "Hoy es la carrera (dibujo 3) lanzada hacia delante: un stand-in. La hoja trae un dibujo del dash (el 10) pero la figura ES una estela roja fundida con el cuerpo: no se puede usar. Hace falta el cuerpo, inclinado y estirado, sin estela.",
@@ -798,7 +798,7 @@
     "death": {
       "group": "H",
       "priority": 3,
-      "status": "requested",
+      "status": "delivered",
       "title": "Death",
       "titleEs": "Muerte",
       "why": "Hoy es el dibujo del golpe (11) tumbado y con los ojos apagándose: un stand-in. Hace falta una caída dibujada que acabe en una pose de derrota legible. No cambia ninguna regla de muerte, checkpoint ni persistencia.",
@@ -878,7 +878,7 @@
     "drink": {
       "group": "I",
       "priority": 3,
-      "status": "requested",
+      "status": "delivered",
       "title": "Drink a bottle",
       "titleEs": "Beber una botella",
       "why": "Hoy es el dibujo de pie haciendo un gesto, sin botella ni mano a la boca: un stand-in. Hace falta una pose que comunique «bebe de un frasco»: el frasco dibujado con el personaje. No cambia la lógica de la cura.",
@@ -954,7 +954,7 @@
     "interact": {
       "group": "J",
       "priority": 3,
-      "status": "requested",
+      "status": "delivered",
       "title": "Interact",
       "titleEs": "Interactuar",
       "why": "Hoy es el dibujo de pie que se inclina y asiente, sin mano que alcance: un stand-in. Hace falta una pose breve y legible de «tocar algo»; no bloquea el control más de 12 ticks.",

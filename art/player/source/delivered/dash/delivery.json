@@ -1,0 +1,36 @@
+{
+  "clip": "dash",
+  "level": "warn",
+  "inputs": [
+    {
+      "file": "sheet.png",
+      "sha256": "62bca0b592555639b3507d85da7703a2bb3cac3178305a1eb7f4a759cee98ce4"
+    }
+  ],
+  "scale": {
+    "factor": 0.533611,
+    "how": "eye",
+    "proxy": "eye",
+    "target": 23.07,
+    "headTarget": 55.42
+  },
+  "anchors": null,
+  "placement": "bb88cc2ce88ee95245ed5e8e36930407662966e318ea56556018de2577be3e6d",
+  "frames": [
+    {
+      "name": "dash_00",
+      "sha256": "10c4e9966731d1a6950fa94e5bb5cd7e7552c429aaf4540766df38a57b29095d",
+      "level": "warn"
+    },
+    {
+      "name": "dash_01",
+      "sha256": "878db7cae4af4e6d64ce9611ca241fe14463e4ebe30c0557cfb87bb36c9dbdb5",
+      "level": "warn"
+    },
+    {
+      "name": "dash_02",
+      "sha256": "abb9b2a2526d18eaeb93a5ec1e9f06429b19e3adefadb0a073676b60a89125a3",
+      "level": "ok"
+    }
+  ]
+}

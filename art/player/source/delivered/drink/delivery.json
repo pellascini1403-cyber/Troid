@@ -1,0 +1,41 @@
+{
+  "clip": "drink",
+  "level": "warn",
+  "inputs": [
+    {
+      "file": "sheet.png",
+      "sha256": "47c84e325bac632c25e0cddd20737656662987ed7e99a54abb50587885aa94c3"
+    }
+  ],
+  "scale": {
+    "factor": 0.659584,
+    "how": "eye",
+    "proxy": "eye",
+    "target": 25.33,
+    "headTarget": 58.86
+  },
+  "anchors": null,
+  "placement": null,
+  "frames": [
+    {
+      "name": "drink_00",
+      "sha256": "49a984687f0c0cdd8751949075be28fb249945310d2876e0de2499b3a3b774fb",
+      "level": "warn"
+    },
+    {
+      "name": "drink_01",
+      "sha256": "63e4ac256e2679b2bac2d7a2f24eedd5851c1aa628785a10d63625ea959c68fc",
+      "level": "warn"
+    },
+    {
+      "name": "drink_02",
+      "sha256": "06df7c39a0c451b391023fb2aa76f0dd3d3c64cb3ff71fed6f5f858effd1ae85",
+      "level": "warn"
+    },
+    {
+      "name": "drink_03",
+      "sha256": "dfa6f8e34f02ee2f34c3e3b149c9077fbe92e7a872341470e589e76a04575e3d",
+      "level": "warn"
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 > **Lo que es esto.** El Prompt 9 animó al protagonista moviendo los dibujos de tu hoja; **los clips de esta lista siguen siendo *stand-ins*** (o, en el caso de `walk`, un único dibujo deformado): el movimiento es real, pero el dibujo es el de otra acción, porque la hoja no tiene uno para ella. Un dibujo solo se puede deformar, **no mirar desde otro lado**: esos clips necesitan DIBUJOS NUEVOS del mismo personaje. En el Prompt 10 **no había ninguna herramienta de generación de imágenes** en el entorno (ni de edición que pudiera hacerlo sin inventar), así que **no se ha dibujado nada**: este kit es lo que hace falta para que alguien (tú, un artista o un generador de imágenes) los dibuje sin ambigüedad, y la herramienta que los recibe, comprueba e integra.
 >
-> **Cuánto es:** 10 clips y **46 dibujos** en total (sin contar los clips que ya tienen dibujo propio). Cada clip es **una hoja** (todas sus poses en una fila, sobre fondo blanco, como tu hoja de poses): 10 generaciones. Este archivo y los `brief.md` los escribe `npm run assets:intake -- kit` desde `requests.json`.
+> **Cuánto es:** 6 clips y **31 dibujos** en total (sin contar los clips que ya tienen dibujo propio). Cada clip es **una hoja** (todas sus poses en una fila, sobre fondo blanco, como tu hoja de poses): 6 generaciones. Este archivo y los `brief.md` los escribe `npm run assets:intake -- kit` desde `requests.json`. Ya entregados y aceptados (ya no se piden): `dash`, `death`, `drink`, `interact`.
 
 ## Los tres pasos
 
@@ -14,16 +14,12 @@
 
 | Grupo | Clip | Dibujos | Qué sustituye | Brief |
 |---|---|---|---|---|
-| A | `dash` | 3 | Hoy es la carrera (dibujo 3) lanzada hacia delante: un stand-in. | [`dash/brief.md`](dash/brief.md) |
 | B | `attack2` | 7 | Hoy es el primer tajo (dibujo 7) girado al revés: un stand-in. | [`attack2/brief.md`](attack2/brief.md) |
 | C | `crouch` | 2 | Hoy es la agachada del aterrizaje (dibujo 6) sostenida y respirando: un stand-in. | [`crouch/brief.md`](crouch/brief.md) |
 | D | `crouchWalk` | 4 | Hoy es la agachada del aterrizaje «a pasitos» (deformada): un stand-in. | [`crouchWalk/brief.md`](crouchWalk/brief.md) |
 | E | `walk` | 6 | La marcha de hoy es el dibujo 2 deformado: las piernas se turnan pero no se cruzan y los pies resbalan. | [`walk/brief.md`](walk/brief.md) |
 | F | `aerialAttack` | 6 | Hoy es el primer tajo (dibujo 7) con las piernas recogidas: un stand-in. | [`aerialAttack/brief.md`](aerialAttack/brief.md) |
 | G | `crouchAttack` | 6 | Hoy es el primer tajo (dibujo 7) bajado sobre las piernas: un stand-in. | [`crouchAttack/brief.md`](crouchAttack/brief.md) |
-| H | `death` | 5 | Hoy es el dibujo del golpe (11) tumbado y con los ojos apagándose: un stand-in. | [`death/brief.md`](death/brief.md) |
-| I | `drink` | 4 | Hoy es el dibujo de pie haciendo un gesto, sin botella ni mano a la boca: un stand-in. | [`drink/brief.md`](drink/brief.md) |
-| J | `interact` | 3 | Hoy es el dibujo de pie que se inclina y asiente, sin mano que alcance: un stand-in. | [`interact/brief.md`](interact/brief.md) |
 
 ## Lo que NO se hace (reglas del encargo)
 

@@ -1,7 +1,7 @@
 {
   "comment": "THE PROTAGONIST'S RIG (docs/ART-PIPELINE-2D.md part N): for each drawing of hero.poses.json, the control points that say where its parts are (head, antennae, hinge of the blade, legs, cape…), the groups that move together and the layers that are rigid pieces. Pixel coordinates of the drawing as `npm run assets:animate` cuts it (after any mirroring). `feet` is the point of the drawing that stands on the pivot. How the points MOVE is in tools/assets/heroClips.ts. `delivered` lists the clips an artist DREW BY HAND and handed over (the day a stand-in gets a drawing of its own): `npm run assets:animate` makes none of their frames, deletes none of their files and keeps their entry of art/player/player.pack.json as it was written.",
   "canvas": {"width": 280, "height": 230, "pivot": [120, 192], "scale": 0.5, "drawingPxPerMeter": 130, "artPxPerMeter": 65},
-  "delivered": [],
+  "delivered": ["dash", "drink", "interact", "death"],
   "poses": {
     "idle": {
       "pose": "idle",
