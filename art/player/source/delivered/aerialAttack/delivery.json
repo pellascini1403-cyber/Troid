@@ -17,6 +17,7 @@
   "anchors": "232aa1f13e45af45bc34966f1ed6ae6c2b00cc87939e6c9cb5d3a3694616a360",
   "placement": "1da8a8d7c7ca031c90160e7c12090433adb71312e52e616b7af9e54d196ca422",
   "waivers": "22f9f84cf7e97ffda8ad12d19e2be66731e9bd925d6da759809bc060bf92a8cb",
+  "erase": "5002ec586d1e50e5f792af29afdb8b893f1a3a4ae927b77ddbd150926215adfc",
   "frames": [
     {
       "name": "aerialAttack_00",
@@ -30,7 +31,7 @@
     },
     {
       "name": "aerialAttack_02",
-      "sha256": "75f584b00368a4931d4db81a407dac892a77075bb00cb5a0066f381e7cd6e40c",
+      "sha256": "defd29305d01937e34ddbbf0f81d9e2a0d907c84de93d6c836fb4a0668ee4bb6",
       "level": "ok"
     },
     {
@@ -45,7 +46,7 @@
     },
     {
       "name": "aerialAttack_05",
-      "sha256": "4c63003fcb3732eaf1c91eb633ede7e9eb45092907f637a53f2d28ba954aac85",
+      "sha256": "be4204c2237136987f7cec0e1ebda92a6101338e2b523d6e008abe37c3c16032",
       "level": "warn"
     }
   ]

@@ -1,0 +1,14 @@
+{
+  "attack2_01": {
+    "why": "El arco cian del tajo está pintado en la propia imagen, delante de la figura y como una pieza aparte del cuerpo: es un efecto que dibuja el motor, no la figura. Se quita entero; la figura y la espada no se tocan.",
+    "polygons": [
+      [[173,104],[253,104],[253,201],[94,201],[94,189],[146,189],[146,153],[173,153]]
+    ]
+  },
+  "attack2_02": {
+    "why": "Los arcos cian del giro están pintados en la propia imagen, delante y debajo de la figura y como una pieza aparte del cuerpo: son un efecto que dibuja el motor, no la figura. Se quitan enteros; la figura y la espada no se tocan.",
+    "polygons": [
+      [[150,157],[165,157],[165,153],[236,153],[236,201],[68,201],[68,189],[140,189],[140,172],[150,172]]
+    ]
+  }
+}

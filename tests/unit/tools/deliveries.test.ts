@@ -4,14 +4,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { insidePolygon, parseErase } from '../../../tools/assets/erase';
 import { readDelivered } from '../../../tools/assets/heroRepo';
 import { manifestAnchors } from '../../../tools/assets/intake';
 import { prepareClip } from '../../../tools/assets/intakeRun';
-import { encodePng } from '../../../tools/assets/png';
+import { decodePng, encodePng } from '../../../tools/assets/png';
 
 /**
  * THE DELIVERIES REPRODUCE (docs/PROMPT12-LOG.md): every clip the user's drawings entered through `npm run assets:intake` has its sources archived in `art/player/source/delivered/<clip>/` (the sheet or the
- * poses it was cut from, its anchors, its placement, what was accepted on purpose, the report). What is committed in `art/player/hero/` and in the manifest is therefore the PRODUCT of those sources and not of a
+ * poses it was cut from, its anchors, its placement, what was accepted on purpose, what was taken out of the drawing, the report). What is committed in `art/player/hero/` and in the manifest is therefore the PRODUCT of those sources and not of a
  * hand: preparing the archive again, in a copy of the repository whose inbox holds nothing else, must give — byte for byte — the frames of the game and the anchors of the manifest. If a clip's neighbour (the
  * clip its size is matched to) or the tool changes so that it no longer does, this fails and says which clip has to be delivered again.
  */
@@ -19,6 +20,8 @@ const root = fileURLToPath(new URL('../../../', import.meta.url));
 const sha = (data: Uint8Array): string => createHash('sha256').update(data).digest('hex');
 const archiveOf = (clip: string): string => join(root, 'art', 'player', 'source', 'delivered', clip);
 const delivered = readDelivered(root);
+/** The clips whose delivery took something out of the drawing (`erase.json` in the archive). */
+const withErase = delivered.filter((c) => existsSync(join(archiveOf(c), 'erase.json')));
 
 describe('the archived deliveries give back the frames of the game', () => {
   let tmp = '';
@@ -37,7 +40,7 @@ describe('the archived deliveries give back the frames of the game', () => {
     for (const clip of delivered) expect(existsSync(archiveOf(clip)), `${clip}: art/player/source/delivered/${clip}/`).toBe(true);
   });
 
-  it.each(delivered)('%s: its archived sheet, anchors, placement and waivers give exactly its frames and its anchors', (clip) => {
+  it.each(delivered)('%s: its archived sheet, anchors, placement, waivers and erased pixels give exactly its frames and its anchors', (clip) => {
     const inbox = join(tmp, 'art', 'player', 'inbox', clip);
     mkdirSync(inbox, { recursive: true });
     for (const f of readdirSync(archiveOf(clip))) if (f !== 'delivery.json' && f !== 'report.md') copyFileSync(join(archiveOf(clip), f), join(inbox, f));
@@ -57,5 +60,39 @@ describe('the archived deliveries give back the frames of the game', () => {
       const manifest = (JSON.parse(readFileSync(join(root, 'art', 'player', 'player.pack.json'), 'utf8')) as { sprites: Array<{ frames: Record<string, { anchors: Record<string, [number, number]> }> }> }).sprites[0]!.frames;
       for (const name of p.names) expect(manifest[name]!.anchors, `${name}: the anchors of the manifest are the ones read from the archive`).toEqual(manifestAnchors(p.anchors.points.get(name)!, p.canvas));
     }
+  }, 120_000);
+
+  it('has taken something out of the drawing in the clips whose archive says so (the painted effects of the attacks)', () => {
+    expect(withErase).toEqual(expect.arrayContaining(['attack2', 'crouchAttack', 'aerialAttack']));
+  });
+
+  it.each(withErase)('%s: what erase.json took out is only what its polygons enclose — the drawing prepared WITHOUT it differs from the frames of the game in no other pixel, and every pixel that differs is now transparent', (clip) => {
+    const inbox = join(tmp, 'art', 'player', 'inbox', clip);
+    rmSync(inbox, { recursive: true, force: true });
+    mkdirSync(inbox, { recursive: true });
+    for (const f of readdirSync(archiveOf(clip))) if (f !== 'delivery.json' && f !== 'report.md' && f !== 'erase.json') copyFileSync(join(archiveOf(clip), f), join(inbox, f));
+    const bare = prepareClip(tmp, clip);
+    const erase = parseErase(readFileSync(join(archiveOf(clip), 'erase.json'), 'utf8'), bare.names, bare.canvas);
+    const hero = join(root, 'art', 'player', 'hero');
+    let taken = 0;
+    bare.names.forEach((name, k) => {
+      const kept = decodePng(readFileSync(join(hero, `${name}.png`)));
+      const before = bare.frames[k]!;
+      expect([kept.width, kept.height]).toEqual([before.width, before.height]);
+      let differ = 0;
+      for (let y = 0; y < kept.height; y++) {
+        for (let x = 0; x < kept.width; x++) {
+          const o = (y * kept.width + x) * 4;
+          if ([0, 1, 2, 3].every((c) => kept.data[o + c] === before.data[o + c])) continue;
+          differ++;
+          expect([...kept.data.subarray(o, o + 4)], `${name} (${x}, ${y}) is not transparent now`).toEqual([0, 0, 0, 0]);
+          expect(erase[name]?.polygons.some((poly) => insidePolygon(x + 0.5, y + 0.5, poly)), `${name} (${x}, ${y}) changed outside every polygon of erase.json`).toBe(true);
+        }
+      }
+      if (erase[name]) expect(differ, `${name} is in erase.json: something went`).toBeGreaterThan(0);
+      else expect(differ, `${name} is not in erase.json: not a pixel of it may differ`).toBe(0);
+      taken += differ;
+    });
+    expect(taken).toBeGreaterThan(0);
   }, 120_000);
 });

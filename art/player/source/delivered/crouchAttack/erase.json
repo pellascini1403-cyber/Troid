@@ -1,0 +1,21 @@
+{
+  "crouchAttack_01": {
+    "why": "El arco cian del barrido y su estela del suelo están pintados en la propia imagen, delante de la figura: son un efecto que dibuja el motor, no la figura. Se quitan; el cuerpo y la espada no se tocan.",
+    "polygons": [
+      [[192,126],[246,126],[246,196],[68,196],[68,190],[126,190],[126,181],[150,181],[150,148],[192,148]]
+    ]
+  },
+  "crouchAttack_02": {
+    "why": "El arco cian del barrido (sobre y delante de la punta), la mancha clara bajo la hoja y la estela del suelo están pintados en la propia imagen: son un efecto que dibuja el motor, no la figura. Se quitan; el cuerpo y la hoja, con su filo cian, no se tocan.",
+    "polygons": [
+      [[196,138],[258,138],[258,180],[240,180],[240,170],[196,166]],
+      [[76,194],[150,194],[150,184],[196,184],[196,182],[240,182],[240,198],[76,198]]
+    ]
+  },
+  "crouchAttack_03": {
+    "why": "La estela fina del barrido, a ras de suelo entre los pies, está pintada en la propia imagen: es un efecto que dibuja el motor, no la figura. Se quita; el cuerpo y la espada no se tocan.",
+    "polygons": [
+      [[47,191],[125,191],[125,192],[137,192],[137,195],[47,195]]
+    ]
+  }
+}

@@ -17,6 +17,7 @@
   "anchors": "6b2519a609e6ff2ab3b6f9cea4ed9100db171e7cc7bf8f43a30a922db87b2607",
   "placement": "07d747b5652b9c174f799adb2c67a88fd41eea552cba4c184feed74370af0ac3",
   "waivers": null,
+  "erase": "73dedbf5cbb42d6806e8c27438f0a3feb9dd601d66a1bda6956040104604a981",
   "frames": [
     {
       "name": "crouchAttack_00",
@@ -25,17 +26,17 @@
     },
     {
       "name": "crouchAttack_01",
-      "sha256": "4618c5039d07bc7d3d8d8ca0591bea86c31fe9e4654446c38bdd107765859b25",
+      "sha256": "7f0bf86f65e3d8bf085132c49cce079356a74f36e05f8b96093199fda405263c",
       "level": "ok"
     },
     {
       "name": "crouchAttack_02",
-      "sha256": "fb53d075a5fab2e613a92fff9deb85392d6f2db3ffcea574803db3940ab51a2a",
+      "sha256": "5fcf0f34cbe31ea3abce2e05e53366cc51b8c26162711689b74e1cf88f48def3",
       "level": "ok"
     },
     {
       "name": "crouchAttack_03",
-      "sha256": "094e6494ff4ba8d6ca0f8de96325ce749a8c5b12219ecce73cb007de7ee761e5",
+      "sha256": "eb42eb7da85506fa4a93285c7107681b0ea58f3654ed994aef5b78d1ee957b9e",
       "level": "ok"
     },
     {

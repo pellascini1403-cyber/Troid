@@ -1,6 +1,6 @@
 {
   "clip": "attack2",
-  "level": "warn",
+  "level": "ok",
   "inputs": [
     {
       "file": "attack2_00.png",
@@ -32,7 +32,8 @@
   },
   "anchors": "e2aa5fbaa26371703e5e69cb0685c9dee36d535669eddad7166eef8750223952",
   "placement": null,
-  "waivers": "29680b915f6be1e595c5521bcbf26f5949bb72c6f80563247f82a9b4575bdc30",
+  "waivers": null,
+  "erase": "e668b0df13065b508ab695b0ba24bc36fddaafe4a526cc1c1e5ce73fe5ba7968",
   "frames": [
     {
       "name": "attack2_00",
@@ -41,13 +42,13 @@
     },
     {
       "name": "attack2_01",
-      "sha256": "e9a21f68e6c4a3ec16e11abb4a3f4434f76a4229b445633a0a1a4fa6578b2900",
-      "level": "warn"
+      "sha256": "1911d6ec4cc1ce67ad5c05e2caa7e39e08bd6930358cfece9071479bd7a0c27c",
+      "level": "ok"
     },
     {
       "name": "attack2_02",
-      "sha256": "5cf66c6a1f5bcb4647bf44c5b5d76ad6ffd1b4e841bffed9ea5e5c848a9e32d7",
-      "level": "warn"
+      "sha256": "6449156d41df1c00d56c08e4df4b8a83e2916c8abf4c9daa3d11a1b8981e5f02",
+      "level": "ok"
     },
     {
       "name": "attack2_03",
