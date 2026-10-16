@@ -3,9 +3,10 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, wri
 import { dirname, join, relative, sep } from 'node:path';
 import { animate } from './animate';
 import { buildArt, formatReport } from './build';
+import { applyErase, parseErase, type Erased } from './erase';
 import { clipFrameNames, clipHead, heroPaths, readClips, readDelivered, readHeroFrame } from './heroRepo';
 import { applyWaivers, chooseScale, cutLoose, cutSheet, IntakeError, judgeFrames, manifestAnchors, parseAnchors, parseWaivers, placeFrame, type Canvas, type ClipJudgement, type Cut, type Level, type Placed, type Scaling, type SwordPoints, type Waived } from './intake';
-import { anchorsGrid, contactSheet, reportMarkdown, segmentationPicture, type ReportInput, type ReportMeta } from './intakeReport';
+import { anchorsGrid, contactSheet, erasedPicture, reportMarkdown, segmentationPicture, type ReportInput, type ReportMeta } from './intakeReport';
 import { buildKit, readKitSources, referenceItems, type ClipRequest, type Requests } from './kit';
 import { decodePng, encodePng, type RgbaImage } from './png';
 
@@ -32,7 +33,7 @@ export interface Inbox {
   ignored: string[];
 }
 
-const IGNORED = new Set(['anchors.json', 'placement.json', 'waivers.json', 'anchors.template.json']);
+const IGNORED = new Set(['anchors.json', 'placement.json', 'waivers.json', 'erase.json', 'anchors.template.json']);
 
 /** What is in `art/player/inbox/<clip>/`: `sheet.png` (one sheet), or one PNG per pose in natural order. `null` when there is nothing. Anything that is not a PNG is refused with the way out. */
 export function readInbox(dir: string): Inbox | null {
@@ -76,6 +77,8 @@ export interface Prepared {
   judgement: ClipJudgement;
   /** The failures a person accepted on purpose (`waivers.json`), already turned into warnings in `judgement`. */
   waived: Waived[];
+  /** What a person took out of the drawing (`erase.json`): the painted effects, already transparent in `frames`. */
+  erased: Erased[];
   /** Every file of the report, by path relative to `art/player/inbox/_reports/<clip>/`. */
   files: Map<string, Buffer | string>;
   /** What `report.json` carries: the fingerprint `acceptClip` checks. */
@@ -91,6 +94,8 @@ export interface Fingerprint {
   placement: string | null;
   /** The hash of `waivers.json` (the failures accepted on purpose), or `null` when there is none. */
   waivers?: string | null;
+  /** The hash of `erase.json` (what was taken out of the drawing), or `null` when there is none. */
+  erase?: string | null;
   frames: Array<{ name: string; sha256: string; level: Level }>;
 }
 
@@ -140,13 +145,20 @@ export function prepareClip(root: string, clip: string, options: { scale?: numbe
   const placed: Placed[] = cut.poses.map((pose, k) =>
     cut.final[k] ? { image: pose, clipped: { left: 0, right: 0, top: 0, bottom: 0 }, groundGap: 0, nudge: none } : placeFrame(pose, scaling.factor, request.placement, canvas, nudges[names[k]!] ?? none),
   );
-  const frames = placed.map((p) => p.image);
 
   const anchorText = request.sword ? readText(join(inboxDir, 'anchors.json')) : null;
   const parsed = request.sword ? parseAnchors(anchorText, names, canvas) : { points: new Map<string, SwordPoints>(), problems: [] };
-  const judged = judgeFrames({ names, frames, clipped: placed.map((p) => p.clipped), groundGap: placed.map((p) => p.groundGap), request, canvas, scaling, tolerance: requests.scale.tolerance, rawRed: cut.rawRed, anchors: parsed.points, anchorProblems: parsed.problems });
   const waiversText = readText(join(inboxDir, 'waivers.json'));
-  const { judgement, waived } = applyWaivers(judged, parseWaivers(waiversText));
+  const waivers = parseWaivers(waiversText);
+
+  // what a person took out of the drawing (the painted effects): after the placement and the anchors, which are read off the placed frame, so erasing never moves the figure. A frame whose sword was accepted as
+  // not visible (`<frame>:sword` in waivers.json) has no blade to protect: its anchors are an estimate.
+  const eraseText = readText(join(inboxDir, 'erase.json'));
+  const blades = new Map([...parsed.points].filter(([name]) => waivers[`${name}:sword`] === undefined));
+  const { frames, erased } = applyErase(placed.map((p) => p.image), names, parseErase(eraseText, names, canvas), blades);
+
+  const judged = judgeFrames({ names, frames, clipped: placed.map((p) => p.clipped), groundGap: placed.map((p) => p.groundGap), request, canvas, scaling, tolerance: requests.scale.tolerance, rawRed: cut.rawRed, anchors: parsed.points, anchorProblems: parsed.problems });
+  const { judgement, waived } = applyWaivers(judged, waivers);
 
   // what the contact sheet compares with
   const current = readClips(root)[clip];
@@ -155,10 +167,11 @@ export function prepareClip(root: string, clip: string, options: { scale?: numbe
   const like = readClips(root)[request.scaleLike];
   const neighbour = like && like.count > 0 && existsSync(join(paths.hero, `${clipFrameNames(like)[0]}.png`)) ? { name: clipFrameNames(like)[0]!, image: readHeroFrame(root, clipFrameNames(like)[0]!) } : null;
   const input: ReportInput = { clip, request, canvas, names, frames, judgement, scaling, anchors: parsed.points, before, neighbour, originals: referenceItems(src, clip) };
-  const meta: ReportMeta = { inputs: inbox.files.map((f, i) => ({ file: f, sha256: sha(inbox.bytes[i]!) })), mode: inbox.mode, notes: cut.notes, nudges, anchorProblems: parsed.problems, waived };
+  const meta: ReportMeta = { inputs: inbox.files.map((f, i) => ({ file: f, sha256: sha(inbox.bytes[i]!) })), mode: inbox.mode, notes: cut.notes, nudges, anchorProblems: parsed.problems, waived, erased };
 
   const files = new Map<string, Buffer | string>();
   files.set('contact.png', encodePng(contactSheet(input)));
+  if (erased.length > 0) files.set('erased.png', encodePng(erasedPicture(input, erased)));
   if (request.sword) {
     files.set('anchors-grid.png', encodePng(anchorsGrid(input)));
     if (parsed.problems.length > 0 && anchorText === null) {
@@ -176,10 +189,11 @@ export function prepareClip(root: string, clip: string, options: { scale?: numbe
     anchors: anchorText === null ? null : sha(anchorText),
     placement: placementText === null ? null : sha(placementText),
     waivers: waiversText === null ? null : sha(waiversText),
+    erase: eraseText === null ? null : sha(eraseText),
     frames: names.map((name, k) => ({ name, sha256: sha(frameBytes[k]!), level: judgement.frames[k]!.level })),
   };
   files.set('report.json', `${JSON.stringify(fingerprint, null, 2)}\n`);
-  return { clip, request, requests, canvas, inbox, cut, scaling, names, frames, placed, anchors: { ...parsed, text: anchorText }, nudges, judgement, waived, files, fingerprint };
+  return { clip, request, requests, canvas, inbox, cut, scaling, names, frames, placed, anchors: { ...parsed, text: anchorText }, nudges, judgement, waived, erased, files, fingerprint };
 }
 
 /** Writes the report of a prepared clip to `art/player/inbox/_reports/<clip>/` (replacing the last one) and returns the folder. */
@@ -218,6 +232,7 @@ export function summary(p: Prepared): string[] {
   for (const f of j.frames) for (const c of f.checks) if (c.level !== 'ok') out.push(`  ${c.level.toUpperCase()}  ${f.name} · ${c.id}: ${c.text}`);
   for (const n of p.cut.notes) out.push(`  note  ${n}`);
   if (p.waived.length > 0) out.push(`  waived  ${p.waived.length} failure(s) accepted on purpose (waivers.json): ${p.waived.map((w) => w.key).join(', ')}`);
+  if (p.erased.length > 0) out.push(`  erased  ${p.erased.reduce((n, e) => n + e.pixels, 0)} painted-effect pixel(s) taken out of ${p.erased.length} frame(s) (erase.json): ${p.erased.map((e) => `${e.name} ${e.pixels}`).join(', ')} — see erased.png`);
   return out;
 }
 
@@ -313,8 +328,8 @@ export function acceptClip(root: string, clip: string, options: AcceptOptions = 
   if (!existsSync(reportFile)) throw new IntakeError(`there is no report of "${clip}" yet: run \`npm run assets:intake -- ${clip}\` and look at its contact.png first — nothing is accepted that was not shown`);
   const shown = JSON.parse(readFileSync(reportFile, 'utf8')) as Fingerprint;
   const now = prepared.fingerprint;
-  const same = shown.frames.length === now.frames.length && shown.frames.every((f, i) => f.sha256 === now.frames[i]!.sha256) && shown.anchors === now.anchors && (shown.waivers ?? null) === (now.waivers ?? null);
-  if (!same) throw new IntakeError(`the delivery changed since the report was written (the frames, the anchors or the waivers are not the ones contact.png and report.md show): run \`npm run assets:intake -- ${clip}\` again, look at it, then accept`);
+  const same = shown.frames.length === now.frames.length && shown.frames.every((f, i) => f.sha256 === now.frames[i]!.sha256) && shown.anchors === now.anchors && (shown.waivers ?? null) === (now.waivers ?? null) && (shown.erase ?? null) === (now.erase ?? null);
+  if (!same) throw new IntakeError(`the delivery changed since the report was written (the frames, the anchors, the waivers or the erased pixels are not the ones contact.png and report.md show): run \`npm run assets:intake -- ${clip}\` again, look at it, then accept`);
 
   const request = prepared.request;
   const existing = readClips(root)[clip];
@@ -366,7 +381,7 @@ export function acceptClip(root: string, clip: string, options: AcceptOptions = 
     rmSync(archive, { recursive: true, force: true });
     mkdirSync(archive, { recursive: true });
     prepared.inbox.files.forEach((f, i) => writeFileSync(join(archive, f), prepared.inbox.bytes[i]!));
-    for (const extra of ['anchors.json', 'placement.json', 'waivers.json']) {
+    for (const extra of ['anchors.json', 'placement.json', 'waivers.json', 'erase.json']) {
       const text = readText(join(paths.inbox, clip, extra));
       if (text !== null) writeFileSync(join(archive, extra), text);
     }

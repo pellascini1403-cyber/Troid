@@ -1,4 +1,5 @@
 import { drawText, FONT_H, textWidth, type Rgba } from './bitmapFont';
+import type { Erased } from './erase';
 import { boundsOf } from './figure';
 import { crop, type ClipJudgement, type Canvas, type Check, type Level, type Scaling, type SwordPoints, type Waived } from './intake';
 import { board, blank, blit, type BoardItem } from './kit';
@@ -226,6 +227,18 @@ export function anchorsGrid(r: ReportInput): RgbaImage {
   return board(`${r.clip.toUpperCase()} - ANCHORS GRID (CANVAS PIXELS)`, ['READ THE GRIP (WHERE THE RIGHT HAND HOLDS THE BLADE) AND THE TIP OF EACH FRAME OFF THE GRID, AND WRITE THEM IN art/player/inbox/' + r.clip + '/anchors.json AS "FRAME": {"grip": [X, Y], "tip": [X, Y]}.'], items);
 }
 
+/** What `erase.json` took out, frame by frame: on the left the frame as it was handed in with the pixels that go in magenta, on the right the frame as it is delivered. */
+export function erasedPicture(r: ReportInput, erased: readonly Erased[]): RgbaImage {
+  const items: BoardItem[] = erased.map((e) => {
+    const k = r.names.indexOf(e.name);
+    const area = unionBounds([e.before], 6, r.canvas);
+    const tinted = { width: e.before.width, height: e.before.height, data: new Uint8Array(e.before.data) };
+    for (let i = 0; i < e.mask.length; i++) if (e.mask[i]) tinted.data.set([255, 0, 200, 255], i * 4);
+    return { image: strip([enlarge(onDark(tinted, area), 2), enlarge(onDark(r.frames[k]!, area), 2)], 8), scale: 1, caption: `${e.name.toUpperCase()} - ${e.pixels} PX TAKEN OUT (MAGENTA, LEFT); THE FRAME AS DELIVERED, RIGHT` };
+  });
+  return board(`${r.clip.toUpperCase()} - WHAT erase.json TOOK OUT`, ['THE PIXELS INSIDE THE POLYGONS BECOME TRANSPARENT AND NOTHING ELSE CHANGES. THE DRAWING AS HANDED IN STAYS ARCHIVED, UNTOUCHED.'], items);
+}
+
 /** The sheet as the cut saw it: scaled to fit 1600 px, each pose boxed and numbered in reading order (for when the cut did not find the number of poses it was asked for). */
 export function segmentationPicture(sheet: RgbaImage, boxes: readonly Box[]): RgbaImage {
   const k = Math.min(1, 1600 / sheet.width);
@@ -260,6 +273,8 @@ export interface ReportMeta {
   anchorProblems: string[];
   /** The failures a person accepted on purpose (`waivers.json`): listed with their reasons, never hidden. */
   waived: Waived[];
+  /** What a person took out of the drawing (`erase.json`): the painted effects, listed with their reasons, never hidden. */
+  erased: Erased[];
 }
 
 const LEVEL_ES: Record<Level, string> = { ok: 'correcto', warn: 'aviso', fail: 'FALLO' };
@@ -292,6 +307,16 @@ export function reportMarkdown(r: ReportInput, meta: ReportMeta): string {
     ...(meta.waived.length > 0
       ? ['', '## Fallos aceptados a propósito (`waivers.json`)', '', 'La herramienta los daba por FALLO; una persona los acepta con el motivo que se lee aquí (el archivo se archiva con la entrega). En las tablas figuran como avisos.', '', ...meta.waived.flatMap((w) => [`- \`${w.key}\` — ${w.reason}`, ...w.was.map((t) => `  - la herramienta decía: ${t}`)])]
       : []),
+    ...(meta.erased.length > 0
+      ? [
+          '',
+          '## Píxeles borrados a propósito (`erase.json`)',
+          '',
+          'El dibujo traía efectos pintados dentro de la propia figura (arcos y estelas del tajo), donde el motor pone los suyos. Una persona marcó con polígonos —en píxeles del lienzo, como las anclas— lo que se quita: los píxeles de dentro pasan a transparentes y **nada más cambia** (ningún píxel se mueve, se recolorea ni se rehace). La herramienta se niega a borrar un píxel del cuerpo o un punto de la hoja de la espada. El dibujo entregado sigue archivado sin tocar: quitar `erase.json` y volver a entregar el clip lo devuelve entero. Lo quitado, en magenta, está en `erased.png`.',
+          '',
+          ...meta.erased.map((e) => `- \`${e.name}\` — ${e.pixels.toLocaleString('es-ES')} píxeles, ${e.polygons.length} ${e.polygons.length === 1 ? 'polígono' : 'polígonos'} — ${e.why}`),
+        ]
+      : []),
     ...(meta.anchorProblems.length > 0 ? ['', '## Anclas de la espada', '', ...meta.anchorProblems.map((p) => `- ${p}`)] : []),
     '',
     '## Qué mirar en `contact.png`',
@@ -300,6 +325,7 @@ export function reportMarkdown(r: ReportInput, meta: ReportMeta): string {
     '2. Fila 2: cada pose nueva sobre fondo oscuro, con su veredicto.',
     '3. Fila 3: la secuencia nueva a tamaño 1:1 sobre la línea del suelo, contra la de hoy.',
     '4. Fila 4: el tamaño real de juego junto al clip vecino.',
+    ...(meta.erased.length > 0 ? ['5. `erased.png`: lo que quitó `erase.json` (en magenta) y el fotograma como se entrega.'] : []),
     '',
   ].join('\n');
 }

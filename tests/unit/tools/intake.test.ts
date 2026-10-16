@@ -1032,4 +1032,82 @@ describe('handing a clip over, in a copy of the repository', () => {
     expect(JSON.parse(readFileSync(join(archiveDir(), 'delivery.json'), 'utf8'))).toMatchObject({ clip, level: 'warn', waivers: expect.stringMatching(/^[0-9a-f]{64}$/) });
     expect(readFileSync(join(archiveDir(), 'report.md'), 'utf8')).toContain(REASON);
   }, 240_000);
+
+  it('takes a painted effect out of a delivery, and only that: erase.json makes the pixels inside its polygons transparent — never the body, never the blade — the report shows what went, the file goes into the archive, and a changed one asks to look again', () => {
+    const WHY = 'A bright spot of the frame stands in for a painted effect: what the tool must do is take out what is inside the polygon and nothing else.';
+    // the delivery of the previous test is the starting point, with its anchors put right and no waiver: the inbox is what a person has put there
+    const second = composeSheet(source, { up: 3.2, cols: 4, gap: 90, shadow: true });
+    rmSync(join(inbox(), 'waivers.json'), { force: true });
+    writeFileSync(join(inbox(), 'anchors.json'), JSON.stringify(Object.fromEntries(anchorsFor(names, prepareClip(tmp, clip).frames, second.frames, source)), null, 2));
+    const plain = prepareClip(tmp, clip);
+    expect(plain.erased).toEqual([]);
+    expect(plain.judgement.level, plain.judgement.frames.flatMap((f) => f.checks.filter((c) => c.level === 'fail').map((c) => `${f.name}: ${c.text}`)).join('\n')).not.toBe('fail');
+
+    // an effect to take out: a white highlight of the eye in frame 2 (bright, not body; far from the blade) — the tool does not know what an effect is, a person says it with a polygon
+    const k = 2;
+    const f = plain.frames[k]!;
+    let spot: [number, number] | null = null;
+    for (let y = 0; y < f.height && !spot; y++) for (let x = 0; x < f.width && !spot; x++) if (f.data.subarray((y * f.width + x) * 4, (y * f.width + x) * 4 + 4).every((v) => v >= 250)) spot = [x, y];
+    expect(spot, 'a white highlight in the frame').not.toBeNull();
+    const [sx, sy] = spot!;
+    const polygon = [[sx, sy], [sx + 2, sy], [sx + 2, sy + 2], [sx, sy + 2]];
+    writeFileSync(join(inbox(), 'erase.json'), JSON.stringify({ [names[k]!]: { why: WHY, polygons: [polygon] } }, null, 2));
+
+    const p = prepareClip(tmp, clip);
+    expect(p.erased).toHaveLength(1);
+    expect(p.erased[0]).toMatchObject({ name: names[k], why: WHY, pixels: 4 });
+    // the frame is the one it was but for the pixels inside the polygon; every other frame is byte for byte the same
+    p.frames.forEach((img, i) => {
+      if (i !== k) return expect(Buffer.from(img.data).equals(Buffer.from(plain.frames[i]!.data))).toBe(true);
+      let changed = 0;
+      for (let j = 0; j < img.data.length; j += 4) {
+        const same = [0, 1, 2, 3].every((c) => img.data[j + c] === f.data[j + c]);
+        if (same) continue;
+        changed++;
+        expect([...img.data.subarray(j, j + 4)]).toEqual([0, 0, 0, 0]);
+      }
+      expect(changed).toBe(4);
+    });
+    const report = (): string => readFileSync(join(tmp, 'art', 'player', 'inbox', '_reports', clip, 'report.md'), 'utf8');
+    const dir = writeReport(tmp, p);
+    expect(existsSync(join(dir, 'erased.png'))).toBe(true);
+    expect(decodePng(readFileSync(join(dir, 'erased.png'))).width).toBeGreaterThan(300);
+    expect(report()).toMatch(/Píxeles borrados a propósito/);
+    expect(report()).toContain(`\`${names[k]}\` — 4 píxeles, 1 polígono — ${WHY}`);
+    expect(JSON.parse(readFileSync(join(dir, 'report.json'), 'utf8'))).toMatchObject({ erase: expect.stringMatching(/^[0-9a-f]{64}$/) });
+
+    // what is taken out is part of what the report showed: change the polygon after it and the delivery must be looked at again
+    writeFileSync(join(inbox(), 'erase.json'), JSON.stringify({ [names[k]!]: { why: WHY, polygons: [[[sx, sy], [sx + 1, sy], [sx + 1, sy + 1], [sx, sy + 1]]] } }, null, 2));
+    expect(() => acceptClip(tmp, clip, { replace, pack: false, verify: false })).toThrow(/changed since the report/);
+    writeFileSync(join(inbox(), 'erase.json'), JSON.stringify({ [names[k]!]: { why: WHY, polygons: [polygon] } }, null, 2));
+    acceptClip(tmp, clip, { replace, pack: false, verify: false });
+    // the frames of the game are the ones prepared (the effect is gone from the file the engine reads), and the archive keeps the polygons with the drawing — the sheet itself is untouched
+    const mine = decodePng(readFileSync(join(tmp, 'art', 'player', 'hero', `${names[k]}.png`)));
+    expect(Buffer.from(mine.data).equals(Buffer.from(p.frames[k]!.data))).toBe(true);
+    expect(readdirSync(archiveDir()).sort()).toEqual(['anchors.json', 'delivery.json', 'erase.json', 'report.md', 'sheet.png']);
+    expect(readFileSync(join(archiveDir(), 'erase.json'), 'utf8')).toBe(readFileSync(join(inbox(), 'erase.json'), 'utf8'));
+    expect(readFileSync(join(archiveDir(), 'sheet.png')).equals(readFileSync(join(inbox(), 'sheet.png')))).toBe(true);
+    expect(JSON.parse(readFileSync(join(archiveDir(), 'delivery.json'), 'utf8'))).toMatchObject({ clip, erase: expect.stringMatching(/^[0-9a-f]{64}$/) });
+    expect(readFileSync(join(archiveDir(), 'report.md'), 'utf8')).toContain('Píxeles borrados a propósito');
+
+    // never the blade: a polygon over the line of the anchors is refused (it would be the grip's hand and the sword's own edge)
+    const anchors = JSON.parse(readFileSync(join(inbox(), 'anchors.json'), 'utf8')) as Record<string, { grip: [number, number]; tip: [number, number] }>;
+    const { grip } = anchors[names[k]!]!;
+    const onBlade = [[grip[0] - 3, grip[1] - 3], [grip[0] + 3, grip[1] - 3], [grip[0] + 3, grip[1] + 3], [grip[0] - 3, grip[1] + 3]];
+    writeFileSync(join(inbox(), 'erase.json'), JSON.stringify({ [names[k]!]: { why: WHY, polygons: [onBlade] } }, null, 2));
+    expect(() => prepareClip(tmp, clip)).toThrow(/covers the blade \(the line from the grip/);
+
+    // …unless the sword of that frame was accepted as not visible (its anchors are an estimate: there is no blade to protect), which only a waiver says. A stub of a blade lying on the highlight is a failure of the
+    // sword check; without the waiver the line is protected, with it the frame has no blade and the polygon is fine
+    anchors[names[k]!] = { grip: [sx + 1, sy + 1], tip: [sx + 7, sy + 1] };
+    writeFileSync(join(inbox(), 'anchors.json'), JSON.stringify(anchors, null, 2));
+    writeFileSync(join(inbox(), 'erase.json'), JSON.stringify({ [names[k]!]: { why: WHY, polygons: [polygon] } }, null, 2));
+    expect(() => prepareClip(tmp, clip)).toThrow(/covers the blade/);
+    writeFileSync(join(inbox(), 'waivers.json'), JSON.stringify({ [`${names[k]}:sword`]: 'The sword of this frame is a stub by design of the test: the blade the anchors describe is not on the picture.' }, null, 2));
+    const unprotected = prepareClip(tmp, clip);
+    expect(unprotected.erased[0]).toMatchObject({ name: names[k], pixels: 4 });
+    expect(unprotected.judgement.frames[k]!.checks.some((c) => c.id === 'sword' && c.level === 'warn' && /FALLO ACEPTADO A PROPÓSITO/.test(c.text))).toBe(true);
+    rmSync(join(inbox(), 'erase.json'), { force: true });
+    rmSync(join(inbox(), 'waivers.json'), { force: true });
+  }, 240_000);
 });

@@ -8,7 +8,8 @@ import { renderFrame, toDrawing } from './warp';
 /**
  * THE RECEPTION OF THE PROTAGONIST'S NEW DRAWINGS (docs/PROMPT10-LOG.md), the pure half: from a sheet (or a handful of PNGs) a generator or an artist handed back to the frames the pipeline
  * takes, and the judgement of each. TECHNICAL OPERATIONS ONLY, as in `poses.ts`: the background becomes transparent where the picture says it is background, the whole sheet is scaled by ONE
- * factor and every pose is moved by a translation to stand on the pivot — nothing is painted, recoloured, redrawn, mirrored to make a pose, or smoothed beyond the resampling of the scale.
+ * factor and every pose is moved by a translation to stand on the pivot — nothing is painted, recoloured, redrawn, mirrored to make a pose, or smoothed beyond the resampling of the scale. The one thing that is taken away, and only where a person says so in `erase.json`, is
+ * the painted effect that came inside the figure's own picture (`erase.ts`): pixels become transparent, none is moved or changed.
  *
  *   `cutSheet`      a sheet → the poses on it (transparent, in reading order), or an error that says how many were found and why that is not what was asked for
  *   `chooseScale`   one factor for the sheet: the big eye of its poses against the big eye of the frames of the clip this one sits next to in play — or, when the head turns and the eyes of the sheet
