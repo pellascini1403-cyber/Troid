@@ -112,6 +112,8 @@ export interface HookHost {
   spawnSlime(x: number, y: number, facing: 1 | -1): string;
   /** Lets the camera run `seconds` of its own time at 60 Hz right now. */
   settleCamera(seconds: number): void;
+  /** A jolt of the camera by `amount` (0 … 1), as a blow or a guardian's step gives it — unless the player asked for a camera that does not shake. */
+  shake(amount: number): void;
   /** The main key of each action as the game has it now. */
   keys(): Record<string, string>;
 }
@@ -216,6 +218,8 @@ export function createTestHooks(h: HookHost) {
     },
     /** Lets the camera run `seconds` of its own time at 60 Hz right now: a test need not wait on slow software-GL frames to see where it settles. */
     settleCamera: (seconds = 4) => h.settleCamera(seconds),
+    /** Test hook: what a blow does to the camera (it answers to "no camera shake" like the real thing). */
+    shake: (amount: number) => h.shake(amount),
     /**
      * Lets the protagonist's ANIMATION clock run `seconds` right now. It stands still while the game is paused (stable screenshots), so a test that follows a clip over time —
      * the frames of a walk, of a fall, of a blow — advances it by hand, a tick (1/60 s) at a time, next to `step`: what it sees is what a player sees over the same seconds.

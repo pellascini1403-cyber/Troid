@@ -72,6 +72,17 @@ async function setup(opts: { storage?: MemoryStorage | FlakyStorage; durable?: b
   return { storage, slots, settings, platform, notices, stats, saves, d, read };
 }
 
+describe('what the page knows about its storage', () => {
+  it('says whether what is saved outlives the page: a browser that offers storage does, one that keeps nothing does not', async () => {
+    const kept = await setup();
+    expect(kept.saves.durable).toBe(true);
+    kept.saves.dispose();
+    const lost = await setup({ durable: false });
+    expect(lost.saves.durable).toBe(false);
+    lost.saves.dispose();
+  });
+});
+
 describe('a game being played', () => {
   it('is saved when something of its progress changes, and the player is told "saved" — once, quietly', async () => {
     const { d, saves, notices, read } = await setup();
@@ -160,6 +171,13 @@ describe('a game being played', () => {
     expect(await saves.saveNow()).toBe(true);
     expect((await read())?.at).toEqual({ room: 'r2_hall', entry: 'west' });
     expect(notices).toEqual([{ kind: 'saved', slot: 1 }]);
+    saves.dispose();
+  });
+
+  it('in a browser that keeps nothing a manual save is NOT a save: it answers false and says nothing of "saved" (what the memory took dies with the page)', async () => {
+    const { saves, notices } = await setup({ durable: false });
+    expect(await saves.saveNow()).toBe(false);
+    expect(notices).toEqual([]);
     saves.dispose();
   });
 

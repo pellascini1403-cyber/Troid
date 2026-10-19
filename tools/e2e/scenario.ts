@@ -101,7 +101,7 @@ export interface GameState {
   /** The light the energy casts on the world (phase I): `null` without it (`?light=off`). */
   lights?: { lit: number; capacity: number; pulses: number; pulseCapacity: number; total: number; lights: Array<{ key: string; kind: string; level: number; x: number; y: number }> } | null;
   /** The atmosphere of the screen (phase I): `null` without it (`?light=off`). */
-  screen?: { room: string; fighting: boolean; strength: number; pulses: string[] } | null;
+  screen?: { room: string; fighting: boolean; strength: number; pulses: string[]; calm: boolean } | null;
   /** 2D view only (phase H): what the bolt in flight and the boss's warnings are drawn with (`null`: there is none now). */
   looks?: { bolt: boolean | null; marks: number | null };
   /** 2D view only: median / worst GL draw calls per frame over the last 120 frames. */

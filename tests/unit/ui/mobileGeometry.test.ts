@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_TOUCH } from '@/input/gestures/TouchConfig';
 import { BOSS_BAR, computeBossBarLayout } from '@/ui/hud/bossBarLayout';
 import { computeHudLayout, HUD_DESIGN, hudBlockSize } from '@/ui/hud/layout';
+import { HUD_SCALE_LIMITS } from '@/save/SettingsData';
 import { pauseBox } from '@/ui/settings/PauseButton';
 import { computeTouchLayout, HUD_FOOTPRINT, NO_INSETS, type Disc, type Insets, type Placement, type TouchLayout } from '@/ui/touch/layout';
 
@@ -55,8 +56,8 @@ function discHitsRect(d: Disc, r: Rect): boolean {
 }
 const inside = (r: Rect, safe: Rect, slack = 1e-6): boolean => r.x0 >= safe.x0 - slack && r.y0 >= safe.y0 - slack && r.x1 <= safe.x1 + slack && r.y1 <= safe.y1 + slack;
 const safeRect = (w: number, h: number, i: Insets): Rect => ({ x0: i.left, y0: i.top, x1: w - i.right, y1: h - i.bottom });
-const hudRect = (w: number, h: number, i: Insets): Rect => {
-  const l = computeHudLayout(w, h, i, 1, 5, 4); // the most it ever holds in this game: five life segments and four bottles
+const hudRect = (w: number, h: number, i: Insets, size = 1): Rect => {
+  const l = computeHudLayout(w, h, i, size, 5, 4); // the most it ever holds in this game: five life segments and four bottles
   return { x0: l.x, y0: l.y, x1: l.x + l.width * l.scale, y1: l.y + l.height * l.scale };
 };
 const barRect = (w: number, h: number, i: Insets, touch: TouchLayout | null): Rect => {
@@ -320,5 +321,74 @@ describe('the HUD, the prompt and the window itself', () => {
       const bar = computeBossBarLayout(w, h, insets, BUTTONS.map((id) => discRect(l[id])));
       for (const v of [bar.x, bar.y, bar.width, bar.height]) expect(Number.isFinite(v), `${name}: bar`).toBe(true);
     });
+  });
+});
+
+describe('the size of the interface the player chose (accessibility: 85 % to 135 %)', () => {
+  const SIZES_OF_HUD = [HUD_SCALE_LIMITS.min, 1, 1.2, HUD_SCALE_LIMITS.max];
+
+  it('the HUD the touch layout keeps clear of is the HUD as drawn at that size (the numbers of the two modules agree at every size)', () => {
+    for (const [name, w, h] of LANDSCAPE) {
+      for (const size of SIZES_OF_HUD) {
+        const hud = hudRect(w, h, NO_INSETS, size);
+        const scale = computeHudLayout(w, h, NO_INSETS, size).scale;
+        expect(hud.x1 - hud.x0, `${name} ×${size}: the width`).toBeCloseTo((HUD_FOOTPRINT.width) * scale, 6);
+        expect(hud.y1 - hud.y0, `${name} ×${size}: the height`).toBeCloseTo(HUD_FOOTPRINT.height * scale, 6);
+        expect(hud.x0, `${name} ×${size}: the margin`).toBeCloseTo(HUD_FOOTPRINT.margin * scale, 6);
+      }
+    }
+  });
+
+  it('the buttons stay inside the safe area and off the HUD at every size of it, in every window class, every inset, every side and every position', () => {
+    for (const [wn, w, h] of LANDSCAPE) {
+      for (const [inn, insets] of INSETS) {
+        for (const size of SIZES_OF_HUD) {
+          for (const side of SIDES) {
+            for (const offsetY of OFFSETS) {
+              const l = computeTouchLayout(w, h, insets, 1, DEFAULT_TOUCH, { side, offsetX: 0, offsetY }, size);
+              const name = `${wn} · ${inn} · HUD ×${size} · ${side} y${offsetY}`;
+              const hud = inflate(hudRect(w, h, insets, size), 4);
+              for (const b of BUTTONS) {
+                expect(inside(discRect(l[b]), safeRect(w, h, insets)), `${name}: ${b} inside`).toBe(true);
+                expect(discHitsRect(l[b], hud), `${name}: ${b} / the HUD`).toBe(false);
+                expect(l[b].hit, `${name}: ${b} is a finger`).toBeGreaterThanOrEqual(44 - 1e-9);
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('a bigger HUD takes room from the buttons only when it must: at its design size nothing changes (the layout is the one that was always there)', () => {
+    for (const [name, w, h] of LANDSCAPE) {
+      for (const [inn, insets] of INSETS) {
+        const before = computeTouchLayout(w, h, insets, 1, DEFAULT_TOUCH, { side: 'right', offsetX: 0, offsetY: 1 });
+        const same = computeTouchLayout(w, h, insets, 1, DEFAULT_TOUCH, { side: 'right', offsetX: 0, offsetY: 1 }, 1);
+        expect(same, `${name} · ${inn}`).toEqual(before);
+        // lifting the buttons as high as they go: a bigger HUD leaves them less room above
+        const big = computeTouchLayout(w, h, insets, 1, DEFAULT_TOUCH, { side: 'right', offsetX: 0, offsetY: 1 }, HUD_SCALE_LIMITS.max);
+        expect(big.attack.cy, `${name} · ${inn}: lifted less`).toBeGreaterThanOrEqual(before.attack.cy - 1e-9);
+      }
+    }
+  });
+
+  it('the pause button stays inside the safe area, a finger, clear of the HUD and of every button, at every size of the HUD', () => {
+    for (const [wn, w, h] of [...LANDSCAPE, ...PORTRAIT]) {
+      for (const [inn, insets] of INSETS) {
+        for (const size of SIZES_OF_HUD) {
+          const l = computeTouchLayout(w, h, insets, 1, DEFAULT_TOUCH, { side: 'right', offsetX: 0, offsetY: 0 }, size);
+          const scale = computeHudLayout(w, h, insets, 1).scale;
+          const p = pauseBox(w, insets, scale, size);
+          const name = `${wn} · ${inn} · HUD ×${size}`;
+          expect(p.x1 - p.x0, `${name}: a finger`).toBeGreaterThanOrEqual(44);
+          expect(inside(p, safeRect(w, h, insets)), `${name}: inside`).toBe(true);
+          // (a window narrower than the HUD at this size cannot give the button a place beside it: it is then in the middle, over nothing it can avoid — only where the HUD reaches that far)
+          const hud = inflate(hudRect(w, h, insets, size), 2);
+          if (hud.x1 + (p.x1 - p.x0) <= w - insets.right) expect(rectsOverlap(p, hud), `${name}: pause / HUD`).toBe(false);
+          for (const b of BUTTONS) expect(discHitsRect(l[b], p), `${name}: pause / ${b}`).toBe(false);
+        }
+      }
+    }
   });
 });

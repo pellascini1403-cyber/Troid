@@ -5,7 +5,7 @@ import { EDGE_PULSES, FIGHT_MOOD, moodFor } from '@/content/atmosphere';
 import { EventBus } from '@/core/events';
 import type { GameEvents } from '@/gameplay/events';
 import { ATMOSPHERE_CONTRACT } from '@/presentation/atmosphere';
-import { ScreenFx, type ScreenRect } from '@/vfx/ScreenFx';
+import { CALM_PULSE, ScreenFx, type ScreenRect } from '@/vfx/ScreenFx';
 
 /**
  * THE ATMOSPHERE OF THE SCREEN, drawn (docs/PROMPT8-LOG.md, phase I): the vignette follows the room and the fight, spreads over the part of the window the game is drawn in, and the edge pulses answer the
@@ -130,6 +130,38 @@ describe('the pulses at the edge', () => {
     expect(fx.state.pulses.sort()).toEqual(['fall', 'guardian', 'power', 'rest']);
     fx.update(2);
     expect(fx.state.pulses).toEqual([]);
+  });
+
+  it('"fewer flashes" softens every pulse to a share of its strength — they are still told, never louder than a third of what they were — and the vignette of the room is not touched', () => {
+    const calm = make();
+    const loud = make();
+    calm.fx.setCalm(true);
+    expect(calm.fx.state.calm).toBe(true);
+    expect(loud.fx.state.calm).toBe(false);
+    for (const t of [calm, loud]) {
+      settle(t.fx);
+      t.bus.emit('player:hurt', hurt);
+      t.fx.update(0.05);
+    }
+    const node = (m: ReturnType<typeof make>): Sprite => m.sprites().find((s) => s.tint === EDGE_PULSES.hurt.tint)!;
+    expect(node(loud).alpha).toBeGreaterThan(0.1);
+    expect(node(calm).visible, 'still shown: the blow is still told').toBe(true);
+    expect(node(calm).alpha).toBeCloseTo(node(loud).alpha * CALM_PULSE, 9);
+    expect(CALM_PULSE).toBeLessThanOrEqual(0.4);
+    expect(calm.fx.state.strength).toBeCloseTo(loud.fx.state.strength, 9);
+  });
+
+  it('turning the softening off again gives the pulses back their strength, mid-pulse', () => {
+    const { fx, bus, sprites } = make();
+    settle(fx);
+    fx.setCalm(true);
+    bus.emit('player:hurt', hurt);
+    fx.update(0.05);
+    const node = sprites().find((s) => s.tint === EDGE_PULSES.hurt.tint)!;
+    const soft = node.alpha;
+    fx.setCalm(false);
+    fx.update(0);
+    expect(node.alpha).toBeCloseTo(soft / CALM_PULSE, 9);
   });
 
   it('are as long as their data says and never longer than the contract allows', () => {

@@ -40,7 +40,7 @@ import type { ProgressStore } from '@/save/ProgressStore';
 import type { Inspection } from '@/save/SafeStore';
 import { SaveSlots } from '@/save/SaveSlots';
 import { SettingsStore } from '@/save/SettingsStore';
-import type { TouchSettings } from '@/save/SettingsData';
+import type { AccessibilitySettings, TouchSettings } from '@/save/SettingsData';
 import type { LightFrame, LightHero } from '@/presentation/lighting';
 import type { QualitySetting } from '@/presentation/viewport';
 import { ARRIVAL, ArrivalGate, roomAhead, type ArrivalOutcome } from '@/presentation/arrival';
@@ -65,7 +65,7 @@ import type { BossBarView } from '@/ui/hud/BossBarView';
 import { HudModel } from '@/ui/hud/HudModel';
 import type { SaveNoticeKind } from './gameSaves';
 import type { Overlays } from './overlays';
-import type { SettingsMenu } from '@/ui/settings/SettingsMenu';
+import type { PauseMenu } from '@/ui/settings/PauseMenu';
 import { applySafeOverride, SafeArea } from '@/ui/safeArea';
 import { TouchControls } from '@/ui/touch/TouchControls';
 import type { Insets } from '@/ui/touch/layout';
@@ -193,8 +193,8 @@ export class Game2D {
   /** The saved games of the page (`null` in a playground, which saves nothing) and what is counted of the one being played. */
   private readonly saves: GameSaves | null;
   private readonly stats: PlayStats;
-  /** The pause / settings menu: a separate chunk, fetched the first time it is asked for. While it is open the simulation is paused. */
-  private menu: SettingsMenu | null = null;
+  /** The pause menu (its list, the settings, the controls, the saved games and the profile): a separate chunk, fetched the first time it is asked for. While it is open the world stands still. */
+  private menu: PauseMenu | null = null;
   private menuRequest: Promise<void> | null = null;
   private menuOpen = false;
   /** The developer tools (panel, collision overlay, debug actions): a separate chunk, fetched the first time they are asked for. */
@@ -307,6 +307,7 @@ export class Game2D {
       size: saved0.scale,
       opacity: saved0.opacity,
       placement: { side: saved0.side, offsetX: saved0.offsetX, offsetY: saved0.offsetY },
+      hudScale: settings.value.accessibility.hudScale,
     });
     this.lifecycle.add(() => this.touchControls.dispose());
 
@@ -327,19 +328,19 @@ export class Game2D {
     on('boss:started', (e) => {
       this.bossId = e.id;
       this.bossBarModel.start(e.nameKey, e.maxHealth > 0 ? e.health / e.maxHealth : 1);
-      this.camera.addTrauma(0.3);
+      this.shake(0.3);
     });
     on('health:changed', (e) => {
       if (e.id === this.bossId) this.bossBarModel.hit(e.max > 0 ? e.current / e.max : 0);
     });
     on('boss:phase', () => {
       this.bossBarModel.phase();
-      this.camera.addTrauma(0.4);
+      this.shake(0.4);
     });
-    on('boss:strike', () => this.camera.addTrauma(0.1));
+    on('boss:strike', () => this.shake(0.1));
     on('boss:defeated', () => {
       this.bossBarModel.end();
-      this.camera.addTrauma(0.6);
+      this.shake(0.6);
     });
     on('room:loaded', () => {
       this.bossId = null;
@@ -408,13 +409,13 @@ export class Game2D {
     // impact → camera shake (real time: the camera keeps moving through the hit-stop)
     this.lifecycle.add(
       this.session.bus.on('combat:hit', (e) => {
-        this.camera.addTrauma(e.shake);
+        this.shake(e.shake);
         this.shakes.count++;
         this.shakes.last = e.shake;
       }),
     );
     // a blow turned away by a seal jolts the view a little (it is not a hit: nothing froze, nothing was hurt)
-    this.lifecycle.add(this.session.bus.on('seal:rejected', (e) => this.camera.addTrauma(e.shake)));
+    this.lifecycle.add(this.session.bus.on('seal:rejected', (e) => this.shake(e.shake)));
     // the loading indicator: it exists only for a change of zone whose art is taking its time
 
     // a room was built by the simulation: its view is made at the next frame — and, under the black of a change of zone, only once its art is in
@@ -447,6 +448,7 @@ export class Game2D {
             light: options.light !== 'off',
             screen: { layer: renderer.layers.screen, rect: () => renderer.viewport, room: this.session.room.id },
           });
+          this.effects.screen?.setCalm(this.settings.value.accessibility.reduceFlashes); // a rebuild (a new quality profile) keeps the player's choice
         };
         this.rebuildEffects = build;
         build();
@@ -541,6 +543,9 @@ export class Game2D {
         this.loop.stop();
         this.input.releaseAll();
         this.touchControls.releaseAll();
+        // a page that goes to the background (a call, another app, another tab) comes back waiting at the pause menu: nothing happened to the hero while it was away, and the player is
+        // given a moment to find their fingers. (Behind the boot curtain nothing has begun: there is nothing to wait for.)
+        if (!this.veiled) this.openMenu();
       } else {
         this.loop.start();
       }
@@ -633,7 +638,7 @@ export class Game2D {
     const o = this.overlays;
     o?.hud.place(width, height, insets);
     o?.prompt.place(width, height, insets, this.touchControls.gestureScale);
-    o?.pause.place(width, height, insets, this.touchControls.gestureScale);
+    o?.pause.place(width, height, insets, this.touchControls.gestureScale, this.settings.value.accessibility.hudScale);
     o?.notice.place(width, height, insets, this.touchControls.gestureScale);
     this.placeBossBar(width, height, insets);
   }
@@ -841,36 +846,38 @@ export class Game2D {
     const y = v.prevY + (v.y - v.prevY) * a;
     // Animation time follows the simulation clock: frozen while paused or in a hit-stop, slowed by timeScale (stable E2E
     // and screenshots). Phase-driven attack frames freeze by themselves; this freezes the time-driven ones.
-    const animDt = this.debug.get('paused') || this.session.frozen ? 0 : realDt * this.debug.get('timeScale');
+    const animDt = this.debug.get('paused') || this.session.frozen || this.menuOpen ? 0 : realDt * this.debug.get('timeScale');
     this.playerVisual.sync(v, a, animDt);
     this.entityViews.sync(a, animDt);
-    // VFX run in real time: only the pause (debug / tests) and the debug time scale affect them, never a hit-stop
-    const vfxDt = this.debug.get('paused') ? 0 : realDt * this.debug.get('timeScale');
+    // VFX run in real time: only the pause (the debug one, the menu) and the debug time scale affect them, never a hit-stop
+    const vfxDt = this.debug.get('paused') || this.menuOpen ? 0 : realDt * this.debug.get('timeScale');
     this.effects?.director.update(vfxDt);
     this.effects?.system.update(vfxDt);
     this.updateLights(vfxDt, a, x, y);
     this.effects?.screen?.update(vfxDt);
-    this.roomView.update(realDt);
+    // the scenery lives in the world's time: while the menu is up it stands still, like everything else behind it
+    const worldDt = this.menuOpen ? 0 : realDt;
+    this.roomView.update(worldDt);
     // the scenery that answers the world reads its flags (never writes one)
-    this.roomArt?.update(realDt, (flag) => this.session.flags.has(flag));
-    this.interactableViews.update(realDt, (id) => this.session.interaction.isAvailable(id), (id) => this.isCheckpoint(id));
+    this.roomArt?.update(worldDt, (flag) => this.session.flags.has(flag));
+    this.interactableViews.update(worldDt, (id) => this.session.interaction.isAvailable(id), (id) => this.isCheckpoint(id));
     this.overlays?.death.update(this.session.deathSnapshot);
     this.overlays?.transition.update(this.session.transitionSnapshot);
     this.updateArrivalIndicator(realDt);
     this.overlays?.notice.update(realDt);
-    this.updateHud(realDt);
+    this.updateHud(worldDt);
 
     // which limits hold now: the room's, or those of the camera zone the hero's feet are in (an arena; it eases, it never jumps)
     this.camera.setView(resolveCameraView(this.session.room, this.session.flags, p.body.x, p.body.y, this.cameraView));
     // The camera follows the INTERPOLATED position — exactly what is drawn — so camera and player never jitter apart.
     const target: CameraTarget = { x, y, vx: p.body.vx, vy: p.body.vy, facing: p.facing, grounded: p.body.grounded };
-    this.camera.update(realDt, target);
+    this.camera.update(worldDt, target);
     this.updatePrompt(); // after the camera: the icon follows the object with THIS frame's transform
 
     this.loop.timeScale = this.debug.get('timeScale');
     this.loop.paused = this.debug.get('paused') || this.menuOpen || this.veiled || this.arrival.blocking;
     // the game is paused, so no tick samples the input: the menu watches for the pause key / button itself
-    if (this.menuOpen && this.input.sample().pausePressed) this.closeMenu();
+    if (this.menuOpen && this.input.sample().pausePressed) this.menuBack();
     this.session.godMode = this.debug.get('godMode');
     this.tools?.frame(performance.now());
 
@@ -983,10 +990,16 @@ export class Game2D {
 
   // ----------------------------------------------------------------------------------------------------- settings
 
-  /** Escape / P / Start / the pause button: opens the menu (and pauses the game), or closes it. */
+  /** Escape / P / Start / the pause button: opens the menu (and pauses the game), or goes back one step in it. */
   private toggleMenu(): void {
-    if (this.menuOpen) this.closeMenu();
+    if (this.menuOpen) this.menuBack();
     else this.openMenu();
+  }
+
+  /** The pause key inside the menu: out of a screen and back to its list; from the list, out of the menu and into the game. */
+  private menuBack(): void {
+    if (this.menu?.back()) return;
+    this.closeMenu();
   }
 
   private openMenu(): void {
@@ -997,9 +1010,14 @@ export class Game2D {
     this.input.releaseAll();
     this.touchControls.releaseAll();
     this.overlays?.pause.setHidden(true);
-    void this.loadMenu().then(() => {
-      if (this.menuOpen) this.menu?.open();
-    });
+    this.overlays?.hud.setPaused(true);
+    this.loadMenu().then(
+      () => {
+        if (this.menuOpen) this.menu?.open();
+      },
+      // the menu could not be fetched (the page is offline, the file is gone): the game goes on rather than wait for a menu that is not coming; the next ask tries again
+      () => this.closeMenu(),
+    );
   }
 
   private closeMenu(): void {
@@ -1007,30 +1025,42 @@ export class Game2D {
     this.menuOpen = false;
     this.menu?.close();
     this.overlays?.pause.setHidden(false);
+    this.overlays?.hud.setPaused(false);
     this.input.releaseAll();
   }
 
-  /** Fetches the settings menu the first time it is asked for (a player's first load never carries it). */
+  /** Fetches the pause menu the first time it is asked for (a player's first load never carries it: its screens and its wiring are a chunk of their own). A failed fetch is forgotten, so that the next ask tries again. */
   private loadMenu(): Promise<void> {
-    this.menuRequest ??= import('@/ui/settings/SettingsMenu').then(({ SettingsMenu }) => {
-      if (this.closed) return;
-      this.menu = new SettingsMenu(document.getElementById('ui') ?? document.body, this.translator, {
-        languages: SUPPORTED_LOCALES,
-        touchAvailable: () => this.touchControls.isVisible,
-        // a keyboard is there unless this is a touch screen that has never seen one (a desktop, a laptop, a tablet with keys)
-        keyboardAvailable: () => !this.touchControls.isVisible || this.input.device === 'keyboard',
-        current: () => {
-          const v = this.settings.value;
-          return { language: this.translator.locale, volume: v.volume.master, quality: v.quality, keys: { ...v.keys }, touch: { ...v.touch } };
-        },
-        setLanguage: (language) => this.setLanguage(language),
-        setVolume: (level) => this.setVolume(level),
-        setQuality: (quality) => this.setQuality(quality),
-        setKeys: (keys) => this.setKeys(keys),
-        setTouch: (patch) => this.setTouch(patch),
-        close: () => this.closeMenu(),
-      });
-    });
+    this.menuRequest ??= import('./menu').then(
+      ({ createPauseMenu }) => {
+        if (this.closed) return;
+        this.menu = createPauseMenu({
+          parent: document.getElementById('ui') ?? document.body,
+          translator: this.translator,
+          settings: this.settings,
+          session: this.session,
+          stats: this.stats,
+          saves: this.saves,
+          bindings: () => this.bindings,
+          touchAvailable: () => this.touchControls.isVisible,
+          keyboardInUse: () => this.input.device === 'keyboard',
+          change: {
+            language: (language) => this.setLanguage(language),
+            volume: (level) => this.setVolume(level),
+            quality: (quality) => this.setQuality(quality),
+            keys: (keys) => this.setKeys(keys),
+            touch: (patch) => this.setTouch(patch),
+            accessibility: (patch) => this.setAccessibility(patch),
+          },
+          resume: () => this.closeMenu(),
+        });
+      },
+      (err: unknown) => {
+        this.menuRequest = null;
+        log.scope('ui').warn(`the pause menu could not be loaded: ${String(err)}`);
+        throw err;
+      },
+    );
     return this.menuRequest;
   }
 
@@ -1048,6 +1078,30 @@ export class Game2D {
     this.touchControls.setOpacity(next.opacity);
     this.touchControls.setPlacement({ side: next.side, offsetX: next.offsetX, offsetY: next.offsetY });
     this.layoutUi();
+  }
+
+  /**
+   * An accessibility choice (docs/PROMPT14-LOG.md): applied at once and saved. Each one changes something the game really does — the HUD takes its size and its calm, the touch buttons make way for the HUD's
+   * new size, the pulses at the edge of the screen are softened, and a camera that must not shake stops shaking, now and at the next blow.
+   */
+  private setAccessibility(patch: Partial<AccessibilitySettings>): void {
+    void this.settings.update({ accessibility: patch });
+    this.applyAccessibility(this.settings.value.accessibility); // repaired: what is applied is what is saved
+  }
+
+  private applyAccessibility(a: Readonly<AccessibilitySettings>): void {
+    const hud = this.overlays?.hud;
+    hud?.setCalm(a.reduceFlashes);
+    hud?.setSize(a.hudScale);
+    this.effects?.screen?.setCalm(a.reduceFlashes);
+    if (a.reduceShake) this.camera.clearTrauma();
+    this.touchControls.setHudScale(a.hudScale);
+    this.layoutUi();
+  }
+
+  /** A blow, a guardian's step: the view is jolted by this much, unless the player asked for a camera that does not shake. */
+  private shake(amount: number): void {
+    if (!this.settings.value.accessibility.reduceShake) this.camera.addTrauma(amount);
   }
 
   /** The volume slider (prepared: nothing plays yet): the level is the master's and it is saved. */
@@ -1192,6 +1246,7 @@ export class Game2D {
         }
       },
       keys: () => ({ ...effectiveKeys(this.settings.value.keys) }),
+      shake: (amount) => this.shake(amount),
     };
     void import('./testHooks').then(({ createTestHooks }) => {
       if (this.closed) return;

@@ -168,22 +168,21 @@ export const gamepad: Scenario = {
     // Start opens the pause menu and Start closes it (the menu is code that is only downloaded when asked for: wait for it in real time)
     const menuIs = async (open: '0' | '1'): Promise<void> => {
       for (let i = 0; i < 80; i++) {
-        if ((await p2.locator('[data-testid="settings-menu"]').getAttribute('data-open').catch(() => null)) === open) return;
+        if ((await p2.locator('[data-testid="pause-menu"]').getAttribute('data-open').catch(() => null)) === open) return;
         await p2.waitForTimeout(50);
       }
-      assert.equal(await p2.locator('[data-testid="settings-menu"]').getAttribute('data-open').catch(() => null), open, `the menu is ${open === '1' ? 'open' : 'closed'}`);
+      assert.equal(await p2.locator('[data-testid="pause-menu"]').getAttribute('data-open').catch(() => null), open, `the menu is ${open === '1' ? 'open' : 'closed'}`);
     };
     await p2.evaluate('window.__troid.resume()'); // the loop must run for a real-time press to be seen
+    // the pad is POLLED, once per frame: a press that comes and goes between two polls is not seen (a frame takes a few hundred ms in software GL), so the button is held until it has done what it does
     await pad(0, 0, [9]);
-    await p2.waitForTimeout(150);
-    await pad(0, 0);
     await menuIs('1');
+    await pad(0, 0);
     const frozen = (await ctx.state()).now;
     await p2.waitForTimeout(300);
     assert.equal((await ctx.state()).now, frozen, 'Start paused the game');
     await pad(0, 0, [9]);
-    await p2.waitForTimeout(150);
-    await pad(0, 0);
     await menuIs('0');
+    await pad(0, 0);
   },
 };

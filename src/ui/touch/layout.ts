@@ -72,8 +72,6 @@ export const PLACEMENT_RANGE = { x: 120, y: 90 } as const;
  * bottles). The numbers belong to `ui/hud/layout.ts`; they are repeated here so that this module does not import it (a test holds the two together).
  */
 export const HUD_FOOTPRINT = { margin: 16, height: 77, width: 206, gap: 8 } as const;
-/** The height of the interface at the top that the buttons are never lifted into: the HUD and a gap, dp. */
-const TOP_RESERVE = HUD_FOOTPRINT.margin + HUD_FOOTPRINT.height + HUD_FOOTPRINT.gap;
 /** The movement zone never gets narrower than this fraction of the usable width, however far in the buttons are moved. */
 const MIN_ZONE = 0.3;
 /** The room the boss's bar always has at the bottom, between the buttons and the other edge (`ui/hud/bossBarLayout.ts`: its least width and its gap on each side). */
@@ -105,8 +103,11 @@ export function computeTouchLayout(
   sizePreference = 1,
   cfg: Readonly<TouchConfig> = DEFAULT_TOUCH,
   placement: Readonly<Placement> = DEFAULT_PLACEMENT,
+  hudScale = 1,
 ): TouchLayout {
   const gestureScale = uiScale(width, height);
+  // the HUD is drawn at `uiScale` times the size the player chose for it (`ui/hud/layout.ts`): what it takes at the top is that much bigger
+  const hudDrawn = gestureScale * hudScale;
   const mirrored = placement.side === 'left';
   const usable = Math.max(0, width - insets.left - insets.right);
   const cornerX = mirrored ? insets.left : width - insets.right;
@@ -115,16 +116,18 @@ export function computeTouchLayout(
   // the HUD, with a gap around it, as a box
   const hudPad = HUD_FOOTPRINT.gap * gestureScale;
   const hud = {
-    x0: insets.left + HUD_FOOTPRINT.margin * gestureScale - hudPad,
-    y0: insets.top + HUD_FOOTPRINT.margin * gestureScale - hudPad,
-    x1: insets.left + (HUD_FOOTPRINT.margin + HUD_FOOTPRINT.width) * gestureScale + hudPad,
-    y1: insets.top + (HUD_FOOTPRINT.margin + HUD_FOOTPRINT.height) * gestureScale + hudPad,
+    x0: insets.left + HUD_FOOTPRINT.margin * hudDrawn - hudPad,
+    y0: insets.top + HUD_FOOTPRINT.margin * hudDrawn - hudPad,
+    x1: insets.left + (HUD_FOOTPRINT.margin + HUD_FOOTPRINT.width) * hudDrawn + hudPad,
+    y1: insets.top + (HUD_FOOTPRINT.margin + HUD_FOOTPRINT.height) * hudDrawn + hudPad,
   };
+  /** The height of the interface at the top that the buttons are never lifted into: the HUD and a gap. */
+  const topReserve = insets.top + (HUD_FOOTPRINT.margin + HUD_FOOTPRINT.height) * hudDrawn + HUD_FOOTPRINT.gap * gestureScale;
   /** The four touch areas for the buttons at scale `s`, with the player's position limited to what THIS window allows at that scale. */
   const discsAt = (s: number): Disc[] => {
     const maxIn = Math.max(0, usable * (1 - MIN_ZONE) - CLUSTER.farX * s, 0);
     const room = Math.max(0, usable - CLUSTER.farX * s - BAR_ROOM);
-    const maxUp = Math.max(0, cornerY - CLUSTER.topY * s - (insets.top + TOP_RESERVE * gestureScale));
+    const maxUp = Math.max(0, cornerY - CLUSTER.topY * s - topReserve);
     const inward = unit(placement.offsetX) * Math.min(PLACEMENT_RANGE.x * s, maxIn, room);
     const upward = unit(placement.offsetY) * Math.min(PLACEMENT_RANGE.y * s, maxUp);
     return [TOUCH_CONTROLS.attack, TOUCH_CONTROLS.dash, TOUCH_CONTROLS.ability, TOUCH_CONTROLS.chip].map((c) => ({

@@ -450,6 +450,22 @@ describe('hud view', () => {
     expect(calm).toBeGreaterThan(0);
   });
 
+  it('with fewer flashes nothing in the HUD blinks or shines by itself: the stylesheet turns its animations off under that choice', () => {
+    const css = document.head.querySelector('style#troid-hud-style, style')?.textContent ?? '';
+    expect(css).toContain('@keyframes hud-pulse');
+    expect(css).toMatch(/\.troid-hud\[data-calm="1"\] \*\s*\{\s*animation:none !important;/);
+  });
+
+  it('while the game waits (the pause menu) the HUD says so, and the stylesheet stops its own animations where they are', () => {
+    const root = host.querySelector('.troid-hud') as HTMLElement;
+    view.setPaused(true);
+    expect(root.dataset['paused']).toBe('1');
+    view.setPaused(false);
+    expect(root.dataset['paused']).toBe('0');
+    const css = document.head.querySelector('style')?.textContent ?? '';
+    expect(css).toMatch(/\.troid-hud\[data-paused="1"\] \*[^{]*\{\s*animation-play-state:paused !important;/);
+  });
+
   it('the size of the HUD follows the setting, inside the same safe area', () => {
     const base = view.current.scale;
     view.setSize(1.2);

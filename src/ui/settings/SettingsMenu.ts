@@ -2,11 +2,12 @@ import { listen } from '@/app/dom';
 import { DisposableStore } from '@/core/lifecycle';
 import { MENU_CATALOGS } from '@/i18n/menuCatalogs';
 import type { Translator } from '@/i18n/translator';
+import type { ControlInput, ControlsReference } from '@/input/controlsReference';
 import { keyLabel } from '@/input/glyphs';
 import { assignKey, effectiveKeys, REMAPPABLE, type KeyMap, type Remappable } from '@/input/remap';
-import { cssHex, PALETTE } from '@/presentation/palette';
 import type { QualitySetting } from '@/presentation/viewport';
-import { TOUCH_LIMITS, VOLUME_LIMITS, type TouchSettings } from '@/save/SettingsData';
+import { ensureMenuStyle } from './menuStyle';
+import { HUD_SCALE_LIMITS, TOUCH_LIMITS, VOLUME_LIMITS, type AccessibilitySettings, type TouchSettings } from '@/save/SettingsData';
 
 /** What the menu needs from the game, and nothing more: it reads values, reports a choice, and asks to close. */
 export interface SettingsMenuHost {
@@ -16,18 +17,37 @@ export interface SettingsMenuHost {
   touchAvailable(): boolean;
   /** Is there a keyboard whose keys can be changed? (A phone that never saw one does not offer them.) */
   keyboardAvailable(): boolean;
-  current(): { language: string; volume: number; quality: QualitySetting; keys: KeyMap; touch: TouchSettings };
+  current(): { language: string; volume: number; quality: QualitySetting; keys: KeyMap; touch: TouchSettings; accessibility: AccessibilitySettings };
+  /** The controls as they are now (the bindings in force), for the reference list of the controls screen. */
+  reference(): ControlsReference;
   setLanguage(language: string): void;
   setVolume(level: number): void;
   setQuality(quality: QualitySetting): void;
   /** The whole map of keys (the menu works out the swaps and the refusals; the game applies and saves what it is given). */
   setKeys(keys: KeyMap): void;
   setTouch(patch: Partial<TouchSettings>): void;
+  setAccessibility(patch: Partial<AccessibilitySettings>): void;
+  /** Leaves this screen: the whole menu when it is the only one, back to the list of the pause menu when it is one of its screens. */
   close(): void;
 }
 
-const STYLE_ID = 'troid-settings-style';
-const rgba = (hex: number, a: number): string => `rgba(${(hex >> 16) & 255},${(hex >> 8) & 255},${hex & 255},${a})`;
+/**
+ * Which part of the settings a menu shows. `all` is everything in one panel (what the menu was before the pause menu had screens of its own); the pause menu uses `settings` (the language, the
+ * sound, the quality, accessibility) and `controls` (the keys, the touch layout and the list of what each control does).
+ */
+export type SettingsScreen = 'all' | 'settings' | 'controls';
+
+export interface SettingsMenuOptions {
+  screen?: SettingsScreen;
+}
+
+
+/** The test ids that tell the screens apart (the E2E and the unit tests find them by these). */
+const SCREEN_IDS: Readonly<Record<SettingsScreen, { root: string; title: string; back: string }>> = {
+  all: { root: 'settings-menu', title: 'settings-title', back: 'settings-resume' },
+  settings: { root: 'settings-screen', title: 'settings-screen-title', back: 'settings-back' },
+  controls: { root: 'controls-screen', title: 'controls-screen-title', back: 'controls-back' },
+};
 
 /** What each remappable action is called, as a translator key (literals: the catalogs are checked against them). */
 const ACTION_LABELS: Readonly<Record<Remappable, string>> = {
@@ -65,38 +85,6 @@ export function languageName(code: string): string {
   return name.charAt(0).toLocaleUpperCase(code) + name.slice(1);
 }
 
-function menuCss(): string {
-  const glow = cssHex(PALETTE.energyGlow);
-  const white = cssHex(PALETTE.whiteHot);
-  const core = cssHex(PALETTE.energyCore);
-  const violet = cssHex(PALETTE.violetGlow);
-  const rim = rgba(PALETTE.energyCore, 0.45);
-  const panel = rgba(PALETTE.uiPanel, 0.94);
-  return `
-.troid-settings { position:absolute; inset:0; z-index:45; display:none; pointer-events:auto; align-items:center; justify-content:center; background:${rgba(PALETTE.worldVoid, 0.78)}; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:${white}; user-select:none; -webkit-user-select:none; }
-.troid-settings[data-open="1"] { display:flex; }
-.troid-settings .settings-panel { width:min(460px, 92vw); max-height:90vh; overflow:auto; box-sizing:border-box; padding:18px 20px 20px; border-radius:10px; border:1px solid ${rim}; background:${panel}; box-shadow:0 0 28px ${rgba(PALETTE.energyGlow, 0.25)}; }
-.troid-settings .settings-title { font-size:1.35rem; font-weight:300; letter-spacing:0.14em; text-align:center; margin:0 0 14px; text-shadow:0 0 14px ${core}88; }
-.troid-settings .settings-section { margin:0 0 14px; }
-.troid-settings .settings-label { font-size:0.8rem; letter-spacing:0.08em; opacity:0.75; margin:0 0 6px; }
-.troid-settings .settings-note { font-size:0.74rem; line-height:1.35; opacity:0.62; margin:6px 0 0; }
-.troid-settings .settings-note[data-tone="warn"] { color:${violet}; opacity:0.95; }
-.troid-settings .settings-row { display:flex; gap:8px; }
-.troid-settings .settings-button { flex:1; min-height:44px; box-sizing:border-box; font:inherit; font-size:1rem; color:${white}; background:${rgba(PALETTE.uiPanel, 0.9)}; border:1px solid ${rgba(PALETTE.energyCore, 0.3)}; border-radius:8px; cursor:pointer; padding:0 12px; }
-.troid-settings .settings-button[aria-pressed="true"] { border-color:${glow}; box-shadow:0 0 10px ${rgba(PALETTE.energyGlow, 0.5)}; color:${glow}; }
-.troid-settings .settings-button:focus-visible, .troid-settings .settings-range:focus-visible { outline:2px solid ${glow}; outline-offset:2px; }
-.troid-settings .settings-slider { display:grid; grid-template-columns:7.5rem 1fr 2.6rem; align-items:center; gap:10px; min-height:44px; }
-.troid-settings .settings-slider output { font-size:0.82rem; opacity:0.75; text-align:right; font-variant-numeric:tabular-nums; }
-.troid-settings .settings-range { width:100%; accent-color:${core}; }
-.troid-settings .settings-keys { display:grid; grid-template-columns:1fr auto; gap:6px 10px; align-items:center; }
-.troid-settings .settings-keys .settings-keyname { font-size:0.95rem; }
-.troid-settings .settings-key { min-width:7.5rem; flex:none; font-variant-numeric:tabular-nums; }
-.troid-settings .settings-key[data-listening="1"] { border-color:${violet}; color:${violet}; box-shadow:0 0 10px ${rgba(PALETTE.violetCore, 0.55)}; }
-.troid-settings .settings-small { min-height:36px; font-size:0.85rem; margin-top:8px; }
-.troid-settings .settings-resume { width:100%; margin-top:4px; }
-`;
-}
-
 /**
  * The pause / settings menu (DOM, docs/GAME-SPEC-2D.md §17 "menú de pausa mínimo"; docs/PROMPT6-LOG.md S30): the language (each in its own name), the
  * volume (prepared: there is no sound yet), the quality profile (Auto / Low / High), the keys of the main actions — where a keyboard exists — and,
@@ -127,6 +115,16 @@ export class SettingsMenu {
   private readonly offsetX: HTMLInputElement;
   private readonly offsetY: HTMLInputElement;
   private readonly resume: HTMLButtonElement;
+  private readonly screen: SettingsScreen;
+  private readonly flashes: HTMLButtonElement;
+  private readonly shake: HTMLButtonElement;
+  private readonly hudSize: HTMLInputElement;
+  private readonly outputs = new Map<HTMLInputElement, HTMLOutputElement>();
+  /** The controls screen: what each device's controls do (read-only lists, rebuilt from the bindings in force) and the body that holds them with the settings of each device. */
+  private readonly refs: Record<'keyboard' | 'gamepad' | 'touch', HTMLElement>;
+  private readonly controlsBody: HTMLElement;
+  /** Which device comes first on the controls screen (`null`: not placed yet): the one the player is using. */
+  private touchFirst: boolean | null = null;
   /** The action waiting for its key, and the last thing the keys area told the player (a translator key and its parameters). */
   private listening: Remappable | null = null;
   private message: { key: string; tone: 'info' | 'warn'; swapped?: Remappable; code?: string } | null = null;
@@ -137,29 +135,29 @@ export class SettingsMenu {
     parent: HTMLElement,
     private readonly translator: Translator,
     private readonly host: SettingsMenuHost,
+    options: SettingsMenuOptions = {},
   ) {
+    this.screen = options.screen ?? 'all';
+    const sectionsOf = (name: 'settings' | 'controls'): boolean => this.screen === 'all' || this.screen === name;
     // its words come with it: a player who never opens the menu never downloads them
     for (const [lang, entries] of Object.entries(MENU_CATALOGS)) translator.extend(lang, entries);
     const doc = parent.ownerDocument;
-    if (!doc.getElementById(STYLE_ID)) {
-      const style = doc.createElement('style');
-      style.id = STYLE_ID;
-      style.appendChild(doc.createTextNode(menuCss()));
-      doc.head.appendChild(style);
-    }
+    ensureMenuStyle(doc);
     const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className: string, testid?: string): HTMLElementTagNameMap[K] => {
       const e = doc.createElement(tag);
       e.className = className;
       if (testid) e.dataset['testid'] = testid;
       return e;
     };
-    this.root = el('div', 'troid-settings', 'settings-menu');
+    // the test ids of the root, the title and the way out differ per screen: the pause menu holds two of these at once
+    const ids = SCREEN_IDS[this.screen];
+    this.root = el('div', 'troid-settings', ids.root);
     this.root.dataset['uiBlock'] = '';
     this.root.dataset['open'] = '0';
     this.root.setAttribute('role', 'dialog');
     this.root.setAttribute('aria-modal', 'true');
     const panel = el('div', 'settings-panel');
-    this.title = el('h2', 'settings-title', 'settings-title');
+    this.title = el('h2', 'settings-title', ids.title);
 
     // ---- language ----
     const language = el('div', 'settings-section');
@@ -204,6 +202,13 @@ export class SettingsMenu {
       qualityRow.appendChild(b);
     }
     quality.append(qualityRow, this.note(doc, 'settings.qualityNote', 'settings-quality-note'));
+
+    // ---- accessibility: each choice changes something the game really does ----
+    const access = el('div', 'settings-section', 'settings-accessibility');
+    access.appendChild(this.label(doc, 'settings.accessibility'));
+    this.flashes = this.toggle(doc, el, access, 'settings.reduceFlashes', 'settings.reduceFlashesNote', 'settings-flashes', (on) => host.setAccessibility({ reduceFlashes: on }));
+    this.shake = this.toggle(doc, el, access, 'settings.reduceShake', 'settings.reduceShakeNote', 'settings-shake', (on) => host.setAccessibility({ reduceShake: on }));
+    this.hudSize = this.slider(doc, el, access, 'settings.hudSize', 'settings-hud-size', HUD_SCALE_LIMITS, (value) => host.setAccessibility({ hudScale: value })).input;
 
     // ---- keyboard controls ----
     this.keysSection = el('div', 'settings-section', 'settings-controls');
@@ -271,11 +276,25 @@ export class SettingsMenu {
     });
     this.touchSection.appendChild(resetTouch);
 
-    this.resume = el('button', 'settings-button settings-resume', 'settings-resume');
+    // what each control does, as the bindings in force have it (the controls screen only: it is a list to read, not a setting)
+    const list = (device: 'keyboard' | 'gamepad' | 'touch'): HTMLElement => el('div', 'settings-section settings-reference', `settings-reference-${device}`);
+    this.refs = { keyboard: list('keyboard'), gamepad: list('gamepad'), touch: list('touch') };
+    this.controlsBody = el('div', 'settings-controls-body', 'settings-controls-body');
+
+    // the way out: on its own the menu resumes the game; as a screen of the pause menu it goes back to the list
+    this.resume = el('button', 'settings-button settings-resume', ids.back);
     this.resume.type = 'button';
     listen(this.store, this.resume, 'click', () => host.close());
 
-    panel.append(this.title, language, volume, quality, this.keysSection, this.touchSection, this.resume);
+    // the title and the way out stay where they are; what lies between them scrolls
+    const body = el('div', 'settings-body');
+    const parts: HTMLElement[] = [];
+    if (sectionsOf('settings')) parts.push(language, volume, quality, access);
+    // the controls screen is laid out by `placeGroups` (the device in use first); the single panel keeps the keys and the touch layout, in that order
+    if (this.screen === 'controls') parts.push(this.controlsBody);
+    else if (sectionsOf('controls')) parts.push(this.keysSection, this.touchSection);
+    body.append(...parts);
+    panel.append(this.title, body, this.resume);
     this.root.appendChild(panel);
     parent.appendChild(this.root);
     this.refreshTexts();
@@ -343,6 +362,92 @@ export class SettingsMenu {
     for (const [side, b] of this.sideButtons) b.setAttribute('aria-pressed', side === cur.touch.side ? 'true' : 'false');
     this.offsetX.value = String(cur.touch.offsetX);
     this.offsetY.value = String(cur.touch.offsetY);
+    this.setSwitch(this.flashes, cur.accessibility.reduceFlashes);
+    this.setSwitch(this.shake, cur.accessibility.reduceShake);
+    this.hudSize.value = String(cur.accessibility.hudScale);
+    for (const input of [this.size, this.opacity, this.offsetX, this.offsetY, this.hudSize]) {
+      const out = this.outputs.get(input);
+      if (out) out.textContent = percent(Number(input.value));
+    }
+    if (this.screen === 'controls') {
+      this.renderReference();
+      this.placeGroups();
+    }
+  }
+
+  /**
+   * The controls screen, in the order a player needs it: on a keyboard, the keyboard's list and its keys first, then the pad and the touch layer; on a touch screen with no keyboard, the touch layer
+   * first. Each device's list sits right above its own settings. Only a change of order moves anything.
+   */
+  private placeGroups(): void {
+    const touchFirst = !this.host.keyboardAvailable() && this.host.touchAvailable();
+    if (touchFirst === this.touchFirst) return;
+    this.touchFirst = touchFirst;
+    const { keyboard, gamepad, touch } = this.refs;
+    this.controlsBody.replaceChildren(...(touchFirst ? [touch, this.touchSection, gamepad, keyboard, this.keysSection] : [keyboard, this.keysSection, gamepad, touch, this.touchSection]));
+  }
+
+  private setSwitch(button: HTMLButtonElement, on: boolean): void {
+    button.setAttribute('aria-checked', on ? 'true' : 'false');
+    button.textContent = this.translator.t(on ? 'settings.on' : 'settings.off');
+  }
+
+  /** The list of what each control does, from the bindings in force: the keyboard (where there is one), the gamepad and the touch layer (where there is one). */
+  private renderReference(): void {
+    const doc = this.root.ownerDocument;
+    const t = this.translator;
+    const ref = this.host.reference();
+    const inputs = (list: ControlInput[]): HTMLElement => {
+      const wrap = doc.createElement('span');
+      wrap.className = 'settings-inputs';
+      for (const input of list) {
+        const chip = doc.createElement('kbd');
+        chip.textContent = typeof input === 'string' ? input : t.t(input.key);
+        wrap.appendChild(chip);
+      }
+      return wrap;
+    };
+    const table = (titleKey: string, rows: ControlsReference['keyboard'], noteKey?: string): HTMLElement => {
+      const box = doc.createElement('div');
+      box.className = 'settings-reference-block';
+      const h = doc.createElement('div');
+      h.className = 'settings-label';
+      h.textContent = t.t(titleKey);
+      const grid = doc.createElement('div');
+      grid.className = 'settings-reference-rows';
+      for (const r of rows) {
+        const name = doc.createElement('span');
+        name.className = 'settings-keyname';
+        name.textContent = t.t(r.action);
+        grid.append(name, inputs(r.inputs));
+      }
+      box.append(h, grid);
+      if (noteKey) box.appendChild(this.note(doc, noteKey, `${noteKey}-text`, false));
+      return box;
+    };
+    this.refs.keyboard.replaceChildren(...(this.host.keyboardAvailable() ? [table('controls.keyboard', ref.keyboard)] : []));
+    this.refs.gamepad.replaceChildren(table('controls.gamepad', ref.gamepad, 'controls.padNote'));
+    if (!this.host.touchAvailable()) {
+      this.refs.touch.replaceChildren();
+      return;
+    }
+    const box = doc.createElement('div');
+    box.className = 'settings-reference-block';
+    const h = doc.createElement('div');
+    h.className = 'settings-label';
+    h.textContent = t.t('controls.touch');
+    box.appendChild(h);
+    for (const r of ref.touch) {
+      const line = doc.createElement('div');
+      line.className = 'settings-touchline';
+      const name = doc.createElement('b');
+      name.textContent = t.t(r.action);
+      const how = doc.createElement('span');
+      how.textContent = t.t(r.how);
+      line.append(name, how);
+      box.appendChild(line);
+    }
+    this.refs.touch.replaceChildren(box);
   }
 
   /** The player chose an action to change: the next key typed in the menu is its key. */
@@ -404,12 +509,40 @@ export class SettingsMenu {
     return l;
   }
 
-  private note(doc: Document, key: string, testid: string): HTMLElement {
+  /** A small paragraph under a control. `track`: it is one of the fixed texts of the panel, re-written when the language changes (the reference list is built again instead). */
+  private note(doc: Document, key: string, testid: string, track = true): HTMLElement {
     const n = doc.createElement('p');
     n.className = 'settings-note';
     n.dataset['testid'] = testid;
-    this.labels.set(key, n);
+    if (track) this.labels.set(key, n);
+    else n.textContent = this.translator.t(key);
     return n;
+  }
+
+  /** A switch: its name, what it does in a note, and a button that says whether it is on. Pressing it reports the new state; the host applies it and the menu reads it back. */
+  private toggle(
+    doc: Document,
+    el: <K extends keyof HTMLElementTagNameMap>(tag: K, className: string, testid?: string) => HTMLElementTagNameMap[K],
+    parent: HTMLElement,
+    nameKey: string,
+    noteKey: string,
+    testid: string,
+    onChange: (on: boolean) => void,
+  ): HTMLButtonElement {
+    const row = el('div', 'settings-toggle');
+    const name = doc.createElement('span');
+    this.labels.set(nameKey, name);
+    const button = el('button', 'settings-button settings-switch', testid);
+    button.type = 'button';
+    button.setAttribute('role', 'switch');
+    listen(this.store, button, 'click', () => {
+      const on = button.getAttribute('aria-checked') !== 'true';
+      onChange(on);
+      this.refresh();
+    });
+    row.append(name, button);
+    parent.append(row, this.note(doc, noteKey, `${testid}-note`));
+    return button;
   }
 
   private slider(
@@ -430,9 +563,11 @@ export class SettingsMenu {
     input.max = String(limits.max);
     input.step = '0.05';
     const output = doc.createElement('output');
+    this.outputs.set(input, output);
     listen(this.store, input, 'input', () => {
       const v = Number(input.value);
       if (input === this.volume) this.showVolume(v);
+      else output.textContent = percent(v);
       onInput(v);
     });
     row.append(name, input, output);
@@ -443,9 +578,10 @@ export class SettingsMenu {
   /** Every word, from the translator: the language may have changed. */
   private refreshTexts(): void {
     const t = this.translator;
-    this.title.textContent = t.t('settings.title');
-    this.root.setAttribute('aria-label', t.t('settings.title'));
-    this.resume.textContent = t.t('settings.resume');
+    const title = t.t(this.screen === 'settings' ? 'pause.settings' : this.screen === 'controls' ? 'pause.controls' : 'settings.title');
+    this.title.textContent = title;
+    this.root.setAttribute('aria-label', title);
+    this.resume.textContent = t.t(this.screen === 'all' ? 'settings.resume' : 'settings.back');
     for (const [key, node] of this.labels) node.textContent = t.t(key);
   }
 }

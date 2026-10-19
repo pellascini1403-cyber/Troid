@@ -81,6 +81,10 @@ export class CameraAdapter2D {
     this.rig.addTrauma(amount);
   }
 
+  clearTrauma(): void {
+    this.rig.clearTrauma();
+  }
+
   /** Once per rendered frame, with the INTERPOLATED target (exactly what is drawn). */
   update(realDt: number, target: CameraTarget): void {
     const aspect = this.sink.viewport.contentAspect;

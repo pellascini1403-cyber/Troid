@@ -26,7 +26,12 @@ async function savedLanguage(page: Page, expected: string): Promise<void> {
 const life = (page: Page): Promise<string | null> => page.locator('[data-testid="hud-life"]').getAttribute('aria-label');
 const lang = (page: Page): Promise<string> => page.evaluate('window.__troid.state().lang') as Promise<string>;
 const tick = (page: Page): Promise<number> => page.evaluate('window.__troid.state().tick') as Promise<number>;
-const menuOpen = (page: Page): Promise<string | null> => page.locator('[data-testid="settings-menu"]').getAttribute('data-open').catch(() => null);
+const menuOpen = (page: Page): Promise<string | null> => page.locator('[data-testid="pause-menu"]').getAttribute('data-open').catch(() => null);
+/** An entry of the pause menu's list, pressed: its screen opens (the list is already on screen). */
+async function enter(page: Page, screen: 'settings' | 'controls'): Promise<void> {
+  await page.locator(`[data-testid="pause-${screen}"]`).click();
+  await waitFor(page, `document.querySelector('[data-testid="${screen}-screen"]')?.dataset.open === '1'`, `the ${screen} screen opens`);
+}
 
 /** A page that was just loaded (or reloaded): wait for the game and stop its clock, as `ctx.open` does. */
 async function ready(page: Page): Promise<void> {
@@ -53,9 +58,9 @@ export const language: Scenario = {
     assert.equal(await page.evaluate('document.documentElement.lang'), 'en');
     assert.equal(await life(page), 'Life');
     assert.equal(await saved(page), null, 'a new player leaves nothing behind until they choose');
-    assert.equal(await page.locator('[data-testid="settings-menu"]').count(), 0, 'the menu is not built until it is asked for');
+    assert.equal(await page.locator('[data-testid="pause-menu"]').count(), 0, 'the menu is not built until it is asked for');
     assert.equal(
-      ((await page.evaluate(`performance.getEntriesByType('resource').map((e) => e.name).filter((n) => /SettingsMenu/.test(n))`)) as string[]).length,
+      ((await page.evaluate(`performance.getEntriesByType('resource').map((e) => e.name).filter((n) => /PauseMenu|SettingsMenu|SavesScreen|ProfileScreen/.test(n))`)) as string[]).length,
       0,
       'and its code is not requested by a normal load',
     );
@@ -75,39 +80,46 @@ export const language: Scenario = {
     await page.waitForTimeout(250);
     assert.ok((await tick(page)) > running, 'the game is running');
     await page.locator('[data-testid="pause-button"]').click();
-    await waitFor(page, `document.querySelector('[data-testid="settings-menu"]')?.dataset.open === '1'`, 'the menu opens');
+    await waitFor(page, `document.querySelector('[data-testid="pause-menu"]')?.dataset.open === '1'`, 'the menu opens');
     const frozen = await tick(page);
     await page.waitForTimeout(400);
     assert.equal(await tick(page), frozen, 'a paused game does not advance');
     await ctx.step(5);
     assert.equal(await tick(page), frozen, 'not even when a test hook asks for ticks');
-    assert.equal(await page.locator('[data-testid="settings-title"]').textContent(), 'Paused');
+    assert.equal(await page.locator('[data-testid="pause-title"]').textContent(), 'Paused');
+    await ctx.shot('01-menu');
+    await enter(page, 'settings');
     assert.equal(await page.locator('[data-testid="settings-lang-es"]').textContent(), 'Español');
     assert.equal(await page.locator('[data-testid="settings-lang-en"]').textContent(), 'English');
     assert.equal(await page.locator('[data-testid="settings-lang-en"]').getAttribute('aria-pressed'), 'true');
-    assert.equal(await page.locator('[data-testid="settings-touch"]').evaluate((e) => getComputedStyle(e).display), 'none', 'no touch layer on a desktop: no touch settings');
-    await ctx.shot('01-menu');
+    await ctx.shot('01-settings');
 
     // ================================================================== choosing Spanish: applied at once, saved
     await page.locator('[data-testid="settings-lang-es"]').click();
     assert.equal(await lang(page), 'es', 'applied at once');
     assert.equal(await life(page), 'Vida', 'the HUD re-reads its names');
     assert.equal(await page.evaluate('document.documentElement.lang'), 'es');
-    assert.equal(await page.locator('[data-testid="settings-title"]').textContent(), 'Pausa');
+    assert.equal(await page.locator('[data-testid="settings-screen-title"]').textContent(), 'Ajustes');
+    assert.equal(await page.locator('[data-testid="pause-title"]').textContent(), 'Pausa', 'the list behind it speaks Spanish too');
     assert.equal(await page.locator('[data-testid="pause-button"]').getAttribute('aria-label'), 'Pausa y ajustes');
     await savedLanguage(page, 'es');
     assert.deepEqual((await saved(page))!['touch'], { scale: 1, opacity: 1, side: 'right', offsetX: 0, offsetY: 0 }, 'the touch settings saved are the designed ones (S30 added the side and the position)');
-    await page.locator('[data-testid="settings-resume"]').click();
-    await waitFor(page, `document.querySelector('[data-testid="settings-menu"]').dataset.open === '0'`, 'Resume closes the menu');
+    // the touch layer is not there on a desktop: its settings are not offered on the controls screen
+    await page.locator('[data-testid="settings-back"]').click();
+    await enter(page, 'controls');
+    assert.equal(await page.locator('[data-testid="settings-touch"]').evaluate((e) => getComputedStyle(e).display), 'none', 'no touch layer on a desktop: no touch settings');
+    await page.locator('[data-testid="controls-back"]').click();
+    await page.locator('[data-testid="pause-resume"]').click();
+    await waitFor(page, `document.querySelector('[data-testid="pause-menu"]').dataset.open === '0'`, 'Resume closes the menu');
     const after = await tick(page);
     await page.waitForTimeout(300);
     assert.ok((await tick(page)) > after, 'and the game goes on');
 
     // ---- the keys that pause: Escape opens it and Escape closes it
     await page.keyboard.press('Escape');
-    await waitFor(page, `document.querySelector('[data-testid="settings-menu"]').dataset.open === '1'`, 'Escape opens the menu');
+    await waitFor(page, `document.querySelector('[data-testid="pause-menu"]').dataset.open === '1'`, 'Escape opens the menu');
     await page.keyboard.press('Escape');
-    await waitFor(page, `document.querySelector('[data-testid="settings-menu"]').dataset.open === '0'`, 'Escape closes it');
+    await waitFor(page, `document.querySelector('[data-testid="pause-menu"]').dataset.open === '0'`, 'Escape closes it');
     assert.equal(await menuOpen(page), '0');
 
     // ================================================================== it SURVIVES: a reload, a second tab, a new browser session, a change of scene
@@ -157,10 +169,11 @@ export const language: Scenario = {
     assert.equal(await page.evaluate(`localStorage.getItem(${JSON.stringify(`${KEY}.corrupt`)})`), '{"version":1,"lang', 'the damaged text is kept, not thrown away');
     await page.evaluate('window.__troid.resume()');
     await page.locator('[data-testid="pause-button"]').click();
-    await waitFor(page, `document.querySelector('[data-testid="settings-menu"]')?.dataset.open === '1'`, 'the menu still opens');
+    await waitFor(page, `document.querySelector('[data-testid="pause-menu"]')?.dataset.open === '1'`, 'the menu still opens');
+    await enter(page, 'settings');
     await page.locator('[data-testid="settings-lang-es"]').click();
     await savedLanguage(page, 'es');
-    assert.equal((await saved(page))!['version'], 2, 'and a new choice is saved properly, as the current version of the settings (2 since S30)');
+    assert.equal((await saved(page))!['version'], 3, 'and a new choice is saved properly, as the current version of the settings (3 since the accessibility choices and the saved game in use)');
 
     // a value from a LATER game is kept aside, never overwritten silently
     await page.evaluate(`localStorage.setItem(${JSON.stringify(KEY)}, '{"version":9,"language":"es"}')`);
@@ -173,7 +186,8 @@ export const language: Scenario = {
     page = ctx.page;
     await page.evaluate('window.__troid.resume()');
     await page.locator('[data-testid="pause-button"]').click();
-    await waitFor(page, `document.querySelector('[data-testid="settings-menu"]')?.dataset.open === '1'`, 'the menu opens on a touch screen');
+    await waitFor(page, `document.querySelector('[data-testid="pause-menu"]')?.dataset.open === '1'`, 'the menu opens on a touch screen');
+    await enter(page, 'controls');
     assert.notEqual(await page.locator('[data-testid="settings-touch"]').evaluate((e) => getComputedStyle(e).display), 'none', 'the touch layer exists: its settings are offered');
     const before = (await page.evaluate('window.__troid.touch().layout.controlScale')) as number;
     await page.evaluate(`(() => {
@@ -186,7 +200,8 @@ export const language: Scenario = {
     assert.equal(await page.locator('[data-testid="touch-layer"]').evaluate((e) => (e as HTMLElement).style.opacity), '0.5', 'and fade at once');
     for (let i = 0; i < 40 && ((await saved(page))?.['touch'] as { scale?: number } | undefined)?.scale !== 1.3; i++) await page.waitForTimeout(50);
     assert.deepEqual((await saved(page))!['touch'], { scale: 1.3, opacity: 0.5, side: 'right', offsetX: 0, offsetY: 0 }, 'what the player chose, and the designed side and position');
-    await page.locator('[data-testid="settings-resume"]').click();
+    await page.locator('[data-testid="controls-back"]').click();
+    await page.locator('[data-testid="pause-resume"]').click();
     await page.reload();
     await ready(page);
     const kept = (await page.evaluate('window.__troid.touch().layout.controlScale')) as number;

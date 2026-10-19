@@ -11,8 +11,8 @@ const SIZE = 50;
 const MARGIN = 8;
 
 /** Where the button is for a window `width` px wide with the given safe insets at `scale`: a box in px (the scaled square, centred in what is usable, below the top inset). */
-export function pauseBox(width: number, insets: Readonly<Insets>, scale = 1): { x0: number; y0: number; x1: number; y1: number } {
-  const cx = Math.round(pauseLeft(width, insets, scale)) + SIZE / 2;
+export function pauseBox(width: number, insets: Readonly<Insets>, scale = 1, hudScale = 1): { x0: number; y0: number; x1: number; y1: number } {
+  const cx = Math.round(pauseLeft(width, insets, scale, hudScale)) + SIZE / 2;
   const top = pauseTop(insets, scale);
   const half = (SIZE / 2) * scale;
   const cy = top + SIZE / 2;
@@ -24,10 +24,11 @@ export function pauseBox(width: number, insets: Readonly<Insets>, scale = 1): { 
  * upright, S31: the audit found the button over the fourth bottle), where it goes right next to the HUD, as long as it still fits inside the safe area.
  * The HUD counts at its widest (five life segments, four bottles), so the button does not move when a bottle is found.
  */
-function pauseLeft(width: number, insets: Readonly<Insets>, scale: number): number {
+function pauseLeft(width: number, insets: Readonly<Insets>, scale: number, hudScale: number): number {
   const middle = insets.left + (width - insets.left - insets.right) / 2;
   const half = (SIZE / 2) * scale;
-  const beside = insets.left + (HUD_FOOTPRINT.margin + HUD_FOOTPRINT.width + HUD_FOOTPRINT.gap) * scale + half;
+  // the HUD is drawn at the window's scale times the size the player chose for it
+  const beside = insets.left + (HUD_FOOTPRINT.margin + HUD_FOOTPRINT.width) * scale * hudScale + HUD_FOOTPRINT.gap * scale + half;
   const centre = beside > middle && beside + half <= width - insets.right ? beside : middle;
   return centre - SIZE / 2;
 }
@@ -64,6 +65,7 @@ export class PauseButton {
   private width = 0;
   private height = 0;
   private scale = 1;
+  private hudScale = 1;
 
   constructor(
     parent: HTMLElement,
@@ -107,12 +109,13 @@ export class PauseButton {
   }
 
   /** The window and its safe area: the button is centred in what is usable, below the top inset. Call on start and on every resize. */
-  place(width: number, height: number, insets: Insets, scale = 1): void {
+  place(width: number, height: number, insets: Insets, scale = 1, hudScale = 1): void {
     this.width = width;
     this.height = height;
     this.insets = insets;
     this.scale = scale;
-    Object.assign(this.root.style, { transform: `translate(${Math.round(pauseLeft(width, insets, scale))}px, ${pauseTop(insets, scale)}px) scale(${scale})` });
+    this.hudScale = hudScale;
+    Object.assign(this.root.style, { transform: `translate(${Math.round(pauseLeft(width, insets, scale, hudScale))}px, ${pauseTop(insets, scale)}px) scale(${scale})` });
   }
 
   /** The menu is open: the button steps out of the way (it is the menu's own Resume that closes it). */
@@ -130,7 +133,7 @@ export class PauseButton {
   }
 
   /** The window it was last placed for (tests). */
-  get placedFor(): { width: number; height: number; insets: Insets; scale: number } {
-    return { width: this.width, height: this.height, insets: this.insets, scale: this.scale };
+  get placedFor(): { width: number; height: number; insets: Insets; scale: number; hudScale: number } {
+    return { width: this.width, height: this.height, insets: this.insets, scale: this.scale, hudScale: this.hudScale };
   }
 }

@@ -127,7 +127,9 @@ export const vfxArt: Scenario = {
     // ================================================================================================ the effects are rebuilt (a quality change) and still draw with the art's light
     await sess('s.magic.restore();');
     await ctx.page.locator('[data-testid="pause-button"]').click();
-    await ctx.page.waitForSelector('[data-testid="settings-menu"][data-open="1"]', { timeout: 20000 });
+    await ctx.page.waitForSelector('[data-testid="pause-menu"][data-open="1"]', { timeout: 20000 });
+    await ctx.page.locator('[data-testid="pause-settings"]').click();
+    await ctx.page.waitForSelector('[data-testid="settings-screen"][data-open="1"]', { timeout: 20000 });
     await ctx.page.locator('[data-testid="settings-quality-low"]').click();
     s = await until(ctx, 'the effects to be built again', (x) => x.quality?.tier === 'low' && x.vfxLook !== null);
     assert.equal(s.vfxLook!.origin, 'art', 'the art\'s light survives a rebuild of the effects');

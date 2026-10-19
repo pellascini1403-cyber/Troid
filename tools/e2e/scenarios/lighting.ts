@@ -281,7 +281,9 @@ export const lighting: Scenario = {
 
     // ================================================================================================ a smaller profile draws fewer lights, and keeps the hero's
     await ctx.page.locator('[data-testid="pause-button"]').click();
-    await ctx.page.waitForSelector('[data-testid="settings-menu"][data-open="1"]', { timeout: 20000 });
+    await ctx.page.waitForSelector('[data-testid="pause-menu"][data-open="1"]', { timeout: 20000 });
+    await ctx.page.locator('[data-testid="pause-settings"]').click();
+    await ctx.page.waitForSelector('[data-testid="settings-screen"][data-open="1"]', { timeout: 20000 });
     await ctx.page.locator('[data-testid="settings-quality-low"]').click();
     s = await until(ctx, 'the effects to be built again', (x) => x.quality?.tier === 'low' && !!x.lights);
     assert.equal(s.lights!.capacity, lightCapacity('low'));

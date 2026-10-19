@@ -39,8 +39,8 @@ export function isIconId(id: string): id is IconId {
   return Object.prototype.hasOwnProperty.call(ICONS, id);
 }
 
-/** An `<svg>` for the icon, `size` px wide, drawn with `currentColor`. An unknown id gives an empty box (never a throw). */
-export function createIcon(doc: Document, id: string, size: number): SVGSVGElement {
+/** An `<svg>` drawn from these strokes, `size` px wide, with `currentColor`. */
+export function drawStrokes(doc: Document, strokes: readonly IconStroke[], size: number): SVGSVGElement {
   const svg = doc.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('viewBox', '-12 -12 24 24');
   svg.setAttribute('width', String(size));
@@ -48,7 +48,6 @@ export function createIcon(doc: Document, id: string, size: number): SVGSVGEleme
   svg.setAttribute('aria-hidden', 'true');
   svg.style.display = 'block';
   svg.style.overflow = 'visible';
-  const strokes: readonly IconStroke[] = isIconId(id) ? ICONS[id] : [];
   for (const s of strokes) {
     const path = doc.createElementNS(SVG_NS, 'path');
     path.setAttribute('d', s.d);
@@ -64,4 +63,9 @@ export function createIcon(doc: Document, id: string, size: number): SVGSVGEleme
     svg.appendChild(path);
   }
   return svg;
+}
+
+/** An `<svg>` for the icon, `size` px wide, drawn with `currentColor`. An unknown id gives an empty box (never a throw). */
+export function createIcon(doc: Document, id: string, size: number): SVGSVGElement {
+  return drawStrokes(doc, isIconId(id) ? ICONS[id] : [], size);
 }

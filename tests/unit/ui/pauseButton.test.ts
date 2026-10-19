@@ -99,6 +99,27 @@ describe('pause button', () => {
     expect(button.root.style.visibility).toBe('visible');
   });
 
+  it('makes way for the HUD at the size the player chose: in a window the HUD fills, it goes beside it, further over the bigger the HUD is', () => {
+    const insets = { top: 0, right: 0, bottom: 0, left: 0 };
+    const at = (hud: number): number => {
+      button.place(390, 844, insets, 1, hud);
+      return pauseBox(390, insets, 1, hud).x0;
+    };
+    expect(at(0.85)).toBeLessThan(at(1));
+    expect(at(1)).toBeLessThan(at(1.35));
+    // and what the button was placed with is what the geometry function says
+    expect(button.placedFor.hudScale).toBe(1.35);
+    const m = /translate\((-?[\d.]+)px/.exec(button.root.style.transform)!;
+    expect(Number(m[1])).toBeCloseTo(pauseBox(390, insets, 1, 1.35).x0, 0);
+  });
+
+  it('at the design size of the HUD it is where it always was', () => {
+    const insets = { top: 0, right: 0, bottom: 0, left: 0 };
+    for (const w of [844, 390, 1280]) expect(pauseBox(w, insets, 1, 1)).toEqual(pauseBox(w, insets, 1));
+    button.place(844, 390, insets, 1);
+    expect(button.placedFor.hudScale).toBe(1);
+  });
+
   it('scales with the controls', () => {
     button.place(844, 390, { top: 0, right: 0, bottom: 0, left: 0 }, 1.4);
     expect(button.root.style.transform).toContain('scale(1.4)');

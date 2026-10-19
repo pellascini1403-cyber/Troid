@@ -188,6 +188,11 @@ export class CameraRig {
     this.trauma = Math.min(1, this.trauma + Math.max(0, amount));
   }
 
+  /** Stills the shake that is left (the player asked for a camera that does not shake: what was already trembling stops with the choice). */
+  clearTrauma(): void {
+    this.trauma = 0;
+  }
+
   /** Hard cut: no smoothing, no velocity. Use after a room change or respawn. */
   snapTo(target: CameraTarget, aspect = this.aspect): CameraPose {
     this.aspect = aspect;

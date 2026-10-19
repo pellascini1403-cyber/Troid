@@ -125,6 +125,11 @@ export class GameSaves {
     return this.recorder?.stopped ?? true;
   }
 
+  /** Does what is saved outlive the page? (`false`: the browser offers no storage and the games live in memory.) */
+  get durable(): boolean {
+    return this.o.durable;
+  }
+
   /** Tells the player what the start found, once: a game recovered from its last good copy, one that could not be read, or no storage at all. */
   announceStart(found: Inspection<unknown>): void {
     if (!this.o.durable) this.o.notify({ kind: 'unavailable', slot: this.slot });
@@ -132,8 +137,9 @@ export class GameSaves {
     else if (found.state === 'ok' && found.recovered) this.o.notify({ kind: 'recovered', slot: this.slot });
   }
 
-  /** The player asked to save now. Resolves to whether it reached the storage. */
+  /** The player asked to save now. Resolves to whether it reached the storage — a browser that keeps nothing never did, whatever its memory store took. */
   saveNow(): Promise<boolean> {
+    if (!this.o.durable) return Promise.resolve(false);
     return this.recorder?.saveNow('manual') ?? Promise.resolve(false);
   }
 

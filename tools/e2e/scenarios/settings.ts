@@ -5,9 +5,9 @@ import type { Ctx, GameState, Scenario } from '../scenario';
 import { TouchScreen } from '../touch';
 
 /**
- * THE SETTINGS in a real browser (docs/PROMPT6-LOG.md S30): the volume (prepared: there is no sound yet), the quality profile (Auto / Low / High — which
- * measures nothing), the keys of the main actions and the side and position of the touch controls. Each one is changed through the menu the way a person
- * does — the pause button, a slider, a click, a real key — and then three things are looked at: it is IN FORCE at once (the game answers to it), it is
+ * THE SETTINGS in a real browser (docs/PROMPT6-LOG.md S30, docs/PROMPT14-LOG.md): the volume (prepared: there is no sound yet), the quality profile (Auto / Low / High — which
+ * measures nothing), the keys of the main actions and the side and position of the touch controls. Each one is changed through the pause menu the way a person
+ * does — the pause button, the entry of the list, a slider, a click, a real key — and then three things are looked at: it is IN FORCE at once (the game answers to it), it is
  * SAVED (the file the game writes), and it SURVIVES a reload (the first frame after it is already right). Also: a game saved by the first version of
  * the settings still loads (and keeps what it held), a damaged file is repaired and never stops the game, and the console stays clean.
  */
@@ -39,6 +39,16 @@ const setRange = (page: Page, id: string, value: number): Promise<void> =>
     input.dispatchEvent(new Event('input', { bubbles: true }));
   }, value);
 
+/** What a device's list of controls says an action is on: the inputs of its row, as the screen shows them. */
+const reference = (page: Page, device: 'keyboard' | 'gamepad', action: string): Promise<string[]> =>
+  q(page, `settings-reference-${device}`)
+    .locator('.settings-reference-rows')
+    .evaluate((grid, name) => {
+      const names = [...grid.querySelectorAll('.settings-keyname')];
+      const at = names.findIndex((n) => n.textContent === name);
+      return at < 0 ? [] : [...(names[at]?.nextElementSibling?.querySelectorAll('kbd') ?? [])].map((k) => k.textContent ?? '');
+    }, action);
+
 /** The volume as the game reports it: the level exactly, the gain (its curve) to a hair — 0.8 × 0.8 is not exactly 0.64 in floating point. */
 function assertVolume(v: GameState['volume'], level: number, what: string): void {
   assert.ok(v, `${what}: there is a volume`);
@@ -58,13 +68,34 @@ async function reload(ctx: Ctx): Promise<GameState> {
   await ready(ctx.page);
   return ctx.state();
 }
+/** The screens of the pause menu that hold settings, and what their way back is called. */
+type MenuScreen = 'settings' | 'controls';
+const BACK: Record<MenuScreen, string> = { settings: 'settings-back', controls: 'controls-back' };
+/** The pause button, as a person presses it: the menu opens on its list. */
 async function openMenu(page: Page): Promise<void> {
   await q(page, 'pause-button').click();
-  await page.waitForSelector('[data-testid="settings-menu"][data-open="1"]', { timeout: 15000 });
+  await page.waitForSelector('[data-testid="pause-menu"][data-open="1"]', { timeout: 15000 });
 }
-async function closeMenu(ctx: Ctx): Promise<void> {
-  await q(ctx.page, 'settings-resume').click();
-  await ctx.page.waitForSelector('[data-testid="settings-menu"][data-open="0"]', { state: 'attached' });
+/** An entry of the list, as a person presses it: its screen opens. */
+async function enterScreen(page: Page, which: MenuScreen): Promise<void> {
+  await q(page, `pause-${which}`).click();
+  await page.waitForSelector(`[data-testid="${which}-screen"][data-open="1"]`, { timeout: 15000 });
+}
+/** The pause button and one of its screens. */
+async function openScreen(page: Page, which: MenuScreen): Promise<void> {
+  await openMenu(page);
+  await enterScreen(page, which);
+}
+/** From one screen to the list and into another. */
+async function changeScreen(page: Page, from: MenuScreen, to: MenuScreen): Promise<void> {
+  await q(page, BACK[from]).click();
+  await enterScreen(page, to);
+}
+/** Out of the menu: back from the screen it is on (if any), and Continue. */
+async function closeMenu(ctx: Ctx, from?: MenuScreen): Promise<void> {
+  if (from) await q(ctx.page, BACK[from]).click();
+  await q(ctx.page, 'pause-resume').click();
+  await ctx.page.waitForSelector('[data-testid="pause-menu"][data-open="0"]', { state: 'attached' });
   assert.equal((await ctx.state()).menuOpen, false, 'the game is out of its menu');
 }
 
@@ -90,18 +121,18 @@ export const settings: Scenario = {
     assert.equal(await saved(page), null, 'a new player leaves nothing behind until they change something');
     assert.equal(s.canvas?.width, Math.round(844 * 1.75), 'the canvas is drawn at that resolution');
 
-    // ================================================================================================ the menu: what it offers where there is a keyboard and no touch layer
+    // ================================================================================================ the menu: its list, and the settings screen
     await openMenu(page);
     s = await state();
     assert.equal(s.menuOpen, true, 'the pause button opens it and pauses the game');
-    for (const id of ['settings-volume-section', 'settings-quality', 'settings-controls']) assert.equal(await q(page, id).isVisible(), true, `${id} is there`);
-    assert.equal(await q(page, 'settings-touch').isVisible(), false, 'no touch layer on a desktop: no touch settings');
+    for (const id of ['pause-resume', 'pause-settings', 'pause-controls', 'pause-saves', 'pause-profile']) assert.equal(await q(page, id).isVisible(), true, `${id} is on the list`);
+    await ctx.shot('a-01-the-menu');
+    await enterScreen(page, 'settings');
+    for (const id of ['settings-volume-section', 'settings-quality', 'settings-accessibility']) assert.equal(await q(page, id).isVisible(), true, `${id} is there`);
+    assert.equal(await q(page, 'settings-controls').count(), 0, 'the keys are on the controls screen, not on this one');
     assert.equal(await text(page, 'settings-volume-note'), 'Sound arrives in a later version. Your choice is saved.', 'it says there is no sound yet');
     assert.match(await text(page, 'settings-quality-note'), /does not measure your device yet/, 'and that Auto measures nothing');
     assert.equal(await attr(page, 'settings-quality-auto', 'aria-pressed'), 'true');
-    const rows = await page.locator('[data-testid="settings-controls"] button[data-action]').evaluateAll((els) => els.map((e) => [(e as HTMLElement).dataset['action'], e.textContent]));
-    assert.deepEqual(rows, [['jump', 'Space'], ['attack', 'J'], ['dash', 'Shift'], ['ability', 'K'], ['bottle', 'L'], ['interact', 'E'], ['down', 'S']], 'a row per action, with its key');
-    await ctx.shot('a-01-the-menu');
 
     // ================================================================================================ the volume: in force at once, saved
     await setRange(page, 'settings-volume', 0.35);
@@ -139,6 +170,10 @@ export const settings: Scenario = {
     assert.ok((await state()).vfx !== undefined, 'the effects are there after the change (they were built again with the new budgets)');
 
     // ================================================================================================ the keys: waiting, refusal, swap, free — with real keys
+    await changeScreen(page, 'settings', 'controls');
+    assert.equal(await q(page, 'settings-touch').isVisible(), false, 'no touch layer on a desktop: no touch settings');
+    const rows = await page.locator('[data-testid="settings-controls"] button[data-action]').evaluateAll((els) => els.map((e) => [(e as HTMLElement).dataset['action'], e.textContent]));
+    assert.deepEqual(rows, [['jump', 'Space'], ['attack', 'J'], ['dash', 'Shift'], ['ability', 'K'], ['bottle', 'L'], ['interact', 'E'], ['down', 'S']], 'a row per action, with its key');
     const press = async (code: string): Promise<void> => {
       await page.keyboard.press(code);
     };
@@ -154,9 +189,9 @@ export const settings: Scenario = {
     assert.equal(await attr(page, 'settings-key-dash', 'data-listening'), '1', 'a reserved key is refused and the action keeps waiting');
     assert.equal(await text(page, 'settings-keys-message'), 'That key is reserved. Try another one.');
     assert.equal((await state()).keys?.['dash'], 'ShiftLeft', 'the dash did not move');
-    await press('Escape'); // cancels the wait — it is NOT the pause: the menu stays open
+    await press('Escape'); // cancels the wait — it is NOT the pause: the menu stays open, on the same screen
     assert.equal(await attr(page, 'settings-key-dash', 'data-listening'), '0');
-    assert.equal(await attr(page, 'settings-menu', 'data-open'), '1', 'Escape while waiting for a key cancels it and leaves the menu open');
+    assert.equal(await attr(page, 'controls-screen', 'data-open'), '1', 'Escape while waiting for a key cancels it and leaves the screen open');
     assert.equal((await state()).menuOpen, true);
 
     await q(page, 'settings-key-jump').click();
@@ -169,8 +204,16 @@ export const settings: Scenario = {
     s = await state();
     assert.deepEqual(s.keys, { jump: 'KeyH', attack: 'Space', dash: 'ShiftLeft', ability: 'KeyK', bottle: 'KeyL', interact: 'KeyE', down: 'KeyS' });
     await savedWhere(page, (f) => f['keys']?.attack === 'Space' && f['keys']?.jump === 'KeyH' && Object.keys(f['keys']).length === 2, 'only what differs from the defaults was saved');
+    // the list of controls above them says what each one is NOW: the same keys, and what has no key of its own
+    assert.deepEqual(await reference(page, 'keyboard', 'Jump'), ['H'], 'the list follows the remap: jump is H');
+    assert.deepEqual(await reference(page, 'keyboard', 'Attack'), ['Space', 'Left click'], 'attack is Space, and the mouse still attacks');
+    assert.deepEqual(await reference(page, 'keyboard', 'Drop through a platform'), ['S', '+', 'H'], 'dropping through a platform is crouch + the jump key: it follows too');
+    assert.deepEqual(await reference(page, 'keyboard', 'Pause'), ['Escape', 'P']);
+    assert.deepEqual(await reference(page, 'gamepad', 'Attack'), ['X'], 'the pad has its own buttons, which are not the keyboard\'s');
+    assert.equal(await text(page, 'controls.padNote-text'), 'The buttons of the gamepad cannot be remapped.', 'and the screen does not pretend they can be changed');
+    assert.equal(await q(page, 'settings-reference-touch').locator('.settings-touchline').count(), 0, 'a desktop with no touch layer lists no touch controls');
     await ctx.shot('a-03-keys');
-    await closeMenu(ctx);
+    await closeMenu(ctx, 'controls');
 
     // ================================================================================================ the keys, in the game
     /** What a key does: pressed for `ticks` ticks, then let go. */
@@ -204,17 +247,19 @@ export const settings: Scenario = {
     assert.ok(!s.grounded && s.vy > 0, 'H jumps after the reload');
     s = await tryKey('Space');
     assert.ok(s.combat?.attack !== null, 'and Space attacks');
-    await openMenu(page);
+    await openScreen(page, 'settings');
     assert.equal((await q(page, 'settings-volume').inputValue()), '0.35', 'the menu shows what was saved');
     assert.equal(await attr(page, 'settings-quality-low', 'aria-pressed'), 'true');
+    await changeScreen(page, 'settings', 'controls');
     assert.deepEqual([await text(page, 'settings-key-jump'), await text(page, 'settings-key-attack')], ['H', 'Space']);
 
     // ================================================================================================ the keys back to the designed ones
     await q(page, 'settings-keys-reset').click();
     assert.deepEqual((await state()).keys, { jump: 'Space', attack: 'KeyJ', dash: 'ShiftLeft', ability: 'KeyK', bottle: 'KeyL', interact: 'KeyE', down: 'KeyS' });
     await savedWhere(page, (f) => Object.keys(f['keys']).length === 0, 'the defaults are the empty map');
+    await changeScreen(page, 'controls', 'settings');
     await q(page, 'settings-quality-auto').click();
-    await closeMenu(ctx);
+    await closeMenu(ctx, 'settings');
     s = await tryKey('KeyJ');
     assert.ok(s.combat?.attack !== null, 'J attacks again');
     s = await tryKey('Space');
@@ -232,7 +277,8 @@ export const settings: Scenario = {
     assert.equal(layout.side, 'right');
     assert.equal((await saved(page))?.['version'], 1, 'loading rewrites nothing: the old file stays as it is until something changes');
     await openMenu(page);
-    assert.equal(await text(page, 'settings-title'), 'Pausa', 'the menu speaks the language that was saved, words included');
+    assert.equal(await text(page, 'pause-title'), 'Pausa', 'the menu speaks the language that was saved, words included');
+    await enterScreen(page, 'settings');
     assert.equal(await text(page, 'settings-volume-section').then((t) => t.includes('Volumen')), true);
     await setRange(page, 'settings-volume', 0.5);
     const upgraded = await savedWhere(page, (f) => f['version'] === 3, 'the file is version 3 from the first change (1 → 2 → 3)');
@@ -241,7 +287,7 @@ export const settings: Scenario = {
     assert.deepEqual(upgraded['volume'], { master: 0.5 });
     assert.equal(upgraded['language'], 'es');
     assert.deepEqual([upgraded['touch'].scale, upgraded['touch'].opacity], [1.2, 0.8], 'and what version 1 held is still in it');
-    await closeMenu(ctx);
+    await closeMenu(ctx, 'settings');
 
     // ================================================================================================ a damaged file is repaired, never fatal
     const damaged = { version: 2, language: 'xx-YY', volume: { master: 'loud' }, quality: 'ultra', keys: { attack: 'KeyD', dash: 'Escape', jump: 'KeyH', bogus: 'KeyZ' }, touch: { side: 'up', offsetX: 9, offsetY: -3, scale: 'big' } };
@@ -290,9 +336,18 @@ async function settingsTouch(ctx: Ctx): Promise<void> {
   assert.ok(l.zone.x + l.zone.w < 844 / 2 + 1, 'the zone is on the left');
   const designed = { x: attack.cx, y: attack.cy };
 
-  await openMenu(page);
+  await openScreen(page, 'controls');
   assert.equal(await q(page, 'settings-touch').isVisible(), true, 'a touch layer: the touch settings are offered');
   assert.equal(await q(page, 'settings-controls').isVisible(), false, 'and no keyboard keys: nobody here has seen a keyboard');
+  const order = await q(page, 'settings-controls-body').evaluate((e) => [...e.children].map((c) => (c as HTMLElement).dataset['testid']));
+  assert.equal(order[0], 'settings-reference-touch', 'on a touch screen the touch controls come first');
+  assert.deepEqual(
+    await q(page, 'settings-reference-touch').locator('.settings-touchline > b').allTextContents(),
+    ['Move', 'Jump', 'Crouch', 'Drop through a platform', 'Attack, dash and ability', 'Drink a bottle', 'Interact', 'Pause'],
+    'the touch controls, each a gesture or a button that exists',
+  );
+  assert.equal(await q(page, 'settings-reference-keyboard').locator('.settings-reference-rows').count(), 0, 'and no keyboard list: nobody here has seen a keyboard');
+  await ctx.shot('b-00-touch-controls');
   assert.equal(await attr(page, 'settings-touch-side-right', 'aria-pressed'), 'true');
 
   // ================================================================================================ the other hand: the buttons go left, the zone comes right
@@ -331,8 +386,7 @@ async function settingsTouch(ctx: Ctx): Promise<void> {
   assert.ok(hud, 'the HUD (its block: the card, the life, the magic and the bottles) is on screen');
   assert.ok(a.y >= hud.y + hud.height - 1 || a.x >= hud.x + hud.width, `and the buttons do not reach into the HUD (attack ${JSON.stringify(a)} · dash ${JSON.stringify(d)} · hud ${JSON.stringify(hud)})`);
   await ctx.shot('b-02-left-in-and-up');
-  await q(page, 'settings-resume').click();
-  await page.waitForSelector('[data-testid="settings-menu"][data-open="0"]', { state: 'attached' });
+  await closeMenu(ctx, 'controls');
 
   // ================================================================================================ they work where they are now
   await ctx.teleport(10, 0);
@@ -365,7 +419,7 @@ async function settingsTouch(ctx: Ctx): Promise<void> {
   assert.equal((await hooks()).side, 'left');
 
   // ================================================================================================ the design again, in one click
-  await openMenu(page);
+  await openScreen(page, 'controls');
   assert.equal(await attr(page, 'settings-touch-side-left', 'aria-pressed'), 'true', 'the menu shows the side that was saved');
   await q(page, 'settings-touch-reset').click();
   await frames(page, 2);

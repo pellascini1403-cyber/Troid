@@ -130,6 +130,10 @@ function hudCss(): string {
 @keyframes hud-pulse { 0%,100% { opacity:1; } 50% { opacity:0.45; } }
 @keyframes hud-shine { from { transform:translateX(-140px); } to { transform:translateX(0); } }
 @media (prefers-reduced-motion: reduce) { .troid-hud * { animation:none !important; } }
+/* "fewer flashes": the last segment does not blink and the magic does not shine as it fills */
+.troid-hud[data-calm="1"] * { animation:none !important; }
+/* the game waits (the pause menu): what moves by itself waits with it */
+.troid-hud[data-paused="1"] *, .troid-hud[data-paused="1"] *::after { animation-play-state:paused !important; }
 `;
 }
 
@@ -270,10 +274,15 @@ export class HudView {
     this.writeGlyph(this.cardKey, 'cardKey', glyphs.ability);
   }
 
-  /** "Fewer flashes" (the accessibility setting): the white flash of a lost segment is left out and its ghost is softened. */
+  /** "Fewer flashes" (the accessibility setting): the white flash of a lost segment is left out, its ghost is softened and nothing blinks or shines by itself. */
   setCalm(calm: boolean): void {
     this.calm = calm;
     this.root.dataset['calm'] = calm ? '1' : '0';
+  }
+
+  /** The game is paused (the pause menu is up): the animations the stylesheet runs on its own stop where they are and go on from there. */
+  setPaused(paused: boolean): void {
+    this.root.dataset['paused'] = paused ? '1' : '0';
   }
 
   /** Applies a frame of HUD state. Only what changed reaches the DOM. */

@@ -303,6 +303,20 @@ describe('CameraRig — shake', () => {
     expect(a.currentTrauma).toBe(0);
   });
 
+  it('clearTrauma stills a shake that is under way, at once, and a later blow shakes again', () => {
+    const rig = plain();
+    rig.snapTo(still(), ASPECT);
+    rig.addTrauma(1);
+    run(rig, 0.1, () => still());
+    expect(rig.currentTrauma).toBeGreaterThan(0.5);
+    rig.clearTrauma();
+    expect(rig.currentTrauma).toBe(0);
+    rig.update(1 / 60, still(), ASPECT);
+    expect([rig.pose.shake.x, rig.pose.shake.y, rig.pose.rollRad]).toEqual([0, 0, 0]);
+    rig.addTrauma(0.5);
+    expect(rig.currentTrauma).toBe(0.5);
+  });
+
   it('offset is bounded by maxOffset and fully gone when trauma is 0', () => {
     const rig = plain();
     rig.snapTo(still(), ASPECT);

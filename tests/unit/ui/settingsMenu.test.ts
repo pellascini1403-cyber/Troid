@@ -1,10 +1,13 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { CATALOGS, createTranslator } from '@/i18n';
+import { DEFAULT_BINDINGS } from '@/input/bindings';
+import { applyKeyMap } from '@/input/remap';
+import { controlsReference } from '@/input/controlsReference';
 import type { KeyMap } from '@/input/remap';
 import { QUALITY_SETTINGS, type QualitySetting } from '@/presentation/viewport';
-import type { TouchSettings } from '@/save/SettingsData';
-import { languageName, SettingsMenu, type SettingsMenuHost } from '@/ui/settings/SettingsMenu';
+import { defaultSettings, HUD_SCALE_LIMITS, type AccessibilitySettings, type TouchSettings } from '@/save/SettingsData';
+import { languageName, SettingsMenu, type SettingsMenuHost, type SettingsScreen } from '@/ui/settings/SettingsMenu';
 
 /**
  * The pause / settings menu (docs/GAME-SPEC-2D.md §17; docs/PROMPT6-LOG.md S30): the language, each in its own name; the volume (prepared); the quality
@@ -29,7 +32,7 @@ const TOUCH: TouchSettings = { scale: 1, opacity: 1, side: 'right', offsetX: 0, 
 describe('settings menu', () => {
   let host: HTMLDivElement;
   let menu: SettingsMenu;
-  let state: { language: string; volume: number; quality: QualitySetting; keys: KeyMap; touch: TouchSettings };
+  let state: { language: string; volume: number; quality: QualitySetting; keys: KeyMap; touch: TouchSettings; accessibility: AccessibilitySettings };
   let calls: string[];
   let touchAvailable: boolean;
   let keyboardAvailable: boolean;
@@ -39,7 +42,8 @@ describe('settings menu', () => {
     languages: ['es', 'en'],
     touchAvailable: () => touchAvailable,
     keyboardAvailable: () => keyboardAvailable,
-    current: () => ({ language: state.language, volume: state.volume, quality: state.quality, keys: { ...state.keys }, touch: { ...state.touch } }),
+    current: () => ({ language: state.language, volume: state.volume, quality: state.quality, keys: { ...state.keys }, touch: { ...state.touch }, accessibility: { ...state.accessibility } }),
+    reference: () => controlsReference(applyKeyMap(DEFAULT_BINDINGS, state.keys)),
     setLanguage: (language) => {
       calls.push(`lang:${language}`);
       state.language = language;
@@ -61,6 +65,10 @@ describe('settings menu', () => {
       calls.push(`touch:${JSON.stringify(patch)}`);
       state.touch = { ...state.touch, ...patch };
     },
+    setAccessibility: (patch) => {
+      calls.push(`access:${JSON.stringify(patch)}`);
+      state.accessibility = { ...state.accessibility, ...patch };
+    },
     close: () => calls.push('close'),
   });
 
@@ -69,7 +77,7 @@ describe('settings menu', () => {
     document.head.innerHTML = '';
     host = document.createElement('div');
     document.body.appendChild(host);
-    state = { language: 'es', volume: 0.8, quality: 'auto', keys: {}, touch: { ...TOUCH } };
+    state = { language: 'es', volume: 0.8, quality: 'auto', keys: {}, touch: { ...TOUCH }, accessibility: { ...defaultSettings().accessibility } };
     calls = [];
     touchAvailable = true;
     keyboardAvailable = true;
@@ -172,7 +180,7 @@ describe('settings menu', () => {
   it('reads the settings fresh every time it opens (nothing is cached in the menu)', () => {
     menu.open();
     menu.close();
-    state = { language: 'en', volume: 0.3, quality: 'high', keys: { attack: 'KeyF' }, touch: { ...TOUCH, scale: 0.9, opacity: 0.5, side: 'left' } };
+    state = { language: 'en', volume: 0.3, quality: 'high', keys: { attack: 'KeyF' }, touch: { ...TOUCH, scale: 0.9, opacity: 0.5, side: 'left' }, accessibility: { ...defaultSettings().accessibility } };
     tr.setLocale('en');
     menu.open();
     expect(q(host, 'settings-lang-en').getAttribute('aria-pressed')).toBe('true');
@@ -476,6 +484,196 @@ describe('settings menu', () => {
       tr.setLocale('en');
       const en = q(host, 'settings-touch').textContent ?? '';
       for (const w of ['Side of the buttons', 'Buttons inwards', 'Buttons up', 'Restore default layout']) expect(en, w).toContain(w);
+    });
+  });
+
+  describe('accessibility: each choice changes something the game really does', () => {
+    it('two switches and a size, showing what is saved: off, off and 100 % until the player chooses', () => {
+      menu.open();
+      const flashes = q(host, 'settings-flashes');
+      const shake = q(host, 'settings-shake');
+      expect([flashes.getAttribute('role'), flashes.getAttribute('aria-checked'), flashes.textContent]).toEqual(['switch', 'false', 'Desactivado']);
+      expect([shake.getAttribute('role'), shake.getAttribute('aria-checked'), shake.textContent]).toEqual(['switch', 'false', 'Desactivado']);
+      const size = q(host, 'settings-hud-size') as HTMLInputElement;
+      expect([size.min, size.max, size.value]).toEqual([String(HUD_SCALE_LIMITS.min), String(HUD_SCALE_LIMITS.max), '1']);
+      expect(q(host, 'settings-accessibility').textContent).toContain('100%');
+    });
+
+    it('pressing a switch reports the new state, and the menu reads it back from the game', () => {
+      menu.open();
+      q(host, 'settings-flashes').click();
+      expect(calls).toEqual(['access:{"reduceFlashes":true}']);
+      expect(q(host, 'settings-flashes').getAttribute('aria-checked')).toBe('true');
+      expect(q(host, 'settings-flashes').textContent).toBe('Activado');
+      q(host, 'settings-shake').click();
+      q(host, 'settings-flashes').click();
+      expect(calls).toEqual(['access:{"reduceFlashes":true}', 'access:{"reduceShake":true}', 'access:{"reduceFlashes":false}']);
+      expect([q(host, 'settings-flashes').getAttribute('aria-checked'), q(host, 'settings-shake').getAttribute('aria-checked')]).toEqual(['false', 'true']);
+    });
+
+    it('the size of the interface is a slider within the limits of the settings, reported live', () => {
+      menu.open();
+      input('settings-hud-size', '1.25');
+      expect(calls).toEqual(['access:{"hudScale":1.25}']);
+      expect(q(host, 'settings-accessibility').textContent).toContain('125%');
+    });
+
+    it('shows the choices already made when it opens', () => {
+      state.accessibility = { reduceFlashes: true, reduceShake: false, hudScale: 1.2 };
+      menu.open();
+      expect(q(host, 'settings-flashes').getAttribute('aria-checked')).toBe('true');
+      expect(q(host, 'settings-shake').getAttribute('aria-checked')).toBe('false');
+      expect((q(host, 'settings-hud-size') as HTMLInputElement).value).toBe('1.2');
+    });
+
+    it('says what each one does, in both languages (a switch with no explanation is a guess)', () => {
+      menu.open();
+      expect(q(host, 'settings-flashes-note').textContent).toContain('pulsos');
+      expect(q(host, 'settings-shake-note').textContent).toContain('cámara');
+      tr.setLocale('en');
+      expect(q(host, 'settings-flashes-note').textContent).toContain('pulses');
+      expect(q(host, 'settings-shake-note').textContent).toContain('camera');
+      expect(q(host, 'settings-flashes').textContent).toBe('Off');
+    });
+  });
+
+  describe('as screens of the pause menu', () => {
+    let second: HTMLDivElement;
+    const screen = (which: SettingsScreen): SettingsMenu => {
+      second = document.createElement('div');
+      document.body.appendChild(second);
+      return new SettingsMenu(second, tr, hostApi(), { screen: which });
+    };
+
+    it('the settings screen has the language, the sound, the quality and accessibility — and none of the controls', () => {
+      const m = screen('settings');
+      m.open();
+      expect(q(second, 'settings-screen')).toBeTruthy();
+      expect(q(second, 'settings-screen-title').textContent).toBe('Ajustes');
+      for (const id of ['settings-languages', 'settings-volume-section', 'settings-quality', 'settings-accessibility']) expect(q(second, id), id).toBeTruthy();
+      for (const id of ['settings-controls', 'settings-touch', 'settings-controls-body', 'settings-reference-keyboard']) expect(q(second, id), id).toBeNull();
+      m.dispose();
+    });
+
+    it('the controls screen has the reference, the keys and the touch layout — and none of the settings', () => {
+      const m = screen('controls');
+      m.open();
+      expect(q(second, 'controls-screen')).toBeTruthy();
+      expect(q(second, 'controls-screen-title').textContent).toBe('Controles');
+      for (const id of ['settings-reference-keyboard', 'settings-reference-gamepad', 'settings-reference-touch', 'settings-controls', 'settings-touch']) expect(q(second, id), id).toBeTruthy();
+      for (const id of ['settings-languages', 'settings-volume-section', 'settings-quality', 'settings-accessibility']) expect(q(second, id), id).toBeNull();
+      m.dispose();
+    });
+
+    it('their way out says "Back" (not "Resume") and asks the host to close, each with its own test id', () => {
+      const a = screen('settings');
+      const aRoot = second;
+      const b = screen('controls');
+      a.open();
+      q(aRoot, 'settings-back').click();
+      b.open();
+      q(second, 'controls-back').click();
+      expect(calls).toEqual(['close', 'close']);
+      expect(q(aRoot, 'settings-back').textContent).toBe('Volver');
+      tr.setLocale('en');
+      expect(q(second, 'controls-back').textContent).toBe('Back');
+      a.dispose();
+      b.dispose();
+    });
+
+    it('both can exist at once without a repeated test id (the pause menu holds one of each)', () => {
+      const pair = document.createElement('div');
+      document.body.appendChild(pair);
+      const a = new SettingsMenu(pair, tr, hostApi(), { screen: 'settings' });
+      const b = new SettingsMenu(pair, tr, hostApi(), { screen: 'controls' });
+      const ids = [...pair.querySelectorAll('[data-testid]')].map((e) => (e as HTMLElement).dataset['testid']);
+      expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
+      a.dispose();
+      b.dispose();
+      pair.remove();
+    });
+  });
+
+  describe('the list of controls (what each one does, from the bindings in force)', () => {
+    let second: HTMLDivElement;
+    const controls = (): SettingsMenu => {
+      second = document.createElement('div');
+      document.body.appendChild(second);
+      return new SettingsMenu(second, tr, hostApi(), { screen: 'controls' });
+    };
+    const rows = (block: string): string[] => [...q(second, 'settings-controls-body').querySelectorAll('.settings-reference-block')].filter((b) => b.querySelector('.settings-label')?.textContent === block).flatMap((b) => [...b.querySelectorAll('.settings-reference-rows > span.settings-keyname')].map((n) => n.textContent ?? ''));
+
+    it('lists the keyboard, the pad and the touch layer, each in its own block, in the language in force', () => {
+      const m = controls();
+      m.open();
+      const labels = [...q(second, 'settings-controls-body').querySelectorAll('.settings-reference-block > .settings-label')].map((n) => n.textContent);
+      expect(labels).toEqual(['Teclado y ratón', 'Mando', 'Pantalla táctil']);
+      expect(rows('Teclado y ratón')).toContain('Saltar');
+      tr.setLocale('en');
+      expect([...q(second, 'settings-controls-body').querySelectorAll('.settings-reference-block > .settings-label')].map((n) => n.textContent)).toEqual(['Keyboard and mouse', 'Gamepad', 'Touch screen']);
+      m.dispose();
+    });
+
+    it('shows the keys the player chose, not the defaults', () => {
+      state.keys = { attack: 'KeyF' };
+      const m = controls();
+      m.open();
+      const attack = [...q(second, 'settings-controls-body').querySelectorAll('.settings-reference-rows')][0]?.textContent ?? '';
+      expect(attack).toContain('F');
+      m.dispose();
+    });
+
+    it('follows a remap made on the same screen', () => {
+      const m = controls();
+      m.open();
+      q(second, 'settings-key-attack').click();
+      (q(second, 'settings-key-attack').closest('.troid-settings') as HTMLElement).dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyF', bubbles: true, cancelable: true }));
+      const first = [...q(second, 'settings-controls-body').querySelectorAll('.settings-reference-rows')][0]?.textContent ?? '';
+      expect(first).toContain('F');
+      m.dispose();
+    });
+
+    it('a desktop without a touch layer lists no touch block; a phone without a keyboard lists no keyboard block', () => {
+      touchAvailable = false;
+      let m = controls();
+      m.open();
+      expect([...q(second, 'settings-controls-body').querySelectorAll('.settings-reference-block > .settings-label')].map((n) => n.textContent)).toEqual(['Teclado y ratón', 'Mando']);
+      m.dispose();
+      touchAvailable = true;
+      keyboardAvailable = false;
+      m = controls();
+      m.open();
+      // on a touch screen the touch layer comes first: it is what is being used
+      expect([...q(second, 'settings-controls-body').querySelectorAll('.settings-reference-block > .settings-label')].map((n) => n.textContent)).toEqual(['Pantalla táctil', 'Mando']);
+      m.dispose();
+    });
+
+    it('each device\'s list is followed by its own settings, and the device in use goes first', () => {
+      const order = (): string[] => [...q(second, 'settings-controls-body').children].map((c) => (c as HTMLElement).dataset['testid'] ?? '');
+      let m = controls();
+      m.open();
+      expect(order()).toEqual(['settings-reference-keyboard', 'settings-controls', 'settings-reference-gamepad', 'settings-reference-touch', 'settings-touch']);
+      m.dispose();
+      keyboardAvailable = false;
+      m = controls();
+      m.open();
+      expect(order()).toEqual(['settings-reference-touch', 'settings-touch', 'settings-reference-gamepad', 'settings-reference-keyboard', 'settings-controls']);
+      m.dispose();
+    });
+
+    it('is honest about the pad: its buttons cannot be changed, and it says so', () => {
+      const m = controls();
+      m.open();
+      expect(q(second, 'controls.padNote-text').textContent).toBe('Los botones del mando no se pueden reasignar.');
+      m.dispose();
+    });
+
+    it('the touch lines describe gestures and buttons that exist: movement, jump, crouch, drop, buttons, bottle, interact, pause', () => {
+      const m = controls();
+      m.open();
+      const names = [...q(second, 'settings-controls-body').querySelectorAll('.settings-touchline > b')].map((n) => n.textContent);
+      expect(names).toEqual(['Moverse', 'Saltar', 'Agacharse', 'Atravesar una plataforma', 'Atacar, esquivar y habilidad', 'Beber una botella', 'Interactuar', 'Pausa']);
+      m.dispose();
     });
   });
 });

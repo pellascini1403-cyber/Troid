@@ -35,6 +35,8 @@ export interface TouchControlsOptions {
   opacity?: number;
   /** Which side the buttons are on and how far in and up they hang (Settings). */
   placement?: Placement;
+  /** The size the player chose for the HUD (Settings, accessibility): the buttons are kept off the room it takes. */
+  hudScale?: number;
 }
 
 /**
@@ -61,6 +63,8 @@ export class TouchControls {
   private height = 0;
   private size: number;
   private placement: Placement;
+  /** The size the player chose for the HUD: the buttons keep off the room it takes. */
+  private hudScale: number;
   private visible = true;
 
   constructor(
@@ -71,6 +75,7 @@ export class TouchControls {
   ) {
     const doc = parent.ownerDocument;
     this.size = options.size ?? 1;
+    this.hudScale = options.hudScale ?? 1;
     this.placement = { ...DEFAULT_PLACEMENT, ...options.placement };
     this.layout = computeTouchLayout(0, 0);
 
@@ -141,6 +146,12 @@ export class TouchControls {
     this.relayout();
   }
 
+  /** The player changed the size of the HUD: the buttons move out of its way (or back). */
+  setHudScale(scale: number): void {
+    this.hudScale = scale;
+    this.relayout();
+  }
+
   /** The player moved the buttons: the other side of the screen, further in, higher. */
   setPlacement(placement: Placement): void {
     this.placement = { ...placement };
@@ -148,7 +159,7 @@ export class TouchControls {
   }
 
   private compute(): TouchLayout {
-    return computeTouchLayout(this.width, this.height, this.insets, this.size, undefined, this.placement);
+    return computeTouchLayout(this.width, this.height, this.insets, this.size, undefined, this.placement, this.hudScale);
   }
 
   /** The layout changed under the fingers (a setting, not a resize): a finger on a button that moved is no longer on it. */

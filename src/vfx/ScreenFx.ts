@@ -33,6 +33,9 @@ interface PulseNode {
 
 const byte = (c: number, shift: number): number => (c >> shift) & 0xff;
 
+/** What is left of an edge pulse when the player asked for fewer flashes: the blow, the power and the rest are still told, softly (the vignette of the room is not a flash and is not touched). */
+export const CALM_PULSE = 0.35;
+
 /**
  * THE ATMOSPHERE OF THE SCREEN, drawn (docs/PROMPT8-LOG.md, phase I; `presentation/atmosphere` is the contract): a vignette that closes the room's own night in from the corners, and the pulses at the edge of the
  * picture when something happens to the hero — a blow taken darkens it carmín for half a second, a power gained or a place that awakens floods it with light, a guardian that changes or falls tints it violet.
@@ -52,6 +55,7 @@ export class ScreenFx {
   private g = 0;
   private b = 0;
   private started = false;
+  private calm = false;
   private last = { x: NaN, y: NaN, w: NaN, h: NaN };
 
   constructor(
@@ -113,16 +117,21 @@ export class ScreenFx {
     for (const n of this.nodes.values()) {
       if (!n.live) continue;
       if (dt > 0) n.age += dt;
-      const level = edgePulseLevel(n.pulse, n.age);
+      const level = edgePulseLevel(n.pulse, n.age) * (this.calm ? CALM_PULSE : 1);
       n.sprite.alpha = level;
       n.sprite.visible = level > 0.004;
       if (n.age >= n.pulse.life) n.live = false;
     }
   }
 
-  /** How dark the screen is now at its corners (the E2E reads it). */
-  get state(): { room: string; fighting: boolean; strength: number; pulses: string[] } {
-    return { room: this.room, fighting: this.fighting, strength: this.strength, pulses: [...this.nodes].filter(([, n]) => n.live).map(([name]) => name) };
+  /** "Fewer flashes" (the accessibility setting): the pulses at the edge of the screen are softened. */
+  setCalm(calm: boolean): void {
+    this.calm = calm;
+  }
+
+  /** How dark the screen is now at its corners, and whether its pulses are softened (the E2E reads it). */
+  get state(): { room: string; fighting: boolean; strength: number; pulses: string[]; calm: boolean } {
+    return { room: this.room, fighting: this.fighting, strength: this.strength, pulses: [...this.nodes].filter(([, n]) => n.live).map(([name]) => name), calm: this.calm };
   }
 
   /** Lets the screen finish its easing at once (a lab, a test: nothing to fade in from). */
