@@ -469,3 +469,271 @@ describe('numbers and the end', () => {
     expect(w.textures.every((t) => t.destroyed)).toBe(true);
   });
 });
+
+// ================================================================================================================ the change of zone (docs/PROMPT13-LOG.md)
+
+const tick = (ms = 5): Promise<void> => new Promise((r) => setTimeout(r, ms));
+const FOREGROUND = { foreground: [{ sprite: 'hero', x: 1, y: 1 }] };
+
+/** Three rooms in a row, each dressed by a pack of its own over a pack of the ground they all share. */
+function route(): ArtWorld {
+  return new ArtWorld()
+    .addPack(simplePack({ id: 'player', category: 'player', load: 'boot' }))
+    .addPack(simplePack({ id: 'ground', category: 'environment', load: 'zone', zones: ['r1_gate', 'r2_hall', 'r3_chamber'], scenes: { r1_gate: FOREGROUND, r2_hall: FOREGROUND, r3_chamber: FOREGROUND } }))
+    .addPack(simplePack({ id: 'forest', category: 'environment', load: 'zone', zones: ['r1_gate'], scenes: { r1_gate: FOREGROUND } }))
+    .addPack(simplePack({ id: 'cave', category: 'environment', load: 'zone', zones: ['r2_hall'], scenes: { r2_hall: FOREGROUND } }))
+    .addPack(simplePack({ id: 'seal', category: 'environment', load: 'zone', zones: ['r3_chamber'], scenes: { r3_chamber: FOREGROUND } }));
+}
+const heldIds = (lib: ArtLibrary<FakeSource, FakeTexture>): string[] => lib.snapshot().packList.filter((p) => p.held).map((p) => p.id).sort();
+const aheadIds = (lib: ArtLibrary<FakeSource, FakeTexture>): string[] => lib.snapshot().packList.filter((p) => p.ahead).map((p) => p.id).sort();
+const residentIds = (w: ArtWorld): string[] => [...w.live].map((u) => u.slice(ART_BASE.length).split('/')[0]!).sort();
+
+describe('the scenes of a room: read once, found in memory by a view that cannot wait, and a failure is not remembered', () => {
+  it('`sceneNow` says nothing until the scene has been read, then the scene — or null for a room the pack does not dress', async () => {
+    const w = route();
+    const { lib } = setup(w);
+    await lib.init();
+    expect(lib.sceneNow('cave', 'r2_hall')).toBeUndefined();
+    const scene = await lib.scene('cave', 'r2_hall');
+    expect(scene?.room).toBe('r2_hall');
+    expect(lib.sceneNow('cave', 'r2_hall')).toBe(scene);
+    expect(lib.sceneNow('cave', 'r1_gate'), 'never asked for').toBeUndefined();
+    expect(await lib.scene('cave', 'r1_gate'), 'the pack has no scene for that room').toBeNull();
+    expect(lib.sceneNow('cave', 'r1_gate')).toBeNull();
+    expect(w.fetches(w.sceneUrl('cave', 'r2_hall')), 'asked for once').toBe(1);
+  });
+
+  it('`readScenes` reads what the environment packs of a zone have for its room — held or not — once, and holds nothing', async () => {
+    const w = route();
+    const { lib } = setup(w);
+    await lib.readScenes('r2_hall');
+    expect(lib.sceneNow('ground', 'r2_hall')).not.toBeUndefined();
+    expect(lib.sceneNow('cave', 'r2_hall')).not.toBeUndefined();
+    expect(lib.sceneNow('forest', 'r1_gate'), 'the packs of another zone are not read').toBeUndefined();
+    expect(heldIds(lib)).toEqual([]);
+    const before = w.requests.length;
+    await lib.readScenes('r2_hall');
+    expect(w.requests.length, 'not one request more').toBe(before);
+  });
+
+  it('a scene that could not be FETCHED is forgotten — the next visit reads it again — while one the pack lacks or that is not valid is remembered as nothing', async () => {
+    const w = route();
+    const { lib, notes } = setup(w);
+    await lib.init();
+    const url = w.sceneUrl('cave', 'r2_hall');
+    w.failing.add(url);
+    expect(await lib.scene('cave', 'r2_hall')).toBeNull();
+    expect(lib.sceneNow('cave', 'r2_hall'), 'a network failure is not an answer').toBeUndefined();
+    expect(notes.join('\n')).toMatch(/could not be fetched/);
+    w.failing.delete(url);
+    expect((await lib.scene('cave', 'r2_hall'))?.room).toBe('r2_hall');
+    expect(lib.sceneNow('cave', 'r2_hall')?.room).toBe('r2_hall');
+    // a scene that is not valid is not asked for again
+    w.files.set(w.sceneUrl('seal', 'r3_chamber'), { sceneVersion: 1, room: 'r9', layers: {} });
+    expect(await lib.scene('seal', 'r3_chamber')).toBeNull();
+    expect(lib.sceneNow('seal', 'r3_chamber')).toBeNull();
+    const asked = w.fetches(w.sceneUrl('seal', 'r3_chamber'));
+    await lib.scene('seal', 'r3_chamber');
+    expect(w.fetches(w.sceneUrl('seal', 'r3_chamber'))).toBe(asked);
+  });
+});
+
+describe('what a view that dresses a room is told is held: whole packs of the zone the hero is in', () => {
+  it('a pack whose sets are still on their way is not offered — a room dressed from it would be missing pieces', async () => {
+    const w = route();
+    const { lib } = setup(w);
+    await lib.init();
+    const open = w.hold(w.urls('cave', 'main').image);
+    const entering = lib.enterZone('r2_hall');
+    await tick();
+    expect(lib.heldPacks('environment').map((p) => p.pack.id)).not.toContain('cave');
+    open();
+    await entering;
+    expect(lib.heldPacks('environment').map((p) => p.pack.id).sort()).toEqual(['cave', 'ground']);
+  });
+});
+
+describe('walking toward a way out: the zone beyond is brought in early without becoming the zone the hero is in', () => {
+  it('its packs are in memory and its scenes read, but they are not held: the view of the room the hero is in does not see them', async () => {
+    const w = route();
+    const { lib } = setup(w);
+    await lib.enterZone('r1_gate');
+    await lib.prefetch('r2_hall');
+    expect(residentIds(w)).toEqual(['cave', 'forest', 'ground', 'player']);
+    expect(heldIds(lib), 'the zone the hero is in keeps what it had').toEqual(['forest', 'ground', 'player']);
+    expect(aheadIds(lib)).toEqual(['cave']);
+    expect(lib.heldPacks('environment').map((p) => p.pack.id).sort(), 'and the view of its room sees only that').toEqual(['forest', 'ground']);
+    expect(lib.sceneNow('cave', 'r2_hall'), 'the scenes of the room beyond are read').not.toBeUndefined();
+    expect(lib.sceneNow('ground', 'r2_hall'), 'including those of the packs the two rooms share').not.toBeUndefined();
+    expect(lib.stats().zone).toBe('r1_gate');
+  });
+
+  it('what a pack already held, or that boots with the game, is not fetched again', async () => {
+    const w = route();
+    const { lib } = setup(w);
+    await lib.start();
+    await lib.enterZone('r1_gate');
+    const asked = (pack: string): number => w.requests.filter((r) => r.startsWith(`${ART_BASE}${pack}/`) && !r.includes('/scenes/')).length;
+    const [ground, player] = [asked('ground'), asked('player')];
+    await lib.prefetch('r2_hall');
+    expect(asked('ground'), 'the shared ground was not asked for again').toBe(ground);
+    expect(asked('player'), 'nor what boots with the game').toBe(player);
+  });
+
+  it('getting there takes them over without a single request: they are held, and the pack of the zone left behind goes', async () => {
+    const w = route();
+    const { lib } = setup(w);
+    await lib.enterZone('r1_gate');
+    await lib.prefetch('r2_hall');
+    const before = w.requests.length;
+    await lib.enterZone('r2_hall');
+    expect(w.requests.length, 'nothing was fetched at the change of zone').toBe(before);
+    expect(heldIds(lib)).toEqual(['cave', 'ground', 'player']);
+    expect(aheadIds(lib)).toEqual([]);
+    expect(residentIds(w)).toEqual(['cave', 'ground', 'player']);
+    expect(lib.heldPacks('environment').map((p) => p.pack.id).sort()).toEqual(['cave', 'ground']);
+  });
+
+  it('getting there while the early load is still on its way waits for THAT load — one fetch, and the sets are all there when the change of zone is done', async () => {
+    const w = route();
+    const { lib } = setup(w);
+    await lib.enterZone('r1_gate');
+    const open = w.hold(w.urls('cave', 'main').image);
+    const early = lib.prefetch('r2_hall');
+    await tick();
+    let entered = false;
+    const entering = lib.enterZone('r2_hall').then(() => void (entered = true));
+    await tick();
+    expect(entered, 'the change of zone has not come back while the sets are on their way').toBe(false);
+    expect(lib.heldPacks('environment').map((p) => p.pack.id)).not.toContain('cave');
+    open();
+    await Promise.all([early, entering]);
+    expect(w.fetches(w.urls('cave', 'main').image), 'the pack was fetched once').toBe(1);
+    expect(heldIds(lib)).toEqual(['cave', 'ground', 'player']);
+    expect(lib.heldPacks('environment').map((p) => p.pack.id).sort()).toEqual(['cave', 'ground']);
+  });
+
+  it('turning back gives them back — what the zone the hero is in needs stays', async () => {
+    const w = route();
+    const { lib } = setup(w);
+    await lib.enterZone('r2_hall');
+    await lib.prefetch('r3_chamber');
+    expect(residentIds(w)).toEqual(['cave', 'ground', 'player', 'seal']);
+    lib.releaseAhead();
+    expect(residentIds(w)).toEqual(['cave', 'ground', 'player']);
+    expect(aheadIds(lib)).toEqual([]);
+    expect(heldIds(lib)).toEqual(['cave', 'ground', 'player']);
+  });
+
+  it('going another way frees what was brought in for the zone the hero did not choose', async () => {
+    const w = route();
+    const { lib } = setup(w);
+    await lib.enterZone('r2_hall');
+    await lib.prefetch('r3_chamber');
+    await lib.enterZone('r1_gate'); // back, not on
+    expect(residentIds(w)).toEqual(['forest', 'ground', 'player']);
+    expect(aheadIds(lib)).toEqual([]);
+  });
+
+  it('giving them back while they are still on their way frees them when they arrive: nothing leaks', async () => {
+    const w = route();
+    const { lib } = setup(w);
+    await lib.enterZone('r2_hall');
+    const open = w.hold(w.urls('seal', 'main').image);
+    const early = lib.prefetch('r3_chamber');
+    await tick();
+    lib.releaseAhead();
+    open();
+    await early;
+    expect(residentIds(w)).toEqual(['cave', 'ground', 'player']);
+    expect(lib.stats().sets).toBe(3);
+  });
+
+  it('is refused when it would take the memory over the ceiling — the scenes are read all the same — and goes ahead with room to spare', async () => {
+    const w = route();
+    const { lib } = setup(w);
+    await lib.enterZone('r2_hall');
+    const resident = lib.stats().bytes;
+    const pack = 50 * 16 * 4; // one page of the fake world
+    await lib.prefetch('r3_chamber', resident + pack - 1);
+    expect(residentIds(w)).toEqual(['cave', 'ground', 'player']);
+    expect(aheadIds(lib)).toEqual([]);
+    expect(lib.sceneNow('seal', 'r3_chamber'), 'the scene is a few bytes: it is read anyway').not.toBeUndefined();
+    await lib.prefetch('r3_chamber', resident + pack);
+    expect(residentIds(w)).toEqual(['cave', 'ground', 'player', 'seal']);
+  });
+
+  it('for the zone the hero is already in it does nothing; for a zone with no packs of its own it only reads scenes', async () => {
+    const w = route();
+    const { lib } = setup(w);
+    await lib.enterZone('r1_gate');
+    const before = w.requests.length;
+    await lib.prefetch('r1_gate');
+    expect(w.requests.length - before, 'only the scenes it had not read').toBeLessThanOrEqual(2);
+    expect(aheadIds(lib)).toEqual([]);
+    await lib.prefetch('nowhere');
+    expect(aheadIds(lib)).toEqual([]);
+  });
+
+  it('a pack that cannot be had is no reason to fail: nothing is held ahead, nothing throws — and getting to the zone fetches it afresh, for an early failure never leaves a zone without its pack', async () => {
+    const w = route();
+    const { lib } = setup(w);
+    await lib.enterZone('r1_gate');
+    w.failing.add(w.urls('cave', 'main').image);
+    await expect(lib.prefetch('r2_hall')).resolves.toBeUndefined();
+    expect(residentIds(w)).toEqual(['forest', 'ground', 'player']);
+    expect(aheadIds(lib)).toEqual([]);
+    w.failing.delete(w.urls('cave', 'main').image);
+    await lib.enterZone('r2_hall');
+    expect(residentIds(w)).toEqual(['cave', 'ground', 'player']);
+    expect(lib.heldPacks('environment').map((p) => p.pack.id).sort()).toEqual(['cave', 'ground']);
+  });
+});
+
+describe('what is arriving, measured on the transfers', () => {
+  it('nothing is arriving: no measure', async () => {
+    const { lib } = setup(route());
+    expect(lib.progress()).toBeNull();
+  });
+
+  it('is the real share of the bytes that have arrived, and only once every image on its way has said how big it is', async () => {
+    const w = route();
+    const { lib } = setup(w);
+    await lib.init();
+    const cave = w.urls('cave', 'main').image;
+    const ground = w.urls('ground', 'main').image;
+    const openCave = w.hold(cave);
+    const openGround = w.hold(ground);
+    const entering = lib.enterZone('r2_hall');
+    await tick(15);
+    expect(lib.progress()).toMatchObject({ active: 2, fraction: null });
+    w.report(cave, 100, 1000);
+    expect(lib.progress()?.fraction, 'one image has not said its size: a percentage would be a guess').toBeNull();
+    w.report(ground, 300, 3000);
+    expect(lib.progress()).toMatchObject({ loaded: 400, total: 4000, active: 2, fraction: 0.1 });
+    w.report(cave, 1000, 1000);
+    expect(lib.progress()?.fraction).toBeCloseTo(1300 / 4000, 10);
+    openCave();
+    openGround();
+    await entering;
+    expect(lib.progress(), 'once everything has arrived there is nothing to measure').toBeNull();
+  });
+
+  it('an image that fails leaves the measure (it will never arrive), and the next burst starts from nothing', async () => {
+    const w = route();
+    const { lib } = setup(w);
+    await lib.init();
+    w.failing.add(w.urls('cave', 'main').image);
+    await lib.enterZone('r2_hall');
+    expect(lib.progress()).toBeNull();
+    w.failing.delete(w.urls('cave', 'main').image);
+    const seal = w.urls('seal', 'main').image;
+    const open = w.hold(seal);
+    const next = lib.enterZone('r3_chamber');
+    await tick(15);
+    w.report(seal, 10, 100);
+    expect(lib.progress()).toMatchObject({ files: 1, loaded: 10, total: 100 });
+    open();
+    await next;
+  });
+});

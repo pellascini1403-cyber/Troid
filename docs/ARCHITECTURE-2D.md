@@ -422,6 +422,7 @@ rAF(timeMs) → GameLoop.onFrame
 ```
 
 - **Hit-stop y pausa:** la simulación se congela; el render sigue. La animación guiada por fases se congela sola (deriva de ticks); cámara, partículas y *shake* siguen en tiempo real.
+- **Cambio de zona (la llegada, [PROMPT13-LOG](PROMPT13-LOG.md)):** la simulación hace el cambio de sala en **un solo paso** bajo el negro, pero el **arte** de la sala nueva puede no estar en memoria. `Game2D` **sostiene el mundo** —deja de pedirle `tick()` a la sesión— desde el cambio hasta que el arte de la sala está (o falló, o pasaron 10 s), construye su vista **entera, de una vez**, dibuja dos fotogramas sin que nadie mire y solo entonces suelta el mundo (el fundido de entrada sale de una imagen que ya está). Es el mismo mecanismo que el telón de arranque y la pausa; la sesión no sabe que existe, así que los *ticks* son los mismos **cuando vengan** (las repeticiones y el determinismo no cambian). `presentation/arrival.ts` es la máquina de estados pura (reloj inyectado); `ArtLibrary` trae el arte de la salida hacia la que el héroe camina **antes** de tocarla.
 - **Segundo plano:** `visibilitychange` detiene el bucle y libera el input ✅ (hoy ya ocurre); al volver se reinicia el reloj (`resetClock`) ✅.
 - **Pérdida de contexto WebGL:** escuchar `webglcontextlost`/`webglcontextrestored` en el *canvas*, pausar y reanudar; comprobar que Pixi vuelve a subir las texturas ⚠️ (R5).
 

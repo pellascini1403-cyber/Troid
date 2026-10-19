@@ -39,6 +39,8 @@ import { SettingsStore } from '@/save/SettingsStore';
 import type { TouchSettings } from '@/save/SettingsData';
 import type { LightFrame, LightHero } from '@/presentation/lighting';
 import type { QualitySetting } from '@/presentation/viewport';
+import { ARRIVAL, ArrivalGate, roomAhead, type ArrivalOutcome } from '@/presentation/arrival';
+import { MEMORY_BUDGET_MIB, MIB } from '@/presentation/stressModel';
 import { lackedClips } from '@/presentation/visualSource';
 import { ActorSprite } from '@/render/ActorSprite';
 import { PlayerVisualSwitch } from '@/render/PlayerVisual';
@@ -58,6 +60,7 @@ import { BossBarModel } from '@/ui/hud/BossBarModel';
 import type { BossBarView } from '@/ui/hud/BossBarView';
 import { HudModel } from '@/ui/hud/HudModel';
 import { HudView } from '@/ui/hud/HudView';
+import { ArrivalIndicator } from '@/ui/overlays/ArrivalIndicator';
 import { DeathOverlay } from '@/ui/overlays/DeathOverlay';
 import { TransitionOverlay } from '@/ui/overlays/TransitionOverlay';
 import { InteractionPrompt } from '@/ui/prompt/InteractionPrompt';
@@ -83,6 +86,17 @@ import { artIndexUrl, optionsFromQuery, type GameOptions } from './options';
 
 /** How long after the first frame the page waits before it fetches the effects (it still waits for an idle moment after that). */
 const EFFECTS_DELAY_MS = 2000;
+
+/** The memory the art may take while a room beyond a way out is brought in early: what is resident plus what the early load would add stays under the library's resident budget. */
+const PREFETCH_CEILING_BYTES = MEMORY_BUDGET_MIB.resident * MIB;
+
+/** How one change of zone went, for the tests and the debug tools: the room, the milliseconds the world was held, how the wait ended and whether the loading indicator was ever shown. */
+export interface ArrivalRecord {
+  room: string;
+  waited: number;
+  outcome: ArrivalOutcome | null;
+  indicator: boolean;
+}
 
 /**
  * Composition root of the 2D game (`?view=2d`): wires the deterministic simulation to PixiJS. Nothing here decides
@@ -156,6 +170,20 @@ export class Game2D {
   readonly translator: Translator;
   /** A room was (re)built by the simulation (death respawn, debug reset): rebuild the scenery at the next frame. */
   private roomDirty = false;
+  /**
+   * THE ARRIVAL (docs/PROMPT13-LOG.md): under the black of a change of zone the simulation swaps the room in one step, but what is SEEN of it is made of files. The world is held — not one tick runs —
+   * from the swap until the room's art is in memory and its view is on the stage, whole, and has been drawn a couple of times out of sight. The ticks that follow are the same ones whenever they come.
+   */
+  private readonly arrival: ArrivalGate;
+  private arrivalIndicator!: ArrivalIndicator;
+  /** The loading indicator was on screen during the wait that is going on. */
+  private indicatorSeen = false;
+  /** The room whose art is being brought in early because the hero walks toward the way into it. */
+  private aheadFor: string | null = null;
+  /** Whoever is waiting for the world to be let go (the test hooks' `step`). */
+  private arrivalWaiters: Array<() => void> = [];
+  /** How the last changes of zone went. */
+  private readonly arrivals: ArrivalRecord[] = [];
   /** Scratch for the camera zone resolution (one object, rewritten every frame). */
   private readonly cameraView: CameraView = { bounds: { x0: 0, y0: 0, x1: 0, y1: 0 }, viewHeight: null, smoothTime: undefined, zone: null };
   /** Camera shakes triggered by impacts and the strength of the last one (the trauma itself decays in real time). */
@@ -204,6 +232,7 @@ export class Game2D {
     progress: ProgressStore | null,
   ) {
     this.settings = settings;
+    this.arrival = new ArrivalGate({ maxWaitMs: options.arrivalWait ?? ARRIVAL.maxWaitMs, warmFrames: ARRIVAL.warmFrames });
     this.bindings = applyKeyMap(DEFAULT_BINDINGS, settings.value.keys);
     this.volume = new MasterVolume(settings.value.volume.master);
     // A new game starts the vertical slice (room R1, with the starting abilities). `?room=` opens a playground instead and
@@ -331,23 +360,8 @@ export class Game2D {
     const vfxAtlas = createVfxAtlas();
     this.lifecycle.add(() => vfxAtlas.destroy());
     // What is SEEN of a boss is a chunk of its own (the first room has none): the page fetches it with the effects, or at once when a boss is
-    // placed before that (a game saved at the shrine of R4 starts in front of one). A failed fetch is asked for again by the next boss.
-    const loadBossViews = (): Promise<BossViews> =>
-      (this.bossViewsRequest ??= import('./bossViews').then(
-        (m) => {
-          if (!this.closed) {
-            this.bossViews = m;
-            this.bossBar = new m.BossBarView(ui, this.translator);
-            this.layoutUi();
-          }
-          return m;
-        },
-        (err: unknown) => {
-          this.bossViewsRequest = null;
-          log.scope('boss').warn(`the boss views could not be loaded: ${String(err)}`);
-          throw err;
-        },
-      ));
+    // placed before that (a game saved at the shrine of R4 starts in front of one) — and the change of zone toward a boss's room waits for it. A failed fetch is asked for again by the next boss.
+    const loadBossViews = (): Promise<BossViews> => this.requestBossViews();
     // one view per live entity, driven by the spawn / despawn events (the simulation never knows views exist)
     this.entityViews = new EntityViews(renderer.layers.actors, {
       dummy: (e) => ('view' in e && 'body' in e ? new DummyView(e as unknown as DummyLike) : null),
@@ -396,7 +410,12 @@ export class Game2D {
     this.lifecycle.add(() => this.deathOverlay.dispose());
     this.transitionOverlay = new TransitionOverlay(ui);
     this.lifecycle.add(() => this.transitionOverlay.dispose());
-    this.lifecycle.add(this.session.bus.on('room:loaded', () => (this.roomDirty = true)));
+    // the loading indicator: it exists only for a change of zone whose art is taking its time
+    this.arrivalIndicator = new ArrivalIndicator(ui, this.translator);
+    this.lifecycle.add(() => this.arrivalIndicator.dispose());
+    // a room was built by the simulation: its view is made at the next frame — and, under the black of a change of zone, only once its art is in
+    on('room:loaded', (e) => this.arrive(e.roomId));
+    on('transition:cancelled', () => this.letGo());
     // a door dissolves when the flag that opens it is set (the simulation already switched its collider off)
     this.lifecycle.add(this.session.bus.on('gate:changed', ({ gateId, open }) => this.roomView.setGateOpen(gateId, open)));
     // The effects (pooled, budgeted, event-driven, real time) are cosmetic and a tenth of the first download: the page fetches them once the
@@ -473,8 +492,8 @@ export class Game2D {
       this.roomArt?.destroy();
       this.art?.dispose();
     });
-    this.lifecycle.add(this.session.bus.on('transition:started', (e) => void this.art?.enterZone(e.to.room).then(() => this.roomArt?.prepare(e.to.room))));
-    this.lifecycle.add(this.session.bus.on('room:loaded', (e) => void this.art?.enterZone(e.roomId)));
+    // the art of the room the hero is leaving toward starts coming in the moment the way out is touched, while the old room fades: the zone follows the hero
+    on('transition:started', (e) => this.prepareArrival(e.to.room));
     const loadCosmetics = (): void => {
       // the moment the game asks for its cosmetic parts: what it had fetched before is the code of its first frame (the bundle bench reads this mark)
       performance.mark('troid:cosmetics');
@@ -530,6 +549,25 @@ export class Game2D {
     this.loop.start();
   }
 
+  /** Fetches what is SEEN of a boss (a chunk of its own) once, and mounts its bar. A failed fetch is forgotten, so that the next boss asks again. */
+  private requestBossViews(): Promise<BossViews> {
+    return (this.bossViewsRequest ??= import('./bossViews').then(
+      (m) => {
+        if (!this.closed) {
+          this.bossViews = m;
+          this.bossBar = new m.BossBarView(document.getElementById('ui') ?? document.body, this.translator);
+          this.layoutUi();
+        }
+        return m;
+      },
+      (err: unknown) => {
+        this.bossViewsRequest = null;
+        log.scope('boss').warn(`the boss views could not be loaded: ${String(err)}`);
+        throw err;
+      },
+    ));
+  }
+
   /** The art of the first room is in (or there will be none, or the wait ran out): the world begins and the curtain lifts. Once. */
   private unveil(reason: CurtainReason): void {
     if (!this.veiled) return;
@@ -568,7 +606,7 @@ export class Game2D {
       this.toggleMenu(); // Escape / P / Start: that press is spent here, it does not also act in the game
       return;
     }
-    if (this.menuOpen || this.veiled) return; // a paused game does not advance, whoever asks (the game loop, a test hook); nor does one that is still behind the curtain
+    if (this.menuOpen || this.veiled || this.arrival.blocking) return; // a paused game does not advance, whoever asks (the game loop, a test hook); nor does one that is still behind the curtain, or held at the black of a change of zone
     this.session.tick(frame);
   }
 
@@ -636,8 +674,13 @@ export class Game2D {
     this.roomArt?.clear();
     this.roomArtCover = null;
     this.roomView.build(room, (gateId) => this.session.gateOpen(gateId));
-    void this.dressRoom(++this.dressSerial);
     this.interactableViews.build(room.interactables ?? [], (id) => this.session.interaction.isAvailable(id), (id) => this.isCheckpoint(id));
+    const serial = ++this.dressSerial;
+    // A room whose art is all in memory — which is what a change of zone waits for — is dressed in this very call: the first frame it is drawn in is the whole picture, never the blockout on its way
+    // to it. Otherwise (a reload by hand, a start-up, art that failed or did not come in time) it is the blockout until the art arrives, and dressed then.
+    const cover = this.roomArt?.buildNow(room);
+    if (cover) this.applyCover(cover);
+    else if (cover === undefined) void this.dressRoom(serial);
     this.tools?.setRoom();
     this.camera.setRoom(room);
   }
@@ -656,6 +699,13 @@ export class Game2D {
     const cover = await view.build(room);
     // the look of the room may have been built again while the art was arriving (the same room reloaded, or another one): this cover is not for the blockout that is there now
     if (!cover || this.closed || serial !== this.dressSerial) return;
+    this.applyCover(cover);
+  }
+
+  /** The room's view is dressed with what the art covers: the blockout lets go of that, and the views of the entities that stand in the room take their parts. */
+  private applyCover(cover: RoomArtCoverage): void {
+    const view = this.roomArt;
+    if (!view) return;
     this.roomArtCover = cover;
     this.roomView.cover(cover, (id) => view.door(id));
     this.interactableViews.cover(cover.interactables);
@@ -676,15 +726,99 @@ export class Game2D {
     if (import.meta.env.DEV) for (const n of cover.notes) log.scope('art').warn(n);
   }
 
+  // -------------------------------------------------------------------------------------------------------- the arrival
+
+  /**
+   * A room was built by the simulation. Its art is asked for (the zone follows the hero, whatever brought them). Under a BLACK — a change of zone, a defeat that brings the hero back — the world is
+   * held from here until the room can be shown whole; any other way in (a room loaded by hand) is a plain cut with nothing to hide it, and the room is dressed when its art comes, as it always was.
+   */
+  private arrive(roomId: string): void {
+    this.roomDirty = true;
+    if (!this.art) return;
+    this.prepareArrival(roomId);
+    if (!(this.session.transition.active || this.session.deathSnapshot.phase !== 'none')) return;
+    this.arrival.close(roomId, performance.now());
+    this.indicatorSeen = false;
+    this.loop.paused = true; // (the ticks of this frame that are still to come are refused by `tick` too)
+  }
+
+  /**
+   * Brings in what the room `roomId` needs to be SHOWN whole: its zone's packs (the ones of the zone left behind go when these are in), the scenes its packs have for it, and — if it has a boss — the code
+   * that draws one. The state of it is the arrival's: it reports how it ended, and a failure is a way of ending, never a reason to wait.
+   */
+  private prepareArrival(roomId: string): void {
+    const art = this.art;
+    if (!art) return;
+    const { serial, fresh } = this.arrival.prepare(roomId);
+    if (!fresh) return;
+    const needsBoss = this.bossViews === null && (ROOMS[roomId]?.bosses?.length ?? 0) > 0;
+    void (async () => {
+      let ok = true;
+      try {
+        await art.enterZone(roomId);
+        await Promise.all([art.readScenes(roomId), needsBoss ? this.requestBossViews().then(() => undefined, () => undefined) : undefined]);
+      } catch (err) {
+        ok = false;
+        log.scope('art').debug(`the art of "${roomId}" could not be prepared: ${String(err)}`);
+      }
+      if (!this.closed) this.arrival.settle(serial, ok);
+    })();
+  }
+
+  /** The room's view may be made now: always, unless the world is held for a room whose art is still on its way (and the wait has not run out). */
+  private arrivalAdmits(): boolean {
+    if (!this.arrival.blocking) return true;
+    return this.arrival.ready(performance.now()) !== null;
+  }
+
+  /** The transition was called off (the hero went down): nothing is waited for any more. */
+  private letGo(): void {
+    if (this.arrival.cancel()) this.releaseWaiters();
+  }
+
+  private releaseWaiters(): void {
+    for (const resume of this.arrivalWaiters.splice(0)) resume();
+  }
+
+  /** Resolves when the world is not held at a change of zone (at once when it is not). */
+  private whenArrived(): Promise<void> {
+    return this.arrival.blocking ? new Promise<void>((resolve) => this.arrivalWaiters.push(resolve)) : Promise.resolve();
+  }
+
+  /**
+   * The hero walks toward a way out: the art of what lies beyond starts coming in NOW, quietly, so that the change of zone finds it in memory and shows no wait at all; if they turn away it is given back.
+   * A connection the player asked to spare (Data Saver) or a device with little memory does not hold art ahead of time: the change of zone waits for it at the black instead.
+   */
+  private watchWayOut(): void {
+    const art = this.art;
+    if (!art || this.arrival.blocking || this.session.transition.active || this.veiled) return;
+    const p = this.session.player;
+    const next = roomAhead(this.session.room, p.body.x, p.body.vx, (flag) => this.session.flags.has(flag), (room) => room in ROOMS, this.aheadFor);
+    if (next === this.aheadFor) return;
+    this.aheadFor = next;
+    if (next === null) {
+      art.releaseAhead();
+      return;
+    }
+    // a connection the player asked to spare, or a device that says it has little memory (a couple of GB or less): the art of the next room is not held ahead of time there
+    const device = navigator as Navigator & { connection?: { saveData?: boolean }; deviceMemory?: number };
+    if (device.connection?.saveData === true || (device.deviceMemory !== undefined && device.deviceMemory <= 2)) return;
+    void art.prefetch(next, PREFETCH_CEILING_BYTES).catch(() => undefined);
+  }
+
   private render(alpha: number, realDt: number): void {
     this.fps.push(realDt);
-    if (this.roomDirty) {
+    // The view of a new room is made when the art it is dressed with is in — whole, in this very step. Under the black of a change of zone it waits for that (the world is held meanwhile);
+    // its first frames are then drawn out of sight, so that what the GPU takes on the first draw is taken before anyone looks.
+    if (this.roomDirty && this.arrivalAdmits()) {
       this.roomDirty = false;
       this.buildRoomView();
       this.camera.snap();
       this.effects?.system.clear();
       this.effects?.lighting?.field.clear();
+      this.arrival.built();
     }
+    this.watchWayOut();
     const p = this.session.player;
     // While paused (debug / E2E) show the exact simulated state, not an interpolation of stale ticks.
     const a = this.debug.get('paused') ? 1 : alpha;
@@ -708,6 +842,7 @@ export class Game2D {
     this.interactableViews.update(realDt, (id) => this.session.interaction.isAvailable(id), (id) => this.isCheckpoint(id));
     this.deathOverlay.update(this.session.deathSnapshot);
     this.transitionOverlay.update(this.session.transitionSnapshot);
+    this.updateArrivalIndicator(realDt);
     this.updateHud(realDt);
 
     // which limits hold now: the room's, or those of the camera zone the hero's feet are in (an arena; it eases, it never jumps)
@@ -718,7 +853,7 @@ export class Game2D {
     this.updatePrompt(); // after the camera: the icon follows the object with THIS frame's transform
 
     this.loop.timeScale = this.debug.get('timeScale');
-    this.loop.paused = this.debug.get('paused') || this.menuOpen || this.veiled;
+    this.loop.paused = this.debug.get('paused') || this.menuOpen || this.veiled || this.arrival.blocking;
     // the game is paused, so no tick samples the input: the menu watches for the pause key / button itself
     if (this.menuOpen && this.input.sample().pausePressed) this.closeMenu();
     this.session.godMode = this.debug.get('godMode');
@@ -727,6 +862,26 @@ export class Game2D {
     this.counter.beginFrame();
     this.renderer.render();
     this.counter.endFrame();
+    this.finishArrivalFrame();
+  }
+
+  /** The loading indicator follows the wait: nothing until it has lasted a moment, then the real share of what is arriving (or a light that waits, when that cannot be measured). */
+  private updateArrivalIndicator(realDt: number): void {
+    const held = this.arrival.snapshot(performance.now());
+    const waiting = held.blocking && held.stage === 'loading';
+    this.arrivalIndicator.update(realDt, { waiting, waited: held.waited, progress: waiting ? (this.art?.progress()?.fraction ?? null) : null });
+    if (held.blocking && this.arrivalIndicator.current.opacity > 0.05) this.indicatorSeen = true;
+  }
+
+  /** A frame was drawn: when it is the last of those the new room needed out of sight, the world goes on (and how it went is written down). */
+  private finishArrivalFrame(): void {
+    if (!this.arrival.blocking) return;
+    const before = this.arrival.snapshot(performance.now());
+    if (!this.arrival.rendered()) return;
+    this.arrivals.push({ room: before.room ?? '', waited: Math.round(before.waited), outcome: before.outcome, indicator: this.indicatorSeen });
+    if (this.arrivals.length > 24) this.arrivals.shift();
+    this.loop.paused = this.debug.get('paused') || this.menuOpen || this.veiled;
+    this.releaseWaiters();
   }
 
   /** The top of the highest floor under a point, a few metres down (`null`: none — a pit). The pool of light under the hero lies there, where they will land. */
@@ -899,11 +1054,12 @@ export class Game2D {
    * without waiting for the next animation frame. A room rebuilt by the simulation is applied here too.
    */
   private refreshPresented(): void {
-    if (this.roomDirty) {
+    if (this.roomDirty && this.arrivalAdmits()) {
       this.roomDirty = false;
       this.buildRoomView();
       this.camera.snap();
       this.effects?.system.clear();
+      this.arrival.built();
     }
     this.playerVisual.sync(this.session.player.view, 1, 0);
     this.deathOverlay.update(this.session.deathSnapshot);
@@ -949,6 +1105,9 @@ export class Game2D {
       setVirtualPad: (pad) => void (this.virtualPad = pad),
       stepOnce: () => this.stepOnce(),
       refreshPresented: () => this.refreshPresented(),
+      arrival: () => ({ ...this.arrival.snapshot(performance.now()), indicator: this.arrivalIndicator.current.opacity, indicatorShown: this.indicatorSeen, history: this.arrivals.map((a) => ({ ...a })), aheadFor: this.aheadFor, progress: this.art?.progress() ?? null }),
+      arrivalHeld: () => this.arrival.blocking,
+      whenArrived: () => this.whenArrived(),
       spawnDummy: (x, y, health) => this.session.spawn(new TrainingDummy(this.session.ids.next('dummy'), { x, y, health })).id,
       spawnSlime: (x, y, facing) => this.session.spawn(new Enemy(this.session.ids.next('ink_slime'), ENEMIES.ink_slime as EnemyDefinition, { x, y, facing })).id,
       settleCamera: (seconds) => {

@@ -27,6 +27,8 @@ export interface GameOptions {
   visual: VisualMode;
   /** `?vfx=procedural` keeps the effects drawing with the game's own shapes even when the art has painted them (to compare, and to see the fallback); anything else (the default) uses the art's. */
   vfx: 'auto' | 'procedural';
+  /** `?arrival=<ms>`: the longest the world waits, held at black, for the art of the room it arrives in (default 10 000). For tests that must see the wait give up; a player never needs it. */
+  arrivalWait?: number;
   /** `?light=off` takes away the light the energy casts on the world (the hero's, the bolt's, the enemies'): the game as it was before phase I, to compare and to see what it adds; anything else (the default) has it. */
   light: 'auto' | 'off';
   camera: Partial<CameraConfig>;
@@ -38,6 +40,14 @@ export function cameraConfigFromQuery(q: URLSearchParams): Partial<CameraConfig>
   const vh = q.has('vh') && Number.isFinite(Number(q.get('vh'))) ? Number(q.get('vh')) : undefined;
   if (vh !== undefined) cfg.viewHeight = vh;
   return cfg;
+}
+
+/** `?arrival=1500`: a whole number of milliseconds between 100 and 60 000; anything else is ignored. */
+export function arrivalWaitFromQuery(q: URLSearchParams): number | undefined {
+  const raw = q.get('arrival');
+  if (raw === null || !/^\d{3,5}$/.test(raw)) return undefined;
+  const ms = Number(raw);
+  return ms >= 100 && ms <= 60_000 ? ms : undefined;
 }
 
 export function optionsFromQuery(q: URLSearchParams): GameOptions {
@@ -55,6 +65,7 @@ export function optionsFromQuery(q: URLSearchParams): GameOptions {
     visual: (VISUAL_MODES as readonly string[]).includes(q.get('visual') ?? '') ? (q.get('visual') as VisualMode) : 'auto',
     vfx: q.get('vfx') === 'procedural' ? 'procedural' : 'auto',
     light: q.get('light') === 'off' ? 'off' : 'auto',
+    arrivalWait: arrivalWaitFromQuery(q),
     camera: cameraConfigFromQuery(q),
   };
 }

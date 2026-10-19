@@ -43,6 +43,8 @@ export interface WorldPack {
   status?: string;
   atlases: WorldAtlas[];
   sprites: WorldSprite[];
+  /** The scenes of the pack: room → the layers of its scene file (`{ foreground: [{ sprite: 'hero', x: 1, y: 1 }] }`). The world writes the file and lists it in the manifest. */
+  scenes?: Record<string, Record<string, unknown>>;
 }
 
 export const ART_BASE = 'http://art.test/art/';
@@ -64,6 +66,8 @@ export class ArtWorld {
   readonly failing = new Set<string>();
   /** A gate a test can hold shut to keep a request in flight: URL → a promise it resolves later. */
   readonly gates = new Map<string, Promise<void>>();
+  /** The progress callbacks of the images in flight: a test says how many bytes of one have arrived with `report`. */
+  readonly reporters = new Map<string, (loaded: number, total: number) => void>();
   private readonly index: Array<Record<string, unknown>> = [];
 
   readonly io: ArtIO<FakeSource> = {
@@ -73,8 +77,9 @@ export class ArtWorld {
       if (this.failing.has(url) || !this.files.has(url)) throw new Error(`${url} → HTTP 404`);
       return structuredClone(this.files.get(url));
     },
-    image: async (url): Promise<ArtImage<FakeSource>> => {
+    image: async (url, onProgress): Promise<ArtImage<FakeSource>> => {
       this.requests.push(url);
+      if (onProgress) this.reporters.set(url, onProgress);
       await this.gates.get(url);
       const size = this.images.get(url);
       if (this.failing.has(url) || !size) throw new Error(`${url} → HTTP 404`);
@@ -131,7 +136,12 @@ export class ArtWorld {
       clips: Object.fromEntries(Object.entries(s.clips).map(([state, [frames, count]]) => [state, { frames, count, fps: 10 }])),
       ...s.extra,
     }));
-    this.files.set(`${dir}${p.id}.pack.json`, { manifestVersion: 1, id: p.id, category: p.category ?? 'enemies', status: p.status ?? 'final', atlases, sprites });
+    const scenes: Record<string, string> = {};
+    for (const [room, layers] of Object.entries(p.scenes ?? {})) {
+      scenes[room] = `scenes/${room}.json`;
+      this.files.set(`${dir}scenes/${room}.json`, { sceneVersion: 1, room, layers });
+    }
+    this.files.set(`${dir}${p.id}.pack.json`, { manifestVersion: 1, id: p.id, category: p.category ?? 'enemies', status: p.status ?? 'final', ...(Object.keys(scenes).length > 0 ? { scenes } : {}), atlases, sprites });
     this.index.push({ id: p.id, category: p.category ?? 'enemies', load: p.load ?? 'lazy', ...(p.zones ? { zones: p.zones } : {}), manifest: `${p.id}/${p.id}.pack.json` });
     this.files.set(this.indexUrl, { manifestVersion: 1, packs: this.index });
     return this;
@@ -141,6 +151,16 @@ export class ArtWorld {
   urls(packId: string, atlasId: string): { manifest: string; image: string; data: string } {
     const dir = `${ART_BASE}${packId}/`;
     return { manifest: `${dir}${packId}.pack.json`, image: `${dir}${atlasId}.png`, data: `${dir}${atlasId}.json` };
+  }
+
+  /** The URL of a pack's scene file for a room. */
+  sceneUrl(packId: string, room: string): string {
+    return `${ART_BASE}${packId}/scenes/${room}.json`;
+  }
+
+  /** Says that `loaded` of `total` bytes of the image at `url` have arrived (an image in flight that was asked for with a progress callback). */
+  report(url: string, loaded: number, total: number): void {
+    this.reporters.get(url)?.(loaded, total);
   }
 
   fetches(url: string): number {

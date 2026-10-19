@@ -1,4 +1,5 @@
 import type { BrowserContext, Page } from 'playwright-core';
+import type { ArrivalState } from '@/app/testHooks';
 import type { ArtSnapshot } from '@/assets/artLibrary';
 
 /** What every E2E scenario receives. */
@@ -63,6 +64,8 @@ export interface GameState {
   death?: { phase: string; ticks: number; length: number; canSkip: boolean };
   /** 2D view only: the room transition (fade out → swap → black → fade in); phase `none` when there is none. */
   transition?: { phase: string; ticks: number; length: number };
+  /** 2D view only (docs/PROMPT13-LOG.md): the arrival at a room — whether the world is held at the black of a change of zone, the loading indicator, how the last arrivals went, what is arriving. */
+  arrival?: ArrivalState;
   lang?: string;
   /** 2D view only: the device the player used last (keyboard / touch / gamepad). */
   device?: string;

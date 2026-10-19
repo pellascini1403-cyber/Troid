@@ -35,6 +35,23 @@ import type { Effects } from './effects';
  * imports NO module the game itself uses at run time (everything of that kind is handed over by the host, or is a type): a module shared between two
  * chunks is cut out into a chunk of its own, and that one would travel with the game.
  */
+/** What the page says about the arrival at a room (see `HookHost.arrival`). */
+export interface ArrivalState {
+  blocking: boolean;
+  room: string | null;
+  stage: string;
+  outcome: string | null;
+  waited: number;
+  /** Opacity of the loading indicator now (0: not on screen), and whether it has been on screen during the wait in progress. */
+  indicator: number;
+  indicatorShown: boolean;
+  history: Array<{ room: string; waited: number; outcome: string | null; indicator: boolean }>;
+  /** The room whose art is being brought in early because the hero walks toward the way into it. */
+  aheadFor: string | null;
+  /** What is arriving right now, measured on the transfers (`null`: nothing). */
+  progress: { files: number; active: number; loaded: number; total: number; fraction: number | null } | null;
+}
+
 export interface HookHost {
   /** The game itself (a test may call what the page exposes of it, e.g. `isCheckpoint`). */
   readonly game: unknown;
@@ -49,6 +66,12 @@ export interface HookHost {
   roomArt(): { solids: ReadonlySet<string>; gates: ReadonlySet<string>; exits: ReadonlySet<string>; hazards: ReadonlySet<string>; interactables: ReadonlyMap<string, unknown>; seals: ReadonlyMap<string, unknown>; guardians: ReadonlyMap<string, unknown>; creatures: ReadonlyMap<string, unknown>; backdrop: ReadonlySet<string>; sprites: number; lacking: ReadonlyMap<string, readonly string[]>; notes: readonly string[] } | null;
   /** The pieces of the scenery that follow a flag of the world, and how shown each is now. */
   roomArtGates(): ReadonlyArray<{ piece: string; level: number }>;
+  /** The arrival at a new room (docs/PROMPT13-LOG.md): whether the world is held, for which room and since when, how the loading indicator is, how the last changes of zone went, and what is arriving. */
+  arrival(): ArrivalState;
+  /** The world is held at the black of a change of zone right now. */
+  arrivalHeld(): boolean;
+  /** Resolves when the world is let go (at once when it is not held). */
+  whenArrived(): Promise<void>;
   readonly entityViews: EntityViews;
   readonly touchControls: TouchControls;
   readonly touchSource: TouchSource;
@@ -100,10 +123,22 @@ export function createTestHooks(h: HookHost) {
     /** Freezes real-time simulation so tests can advance it tick by tick. */
     pause: () => h.debug.set('paused', true),
     resume: () => h.debug.set('paused', false),
-    step: (n = 1) => {
-      for (let i = 0; i < n; i++) h.stepOnce();
-      h.refreshPresented();
+    /**
+     * Runs `n` ticks. A tick is refused while the world is held at the black of a change of zone (its room's art is on its way), exactly as a player's game refuses it: the steps that are left wait
+     * for the world to be let go — so this returns a promise only when that happened, and a test that `await`s it (`evaluate` does) sees the same ticks whenever they come.
+     */
+    step: (n = 1): void | Promise<void> => {
+      const run = (left: number): void | Promise<void> => {
+        for (let i = left; i > 0; i--) {
+          if (h.arrivalHeld()) return h.whenArrived().then(() => run(i));
+          h.stepOnce();
+        }
+        h.refreshPresented();
+      };
+      return run(n);
     },
+    /** The arrival at the room the hero is in (see `HookHost.arrival`). */
+    arrival: () => h.arrival(),
     /** Test hook: a training dummy at `(x, y)` (the entity joins the world at the end of the next tick). */
     spawnDummy: (x: number, y = 0, health = 5) => h.spawnDummy(x, y, health),
     /** Test hook: an Ink Slime at `(x, y)` looking at `facing` (joins the world at the end of the next tick). */
@@ -269,7 +304,7 @@ export function createTestHooks(h: HookHost) {
           });
           return { bolt, marks };
         })(),
-        death: session.deathSnapshot, transition: session.transitionSnapshot, lang: h.translator.locale,
+        death: session.deathSnapshot, transition: session.transitionSnapshot, arrival: h.arrival(), lang: h.translator.locale,
         device: h.input.device,
         // the player's resources (the HUD shows them; the tests read the numbers)
         magic: session.magic.current,

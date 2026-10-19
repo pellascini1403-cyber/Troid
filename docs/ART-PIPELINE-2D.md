@@ -1425,6 +1425,15 @@ El arte son imágenes que llegan **después del primer fotograma** (§C.6: el ar
 
 **Lo que falta del arranque:** **no está visto en un dispositivo real** (el telón es DOM y CSS; las áreas seguras, la barra de direcciones y la decodificación de los PNG de un teléfono son lo que hay que mirar); **una red de 3G** haría que el telón se rindiera a los 10 s con el *blockout* a la vista (hace falta la variante de media resolución de los paquetes, que el contrato admite); un jugador que vuelve con la partida en R4 espera 3.8 MB (no medido con un guardado); y el telón es **una luz que respira, no una pantalla de carga diseñada** (sin progreso: la interfaz no se rehace en este prompt).
 
+## M.17 Los cambios de zona (Prompt 13): el escenario nuevo se enseña entero o no se enseña
+
+Lo mismo que el telón hace al arrancar, hecho **a cada cambio de zona** (detalle, medidas y límites en [PROMPT13-LOG](PROMPT13-LOG.md)). La causa del *popping* era medible: el fundido (12 + 6 + 14 *ticks*) **no sabía nada** del arte, y la sala nueva se construía como *blockout* y se vestía **después**, de forma asíncrona y **en dos etapas** (primero el suelo y las tiras de fondo; las capas de la escena solo cuando llegaba su JSON). Con 400 ms por archivo, la sala se veía sin vestir **1.2 s**; con 1.5 s, **4.4 s**.
+
+- **El mundo se sostiene, no el reloj.** Tras el cambio de sala (un solo paso, bajo el negro) `Game2D` no pide más *ticks* hasta que el arte de la sala está **entero** en memoria (paquetes de la zona completos, escenas leídas, código del jefe si lo hay), su vista se ha puesto en el escenario **de una vez** (`RoomArtView.compose`/`buildNow`) y se han dibujado **2 fotogramas a oscuras**. Si el arte falla o no llega en 10 s, la sala se enseña como puede: **nadie se queda en negro**.
+- **La carga empieza antes.** `ArtLibrary.prefetch` trae en silencio el arte de la salida hacia la que el héroe camina (≤ 42 m, hacia ella, a más de 0.75 m/s) **sin cambiar lo que la sala actual retiene** (`ahead` aparte de `held`); al tocar la salida, `enterZone` lo toma sin pedir un archivo; si el héroe se aleja, se devuelve. No se hace con Ahorro de datos ni con ≤ 2 GB declarados.
+- **Solo se enseña una espera si se nota.** A partir de 450 ms de espera, una línea fina de luz cian con el **porcentaje real de bytes recibidos** (`artIO.readBody` cuenta la respuesta frente a `Content-Length`) o, si no se puede medir, una luz que espera; nunca 100 % mientras espera; quieta con `prefers-reduced-motion`.
+- **La biblioteca no recuerda un fallo como un «no hay»**: una escena que no se pudo traer se vuelve a pedir; un paquete sin ningún conjunto no queda retenido.
+
 ---
 
 # Parte N — El protagonista animado: de los dibujos del usuario a 114 fotogramas (Prompt 9)

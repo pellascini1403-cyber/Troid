@@ -26,6 +26,35 @@ async function get(url: string): Promise<Response> {
   }
 }
 
+/**
+ * The body of a response as a `Blob`, telling `onProgress` how much of it has arrived as it does — the REAL bytes, off the stream. It can only say it when the response says how big it is
+ * (`Content-Length`) and the bytes it carries are the bytes it counts (a body the server compressed on the way is counted in other units): otherwise it reads the body whole and says
+ * nothing until the end, and whoever listens knows it is waiting without a number.
+ */
+export async function readBody(response: Response, onProgress?: (loaded: number, total: number) => void): Promise<Blob> {
+  const total = Number(response.headers.get('content-length')) || 0;
+  const encoding = response.headers.get('content-encoding');
+  const plain = !encoding || encoding === 'identity';
+  // (the reader locks the body: it is taken only once it is known to be used)
+  if (!onProgress || !response.body || total <= 0 || !plain) {
+    const blob = await response.blob();
+    onProgress?.(blob.size, blob.size);
+    return blob;
+  }
+  const reader = response.body.getReader();
+  const chunks: Uint8Array<ArrayBuffer>[] = [];
+  let loaded = 0;
+  onProgress(0, total);
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value as Uint8Array<ArrayBuffer>);
+    loaded += value.byteLength;
+    onProgress(Math.min(loaded, total), total);
+  }
+  return new Blob(chunks, { type: response.headers.get('content-type') ?? '' });
+}
+
 async function decode(blob: Blob): Promise<ImageBitmap | HTMLImageElement> {
   if (typeof createImageBitmap === 'function') return createImageBitmap(blob);
   // an old WebView without `createImageBitmap`: decode with an <img> (still off the main thread in `decode()`)
@@ -45,8 +74,8 @@ export function createBrowserArtIO(): ArtIO<ImageSource> {
     async json(url) {
       return (await get(url)).json() as Promise<unknown>;
     },
-    async image(url): Promise<ArtImage<ImageSource>> {
-      const bitmap = await decode(await (await get(url)).blob());
+    async image(url, onProgress): Promise<ArtImage<ImageSource>> {
+      const bitmap = await decode(await readBody(await get(url), onProgress));
       const source = new ImageSource({ resource: bitmap, alphaMode: 'premultiply-alpha-on-upload' });
       let freed = false;
       return {

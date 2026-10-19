@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { artIndexUrl, optionsFromQuery } from '@/app/options';
+import { arrivalWaitFromQuery, artIndexUrl, optionsFromQuery } from '@/app/options';
 
 describe('where the art is (?art= and the build)', () => {
   const base = 'https://troid.example/play/index.html';
@@ -43,5 +43,17 @@ describe('?light=off (the game as it was before the light of the world)', () => 
   it('is independent of the other looks: the art of the effects and the visual of the hero ignore it', () => {
     const o = optionsFromQuery(new URLSearchParams('light=off&vfx=procedural&visual=art'));
     expect([o.light, o.vfx, o.visual]).toEqual(['off', 'procedural', 'art']);
+  });
+});
+
+describe('?arrival=<ms> (how long the world waits at the black of a change of zone before it gives up on the art)', () => {
+  it('is a whole number of milliseconds between 100 and 60 000; anything else is ignored (the default of ten seconds stands)', () => {
+    const wait = (v: string): number | undefined => arrivalWaitFromQuery(new URLSearchParams(`arrival=${v}`));
+    expect(wait('1500')).toBe(1500);
+    expect(wait('100')).toBe(100);
+    expect(wait('60000')).toBe(60000);
+    for (const bad of ['', '99', '60001', '-5', '1.5', 'abc', '12 00', '1e3', '0x10']) expect(wait(bad), JSON.stringify(bad)).toBeUndefined();
+    expect(arrivalWaitFromQuery(new URLSearchParams(''))).toBeUndefined();
+    expect(optionsFromQuery(new URLSearchParams('arrival=2500')).arrivalWait).toBe(2500);
   });
 });

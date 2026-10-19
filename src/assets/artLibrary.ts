@@ -39,7 +39,8 @@ export interface ArtImage<S> {
 /** The only two things the library asks of the outside world. Both reject on any failure. */
 export interface ArtIO<S> {
   json(url: string): Promise<unknown>;
-  image(url: string): Promise<ArtImage<S>>;
+  /** `onProgress`, when the transfer can say it, is told the bytes that have arrived and the bytes there will be (the real ones, off the response: an IO that cannot know them never calls it). */
+  image(url: string, onProgress?: (loaded: number, total: number) => void): Promise<ArtImage<S>>;
 }
 
 /** How the frames of a page become textures. */
@@ -93,8 +94,21 @@ export interface ArtStats {
 }
 
 export interface ArtSnapshot extends ArtStats {
-  packList: Array<{ id: string; category: string; load: string; status: string; read: boolean; held: boolean; sets: string[]; dropped: Array<{ set: string; state: string; reason: string }> }>;
+  /** `held`: kept for the zone the hero is in; `ahead`: brought in early for the zone they are walking toward (not held until they get there). */
+  packList: Array<{ id: string; category: string; load: string; status: string; read: boolean; held: boolean; ahead: boolean; sets: string[]; dropped: Array<{ set: string; state: string; reason: string }> }>;
   pageList: Array<{ url: string; bytes: number; refs: number }>;
+}
+
+/** What is arriving right now, measured on the transfers themselves. */
+export interface ArtProgress {
+  /** Images being fetched (or just fetched, in the same burst), and how many are still on their way. */
+  files: number;
+  active: number;
+  /** Bytes that have arrived and bytes there will be, over the images whose size is known. */
+  loaded: number;
+  total: number;
+  /** `loaded / total` when EVERY image on its way has said how big it is; `null` while one has not (a number made of guesses is not given). */
+  fraction: number | null;
 }
 
 interface PageEntry<S> {
@@ -119,6 +133,8 @@ interface LoadedPage<S> {
 
 const message = (err: unknown): string => (err instanceof Error ? err.message : String(err));
 const resolveUrl = (relative: string, base: string): string => new URL(relative, base).href;
+/** What `readScene` answers when the scene could not be FETCHED (as opposed to not being there, or not being valid): it is not remembered. */
+const LOST = Symbol('lost');
 
 export class ArtLibrary<S, T> {
   private readonly indexUrl: string;
@@ -136,8 +152,10 @@ export class ArtLibrary<S, T> {
   private index: readonly ArtIndexEntry[] = [];
   private indexRequest: Promise<readonly ArtIndexEntry[]> | null = null;
   private readonly packs = new Map<string, Promise<ArtPackInfo | null>>();
-  /** The scenes read so far, by `pack/room`: `null` for one that is not there or not valid (it is not asked for again). */
-  private readonly scenes = new Map<string, Promise<RoomScene | null>>();
+  /** The scenes read so far, by `pack/room`: `null` for one that is not there or not valid (it is not asked for again); one that could not be FETCHED is forgotten, and the next ask tries again. */
+  private readonly scenes = new Map<string, Promise<RoomScene | null | typeof LOST>>();
+  /** The same scenes once they are settled: what a view that must not wait reads (`sceneNow`). */
+  private readonly sceneValues = new Map<string, RoomScene | null>();
   private readonly packInfo = new Map<string, ArtPackInfo>();
   private readonly pages = new Map<string, PageEntry<S>>();
   /** The definition of each set at the variant first chosen for it: the same one for as long as the library lives. */
@@ -146,6 +164,13 @@ export class ArtLibrary<S, T> {
   private readonly held = new Map<string, SpriteSetDefinition[]>();
   /** The packs being loaded for the policy right now, so that a second ask waits for the first instead of returning early. */
   private readonly loading = new Map<string, Promise<void>>();
+  /**
+   * The packs in `held` that were brought in EARLY, for a zone the hero is walking toward and not yet in (`prefetch`). They are not what the room the hero is in is dressed with, so
+   * `heldPacks` leaves them out; `enterZone` makes them ordinary the moment the hero gets there (nothing is fetched again), and `releaseAhead` lets them go if they turn back.
+   */
+  private readonly ahead = new Set<string>();
+  /** The images arriving in the current burst (from the first request made with nothing in flight until they have all arrived): what `progress` measures. */
+  private readonly transfers = new Map<string, { loaded: number; total: number; done: boolean }>();
   private zone: string | null = null;
   private disposed = false;
   private readonly counters = { requests: 0, failures: 0, loadMs: 0, peakBytes: 0 };
@@ -241,23 +266,49 @@ export class ArtLibrary<S, T> {
     const key = `${packId}/${roomId}`;
     let request = this.scenes.get(key);
     if (!request) {
-      request = this.readScene(packId, roomId);
-      this.scenes.set(key, request);
+      const read = this.readScene(packId, roomId);
+      request = read;
+      this.scenes.set(key, read);
+      // settled: a view that must not wait finds it in memory; one that could not even be fetched is forgotten, so that the next ask (the next visit to the room) tries again
+      void read.then((value) => {
+        if (this.scenes.get(key) !== read) return;
+        if (value === LOST) this.scenes.delete(key);
+        else this.sceneValues.set(key, value);
+      });
     }
-    return request;
+    return request.then((value) => (value === LOST ? null : value));
   }
 
-  private async readScene(packId: string, roomId: string): Promise<RoomScene | null> {
+  /**
+   * The scene of `roomId` in pack `packId` IF it is already in memory: the scene itself, `null` for one the pack does not have (or that is not valid), `undefined` when it has not been read
+   * (or is still on its way). For the code that dresses a room in one go and must not wait in the middle of it.
+   */
+  sceneNow(packId: string, roomId: string): RoomScene | null | undefined {
+    return this.sceneValues.get(`${packId}/${roomId}`);
+  }
+
+  /**
+   * Reads the scenes that the environment packs of `zone` have for the room of the same name (a zone of this game IS a room), so that `sceneNow` finds them. It does not change what is
+   * held: it is for the room the hero is about to enter as much as for the one they are in.
+   */
+  async readScenes(zone: string): Promise<void> {
+    await this.init();
+    await Promise.all(this.index.filter((e) => e.category === 'environment' && this.zoneWants(e, zone)).map((e) => this.scene(e.id, zone)));
+  }
+
+  private async readScene(packId: string, roomId: string): Promise<RoomScene | null | typeof LOST> {
     const info = await this.pack(packId);
-    const rel = info?.pack.scenes[roomId];
-    if (!info || rel === undefined) return null;
+    // a pack the index lists whose manifest could not be had is a pack that may come back: its scenes are not written off
+    if (!info) return this.index.some((e) => e.id === packId) ? LOST : null;
+    const rel = info.pack.scenes[roomId];
+    if (rel === undefined) return null;
     const url = resolveUrl(rel, info.url);
     let raw: unknown;
     try {
       raw = await this.getJson(url);
     } catch (err) {
       this.note(`the scene of "${roomId}" in pack "${packId}" could not be fetched (${message(err)})`);
-      return null;
+      return LOST;
     }
     const { value, issues } = parseRoomScene(raw);
     this.report(url, issues);
@@ -271,10 +322,14 @@ export class ArtLibrary<S, T> {
     return wrong.some((i) => i.level === 'error') ? null : value;
   }
 
-  /** The packs of a category the zone policy is holding now (read manifests: what a view that dresses a room asks for). */
+  /**
+   * The packs of a category the zone policy is holding now for the zone the hero is in, WHOLE (read manifests: what a view that dresses a room asks for). A pack whose sets are still on their
+   * way is not in the list — a room dressed from it would be missing pieces — and neither is one brought in early for the zone the hero is only walking toward.
+   */
   heldPacks(category: ArtIndexEntry['category']): ArtPackInfo[] {
     const out: ArtPackInfo[] = [];
     for (const id of this.held.keys()) {
+      if (this.ahead.has(id) || this.loading.has(id)) continue;
       const info = this.packInfo.get(id);
       if (info && info.entry.category === category) out.push(info);
     }
@@ -515,6 +570,11 @@ export class ArtLibrary<S, T> {
   async enterZone(zone: string): Promise<void> {
     this.zone = zone;
     await this.init();
+    // what was brought in early for THIS zone is simply held now (it is not fetched again, and a load still in flight is the one that is waited for); what was brought in for another one goes with the rest
+    for (const id of [...this.ahead]) {
+      const entry = this.index.find((e) => e.id === id);
+      if (entry && this.wants(entry)) this.ahead.delete(id);
+    }
     await Promise.all(this.index.filter((e) => this.wants(e)).map((e) => this.hold(e.id)));
     for (const id of [...this.held.keys()]) {
       const entry = this.index.find((e) => e.id === id);
@@ -522,8 +582,57 @@ export class ArtLibrary<S, T> {
     }
   }
 
+  /**
+   * The hero is walking toward the way into `zone` and is not in it yet: its packs are brought in NOW, quietly, and its scenes read, so that the change of zone finds everything in memory.
+   * Nothing about the zone the hero is in changes — the early packs are not "held" for it (`heldPacks` leaves them out) — and `enterZone(zone)` takes them over without a request. Resolves when
+   * they are in memory, or at once when there is nothing to fetch or the memory ceiling (`ceilingBytes`: what is resident plus what this would add) would be crossed: a phone that cannot
+   * spare the memory waits at the change of zone instead, as before.
+   */
+  async prefetch(zone: string, ceilingBytes = Infinity): Promise<void> {
+    await this.init();
+    const entries = this.index.filter((e) => e.load === 'zone' && this.zoneWants(e, zone) && !this.held.has(e.id));
+    if (entries.length > 0) {
+      const infos = await Promise.all(entries.map((e) => this.pack(e.id)));
+      // a hero who has gone on in the meantime has made this early load pointless (and it must not undo what `enterZone` decided)
+      const fresh = entries.filter((e, i) => infos[i] !== null && !this.held.has(e.id));
+      const adds = fresh.reduce((sum, e) => sum + this.packBytes(this.packInfo.get(e.id)!), 0);
+      if (fresh.length > 0 && this.residentBytes() + adds <= ceilingBytes) {
+        for (const e of fresh) if (!this.wants(e)) this.ahead.add(e.id);
+        await Promise.all(fresh.map((e) => this.hold(e.id)));
+      }
+    }
+    await this.readScenes(zone);
+  }
+
+  /** The hero turned back: the packs brought in early for a zone they are not in (and the current one does not need) are given back. */
+  releaseAhead(): void {
+    for (const id of [...this.ahead]) {
+      this.ahead.delete(id);
+      if (!this.wantsPack(id)) this.unhold(id);
+    }
+  }
+
+  /** The zone ids a pack lists are the rooms it is for. */
+  private zoneWants(entry: ArtIndexEntry, zone: string): boolean {
+    return entry.load === 'boot' || (entry.load === 'zone' && entry.zones.includes(zone));
+  }
+
   private wants(entry: ArtIndexEntry): boolean {
     return entry.load === 'boot' || (entry.load === 'zone' && this.zone !== null && entry.zones.includes(this.zone));
+  }
+
+  /** What the pages a pack would put in memory weigh (RGBA8, as the GPU has them), each page counted once: the variant is the one this screen draws. */
+  private packBytes(info: ArtPackInfo): number {
+    const pages = new Map<string, number>();
+    for (const sprite of info.pack.sprites) {
+      const def = this.define(info, sprite);
+      const ref = def ? parseArtAtlasRef(def.atlas) : null;
+      const variant = ref ? atlasVariants(sprite, info.atlases).find((v) => v.resolution === ref.resolution) : undefined;
+      for (const page of variant?.pages ?? []) pages.set(page.source, page.width * page.height * 4);
+    }
+    let bytes = 0;
+    for (const b of pages.values()) bytes += b;
+    return bytes;
   }
 
   /**
@@ -558,8 +667,14 @@ export class ArtLibrary<S, T> {
         else this.release(set.def);
       }),
     );
-    // the hero may have moved on while it loaded
-    if (this.held.get(packId) === defs && !this.wantsPack(packId)) this.unhold(packId);
+    // a pack none of whose sets could be had (a network that failed, a file that was not there) is not kept as if it were loaded: the next ask — the hero getting to the zone, the next visit — tries again,
+    // and an early load that failed can never leave the zone it was for without the pack it would have fetched
+    if (this.held.get(packId) === defs && defs.length === 0 && info.pack.sprites.length > 0) {
+      this.unhold(packId);
+      return;
+    }
+    // the hero may have moved on while it loaded (a pack brought in early is wanted by a zone the hero is not in yet: it stays until they are, or turn back)
+    if (this.held.get(packId) === defs && !this.wantsPack(packId) && !this.ahead.has(packId)) this.unhold(packId);
   }
 
   private wantsPack(packId: string): boolean {
@@ -571,6 +686,7 @@ export class ArtLibrary<S, T> {
     const defs = this.held.get(packId);
     if (!defs) return;
     this.held.delete(packId);
+    this.ahead.delete(packId);
     // a load still in flight gives back what it acquires (it finds the claim gone); a later ask starts a load of its own
     this.loading.delete(packId);
     for (const def of defs) this.release(def);
@@ -606,7 +722,8 @@ export class ArtLibrary<S, T> {
           load: e.load,
           status: info?.pack.status ?? 'unread',
           read: info !== undefined,
-          held: this.held.has(e.id),
+          held: this.held.has(e.id) && !this.ahead.has(e.id),
+          ahead: this.ahead.has(e.id),
           sets: [...this.sets.entries()].filter(([id, set]) => id.startsWith(`${e.id}/`) && set.loaded).map(([id]) => id),
           dropped: [...this.droppedClips.entries()].filter(([id]) => id.startsWith(`${e.id}/`)).flatMap(([id, list]) => list.map((d) => ({ set: id, state: d.state, reason: d.reason }))),
         };
@@ -619,7 +736,9 @@ export class ArtLibrary<S, T> {
   dispose(): void {
     this.disposed = true;
     this.held.clear();
+    this.ahead.clear();
     this.loading.clear();
+    this.transfers.clear();
     for (const e of this.sets.values()) e.loaded?.dispose();
     this.sets.clear();
     this.droppedClips.clear();
@@ -627,6 +746,7 @@ export class ArtLibrary<S, T> {
     this.pages.clear();
     this.packs.clear();
     this.scenes.clear();
+    this.sceneValues.clear();
     this.packInfo.clear();
     this.defs.clear();
   }
@@ -643,12 +763,44 @@ export class ArtLibrary<S, T> {
 
   private async getImage(url: string): Promise<ArtImage<S>> {
     this.counters.requests++;
+    // a new burst begins when nothing is in flight: what is measured is what is arriving NOW, not everything that ever came
+    if (![...this.transfers.values()].some((t) => !t.done)) this.transfers.clear();
+    const transfer = { loaded: 0, total: 0, done: false };
+    this.transfers.set(url, transfer);
     try {
-      return await this.io.image(url);
+      const image = await this.io.image(url, (loaded, total) => {
+        transfer.loaded = loaded;
+        transfer.total = total;
+      });
+      transfer.done = true;
+      // a transfer that arrived without ever saying its size counts as nothing in the measure (it never claimed a share)
+      if (transfer.total > 0) transfer.loaded = transfer.total;
+      return image;
     } catch (err) {
+      this.transfers.delete(url);
       this.counters.failures++;
       throw err;
     }
+  }
+
+  /**
+   * How much of what is being fetched has arrived, measured on the transfers themselves (the bytes the responses say they carry), or `null` when nothing is on its way. `fraction` is only
+   * given when every image on its way has said how big it is: a percentage made of guesses is not offered, and the interface then shows that it is waiting without a number.
+   */
+  progress(): ArtProgress | null {
+    let loaded = 0;
+    let total = 0;
+    let active = 0;
+    let unknown = 0;
+    for (const t of this.transfers.values()) {
+      if (!t.done) active++;
+      if (t.total > 0) {
+        loaded += Math.min(t.loaded, t.total);
+        total += t.total;
+      } else if (!t.done) unknown++;
+    }
+    if (active === 0) return null;
+    return { files: this.transfers.size, active, loaded, total, fraction: unknown === 0 && total > 0 ? Math.min(1, loaded / total) : null };
   }
 
   private report(file: string, issues: readonly ArtIssue[]): void {

@@ -1,6 +1,7 @@
 {
   "death.title": "Has caído",
   "death.hint": "Pulsa cualquier botón para continuar",
+  "arrival.loading": "Cargando",
   "enemy.inkSlime.name": "Baba de tinta",
   "enemy.warden.name": "Custodio de Tinta",
   "room.r1.name": "Puerta de las Ruinas",

@@ -5,7 +5,7 @@ import { HALF_VIEW, PARALLAX_FACTOR, readEnvLook, readEnvTags, slotKey, type Env
 import { cropFrame, planHazards, planInteractables, planSeals, planStrip, planTerrain, type Draw, type InteractablePlacement, type PieceInfo, type PieceLookup, type SealPlacement } from '@/presentation/roomPlan';
 import { GUARDIAN_PARTS, bossParts } from '@/presentation/bossArt';
 import { ENEMY_PARTS, enemyParts, type EnemyPartName } from '@/presentation/enemyArt';
-import { SCENE_LAYERS, placementShown, type Placement, type SceneLayer } from '@/presentation/roomScene';
+import { SCENE_LAYERS, placementShown, type Placement, type RoomScene, type SceneLayer } from '@/presentation/roomScene';
 import type { SpriteSetDefinition } from '@/presentation/SpriteSetDefinition';
 import { viewY } from '@/presentation/worldTransform';
 import type { RoomDefinition } from '@/world/RoomDefinition';
@@ -142,14 +142,10 @@ export class RoomArtView {
     return this.doors.get(gateId);
   }
 
-  /** Reads the scenes of a room ahead of time (the fade of a transition hides it), so that `build` finds them in memory. */
-  async prepare(roomId: string): Promise<void> {
-    await Promise.all(this.art.heldPacks('environment').map((p) => this.art.scene(p.pack.id, roomId)));
-  }
-
   /**
-   * Draws the room from the art the zone policy holds. Resolves with what it covers, or `null` when there is nothing to draw it with (no environment pack in memory, or a
-   * newer `build` overtook this one). The room's own pieces are drawn at once; the scene follows the moment its file is read.
+   * Draws the room from the art the zone policy holds, once its scenes are read. Resolves with what it covers, or `null` when there is nothing to draw it with (no environment pack in
+   * memory, or a newer `build` overtook this one). WHOLE or not at all: the room's own pieces and the scene's layers go onto the stage in the same step, so the room is never seen half-dressed
+   * (the ground and a few props first, the rest a moment later).
    */
   async build(room: RoomDefinition): Promise<RoomArtCoverage | null> {
     // clearing overtakes any build still in flight (it resolves with `null` and draws nothing more): the build that follows is the only one that counts
@@ -157,7 +153,32 @@ export class RoomArtView {
     const mine = ++this.serial;
     const packs = this.art.heldPacks('environment');
     if (packs.length === 0) return null;
+    const scenes = await Promise.all(packs.map((p) => this.art.scene(p.pack.id, room.id).then((scene) => ({ pack: p.pack.id, scene }))));
+    if (mine !== this.serial) return null;
+    return this.compose(room, packs, scenes);
+  }
 
+  /**
+   * The same drawing, in this very call: possible when every environment pack of the zone is in memory AND the scene it has for the room has been read —
+   * which is what a change of zone waits for (`ArtLibrary.readScenes`). A room dressed this way is whole on the first frame it is drawn. `undefined` when something is not in memory yet (nothing is touched: use `build`),
+   * `null` when the zone has no environment art at all.
+   */
+  buildNow(room: RoomDefinition): RoomArtCoverage | null | undefined {
+    const packs = this.art.heldPacks('environment');
+    if (packs.length === 0) return undefined;
+    const scenes: Array<{ pack: string; scene: RoomScene | null }> = [];
+    for (const p of packs) {
+      const scene = this.art.sceneNow(p.pack.id, room.id);
+      if (scene === undefined) return undefined;
+      scenes.push({ pack: p.pack.id, scene });
+    }
+    this.clear();
+    ++this.serial;
+    return this.compose(room, packs, scenes);
+  }
+
+  /** Puts the whole picture of the room on the stage. Synchronous: there is no moment in which only part of it is there. */
+  private compose(room: RoomDefinition, packs: ReturnType<Art['heldPacks']>, scenes: ReadonlyArray<{ pack: string; scene: RoomScene | null }>): RoomArtCoverage {
     // ---- the pieces: every sprite set of the packs in memory, by what its tags say it is
     const bySlot = new Map<string, Piece>();
     const byName = new Map<string, Piece>();
@@ -321,9 +342,7 @@ export class RoomArtView {
       }
     }
 
-    // ---- the scenes: where the packs put their pieces behind and in front of the action (read now, drawn when they arrive)
-    const scenes = await Promise.all(packs.map((p) => this.art.scene(p.pack.id, room.id).then((scene) => ({ pack: p.pack.id, scene }))));
-    if (mine !== this.serial) return null;
+    // ---- the scenes: where the packs put their pieces behind and in front of the action
     // a piece in front hangs from the top of the screen: its own top edge must stay above the highest view the camera can have, or it shows as a flat edge in the air
     const tallest = FOREGROUND_FACTOR * (camera.y1 - viewHeight / 2) + viewHeight / 2;
     for (const { pack, scene } of scenes) {
