@@ -1,12 +1,14 @@
 import { sanitizeKeyMap, type KeyMap } from '@/input/remap';
 import { QUALITY_SETTINGS, type QualitySetting } from '@/presentation/viewport';
+import { DEFAULT_SLOT, sanitizeSlot } from './SaveSlots';
 
 /**
  * The player's SETTINGS as data (docs/ARCHITECTURE-2D.md §11): separate from the progress, versioned, and repairable. Version 1 held the
  * language and the size and opacity of the touch controls; version 2 (docs/PROMPT6-LOG.md S30) adds the volume (prepared: there is no sound yet),
- * the quality profile, the remapped keys and the position of the touch controls. Each one came with a migration, the day it existed.
+ * the quality profile, the remapped keys and the position of the touch controls; version 3 (docs/PROMPT14-LOG.md) adds the saved game being played (`slot`) and the
+ * accessibility choices (fewer flashes, no camera shake, the size of the HUD). Each one came with a migration, the day it existed.
  */
-export const SETTINGS_VERSION = 2;
+export const SETTINGS_VERSION = 3;
 
 export interface VolumeSettings {
   /** The master volume, 0 (silence) … 1. */
@@ -29,6 +31,16 @@ export interface TouchSettings {
   offsetY: number;
 }
 
+/** What a player can ask of the picture so that it is easier on them. Each one changes something the game really does (docs/PROMPT14-LOG.md). */
+export interface AccessibilitySettings {
+  /** The screen's pulses (a blow taken, a power gained, a place that wakes) and the white flashes of the interface are softened to a fraction of their strength. */
+  reduceFlashes: boolean;
+  /** The camera does not shake when something lands. */
+  reduceShake: boolean;
+  /** The size of the HUD (life, magic, power, bottles) relative to its design: 1 = as designed. */
+  hudScale: number;
+}
+
 export interface SettingsData {
   version: number;
   /** The language the player chose, or `null` while none was chosen (the device's language is followed). */
@@ -39,6 +51,9 @@ export interface SettingsData {
   /** The keys the player gave the main actions (only what differs from the defaults). */
   keys: KeyMap;
   touch: TouchSettings;
+  /** The saved game being played (1 … `SLOT_COUNT`): the one the game opens with. */
+  slot: number;
+  accessibility: AccessibilitySettings;
 }
 
 /** What the settings screen offers: the controls are never smaller than 80 % or bigger than 140 %, never fainter than 30 %; the position is a fraction. */
@@ -51,6 +66,9 @@ export const TOUCH_LIMITS = {
 
 export const VOLUME_LIMITS = { master: { min: 0, max: 1 } } as const;
 
+/** The HUD is never smaller than 85 % of its design (the numbers on it would stop being legible) nor bigger than 135 % (it would take the corner of a small phone). */
+export const HUD_SCALE_LIMITS = { min: 0.85, max: 1.35 } as const;
+
 export function defaultSettings(): SettingsData {
   return {
     version: SETTINGS_VERSION,
@@ -59,6 +77,8 @@ export function defaultSettings(): SettingsData {
     quality: 'auto',
     keys: {},
     touch: { scale: 1, opacity: 1, side: 'right', offsetX: 0, offsetY: 0 },
+    slot: DEFAULT_SLOT,
+    accessibility: { reduceFlashes: false, reduceShake: false, hudScale: 1 },
   };
 }
 
@@ -79,6 +99,7 @@ export function repairSettings(raw: unknown): SettingsData {
   const r = raw as Record<string, unknown>;
   const t = typeof r['touch'] === 'object' && r['touch'] !== null ? (r['touch'] as Record<string, unknown>) : {};
   const v = typeof r['volume'] === 'object' && r['volume'] !== null ? (r['volume'] as Record<string, unknown>) : {};
+  const a = typeof r['accessibility'] === 'object' && r['accessibility'] !== null ? (r['accessibility'] as Record<string, unknown>) : {};
   const language = typeof r['language'] === 'string' && /^[a-z]{2,3}$/i.test(r['language']) ? r['language'].toLowerCase() : null;
   const quality = (QUALITY_SETTINGS as readonly unknown[]).includes(r['quality']) ? (r['quality'] as QualitySetting) : base.quality;
   return {
@@ -94,6 +115,12 @@ export function repairSettings(raw: unknown): SettingsData {
       offsetX: limited(t['offsetX'], TOUCH_LIMITS.offsetX.min, TOUCH_LIMITS.offsetX.max, base.touch.offsetX),
       offsetY: limited(t['offsetY'], TOUCH_LIMITS.offsetY.min, TOUCH_LIMITS.offsetY.max, base.touch.offsetY),
     },
+    slot: sanitizeSlot(r['slot']),
+    accessibility: {
+      reduceFlashes: a['reduceFlashes'] === true,
+      reduceShake: a['reduceShake'] === true,
+      hudScale: limited(a['hudScale'], HUD_SCALE_LIMITS.min, HUD_SCALE_LIMITS.max, base.accessibility.hudScale),
+    },
   };
 }
 
@@ -104,12 +131,15 @@ export type Migration = (data: Record<string, unknown>) => Record<string, unknow
  * The migrations, by the version they upgrade FROM. Each one gets a golden file in the tests.
  *  - 1 → 2 (S30): the volume, the quality profile, the keys and the position of the touch controls arrive with their defaults; what version 1 held
  *    (the language, the size and the opacity) is kept as it was.
+ *  - 2 → 3 (docs/PROMPT14-LOG.md): the saved game being played (the first, where every save made so far lives) and the accessibility choices (all off, the HUD as designed)
+ *    arrive; everything version 2 held is kept as it was.
  */
 export const SETTINGS_MIGRATIONS: Readonly<Record<number, Migration>> = {
   1: (data) => {
     const touch = typeof data['touch'] === 'object' && data['touch'] !== null ? (data['touch'] as Record<string, unknown>) : {};
     return { ...data, version: 2, volume: { master: 0.8 }, quality: 'auto', keys: {}, touch: { ...touch, side: 'right', offsetX: 0, offsetY: 0 } };
   },
+  2: (data) => ({ ...data, version: 3, slot: DEFAULT_SLOT, accessibility: { reduceFlashes: false, reduceShake: false, hudScale: 1 } }),
 };
 
 /**

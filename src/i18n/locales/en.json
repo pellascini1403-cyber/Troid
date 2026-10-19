@@ -25,5 +25,10 @@
   "interact.activate": "Activate",
   "interact.open": "Open",
   "interact.rest": "Rest",
-  "settings.open": "Pause and settings"
+  "settings.open": "Pause and settings",
+  "save.saved": "Saved",
+  "save.failed": "Could not save",
+  "save.recovered": "The last good copy of game {slot} was recovered",
+  "save.damaged": "Game {slot} was damaged: a copy is kept and you start a new one",
+  "save.unavailable": "This browser does not allow saving: your progress will be lost when you close it"
 }

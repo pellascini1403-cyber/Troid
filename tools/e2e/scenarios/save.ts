@@ -10,7 +10,18 @@ import type { GameState, Scenario } from '../scenario';
  */
 const KEY = 'troid.progress';
 
-const stored = (page: Page, key = KEY): Promise<{ saveVersion: number; at: { room: string; entry: string }; checkpoint: { room: string; entry: string }; flags: string[]; abilities: string[]; cards: { owned: string[]; equipped: string | null }; bottleSlots: number } | null> =>
+interface Stored {
+  saveVersion: number;
+  at: { room: string; entry: string };
+  checkpoint: { room: string; entry: string };
+  flags: string[];
+  abilities: string[];
+  cards: { owned: string[]; equipped: string | null };
+  bottleSlots: number;
+  stats: { ticks: number; deaths: number; kills: number; rooms: string[] };
+  savedAt: number;
+}
+const stored = (page: Page, key = KEY): Promise<Stored | null> =>
   page.evaluate(`(() => { const t = localStorage.getItem(${JSON.stringify(key)}); return t === null ? null : JSON.parse(t); })()`) as never;
 
 export const save: Scenario = {
@@ -52,7 +63,11 @@ export const save: Scenario = {
     await ctx.page.waitForTimeout(50);
     let p = await stored(ctx.page);
     assert.ok(p, 'the first change wrote a save');
-    assert.equal(p.saveVersion, 1);
+    assert.equal(p.saveVersion, 2);
+    assert.ok(p.savedAt > 1.7e12, `stamped with the browser's clock (${p.savedAt})`);
+    assert.deepEqual(p.stats.rooms, ['r1_gate', 'r2_hall'], 'the rooms the hero has been in');
+    assert.ok(p.stats.ticks > 60, `the time played is counted in simulation ticks (${p.stats.ticks})`);
+    assert.deepEqual([p.stats.deaths, p.stats.kills], [0, 0], 'nobody fell and nothing was beaten: the slime was set as beaten, not fought');
     assert.deepEqual(p.at, { room: 'r2_hall', entry: 'west' }, 'where the hero came into a room');
     assert.deepEqual(p.checkpoint, { room: 'r1_gate', entry: 'start' });
     assert.deepEqual(p.flags, ['defeated:r1_slime']);
@@ -125,21 +140,34 @@ export const save: Scenario = {
     assert.equal(s.room, 'r2_hall', 'a defeat in the loaded game goes to the saved checkpoint');
     assert.ok(Math.abs(s.x - 12.8) < 0.3);
 
-    // ================================================================================================ a second reload changes nothing (and writes nothing new)
+    // ================================================================================================ a second reload changes nothing the hero won (only the time they played, and when it was written)
     const before = await ctx.page.evaluate(`localStorage.getItem(${JSON.stringify(KEY)})`);
     await reload();
     await ctx.step(60);
-    assert.equal(await ctx.page.evaluate(`localStorage.getItem(${JSON.stringify(KEY)})`), before, 'reloading and playing a minute without winning anything leaves the save as it was');
+    const keep = (text: unknown): { won: Record<string, unknown>; counted: Record<string, unknown>; ticks: number; at: number } => {
+      const { stats, savedAt, ...won } = JSON.parse(text as string) as Stored;
+      const { ticks, ...counted } = stats;
+      return { won, counted, ticks, at: savedAt };
+    };
+    const afterReload = await ctx.page.evaluate(`localStorage.getItem(${JSON.stringify(KEY)})`);
+    const [a, b] = [keep(before), keep(afterReload)];
+    assert.deepEqual(b.won, a.won, 'reloading and playing a minute without winning anything leaves what was won as it was');
+    assert.deepEqual(b.counted, a.counted, 'and the defeats, the kills and the rooms');
+    assert.ok(b.ticks >= a.ticks && b.at >= a.at, 'the time played never goes back (the page that was left wrote the stretch it had played)');
     assert.equal((await state()).room, 'r2_hall', 'it picks up where the last room was entered');
 
     // ================================================================================================ a damaged save: kept aside, a fresh game; with a backup: the backup
     const good = before as string;
+    // the page that is open writes what it has played when it is left: to damage the storage as something ELSE would, while no game runs, it is stopped first (it does what a closed page does: nothing)
+    const stopGame = (): Promise<unknown> => ctx.page.evaluate('window.__troid.saves().dispose()');
+    await stopGame();
     await ctx.page.evaluate(`localStorage.setItem(${JSON.stringify(KEY)}, '{"saveVersion":1,"flags":["defeated:r1_sl')`);
     await reload();
     s = await state();
     assert.equal(s.room, 'r1_gate', 'an unreadable save: a new game');
     assert.deepEqual(s.flags, []);
     assert.equal(await ctx.page.evaluate(`localStorage.getItem(${JSON.stringify(KEY + '.corrupt')})`), '{"saveVersion":1,"flags":["defeated:r1_sl', 'the damaged text is KEPT, not overwritten');
+    await stopGame();
     await ctx.page.evaluate(`localStorage.setItem(${JSON.stringify(KEY)}, 'broken'); localStorage.setItem(${JSON.stringify(KEY + '.bak')}, ${JSON.stringify(good)});`);
     await reload();
     s = await state();
@@ -148,11 +176,13 @@ export const save: Scenario = {
     assert.equal(await ctx.page.evaluate(`localStorage.getItem(${JSON.stringify(KEY)})`), good, 'and it is put back where it belongs');
     // a save from a later game is not read and not overwritten
     const future = '{"saveVersion":99,"hello":"from the future"}';
+    await stopGame();
     await ctx.page.evaluate(`localStorage.removeItem(${JSON.stringify(KEY + '.bak')}); localStorage.setItem(${JSON.stringify(KEY)}, ${JSON.stringify(future)});`);
     await reload();
     assert.equal((await state()).room, 'r1_gate');
     assert.equal(await ctx.page.evaluate(`localStorage.getItem(${JSON.stringify(KEY + '.corrupt')})`), future, 'kept aside');
     // and a save that names a room the game does not have starts at the start of the world, with what it had won
+    await stopGame();
     await ctx.page.evaluate(`localStorage.setItem(${JSON.stringify(KEY)}, ${JSON.stringify(JSON.stringify({ saveVersion: 1, at: { room: 'ghost', entry: 'x' }, checkpoint: { room: 'ghost', entry: 'y' }, flags: ['defeated:r1_slime'], abilities: ['dash'], cards: { owned: [], equipped: null }, bottleSlots: 3 }))})`);
     await reload();
     s = await state();

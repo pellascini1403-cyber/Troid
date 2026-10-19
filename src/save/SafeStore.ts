@@ -11,6 +11,9 @@ export interface SafeStoreOptions<T> {
   warn?: (message: string) => void;
 }
 
+/** What a LOOK at the storage found (nothing was written to find it): no value, a good one (`recovered`: only the backup of a write that stopped halfway was readable), or only what cannot be read. */
+export type Inspection<T> = { state: 'empty' } | { state: 'ok'; value: T; recovered: boolean } | { state: 'damaged' };
+
 /**
  * One value, kept safely in a `StorageAdapter` (docs/ARCHITECTURE-2D.md §11). The settings and the progress of the game are two
  * models in two keys, but they must be equally hard to lose, so they share this. It never throws: a store that is full, blocked or
@@ -52,6 +55,17 @@ export class SafeStore<T> {
     return null;
   }
 
+  /**
+   * Looks at what is saved WITHOUT touching it (a list of saved games must not rewrite anything): `load` repairs while it reads — it files an unreadable copy as
+   * `.corrupt` and puts a good backup back — and a screen that only shows the slots has no business doing that to the ones the player is not playing. It looks after
+   * the writes already asked for, so it sees the latest. Never rejects.
+   */
+  inspect(): Promise<Inspection<T>> {
+    const done = this.queue.then(() => this.look());
+    this.queue = done;
+    return done;
+  }
+
   /** Saves `text` after the writes already asked for. Resolves to whether it reached the storage. */
   write(text: string): Promise<boolean> {
     const written = this.queue.then(() => this.put(text));
@@ -74,12 +88,51 @@ export class SafeStore<T> {
     return done;
   }
 
+  /**
+   * Starts the value over — a NEW game in this place — without losing what could not be read: a main copy that cannot be parsed is filed as `.corrupt` first (a person
+   * can still recover it by hand), then the value and its backup go. A good copy is replaced on purpose (the caller has asked the player); nothing damaged is thrown away.
+   */
+  restart(): Promise<boolean> {
+    const { key, label } = this.options;
+    const done = this.queue.then(async () => {
+      try {
+        const main = await this.storage.get(key);
+        if (main !== null && this.options.parse(main) === null) await this.storage.set(`${key}.corrupt`, main);
+        await this.storage.remove(key);
+        await this.storage.remove(`${key}.bak`);
+        return true;
+      } catch (error) {
+        this.report(`${label} could not be restarted: ${message(error)}`);
+        return false;
+      }
+    });
+    this.queue = done;
+    return done;
+  }
+
   /** Resolves when every write asked for so far is finished. */
   async flush(): Promise<void> {
     await this.queue;
   }
 
   // ---------------------------------------------------------------------------------------------- internals
+
+  private async look(): Promise<Inspection<T>> {
+    const { key } = this.options;
+    const main = await this.read(key);
+    if (main !== null) {
+      const parsed = this.options.parse(main);
+      if (parsed !== null) return { state: 'ok', value: parsed, recovered: false };
+    }
+    const backup = await this.read(`${key}.bak`);
+    if (backup !== null) {
+      const parsed = this.options.parse(backup);
+      if (parsed !== null) return { state: 'ok', value: parsed, recovered: true };
+    }
+    // something is there and none of it can be read (a copy filed as `.corrupt` by a load counts: it is still the player's data)
+    if (main !== null || backup !== null || (await this.read(`${key}.corrupt`)) !== null) return { state: 'damaged' };
+    return { state: 'empty' };
+  }
 
   private async put(text: string): Promise<boolean> {
     const { key, label } = this.options;

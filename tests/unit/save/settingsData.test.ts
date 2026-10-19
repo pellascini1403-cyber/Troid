@@ -1,19 +1,21 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { defaultSettings, parseSettings, repairSettings, serializeSettings, SETTINGS_MIGRATIONS, SETTINGS_VERSION, TOUCH_LIMITS, VOLUME_LIMITS } from '@/save/SettingsData';
+import { defaultSettings, HUD_SCALE_LIMITS, parseSettings, repairSettings, serializeSettings, SETTINGS_MIGRATIONS, SETTINGS_VERSION, TOUCH_LIMITS, VOLUME_LIMITS } from '@/save/SettingsData';
 
 /**
  * The settings as DATA (docs/ARCHITECTURE-2D.md §11): a version, repairs for whatever a damaged or hand-edited value could be,
  * and a migration chain with a golden file per version so a format change can never silently break the settings of a player.
- * Version 2 (docs/PROMPT6-LOG.md S30) added the volume, the quality profile, the remapped keys and the position of the touch controls.
+ * Version 2 (docs/PROMPT6-LOG.md S30) added the volume, the quality profile, the remapped keys and the position of the touch controls; version 3 (docs/PROMPT14-LOG.md) the saved game
+ * being played and the accessibility choices.
  */
 const NEW_TOUCH = { side: 'right', offsetX: 0, offsetY: 0 } as const;
 const touch = (over: Record<string, unknown> = {}) => ({ scale: 1, opacity: 1, ...NEW_TOUCH, ...over });
+const ACCESS = { reduceFlashes: false, reduceShake: false, hudScale: 1 } as const;
 
 describe('defaults and repair', () => {
   it('the defaults: no language chosen (follow the device), the volume at 80 %, the balanced quality, no key changed and the touch controls as designed', () => {
-    expect(defaultSettings()).toEqual({ version: 2, language: null, volume: { master: 0.8 }, quality: 'auto', keys: {}, touch: touch() });
-    expect(SETTINGS_VERSION).toBe(2);
+    expect(defaultSettings()).toEqual({ version: 3, language: null, volume: { master: 0.8 }, quality: 'auto', keys: {}, touch: touch(), slot: 1, accessibility: ACCESS });
+    expect(SETTINGS_VERSION).toBe(3);
   });
 
   it('each default is a fresh object: changing one never changes the next', () => {
@@ -36,6 +38,21 @@ describe('defaults and repair', () => {
     expect(repairSettings({ volume: { master: 3 } }).volume).toEqual({ master: 1 });
     expect(repairSettings({ volume: { master: -1 } }).volume).toEqual({ master: 0 });
     expect(repairSettings({ volume: { master: 0 } }).volume, 'silence is a value, not a missing one').toEqual({ master: 0 });
+  });
+
+  it('the saved game is a slot that exists (1 … 3); anything else is the first, so a settings file a person edited cannot point the game at a place there is not', () => {
+    for (const slot of [1, 2, 3]) expect(repairSettings({ slot }).slot).toBe(slot);
+    for (const bad of [0, 4, -1, 2.5, '2', null, Number.NaN, {}]) expect(repairSettings({ slot: bad }).slot, String(bad)).toBe(1);
+  });
+
+  it('the accessibility choices: a flag is on only when it is exactly `true`, and the size of the HUD is held to what the screen offers (85–135 %)', () => {
+    expect(HUD_SCALE_LIMITS).toEqual({ min: 0.85, max: 1.35 });
+    expect(repairSettings({ accessibility: { reduceFlashes: true, reduceShake: true, hudScale: 1.2 } }).accessibility).toEqual({ reduceFlashes: true, reduceShake: true, hudScale: 1.2 });
+    for (const bad of ['true', 1, 'yes', null, [], {}]) expect(repairSettings({ accessibility: { reduceFlashes: bad, reduceShake: bad } }).accessibility, String(bad)).toEqual(ACCESS);
+    expect(repairSettings({ accessibility: { hudScale: 9 } }).accessibility.hudScale).toBe(1.35);
+    expect(repairSettings({ accessibility: { hudScale: 0.1 } }).accessibility.hudScale).toBe(0.85);
+    expect(repairSettings({ accessibility: { hudScale: 'big' } }).accessibility.hudScale).toBe(1);
+    for (const bad of [null, 7, 'a', []]) expect(repairSettings({ accessibility: bad }).accessibility).toEqual(ACCESS);
   });
 
   it('a value of the wrong type falls back to the default of THAT field, not of the whole', () => {
@@ -82,7 +99,7 @@ describe('defaults and repair', () => {
 
 describe('parsing what was stored', () => {
   it('a valid value of the current version gives the same settings', () => {
-    const s = { version: 2, language: 'es', volume: { master: 0.5 }, quality: 'low', keys: { attack: 'KeyF' }, touch: touch({ scale: 1.1, opacity: 0.6, side: 'left', offsetX: 0.4, offsetY: 0.2 }) };
+    const s = { version: 3, language: 'es', volume: { master: 0.5 }, quality: 'low', keys: { attack: 'KeyF' }, touch: touch({ scale: 1.1, opacity: 0.6, side: 'left', offsetX: 0.4, offsetY: 0.2 }), slot: 3, accessibility: { reduceFlashes: true, reduceShake: false, hudScale: 1.1 } };
     expect(parseSettings(JSON.stringify(s))).toEqual(s);
   });
 
@@ -97,7 +114,7 @@ describe('parsing what was stored', () => {
   });
 
   it('what cannot be trusted at all is `null`: not JSON, not an object, no integer version, or a version from a LATER game', () => {
-    for (const bad of ['', '{', 'null', '[]', '"es"', '3', '{}', '{"version":"1"}', '{"version":1.5}', '{"version":0}', '{"version":3,"language":"es"}', '{"version":99}']) {
+    for (const bad of ['', '{', 'null', '[]', '"es"', '3', '{}', '{"version":"1"}', '{"version":1.5}', '{"version":0}', '{"version":4,"language":"es"}', '{"version":99}']) {
       expect(parseSettings(bad), bad).toBeNull();
     }
   });
@@ -109,25 +126,43 @@ describe('parsing what was stored', () => {
 });
 
 describe('migrations', () => {
-  it('version 1 → 2 (S30): the golden file of version 1 keeps what it held and gets what is new with its defaults', () => {
-    expect(Object.keys(SETTINGS_MIGRATIONS)).toEqual(['1']);
+  it('version 1 → 2 (S30) → 3: the golden file of version 1 keeps what it held and gets everything new with its defaults', () => {
+    expect(Object.keys(SETTINGS_MIGRATIONS)).toEqual(['1', '2']);
     const golden = readFileSync(new URL('./golden/settings.v1.json', import.meta.url), 'utf8');
     expect(JSON.parse(golden).version).toBe(1);
-    expect(parseSettings(golden)).toEqual({ version: 2, language: 'es', volume: { master: 0.8 }, quality: 'auto', keys: {}, touch: touch({ scale: 1.2, opacity: 0.8 }) });
+    expect(parseSettings(golden)).toEqual({ version: 3, language: 'es', volume: { master: 0.8 }, quality: 'auto', keys: {}, touch: touch({ scale: 1.2, opacity: 0.8 }), slot: 1, accessibility: ACCESS });
   });
 
-  it('a golden file of version 2 pins the current format: every field of every section', () => {
+  it('version 2 → 3: the golden file of version 2 keeps every field it held; the game it was playing is the first slot (where every save made so far lives) and no accessibility choice is on', () => {
     const golden = readFileSync(new URL('./golden/settings.v2.json', import.meta.url), 'utf8');
-    const s = parseSettings(golden);
-    expect(s).toEqual({
-      version: 2,
+    expect(JSON.parse(golden).version).toBe(2);
+    expect(parseSettings(golden)).toEqual({
+      version: 3,
       language: 'en',
       volume: { master: 0.35 },
       quality: 'high',
       keys: { attack: 'KeyF', dash: 'KeyG' },
       touch: { scale: 1.2, opacity: 0.8, side: 'left', offsetX: 0.5, offsetY: 0.25 },
+      slot: 1,
+      accessibility: ACCESS,
+    });
+  });
+
+  it('a golden file of version 3 pins the current format: every field of every section', () => {
+    const golden = readFileSync(new URL('./golden/settings.v3.json', import.meta.url), 'utf8');
+    const s = parseSettings(golden);
+    expect(s).toEqual({
+      version: 3,
+      language: 'en',
+      volume: { master: 0.35 },
+      quality: 'high',
+      keys: { attack: 'KeyF', dash: 'KeyG' },
+      touch: { scale: 1.2, opacity: 0.8, side: 'left', offsetX: 0.5, offsetY: 0.25 },
+      slot: 2,
+      accessibility: { reduceFlashes: true, reduceShake: true, hudScale: 1.2 },
     });
     expect(JSON.parse(serializeSettings(s!))).toEqual(JSON.parse(golden)); // and writing it gives the same file
+    expect(serializeSettings(s!)).toBe(golden.trim());
   });
 
   it('the chain runs step by step, each one upgrading from the version it names', () => {

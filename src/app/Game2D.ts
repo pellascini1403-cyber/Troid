@@ -19,6 +19,7 @@ import { Enemy } from '@/enemies/Enemy';
 import type { Guardian } from '@/enemies/Guardian';
 import type { EnemyDefinition } from '@/enemies/EnemyDefinition';
 import { TrainingDummy } from '@/enemies/TrainingDummy';
+import { PlayStats } from '@/gameplay/PlayStats';
 import { restoreFromProgress } from '@/gameplay/progress';
 import type { Seal } from '@/gameplay/Seal';
 import { GameSession } from '@/gameplay/GameSession';
@@ -34,7 +35,10 @@ import { attachGamepad, browserPads } from '@/input/sources/GamepadSource';
 import { attachKeyboardMouse } from '@/input/sources/KeyboardMouseSource';
 import { TouchSource } from '@/input/sources/TouchSource';
 import { VirtualPad } from '@/input/sources/VirtualPad';
-import { ProgressStore } from '@/save/ProgressStore';
+import type { ProgressData } from '@/save/ProgressData';
+import type { ProgressStore } from '@/save/ProgressStore';
+import type { Inspection } from '@/save/SafeStore';
+import { SaveSlots } from '@/save/SaveSlots';
 import { SettingsStore } from '@/save/SettingsStore';
 import type { TouchSettings } from '@/save/SettingsData';
 import type { LightFrame, LightHero } from '@/presentation/lighting';
@@ -62,6 +66,7 @@ import { HudModel } from '@/ui/hud/HudModel';
 import { HudView } from '@/ui/hud/HudView';
 import { ArrivalIndicator } from '@/ui/overlays/ArrivalIndicator';
 import { DeathOverlay } from '@/ui/overlays/DeathOverlay';
+import { SaveNotice } from '@/ui/overlays/SaveNotice';
 import { TransitionOverlay } from '@/ui/overlays/TransitionOverlay';
 import { InteractionPrompt } from '@/ui/prompt/InteractionPrompt';
 import type { SettingsMenu } from '@/ui/settings/SettingsMenu';
@@ -70,7 +75,8 @@ import { applySafeOverride, SafeArea } from '@/ui/safeArea';
 import { TouchControls } from '@/ui/touch/TouchControls';
 import type { Insets } from '@/ui/touch/layout';
 import { listen } from './dom';
-import { createStorage } from './storage';
+import { createStorage, isDurable } from './storage';
+import { browserPlatform, GameSaves } from './gameSaves';
 import type { DevTools } from './devTools';
 import { GameLoop } from './GameLoop';
 import { CURTAIN_TIMEOUT_MS, curtainUp, liftCurtain, wantsCurtain, type CurtainReason } from './curtain';
@@ -81,7 +87,6 @@ import type { Effects } from './effects';
 import type { HookHost } from './testHooks';
 
 type BossViews = typeof import('./bossViews');
-import { attachProgressRecorder } from './progressRecorder';
 import { artIndexUrl, optionsFromQuery, type GameOptions } from './options';
 
 /** How long after the first frame the page waits before it fetches the effects (it still waits for an idle moment after that). */
@@ -190,6 +195,11 @@ export class Game2D {
   private shakes = { count: 0, last: 0 };
   /** What the player chose and the game saved (the language, the size and opacity of the touch controls): loaded before the game is built. */
   private readonly settings: SettingsStore;
+  /** The saved games of the page (`null` in a playground, which saves nothing) and what is counted of the one being played. */
+  private readonly saves: GameSaves | null;
+  private readonly stats: PlayStats;
+  /** The discreet line that says what became of the saved game. */
+  private readonly notice: SaveNotice;
   private readonly pauseButton: PauseButton;
   /** The pause / settings menu: a separate chunk, fetched the first time it is asked for. While it is open the simulation is paused. */
   private menu: SettingsMenu | null = null;
@@ -207,7 +217,8 @@ export class Game2D {
     if (options.hooks || import.meta.env.DEV) DrawCallCounter.install(counter);
     // what the player chose last time (the language, the volume, the quality, the keys, the touch controls): read before anything is drawn, so the
     // first frame is already right — the quality is the profile the renderer is built with
-    const settings = new SettingsStore(createStorage(), { warn: (message) => log.scope('save').warn(message) });
+    const storage = createStorage();
+    const settings = new SettingsStore(storage, { warn: (message) => log.scope('save').warn(message) });
     await settings.load();
     const renderer = await Renderer2D.create({ host, viewHeight: options.camera.viewHeight ?? CAMERA_2D.viewHeight ?? 13.5, quality: settings.value.quality });
     // Sprites load asynchronously (a placeholder atlas is drawn, final art would be fetched), so the game is built only
@@ -216,10 +227,18 @@ export class Game2D {
     const playerDef = SPRITE_SETS[PLAYER.spriteSetId];
     if (!playerDef) throw new Error(`player sprite set "${PLAYER.spriteSetId}" is not in the content registry`);
     const playerSet = await sprites.acquire(playerDef);
-    // the progress of the game: continued, or erased with `?new=1`. A playground (`?room=`) never reads or writes it
-    const progress = options.room ? null : new ProgressStore(createStorage(), { warn: (message) => log.scope('save').warn(message) });
-    if (progress) await (options.newGame ? progress.erase() : progress.load());
-    return new Game2D(renderer, counter, options, sprites, playerSet, settings, progress);
+    // the saved games: the one being played is continued, or erased with `?new=1`. A playground (`?room=`) never reads or writes them
+    const slots = options.room ? null : new SaveSlots(storage, { warn: (message) => log.scope('save').warn(message) });
+    const progress = slots ? slots.store(settings.value.slot) : null;
+    let found: Inspection<ProgressData> | null = null;
+    if (progress) {
+      if (options.newGame) await progress.erase();
+      else {
+        found = await progress.inspect(); // what is there, looked at before `load` repairs it: the player is told if it was not whole
+        await progress.load();
+      }
+    }
+    return new Game2D(renderer, counter, options, sprites, playerSet, settings, progress, slots, found, isDurable(storage));
   }
 
   private constructor(
@@ -230,6 +249,9 @@ export class Game2D {
     playerSet: LoadedSpriteSet<Texture>,
     settings: SettingsStore,
     progress: ProgressStore | null,
+    slots: SaveSlots | null,
+    found: Inspection<ProgressData> | null,
+    durable: boolean,
   ) {
     this.settings = settings;
     this.arrival = new ArrivalGate({ maxWaitMs: options.arrivalWait ?? ARRIVAL.maxWaitMs, warmFrames: ARRIVAL.warmFrames });
@@ -252,7 +274,16 @@ export class Game2D {
       ...(saved ? { startEntry: saved.startEntry, checkpoint: saved.checkpoint, flags: saved.flags, restore: saved.restore } : options.room ? {} : { startEntry: START.entry }),
       unlocked: saved ? [...saved.unlocked, ...options.unlock] : options.room ? options.unlock : [...START.unlocked, ...options.unlock],
     });
-    if (progress) this.lifecycle.add(attachProgressRecorder(this.session, progress));
+    // what the hero does is counted from the events the simulation raises; the time is the session's own clock on top of what the save already had
+    this.stats = new PlayStats(saved?.stats);
+    this.lifecycle.add(this.stats.attach(this.session.bus, this.session.room.id));
+    this.saves = slots
+      ? new GameSaves({ slots, settings, slot: settings.value.slot, stats: this.stats, durable, platform: browserPlatform(), notify: (n) => this.notice.show(n.kind, n.slot) })
+      : null;
+    if (this.saves) {
+      this.saves.attach(this.session);
+      this.lifecycle.add(() => this.saves?.dispose());
+    }
     this.lifecycle.add(() => this.session.dispose());
     this.lifecycle.add(() => sprites.dispose());
     this.lifecycle.add(() => renderer.destroy());
@@ -301,6 +332,9 @@ export class Game2D {
     // the entry to the pause / settings menu: one small icon at the top centre (the right side belongs to Attack, Dash and Ability)
     this.pauseButton = new PauseButton(ui, this.translator, () => this.toggleMenu());
     this.lifecycle.add(() => this.pauseButton.dispose());
+    // what became of the saved game (saved, not saved, recovered…): a blink at the top right, never in the way
+    this.notice = new SaveNotice(ui, this.translator);
+    this.lifecycle.add(() => this.notice.dispose());
     this.lifecycle.add(
       this.session.bus.on('bottle:changed', (e) => {
         if (e.type === 'used') this.hudModel.bottleUsed(e.slot);
@@ -542,6 +576,9 @@ export class Game2D {
     });
     this.renderer.resize();
     this.layoutUi();
+    // a game that was recovered from its last good copy, one that could not be read, a browser that keeps nothing: the player hears it once, as the game begins
+    if (this.saves && found) this.saves.announceStart(found);
+    else if (this.saves && !durable) this.saves.announceStart({ state: 'empty' });
     if (options.hooks || import.meta.env.DEV) this.exposeTestHooks();
   }
 
@@ -625,6 +662,7 @@ export class Game2D {
     this.hud.place(width, height, insets);
     this.prompt.place(width, height, insets, this.touchControls.gestureScale);
     this.pauseButton.place(width, height, insets, this.touchControls.gestureScale);
+    this.notice.place(width, height, insets, this.touchControls.gestureScale);
     this.placeBossBar(width, height, insets);
   }
 
@@ -843,6 +881,7 @@ export class Game2D {
     this.deathOverlay.update(this.session.deathSnapshot);
     this.transitionOverlay.update(this.session.transitionSnapshot);
     this.updateArrivalIndicator(realDt);
+    this.notice.update(realDt);
     this.updateHud(realDt);
 
     // which limits hold now: the room's, or those of the camera zone the hero's feet are in (an arena; it eases, it never jumps)
@@ -1101,6 +1140,9 @@ export class Game2D {
       art: () => this.art,
       visualLacks: () => (this.playerVisual.artSet ? lackedClips(this.playerVisual.artSet.def, PLAYER_VISUAL.required) : [...PLAYER_VISUAL.required]),
       menuOpen: () => this.menuOpen,
+      saves: () => this.saves,
+      stats: this.stats,
+      notice: () => ({ kind: this.notice.current.kind, slot: this.notice.current.slot, opacity: this.notice.current.opacity, text: this.notice.root.textContent ?? '' }),
       virtualPad: () => this.virtualPad,
       setVirtualPad: (pad) => void (this.virtualPad = pad),
       stepOnce: () => this.stepOnce(),

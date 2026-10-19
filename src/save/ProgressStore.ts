@@ -1,5 +1,5 @@
 import { parseProgress, repairProgress, serializeProgress, type ProgressData } from './ProgressData';
-import { SafeStore } from './SafeStore';
+import { SafeStore, type Inspection } from './SafeStore';
 import type { StorageAdapter } from './StorageAdapter';
 
 export interface ProgressStoreOptions {
@@ -41,10 +41,21 @@ export class ProgressStore {
     return this.safe.write(serializeProgress(clean));
   }
 
-  /** A new game: forgets the save (and its copies). */
+  /** What is saved, looked at without touching it (`load` repairs while it reads; this does not). */
+  inspect(): Promise<Inspection<ProgressData>> {
+    return this.safe.inspect();
+  }
+
+  /** Forgets the save AND its copies, the damaged one included: the player asked for this one by name. */
   async erase(): Promise<boolean> {
     this.state = null;
     return this.safe.erase();
+  }
+
+  /** A new game here: the save goes, but a copy that could not be read is kept (filed as `.corrupt`) — only a good one is replaced, and only because the player said so. */
+  async restart(): Promise<boolean> {
+    this.state = null;
+    return this.safe.restart();
   }
 
   /** Resolves when every write asked for so far is finished. */

@@ -2,6 +2,7 @@ import type { Page } from 'playwright-core';
 import { CATALOGS } from '@/i18n';
 import { ROOMS, WORLD } from '@/content';
 import { restoreFromProgress } from '@/gameplay/progress';
+import { parseProgress } from '@/save/ProgressData';
 import { driver, type Driver } from '../../tests/helpers/sim';
 import type { Ctx, GameState } from './scenario';
 
@@ -12,7 +13,11 @@ import type { Ctx, GameState } from './scenario';
  */
 export const PROGRESS_KEY = 'troid.progress';
 
-/** A hero who has done everything before the arena: both slimes down, the Spirit Bolt taken and the seal of R3 broken. Resting at the shrine of R4. */
+/**
+ * A hero who has done everything before the arena: both slimes down, the Spirit Bolt taken and the seal of R3 broken. Resting at the shrine of R4.
+ * It is written in VERSION 1 of the save on purpose: it is what a game saved before there were counts and slots looks like, so every scenario that loads it also proves that such a game still
+ * loads (the browser migrates it to the current version; `shrineDriver` reads it the same way).
+ */
 export const AT_THE_SHRINE = {
   saveVersion: 1,
   at: { room: 'r4_sanctum', entry: 'rest' },
@@ -29,7 +34,7 @@ export const AIR_DASH_FLAG = 'taken:air_dash';
 
 /** The game of `AT_THE_SHRINE`, in Node: what the browser builds when it loads that save (same options, same seed). */
 export function shrineDriver(seed = 1): Driver {
-  const restored = restoreFromProgress(AT_THE_SHRINE, ROOMS, WORLD.start);
+  const restored = restoreFromProgress(parseProgress(JSON.stringify(AT_THE_SHRINE))!, ROOMS, WORLD.start);
   return driver({ room: ROOMS.r4_sanctum!, entry: restored.startEntry, unlocked: restored.unlocked, seed, extra: { rooms: ROOMS, ...restored } });
 }
 

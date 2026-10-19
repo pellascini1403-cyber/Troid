@@ -27,4 +27,9 @@ export class FlakyStorage implements StorageAdapter {
     if (this.failing.has('remove')) throw new Error('remove blocked');
     await this.inner.remove(key);
   }
+
+  /** Every key that holds something, sorted (what the storage really has, whatever it was made to refuse). */
+  keys(): string[] {
+    return this.inner.keys();
+  }
 }

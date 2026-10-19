@@ -7,6 +7,7 @@ import type { Enemy } from '@/enemies/Enemy';
 import type { Guardian } from '@/enemies/Guardian';
 import type { TrainingDummy } from '@/enemies/TrainingDummy';
 import type { GameSession } from '@/gameplay/GameSession';
+import type { PlayStats } from '@/gameplay/PlayStats';
 import type { Projectile } from '@/gameplay/Projectile';
 import type { Translator } from '@/i18n';
 import type { CueLog } from '@/audio/AudioDirector';
@@ -26,6 +27,7 @@ import type { HudModel } from '@/ui/hud/HudModel';
 import type { HudView } from '@/ui/hud/HudView';
 import type { TouchControls } from '@/ui/touch/TouchControls';
 import type { Art } from './art';
+import type { GameSaves } from './gameSaves';
 import type { Effects } from './effects';
 
 /**
@@ -94,6 +96,11 @@ export interface HookHost {
   /** The clips the protagonist's art still lacks for the protagonist to be drawn entirely with it (all of them while there is no art). */
   visualLacks(): string[];
   menuOpen(): boolean;
+  /** The saved games of the page (docs/PROMPT14-LOG.md): what the game saves with (`null` in a playground, which saves nothing) and what is counted of the one being played. */
+  saves(): GameSaves | null;
+  readonly stats: PlayStats;
+  /** What the discreet line about the saved game is showing now. */
+  notice(): { kind: string | null; slot: number; opacity: number; text: string };
   /** The abstract gamepad of the E2E, made on first use (`null` when there is none). */
   virtualPad(): VirtualPad | null;
   setVirtualPad(pad: VirtualPad | null): void;
@@ -116,6 +123,8 @@ export function createTestHooks(h: HookHost) {
     game: h.game,
     session,
     input: h.input,
+    /** The saved games of the page: `stop()` of what it saves with is "the game is not running any more" — the way a scenario damages the storage without the page writing over it on its way out. */
+    saves: () => h.saves(),
     /** The 2D view is ready as soon as `Game2D.create` resolved (the sprite sets are loaded before it is built). */
     ready: () => true,
     /** Every cosmetic chunk has arrived (they load after the first frame): a test that looks at them waits for this. */
@@ -326,6 +335,10 @@ export function createTestHooks(h: HookHost) {
         },
         keys: h.keys(),
         menuOpen: h.menuOpen(),
+        // the saved games (docs/PROMPT14-LOG.md): the one being played, what is counted of it, and what the page is telling the player about it
+        slot: h.saves()?.slot ?? null,
+        stats: h.stats.snapshot(session.now),
+        notice: h.notice(),
         // the cues of the sound to come (S41): how many of each, and the last ones — what an audio engine would have been told
         cues: h.cueLog()?.snapshot() ?? null,
         art: h.art()?.snapshot() ?? null,

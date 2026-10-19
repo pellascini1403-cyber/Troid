@@ -25,5 +25,10 @@
   "interact.activate": "Activar",
   "interact.open": "Abrir",
   "interact.rest": "Descansar",
-  "settings.open": "Pausa y ajustes"
+  "settings.open": "Pausa y ajustes",
+  "save.saved": "Guardado",
+  "save.failed": "No se pudo guardar",
+  "save.recovered": "Se recuperó la última copia buena de la partida {slot}",
+  "save.damaged": "La partida {slot} estaba dañada: se conserva una copia y empiezas una nueva",
+  "save.unavailable": "Este navegador no permite guardar: el progreso se perderá al cerrar"
 }

@@ -84,7 +84,8 @@ function playAndSave(): { saves: ProgressData[]; final: ProgressData; d: Driver 
   globalThis.queueMicrotask = (f: () => void): void => void held.push(f);
   let stop = (): void => {};
   try {
-    stop = attachProgressRecorder(d.session, store);
+    const recorder = attachProgressRecorder(d.session, store);
+    stop = () => recorder.stop();
     d.onFrame = letGo;
     finishFrom(d);
     d.onFrame = null;

@@ -22,8 +22,8 @@ function setup(): { d: Driver; storage: MemoryStorage; store: ProgressStore; sav
     n++;
     return original(data);
   };
-  const stop = attachProgressRecorder(d.session, store);
-  return { d, storage, store, saves: () => n, stop };
+  const recorder = attachProgressRecorder(d.session, store);
+  return { d, storage, store, saves: () => n, stop: () => recorder.stop() };
 }
 const flush = async (store: ProgressStore): Promise<void> => {
   await Promise.resolve();

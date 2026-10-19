@@ -80,6 +80,10 @@ export interface GameState {
   quality?: { setting: string; tier: string; resolution: number; particleBudget: number | null; spriteBudget: number | null };
   keys?: Record<string, string>;
   menuOpen?: boolean;
+  /** 2D view only (docs/PROMPT14-LOG.md): the saved game being played (`null`: a playground), what the game has counted of it, and what the page is telling the player about it. */
+  slot?: number | null;
+  stats?: { ticks: number; deaths: number; kills: number; rooms: string[] };
+  notice?: { kind: string | null; slot: number; opacity: number; text: string };
   /** 2D view only (S36): which look draws the protagonist — the mode, the look on screen, the id of the art's set (null until it is attached), the clips it provides and the required ones it still lacks. */
   visual?: { mode: string; shows: string; art: string | null; provides: string[]; lacks: string[] };
   /** 2D view only (S40): the four boxes of the hero in world metres — the picture that is SEEN, the body that COLLIDES, the hurtbox that is HURT and the hitbox that HITS (`null` when no blow is out). */

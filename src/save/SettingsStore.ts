@@ -2,7 +2,7 @@ import { Observable } from '@/core/observable';
 import { SafeStore } from './SafeStore';
 import type { KeyMap } from '@/input/remap';
 import type { QualitySetting } from '@/presentation/viewport';
-import { defaultSettings, parseSettings, repairSettings, serializeSettings, type SettingsData, type TouchSettings, type VolumeSettings } from './SettingsData';
+import { defaultSettings, parseSettings, repairSettings, serializeSettings, type AccessibilitySettings, type SettingsData, type TouchSettings, type VolumeSettings } from './SettingsData';
 import type { StorageAdapter } from './StorageAdapter';
 
 /** A change to the settings: only what is given changes. */
@@ -13,6 +13,9 @@ export interface SettingsPatch {
   /** The whole map of keys replaces the one there was (the menu works out swaps and refusals before asking). */
   keys?: KeyMap;
   touch?: Partial<TouchSettings>;
+  /** The saved game to play (the game reads it when it starts). */
+  slot?: number;
+  accessibility?: Partial<AccessibilitySettings>;
 }
 
 export interface SettingsStoreOptions {
@@ -55,6 +58,8 @@ export class SettingsStore {
       quality: patch.quality ?? cur.quality,
       keys: patch.keys ?? cur.keys,
       touch: { ...cur.touch, ...patch.touch },
+      slot: patch.slot ?? cur.slot,
+      accessibility: { ...cur.accessibility, ...patch.accessibility },
     });
     this.state = next;
     this.changed.set(next);

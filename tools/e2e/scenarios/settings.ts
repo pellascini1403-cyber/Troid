@@ -235,7 +235,9 @@ export const settings: Scenario = {
     assert.equal(await text(page, 'settings-title'), 'Pausa', 'the menu speaks the language that was saved, words included');
     assert.equal(await text(page, 'settings-volume-section').then((t) => t.includes('Volumen')), true);
     await setRange(page, 'settings-volume', 0.5);
-    const upgraded = await savedWhere(page, (f) => f['version'] === 2, 'the file is version 2 from the first change');
+    const upgraded = await savedWhere(page, (f) => f['version'] === 3, 'the file is version 3 from the first change (1 → 2 → 3)');
+    assert.equal(upgraded['slot'], 1, 'the game it was playing is the first, where every save made so far lives');
+    assert.deepEqual(upgraded['accessibility'], { reduceFlashes: false, reduceShake: false, hudScale: 1 }, 'and no accessibility choice is on');
     assert.deepEqual(upgraded['volume'], { master: 0.5 });
     assert.equal(upgraded['language'], 'es');
     assert.deepEqual([upgraded['touch'].scale, upgraded['touch'].opacity], [1.2, 0.8], 'and what version 1 held is still in it');
