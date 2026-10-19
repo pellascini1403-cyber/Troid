@@ -43,7 +43,7 @@ export const hud: Scenario = {
     assert.equal(await page.evaluate('document.getElementById("ui").contains(document.querySelector("[data-testid=hud]"))'), true, 'the HUD lives in the DOM layer, not in the canvas');
     assert.equal(await page.locator('canvas').count(), 1, 'one canvas: the world');
     const text = await page.evaluate('document.querySelector("[data-testid=hud]").textContent');
-    assert.equal(String(text).trim(), '', 'the HUD draws no text of its own');
+    assert.equal(String(text).trim(), '', 'the HUD draws no text of its own while there is nothing to count: no power, no bottle recharging');
     await ctx.shot('01-hud');
 
     // ================================================================== placement: top left, inside the screen, above the touch zone
@@ -63,13 +63,16 @@ export const hud: Scenario = {
     await ctx.step(2);
     const after = await page.$$eval('[data-testid^="hud-life-seg-"]', (els) => els.map((e) => (e as HTMLElement).dataset['state']));
     assert.deepEqual(after, ['full', 'full', 'full', 'full', 'empty'], 'one point of life lost: the last segment empties');
-    const ghost = async (): Promise<number> => Number.parseFloat(await page.locator('[data-testid="hud-life-seg-4"] > div').evaluate((e) => (e as HTMLElement).style.opacity || '0'));
+    assert.equal(await attr(page, 'hud-life', 'data-guard'), '1', 'the i-frames of the blow are shown (the guard line)');
+    assert.ok(Number.parseFloat(await style(page, 'hud-guard', 'opacity')) === 1, 'and it is lit');
+    const ghost = async (): Promise<number> => Number.parseFloat(await page.locator('[data-testid="hud-life-seg-4"] .hud-seg-ghost').evaluate((e) => (e as HTMLElement).style.opacity || '0'));
     assert.ok((await ghost()) > 0, 'the lost segment leaves a ghost');
     await ctx.shot('02-life-lost');
     await page.waitForTimeout(700);
     assert.equal(await ghost(), 0, 'the ghost fades out within about half a second');
     assert.equal(await attr(page, 'hud-life', 'aria-valuenow'), '4');
     await ctx.step(80); // the hit's invulnerability and stun are over
+    assert.equal(await attr(page, 'hud-life', 'data-guard'), '0', 'the window of the i-frames is over and so is the guard line');
     await sess(page, 's.player.health.damage(3);');
     await ctx.step(1);
     assert.equal(await page.locator('[data-testid="hud"]').getAttribute('data-critical'), '1', 'one point left: critical (the last segment pulses)');
@@ -95,11 +98,14 @@ export const hud: Scenario = {
     // ================================================================== bottles: ready / empty / recharging, one at a time
     await sess(page, 's.bottles.consume(0);');
     await ctx.step(1);
+    assert.equal(await page.locator('[data-testid="hud-time-0"]').textContent(), '60', 'the bottle that recharges says how long: 60 s');
+    assert.equal(await page.locator('[data-testid="hud-time-1"]').textContent(), '', 'and the ones that are ready say nothing');
     const state = (): Promise<string[]> => page.$$eval('[data-testid^="hud-bottle-"]', (els) => els.map((e) => (e as HTMLElement).dataset['state'] ?? ''));
     assert.deepEqual(await state(), ['recharging', 'ready', 'ready']);
     await ctx.step(1800);
     const half = Number.parseFloat((await page.locator('[data-testid="hud-bottle-0"] .hud-liquid').evaluate((e) => (e as HTMLElement).style.transform)).replace('scaleY(', ''));
     assert.ok(Math.abs(half - 0.5) < 0.02, `the vial refills as it recharges (${half})`);
+    assert.equal(await page.locator('[data-testid="hud-time-0"]').textContent(), '30', 'and the number counts down with it: 30 s are left at the half');
     await sess(page, 's.bottles.consume(1);');
     await ctx.step(1);
     assert.deepEqual(await state(), ['recharging', 'empty', 'ready'], 'a second drink waits its turn: only one recharges at a time');
@@ -117,6 +123,10 @@ export const hud: Scenario = {
     await ctx.step(1);
     assert.equal(await attr(page, 'hud-card', 'data-state'), 'ready');
     assert.equal(await page.locator('[data-testid="hud-card"] svg').count(), 1, 'the card shows its icon');
+    assert.equal(await page.locator('[data-testid="hud-card-cost"]').textContent(), '30', 'and what the Spirit Bolt costs');
+    assert.equal(await style(page, 'hud-magic-cost', 'left'), '30%', 'the bar marks where that falls');
+    assert.equal(await attr(page, 'hud-magic', 'data-afford'), '1', 'the magic reaches it');
+    assert.equal(await attr(page, 'hud-card-key', 'data-on'), '0', 'a touch screen has the button itself: no key is written on the card');
     assert.notEqual(await page.locator('[data-testid="touch-ability"]').evaluate((e) => getComputedStyle(e).display), 'none', 'a card: the Ability button appears');
     await ctx.shot('05-card');
     await sess(page, 's.loadout.equip(null);');
@@ -182,5 +192,24 @@ export const hud: Scenario = {
     assert.equal(await attr(ctx.page, 'hud-bottle-0', 'aria-label'), 'Botella 1: lista');
     // a desktop sees the HUD too (it is not part of the touch layer)
     assert.equal(await ctx.page.locator('[data-testid="hud"]').isVisible(), true);
+
+    // ================================================================== a keyboard: the key of the power is written on it, and what is written on the HUD is never a word
+    await sess(ctx.page, 's.loadout.acquire("card_spirit_bolt");');
+    await sess(ctx.page, 's.bottles.consume(0);');
+    await ctx.step(2);
+    assert.equal(await ctx.page.locator('[data-testid="hud-card-key"]').textContent(), 'K', 'the key of the Ability, as it is bound');
+    assert.equal(await attr(ctx.page, 'hud-card-key', 'data-on'), '1');
+    const written = async (): Promise<string> => String(await ctx.page.evaluate('document.querySelector("[data-testid=hud]").textContent'));
+    assert.equal(await written(), 'K3060', 'the key, what the power costs and the seconds a bottle needs: nothing else');
+    assert.match(await written(), /^[0-9A-Z]+$/, 'numbers and the label of a key: no word of any language');
+    await ctx.open('lang=en', { width: 844, height: 390 });
+    await sess(ctx.page, 's.loadout.acquire("card_spirit_bolt");');
+    await sess(ctx.page, 's.bottles.consume(0);');
+    await ctx.step(2);
+    assert.equal(await written(), 'K3060', 'and it is the same in English');
+    // a remapped key changes the label with it
+    await ctx.page.evaluate('window.__troid.game.setKeys({ ability: "KeyH" })');
+    await ctx.step(2);
+    assert.equal(await ctx.page.locator('[data-testid="hud-card-key"]').textContent(), 'H', 'the label follows the remap');
   },
 };

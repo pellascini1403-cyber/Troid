@@ -146,7 +146,7 @@ describe('the status snapshot the HUD reads', () => {
   it('has life, magic, the (empty) card slot and the bottles, as plain numbers', () => {
     const { s } = setup();
     const st = s.status();
-    expect(st.life).toEqual({ current: 5, max: 5 });
+    expect(st.life).toEqual({ current: 5, max: 5, guard01: 0 });
     expect(st.magic).toEqual({ current: 100, max: 100, regenerating: false });
     expect(st.card.equipped).toBe(false);
     expect(st.bottles.map((b) => [b.state, b.fill01])).toEqual([['ready', 1], ['ready', 1], ['ready', 1]]);

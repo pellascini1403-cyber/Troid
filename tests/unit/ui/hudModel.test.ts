@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createPlayerStatus, type PlayerStatus } from '@/gameplay/PlayerStatus';
-import { FLASH_SECONDS, GAIN_SECONDS, GHOST_SECONDS, HudModel, POP_SECONDS, SHAKE_SECONDS } from '@/ui/hud/HudModel';
+import { FLASH_SECONDS, GAIN_SECONDS, GHOST_SECONDS, HEAL_SECONDS, HudModel, POP_SECONDS, SHAKE_SECONDS, TRAIL_DRAIN_PER_SECOND, TRAIL_HOLD_SECONDS } from '@/ui/hud/HudModel';
 
 /**
  * The HUD as a pure model: a PlayerStatus in, a HudState out, with the short real-time transients of the interface (the ghost
@@ -12,11 +12,17 @@ function status(patch: (s: PlayerStatus) => void = () => {}): PlayerStatus {
   s.life.max = 5;
   s.magic.current = 100;
   s.magic.max = 100;
-  s.bottles = [0, 1, 2].map(() => ({ state: 'ready' as const, fill01: 1, iconId: 'bottle' }));
+  s.bottles = [0, 1, 2].map(() => ({ state: 'ready' as const, fill01: 1, iconId: 'bottle', secondsLeft: 0 }));
   patch(s);
   return s;
 }
 const FRAME = 1 / 60;
+/** A status with the Spirit Bolt equipped (it costs 30 of the 100 the bar holds). */
+const withCard = (patch: (s: PlayerStatus) => void = () => {}): PlayerStatus =>
+  status((s) => {
+    s.card = { equipped: true, id: 'card_spirit_bolt', nameKey: 'card.spiritBolt.name', iconId: 'spirit_bolt', state: 'ready', cooldown01: 0, cost: 30 };
+    patch(s);
+  });
 
 describe('life: five segments, a ghost for the one that was lost', () => {
   it('one segment per point, all full at the start', () => {
@@ -187,7 +193,7 @@ describe('bottles: ready, empty, recharging; a pop when one is drunk', () => {
     const m = new HudModel();
     let s = m.update(status((x) => (x.bottles[0]!.state = 'recharging')), FRAME);
     expect(s.bottles.map((b) => b.state)).toEqual(['recharging', 'ready', 'ready']);
-    s = m.update(status((x) => x.bottles.push({ state: 'ready', fill01: 1, iconId: 'bottle' })), FRAME);
+    s = m.update(status((x) => x.bottles.push({ state: 'ready', fill01: 1, iconId: 'bottle', secondsLeft: 0 })), FRAME);
     expect(s.bottles).toHaveLength(4);
   });
 
@@ -210,7 +216,7 @@ describe('bottles: ready, empty, recharging; a pop when one is drunk', () => {
 
   it('a vial that was not there a moment ago (the fourth bottle) arrives glowing, and the glow fades in 0.9 s; the others never glow', () => {
     const m = new HudModel();
-    const four = status((x) => x.bottles.push({ state: 'ready', fill01: 1, iconId: 'bottle' }));
+    const four = status((x) => x.bottles.push({ state: 'ready', fill01: 1, iconId: 'bottle', secondsLeft: 0 }));
     let s = m.update(status(), FRAME);
     expect(s.bottles.map((b) => b.gain)).toEqual([0, 0, 0]);
     s = m.update(four, 0);
@@ -223,7 +229,7 @@ describe('bottles: ready, empty, recharging; a pop when one is drunk', () => {
 
   it('a game that LOADS with four bottles does not announce the fourth: its first frame shows no glow, and neither does any later one', () => {
     const m = new HudModel();
-    const four = status((x) => x.bottles.push({ state: 'ready', fill01: 1, iconId: 'bottle' }));
+    const four = status((x) => x.bottles.push({ state: 'ready', fill01: 1, iconId: 'bottle', secondsLeft: 0 }));
     let s = m.update(four, FRAME);
     expect(s.bottles).toHaveLength(4);
     expect(s.bottles.every((b) => b.gain === 0)).toBe(true);
@@ -235,9 +241,9 @@ describe('bottles: ready, empty, recharging; a pop when one is drunk', () => {
     const m = new HudModel();
     m.update(status(), FRAME);
     m.bottleUsed(0);
-    let s = m.update(status((x) => x.bottles.push({ state: 'ready', fill01: 1, iconId: 'bottle' })), 0);
+    let s = m.update(status((x) => x.bottles.push({ state: 'ready', fill01: 1, iconId: 'bottle', secondsLeft: 0 })), 0);
     expect(s.bottles.map((b) => [b.pop, b.gain])).toEqual([[1, 0], [0, 0], [0, 0], [0, 1]]);
-    s = m.update(status((x) => x.bottles.push({ state: 'ready', fill01: 1, iconId: 'bottle' })), POP_SECONDS);
+    s = m.update(status((x) => x.bottles.push({ state: 'ready', fill01: 1, iconId: 'bottle', secondsLeft: 0 })), POP_SECONDS);
     expect(s.bottles[0]!.pop).toBe(0);
     expect(s.bottles[3]!.gain).toBeGreaterThan(0);
   });
@@ -314,3 +320,137 @@ describe('time and reuse', () => {
     expect(play()).toBe(play());
   });
 });
+
+describe('life: a heal is answered, and the i-frames of a blow are shown', () => {
+  it('the segments that come back get a wave of light — exactly those — and it fades over HEAL_SECONDS of real time', () => {
+    const m = new HudModel();
+    m.update(status((x) => (x.life.current = 2)), FRAME);
+    let s = m.update(status((x) => (x.life.current = 4)), FRAME);
+    expect(s.life.segments.map((x) => x.heal > 0.9)).toEqual([false, false, true, true, false]);
+    s = m.update(status((x) => (x.life.current = 4)), HEAL_SECONDS / 2);
+    expect(s.life.segments[2]!.heal).toBeCloseTo(0.5, 1);
+    s = m.update(status((x) => (x.life.current = 4)), HEAL_SECONDS);
+    expect(s.life.segments.every((x) => x.heal === 0)).toBe(true);
+  });
+
+  it('a game that LOADS with some life lost shows no heal on its first frame, and neither does a segment that was never lost', () => {
+    const m = new HudModel();
+    const s = m.update(status((x) => (x.life.current = 3)), FRAME);
+    expect(s.life.segments.every((x) => x.heal === 0)).toBe(true);
+    expect(m.update(status(), FRAME).life.segments.filter((x) => x.heal > 0)).toHaveLength(2);
+  });
+
+  it('losing a segment while its wave is still running ends the wave (an empty segment shines for nothing)', () => {
+    const m = new HudModel();
+    m.update(status((x) => (x.life.current = 2)), FRAME);
+    m.update(status((x) => (x.life.current = 4)), FRAME);
+    const s = m.update(status((x) => (x.life.current = 3)), FRAME);
+    expect(s.life.segments[3]!.heal).toBe(0);
+    expect(s.life.segments[3]!.ghost).toBeGreaterThan(0.9);
+  });
+
+  it('the guard line is the simulation\'s own i-frame window, as a share (never a second timer): 1 when a blow lands, draining to 0, and held to 0 … 1', () => {
+    const m = new HudModel();
+    expect(m.update(status(), FRAME).life.guard).toBe(0);
+    expect(m.update(status((x) => (x.life.guard01 = 1)), FRAME).life.guard).toBe(1);
+    expect(m.update(status((x) => (x.life.guard01 = 0.4)), FRAME).life.guard).toBeCloseTo(0.4, 5);
+    expect(m.update(status((x) => (x.life.guard01 = 7)), FRAME).life.guard).toBe(1);
+    expect(m.update(status((x) => (x.life.guard01 = -3)), FRAME).life.guard).toBe(0);
+  });
+});
+
+describe('magic: what was spent lingers, the cost of the skill is marked, and the wait is told apart', () => {
+  it('a spend leaves a trail at the old level that holds for TRAIL_HOLD_SECONDS and then drains to the bar; the bar itself never lags', () => {
+    const m = new HudModel();
+    m.update(status(), FRAME);
+    let s = m.update(status((x) => (x.magic.current = 70)), FRAME);
+    expect(s.magic.fraction).toBeCloseTo(0.7, 5);
+    expect(s.magic.trail).toBeCloseTo(1, 5);
+    s = m.update(status((x) => (x.magic.current = 70)), TRAIL_HOLD_SECONDS / 2);
+    expect(s.magic.trail, 'still held').toBeCloseTo(1, 5);
+    s = m.update(status((x) => (x.magic.current = 70)), TRAIL_HOLD_SECONDS);
+    expect(s.magic.trail, 'draining now').toBeLessThan(1);
+    s = m.update(status((x) => (x.magic.current = 70)), 5);
+    expect(s.magic.trail).toBeCloseTo(0.7, 5);
+    expect(TRAIL_DRAIN_PER_SECOND * 0.3).toBeLessThan(1);
+  });
+
+  it('regaining magic never leaves a trail: the memory is only of what was spent', () => {
+    const m = new HudModel();
+    m.update(status((x) => (x.magic.current = 10)), FRAME);
+    for (let i = 1; i <= 30; i++) {
+      const s = m.update(status((x) => (x.magic.current = 10 + i)), FRAME);
+      expect(s.magic.trail).toBeCloseTo(s.magic.fraction, 9);
+    }
+  });
+
+  it('two spends in a row keep the older, higher level in the trail until it drains', () => {
+    const m = new HudModel();
+    m.update(status(), FRAME);
+    m.update(status((x) => (x.magic.current = 70)), FRAME);
+    const s = m.update(status((x) => (x.magic.current = 40)), FRAME);
+    expect(s.magic.trail).toBeCloseTo(1, 5);
+    expect(s.magic.fraction).toBeCloseTo(0.4, 5);
+  });
+
+  it('a game that LOADS with a half-empty bar has no trail on its first frame', () => {
+    expect(new HudModel().update(status((x) => (x.magic.current = 50)), FRAME).magic.trail).toBeCloseTo(0.5, 5);
+  });
+
+  it('marks where the equipped skill\'s cost falls on the bar, and whether it can be paid now; with no skill there is nothing to mark', () => {
+    const m = new HudModel();
+    let s = m.update(withCard(), FRAME);
+    expect(s.magic.cost01).toBeCloseTo(0.3, 5);
+    expect(s.magic.affordable).toBe(true);
+    expect(s.card.cost).toBe(30);
+    s = m.update(withCard((x) => (x.magic.current = 29.9)), FRAME);
+    expect(s.magic.affordable).toBe(false);
+    s = m.update(withCard((x) => (x.magic.current = 30)), FRAME);
+    expect(s.magic.affordable, 'exactly the cost is enough (the simulation says so too)').toBe(true);
+    s = m.update(status(), FRAME);
+    expect([s.magic.cost01, s.magic.affordable, s.card.cost]).toEqual([0, true, 0]);
+  });
+
+  it('the cost is a share of the bar, whatever the bar holds, and never past its end', () => {
+    const m = new HudModel();
+    expect(m.update(withCard((x) => (x.magic.max = 60)), FRAME).magic.cost01).toBeCloseTo(0.5, 5);
+    expect(m.update(withCard((x) => ((x.magic.max = 20), (x.magic.current = 20))), FRAME).magic.cost01).toBe(1);
+    expect(m.update(withCard((x) => ((x.magic.max = 0), (x.magic.current = 0))), FRAME).magic.cost01).toBe(0);
+  });
+
+  it('the wait after a spend is told apart from the regeneration: below the maximum and not regenerating', () => {
+    const m = new HudModel();
+    expect(m.update(status(), FRAME).magic.waiting, 'full: nothing to wait for').toBe(false);
+    expect(m.update(status((x) => ((x.magic.current = 70), (x.magic.regenerating = false))), FRAME).magic.waiting).toBe(true);
+    expect(m.update(status((x) => ((x.magic.current = 70), (x.magic.regenerating = true))), FRAME).magic.waiting).toBe(false);
+  });
+});
+
+describe('bottles: the seconds left of the one that is recharging', () => {
+  it('whole seconds rounded UP — it never says 0 while the bottle is not ready — and only for the one that is recharging', () => {
+    const m = new HudModel();
+    const bottles = (patch: (b: PlayerStatus['bottles']) => void) =>
+      status((x) => {
+        patch(x.bottles);
+      });
+    const s = m.update(
+      bottles((b) => {
+        b[0] = { state: 'empty', fill01: 0, iconId: 'bottle', secondsLeft: 0 };
+        b[1] = { state: 'recharging', fill01: 0.31, iconId: 'bottle', secondsLeft: 41.2 };
+      }),
+      FRAME,
+    );
+    expect(s.bottles.map((b) => b.secondsLeft)).toEqual([0, 42, 0]);
+    const next = m.update(bottles((b) => (b[1] = { state: 'recharging', fill01: 0.999, iconId: 'bottle', secondsLeft: 0.02 })), FRAME);
+    expect(next.bottles[1]!.secondsLeft).toBe(1);
+    const done = m.update(bottles(() => {}), FRAME);
+    expect(done.bottles[1]!.secondsLeft).toBe(0);
+  });
+
+  it('a ready bottle says nothing even if the status carries a stale number', () => {
+    const m = new HudModel();
+    const s = m.update(status((x) => (x.bottles[0] = { state: 'ready', fill01: 1, iconId: 'bottle', secondsLeft: 12 })), FRAME);
+    expect(s.bottles[0]!.secondsLeft).toBe(0);
+  });
+});
+

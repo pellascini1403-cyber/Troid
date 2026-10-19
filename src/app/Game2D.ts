@@ -30,7 +30,7 @@ import { MasterVolume } from '@/audio/volume';
 import { DEFAULT_BINDINGS, type Bindings } from '@/input/bindings';
 import { InputManager } from '@/input/InputManager';
 import { applyKeyMap, effectiveKeys, type KeyMap } from '@/input/remap';
-import { interactGlyph } from '@/input/glyphs';
+import { actionGlyph, interactGlyph } from '@/input/glyphs';
 import { attachGamepad, browserPads } from '@/input/sources/GamepadSource';
 import { attachKeyboardMouse } from '@/input/sources/KeyboardMouseSource';
 import { TouchSource } from '@/input/sources/TouchSource';
@@ -318,10 +318,16 @@ export class Game2D {
     });
     this.lifecycle.add(() => this.touchControls.dispose());
     // the HUD sits in the top-left; a finger on one of its bottle icons goes through the same single-owner touch source
-    this.hud = new HudView(ui, this.translator, {
-      down: (id, slot, x, y, t) => this.touchSource.down(id, `bottle:${slot}`, x, y, t),
-      up: (id) => this.touchSource.up(id),
-    });
+    this.hud = new HudView(
+      ui,
+      this.translator,
+      {
+        down: (id, slot, x, y, t) => this.touchSource.down(id, `bottle:${slot}`, x, y, t),
+        up: (id) => this.touchSource.up(id),
+      },
+      { size: settings.value.accessibility.hudScale },
+    );
+    this.hud.setCalm(settings.value.accessibility.reduceFlashes);
     this.lifecycle.add(() => this.hud.dispose());
     // the interaction icon: it exists only over the object in reach, and a finger on it is the same single-owner touch source
     this.prompt = new InteractionPrompt(ui, this.translator, {
@@ -674,6 +680,8 @@ export class Game2D {
   /** The HUD and the contextual touch controls follow the simulation's status (read through one snapshot; nothing else is touched). */
   private updateHud(dt: number): void {
     const st = this.session.status(this.hudStatus);
+    // the key (or the button) of the power, for the device in use: a remap changes it, a touch screen shows none
+    this.hud.setGlyphs({ ability: actionGlyph(this.input.device, this.bindings, 'ability') });
     this.hud.update(this.hudModel.update(st, dt));
     const bar = this.bossBarModel.update(dt);
     this.bossBar?.update(bar);

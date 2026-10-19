@@ -290,6 +290,7 @@ export class GameSession implements SimServices {
     const h = this.player.health;
     out.life.current = h.current;
     out.life.max = h.max;
+    out.life.guard01 = this.player.controller.hurtGuard01;
     out.magic.current = this.magic.current;
     out.magic.max = this.magic.max;
     out.magic.regenerating = this.magic.regenerating;
@@ -300,14 +301,16 @@ export class GameSession implements SimServices {
     out.card.iconId = card?.iconId ?? '';
     const skill = card ? this.skills.definition(card.skillId) : undefined;
     out.card.cooldown01 = card ? this.skills.cooldown01(card.skillId) : 0;
+    out.card.cost = skill?.cost ?? 0;
     out.card.state = !card || !skill ? 'ready' : out.card.cooldown01 > 0 ? 'cooldown' : this.magic.canSpend(skill.cost) ? 'ready' : 'noMagic';
     const slots = this.bottles.slots;
     out.bottles.length = slots.length;
     for (let i = 0; i < slots.length; i++) {
       const slot = slots[i] as (typeof slots)[number];
-      const b = (out.bottles[i] ??= { state: 'ready', fill01: 1, iconId: '' });
+      const b = (out.bottles[i] ??= { state: 'ready', fill01: 1, iconId: '', secondsLeft: 0 });
       b.state = slot.state;
       b.fill01 = this.bottles.fill(i);
+      b.secondsLeft = this.bottles.secondsLeft(i);
       b.iconId = this.bottles.definition(i)?.iconId ?? '';
     }
     const notice = this.interaction.notice();

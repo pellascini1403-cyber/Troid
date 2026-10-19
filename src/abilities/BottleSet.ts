@@ -1,4 +1,4 @@
-import { secondsToTicks } from '@/core/time';
+import { secondsToTicks, TICK_RATE } from '@/core/time';
 
 export type BottleState = 'ready' | 'empty' | 'recharging';
 
@@ -93,6 +93,12 @@ export class BottleSet {
     const s = this.slots[slot];
     if (!s) return 0;
     return s.state === 'ready' ? 1 : s.state === 'recharging' ? s.progress / this.rechargeTicks : 0;
+  }
+
+  /** Seconds left before the slot is ready again — the bottle that is recharging right now; 0 for one that is ready, and for one that is only waiting for its turn (it has not started: there is nothing to count). */
+  secondsLeft(slot: number): number {
+    const s = this.slots[slot];
+    return s?.state === 'recharging' ? Math.max(0, this.rechargeTicks - s.progress) / TICK_RATE : 0;
   }
 
   /** The slot a request means: −1 is "the first ready one" (the key, the contextual chip), 0.. that slot (a HUD icon). −1 when it is not ready. */

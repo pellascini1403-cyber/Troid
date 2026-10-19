@@ -147,6 +147,11 @@ export class PlayerController {
   get blinking(): boolean {
     return this.hurtInvuln > 0;
   }
+  /** How much of the hit i-frames are left, 1 (a blow just landed) … 0 (none): what the HUD's guard line drains with. The dash i-frames are not these. */
+  get hurtGuard01(): number {
+    const total = this.player.def.combat.hurt.invulnerability;
+    return total > 0 ? Math.min(1, this.hurtInvuln / total) : 0;
+  }
   /** White hit flash intensity 0..1. */
   get flash01(): number {
     return this.flashTicks / FLASH_TICKS;

@@ -10,6 +10,8 @@ export interface CardStatus {
   state: 'ready' | 'noMagic' | 'cooldown';
   /** 1 = just cast … 0 = ready again (the radial sweep). */
   cooldown01: number;
+  /** What the skill costs in magic (0: no card, or nothing to pay). */
+  cost: number;
 }
 
 /** The object that has the interaction icon right now (or none): its icon floats at `(x, y)`, world metres. */
@@ -28,6 +30,8 @@ export interface BottleStatus {
   /** 0 … 1: 1 when ready, the recharge progress while recharging. */
   fill01: number;
   iconId: string;
+  /** Seconds left of the recharge that is going on in this slot (0 when it is ready, or waiting for its turn). */
+  secondsLeft: number;
 }
 
 /**
@@ -36,7 +40,8 @@ export interface BottleStatus {
  * resources or any entity. The object is reused every frame (no allocation in steady state).
  */
 export interface PlayerStatus {
-  life: { current: number; max: number };
+  /** `guard01`: how much of the i-frames a blow gives are left, 1 (it just landed) … 0 (none). */
+  life: { current: number; max: number; guard01: number };
   magic: { current: number; max: number; regenerating: boolean };
   card: CardStatus;
   bottles: BottleStatus[];
@@ -49,9 +54,9 @@ export interface PlayerStatus {
 
 export function createPlayerStatus(): PlayerStatus {
   return {
-    life: { current: 0, max: 0 },
+    life: { current: 0, max: 0, guard01: 0 },
     magic: { current: 0, max: 0, regenerating: false },
-    card: { equipped: false, id: '', nameKey: '', iconId: '', state: 'ready', cooldown01: 0 },
+    card: { equipped: false, id: '', nameKey: '', iconId: '', state: 'ready', cooldown01: 0, cost: 0 },
     bottles: [],
     drink: { slot: -1, progress01: 0 },
     interaction: { active: false, id: '', kind: '', verbKey: '', x: 0, y: 0 },

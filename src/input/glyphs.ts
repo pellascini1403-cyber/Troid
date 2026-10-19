@@ -28,15 +28,23 @@ export function padLabel(index: number): string {
   return PAD_LABELS[index] ?? String(index);
 }
 
-/** The label to show on the interaction icon for `device`: the key, the button, or nothing for touch (the icon IS the button). */
-export function interactGlyph(device: InputDevice, bindings: Readonly<Bindings>): string {
+/** The actions whose key the interface shows. */
+export type GlyphAction = 'interact' | 'ability' | 'bottle' | 'attack' | 'dash' | 'jump';
+
+/** The label of an action for `device`: its main key, its button, or nothing for touch (there the icon IS the button). It follows the bindings, so a remapped key changes it. */
+export function actionGlyph(device: InputDevice, bindings: Readonly<Bindings>, action: GlyphAction): string {
   if (device === 'gamepad') {
-    const b = bindings.gamepad.buttons.interact?.[0];
+    const b = bindings.gamepad.buttons[action]?.[0];
     return b === undefined ? '' : padLabel(b);
   }
   if (device === 'keyboard') {
-    const k = bindings.keyboard.interact[0];
+    const k = bindings.keyboard[action][0];
     return k === undefined ? '' : keyLabel(k);
   }
   return '';
+}
+
+/** The label to show on the interaction icon for `device`: the key, the button, or nothing for touch (the icon IS the button). */
+export function interactGlyph(device: InputDevice, bindings: Readonly<Bindings>): string {
+  return actionGlyph(device, bindings, 'interact');
 }
