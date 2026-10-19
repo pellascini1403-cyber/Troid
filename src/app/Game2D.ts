@@ -63,14 +63,9 @@ import type { RoomArtCoverage, RoomArtView } from '@/render/RoomArtView';
 import { BossBarModel } from '@/ui/hud/BossBarModel';
 import type { BossBarView } from '@/ui/hud/BossBarView';
 import { HudModel } from '@/ui/hud/HudModel';
-import { HudView } from '@/ui/hud/HudView';
-import { ArrivalIndicator } from '@/ui/overlays/ArrivalIndicator';
-import { DeathOverlay } from '@/ui/overlays/DeathOverlay';
-import { SaveNotice } from '@/ui/overlays/SaveNotice';
-import { TransitionOverlay } from '@/ui/overlays/TransitionOverlay';
-import { InteractionPrompt } from '@/ui/prompt/InteractionPrompt';
+import type { SaveNoticeKind } from './gameSaves';
+import type { Overlays } from './overlays';
 import type { SettingsMenu } from '@/ui/settings/SettingsMenu';
-import { PauseButton } from '@/ui/settings/PauseButton';
 import { applySafeOverride, SafeArea } from '@/ui/safeArea';
 import { TouchControls } from '@/ui/touch/TouchControls';
 import type { Insets } from '@/ui/touch/layout';
@@ -126,7 +121,6 @@ export class Game2D {
   private dressSerial = 0;
   /** The markers of the room's interactables (a floating card, a lever) and the DOM icon that floats over the one in reach. */
   private readonly interactableViews: InteractableViews;
-  private readonly prompt: InteractionPrompt;
   private readonly promptPoint = { x: 0, y: 0 };
   /** The keys in force: the defaults with what the player chose on top (S30). A remap replaces the object, and every reader asks for it again each time. */
   private bindings: Bindings = structuredClone(DEFAULT_BINDINGS);
@@ -153,8 +147,6 @@ export class Game2D {
   /** The art that comes from files (docs/ART-PIPELINE-2D.md, part C): a separate chunk, fetched after the first frame and ONLY when there is an index to read. `null` otherwise. */
   private art: Art | null = null;
   private artRequest: Promise<void> | null = null;
-  private readonly deathOverlay: DeathOverlay;
-  private readonly transitionOverlay: TransitionOverlay;
   private readonly safeArea: SafeArea;
   private readonly touchSource: TouchSource;
   private readonly touchControls: TouchControls;
@@ -168,7 +160,6 @@ export class Game2D {
   private bossBar: BossBarView | null = null;
   /** The id of the boss that is fighting now (the bar follows its health), `null` when none is. */
   private bossId: string | null = null;
-  private readonly hud: HudView;
   private readonly hudStatus = createPlayerStatus();
   /** The abstract pad of the E2E (`__troid.pad`): while it exists it replaces the browser's pads. */
   private virtualPad: VirtualPad | null = null;
@@ -180,7 +171,11 @@ export class Game2D {
    * from the swap until the room's art is in memory and its view is on the stage, whole, and has been drawn a couple of times out of sight. The ticks that follow are the same ones whenever they come.
    */
   private readonly arrival: ArrivalGate;
-  private arrivalIndicator!: ArrivalIndicator;
+  /** The black of a defeat and of a change of zone, the loading line, the icon over what can be interacted with, the pause button and the notice about the saved game: a chunk of their own, fetched with the other cosmetic parts. `null` until it arrives (the first frame needs none). */
+  private overlays: Overlays | null = null;
+  private overlaysRequest: Promise<void> | null = null;
+  /** A notice raised before the overlays arrived (a game that was recovered, as the game begins): it is shown the moment they do. */
+  private pendingNotice: { kind: SaveNoticeKind; slot: number } | null = null;
   /** The loading indicator was on screen during the wait that is going on. */
   private indicatorSeen = false;
   /** The room whose art is being brought in early because the hero walks toward the way into it. */
@@ -198,9 +193,6 @@ export class Game2D {
   /** The saved games of the page (`null` in a playground, which saves nothing) and what is counted of the one being played. */
   private readonly saves: GameSaves | null;
   private readonly stats: PlayStats;
-  /** The discreet line that says what became of the saved game. */
-  private readonly notice: SaveNotice;
-  private readonly pauseButton: PauseButton;
   /** The pause / settings menu: a separate chunk, fetched the first time it is asked for. While it is open the simulation is paused. */
   private menu: SettingsMenu | null = null;
   private menuRequest: Promise<void> | null = null;
@@ -278,7 +270,7 @@ export class Game2D {
     this.stats = new PlayStats(saved?.stats);
     this.lifecycle.add(this.stats.attach(this.session.bus, this.session.room.id));
     this.saves = slots
-      ? new GameSaves({ slots, settings, slot: settings.value.slot, stats: this.stats, durable, platform: browserPlatform(), notify: (n) => this.notice.show(n.kind, n.slot) })
+      ? new GameSaves({ slots, settings, slot: settings.value.slot, stats: this.stats, durable, platform: browserPlatform(), notify: (n) => this.showNotice(n.kind, n.slot) })
       : null;
     if (this.saves) {
       this.saves.attach(this.session);
@@ -317,30 +309,7 @@ export class Game2D {
       placement: { side: saved0.side, offsetX: saved0.offsetX, offsetY: saved0.offsetY },
     });
     this.lifecycle.add(() => this.touchControls.dispose());
-    // the HUD sits in the top-left; a finger on one of its bottle icons goes through the same single-owner touch source
-    this.hud = new HudView(
-      ui,
-      this.translator,
-      {
-        down: (id, slot, x, y, t) => this.touchSource.down(id, `bottle:${slot}`, x, y, t),
-        up: (id) => this.touchSource.up(id),
-      },
-      { size: settings.value.accessibility.hudScale },
-    );
-    this.hud.setCalm(settings.value.accessibility.reduceFlashes);
-    this.lifecycle.add(() => this.hud.dispose());
-    // the interaction icon: it exists only over the object in reach, and a finger on it is the same single-owner touch source
-    this.prompt = new InteractionPrompt(ui, this.translator, {
-      down: (id, x, y, t) => this.touchSource.down(id, 'interact', x, y, t),
-      up: (id) => this.touchSource.up(id),
-    });
-    this.lifecycle.add(() => this.prompt.dispose());
-    // the entry to the pause / settings menu: one small icon at the top centre (the right side belongs to Attack, Dash and Ability)
-    this.pauseButton = new PauseButton(ui, this.translator, () => this.toggleMenu());
-    this.lifecycle.add(() => this.pauseButton.dispose());
-    // what became of the saved game (saved, not saved, recovered…): a blink at the top right, never in the way
-    this.notice = new SaveNotice(ui, this.translator);
-    this.lifecycle.add(() => this.notice.dispose());
+
     this.lifecycle.add(
       this.session.bus.on('bottle:changed', (e) => {
         if (e.type === 'used') this.hudModel.bottleUsed(e.slot);
@@ -446,13 +415,8 @@ export class Game2D {
     );
     // a blow turned away by a seal jolts the view a little (it is not a hit: nothing froze, nothing was hurt)
     this.lifecycle.add(this.session.bus.on('seal:rejected', (e) => this.camera.addTrauma(e.shake)));
-    this.deathOverlay = new DeathOverlay(ui, this.translator);
-    this.lifecycle.add(() => this.deathOverlay.dispose());
-    this.transitionOverlay = new TransitionOverlay(ui);
-    this.lifecycle.add(() => this.transitionOverlay.dispose());
     // the loading indicator: it exists only for a change of zone whose art is taking its time
-    this.arrivalIndicator = new ArrivalIndicator(ui, this.translator);
-    this.lifecycle.add(() => this.arrivalIndicator.dispose());
+
     // a room was built by the simulation: its view is made at the next frame — and, under the black of a change of zone, only once its art is in
     on('room:loaded', (e) => this.arrive(e.roomId));
     on('transition:cancelled', () => this.letGo());
@@ -539,6 +503,7 @@ export class Game2D {
       performance.mark('troid:cosmetics');
       void loadEffects();
       loadBossViews().catch(() => undefined);
+      void this.loadOverlays();
       startArt();
     };
     // behind the curtain nothing is seen, so the art does not wait for an idle moment: the sooner it is in, the sooner the curtain lifts
@@ -665,10 +630,11 @@ export class Game2D {
     const height = ui.clientHeight || window.innerHeight;
     const insets = this.safeArea.read();
     this.touchControls.place(width, height, insets);
-    this.hud.place(width, height, insets);
-    this.prompt.place(width, height, insets, this.touchControls.gestureScale);
-    this.pauseButton.place(width, height, insets, this.touchControls.gestureScale);
-    this.notice.place(width, height, insets, this.touchControls.gestureScale);
+    const o = this.overlays;
+    o?.hud.place(width, height, insets);
+    o?.prompt.place(width, height, insets, this.touchControls.gestureScale);
+    o?.pause.place(width, height, insets, this.touchControls.gestureScale);
+    o?.notice.place(width, height, insets, this.touchControls.gestureScale);
     this.placeBossBar(width, height, insets);
   }
 
@@ -681,8 +647,10 @@ export class Game2D {
   private updateHud(dt: number): void {
     const st = this.session.status(this.hudStatus);
     // the key (or the button) of the power, for the device in use: a remap changes it, a touch screen shows none
-    this.hud.setGlyphs({ ability: actionGlyph(this.input.device, this.bindings, 'ability') });
-    this.hud.update(this.hudModel.update(st, dt));
+    const hud = this.overlays?.hud;
+    hud?.setGlyphs({ ability: actionGlyph(this.input.device, this.bindings, 'ability') });
+    const shown = this.hudModel.update(st, dt); // the numbers are made every frame, whether or not the view has arrived: it shows the state of the moment it does
+    hud?.update(shown);
     const bar = this.bossBarModel.update(dt);
     this.bossBar?.update(bar);
     this.touchControls.setChip(st.bottleUseful);
@@ -693,7 +661,7 @@ export class Game2D {
   private updatePrompt(): void {
     const n = this.hudStatus.interaction;
     if (n.active) this.renderer.worldToScreen(n.x, n.y, this.promptPoint);
-    this.prompt.update({
+    this.overlays?.prompt.update({
       active: n.active,
       id: n.id,
       kind: n.kind,
@@ -886,10 +854,10 @@ export class Game2D {
     // the scenery that answers the world reads its flags (never writes one)
     this.roomArt?.update(realDt, (flag) => this.session.flags.has(flag));
     this.interactableViews.update(realDt, (id) => this.session.interaction.isAvailable(id), (id) => this.isCheckpoint(id));
-    this.deathOverlay.update(this.session.deathSnapshot);
-    this.transitionOverlay.update(this.session.transitionSnapshot);
+    this.overlays?.death.update(this.session.deathSnapshot);
+    this.overlays?.transition.update(this.session.transitionSnapshot);
     this.updateArrivalIndicator(realDt);
-    this.notice.update(realDt);
+    this.overlays?.notice.update(realDt);
     this.updateHud(realDt);
 
     // which limits hold now: the room's, or those of the camera zone the hero's feet are in (an arena; it eases, it never jumps)
@@ -914,10 +882,12 @@ export class Game2D {
 
   /** The loading indicator follows the wait: nothing until it has lasted a moment, then the real share of what is arriving (or a light that waits, when that cannot be measured). */
   private updateArrivalIndicator(realDt: number): void {
+    const line = this.overlays?.arrival;
+    if (!line) return; // the first seconds of a cold start: the line is not fetched yet, and nothing can be waiting for it
     const held = this.arrival.snapshot(performance.now());
     const waiting = held.blocking && held.stage === 'loading';
-    this.arrivalIndicator.update(realDt, { waiting, waited: held.waited, progress: waiting ? (this.art?.progress()?.fraction ?? null) : null });
-    if (held.blocking && this.arrivalIndicator.current.opacity > 0.05) this.indicatorSeen = true;
+    line.update(realDt, { waiting, waited: held.waited, progress: waiting ? (this.art?.progress()?.fraction ?? null) : null });
+    if (held.blocking && line.current.opacity > 0.05) this.indicatorSeen = true;
   }
 
   /** A frame was drawn: when it is the last of those the new room needed out of sight, the world goes on (and how it went is written down). */
@@ -962,6 +932,55 @@ export class Game2D {
     lighting.update(dt, frame);
   }
 
+  /**
+   * Fetches the loading line and the notice about the saved game (a chunk of their own, with the other cosmetic parts): placed at once, and a notice that was raised before they arrived is shown now.
+   * A failed fetch is forgotten so that the next ask tries again; the game goes on without them.
+   */
+  private loadOverlays(): Promise<void> {
+    this.overlaysRequest ??= import('./overlays').then(
+      ({ createOverlays, disposeOverlays }) => {
+        if (this.closed) return;
+        const made = createOverlays(document.getElementById('ui') ?? document.body, this.translator, {
+          // the HUD sits in the top-left; a finger on one of its bottle icons goes through the same single-owner touch source
+          hudSink: {
+            down: (id, slot, x, y, t) => this.touchSource.down(id, `bottle:${slot}`, x, y, t),
+            up: (id) => this.touchSource.up(id),
+          },
+          hud: { size: this.settings.value.accessibility.hudScale, calm: this.settings.value.accessibility.reduceFlashes },
+          // the interaction icon exists only over the object in reach, and a finger on it is the same single-owner touch source
+          promptSink: {
+            down: (id, x, y, t) => this.touchSource.down(id, 'interact', x, y, t),
+            up: (id) => this.touchSource.up(id),
+          },
+          // the entry to the pause / settings menu: one small icon at the top centre (the right side belongs to Attack, Dash and Ability)
+          onPause: () => this.toggleMenu(),
+        });
+        this.lifecycle.add(() => disposeOverlays(made));
+        this.overlays = made;
+        made.pause.setHidden(this.menuOpen);
+        this.layoutUi();
+        if (this.pendingNotice) {
+          made.notice.show(this.pendingNotice.kind, this.pendingNotice.slot);
+          this.pendingNotice = null;
+        }
+      },
+      (err: unknown) => {
+        this.overlaysRequest = null;
+        log.scope('ui').warn(`the overlays could not be loaded: ${String(err)}`);
+      },
+    );
+    return this.overlaysRequest;
+  }
+
+  /** What became of the saved game, said discreetly (or kept until the notice's chunk is in). */
+  private showNotice(kind: SaveNoticeKind, slot: number): void {
+    if (this.overlays) this.overlays.notice.show(kind, slot);
+    else {
+      this.pendingNotice = { kind, slot };
+      void this.loadOverlays(); // a notice may be the first thing the player needs: do not wait for an idle moment
+    }
+  }
+
   // ----------------------------------------------------------------------------------------------------- settings
 
   /** Escape / P / Start / the pause button: opens the menu (and pauses the game), or closes it. */
@@ -977,7 +996,7 @@ export class Game2D {
     // nothing may stay pressed while the game waits: no finger, no key, no button keeps acting behind the menu
     this.input.releaseAll();
     this.touchControls.releaseAll();
-    this.pauseButton.setHidden(true);
+    this.overlays?.pause.setHidden(true);
     void this.loadMenu().then(() => {
       if (this.menuOpen) this.menu?.open();
     });
@@ -987,7 +1006,7 @@ export class Game2D {
     if (!this.menuOpen) return;
     this.menuOpen = false;
     this.menu?.close();
-    this.pauseButton.setHidden(false);
+    this.overlays?.pause.setHidden(false);
     this.input.releaseAll();
   }
 
@@ -1109,8 +1128,8 @@ export class Game2D {
       this.arrival.built();
     }
     this.playerVisual.sync(this.session.player.view, 1, 0);
-    this.deathOverlay.update(this.session.deathSnapshot);
-    this.transitionOverlay.update(this.session.transitionSnapshot);
+    this.overlays?.death.update(this.session.deathSnapshot);
+    this.overlays?.transition.update(this.session.transitionSnapshot);
     this.updateHud(0);
     this.updatePrompt();
   }
@@ -1135,7 +1154,7 @@ export class Game2D {
       touchControls: this.touchControls,
       touchSource: this.touchSource,
       hudModel: this.hudModel,
-      hud: this.hud,
+      hud: () => this.overlays?.hud ?? null,
       translator: this.translator,
       settings: this.settings,
       volume: this.volume,
@@ -1144,18 +1163,21 @@ export class Game2D {
       shakes: this.shakes,
       effects: () => this.effects,
       cueLog: () => this.cueLog,
-      cosmeticsReady: () => this.effects !== null && this.bossViews !== null,
+      cosmeticsReady: () => this.effects !== null && this.bossViews !== null && this.overlays !== null,
       art: () => this.art,
       visualLacks: () => (this.playerVisual.artSet ? lackedClips(this.playerVisual.artSet.def, PLAYER_VISUAL.required) : [...PLAYER_VISUAL.required]),
       menuOpen: () => this.menuOpen,
       saves: () => this.saves,
       stats: this.stats,
-      notice: () => ({ kind: this.notice.current.kind, slot: this.notice.current.slot, opacity: this.notice.current.opacity, text: this.notice.root.textContent ?? '' }),
+      notice: () => {
+        const n = this.overlays?.notice;
+        return { kind: n?.current.kind ?? null, slot: n?.current.slot ?? 0, opacity: n?.current.opacity ?? 0, text: n?.root.textContent ?? '' };
+      },
       virtualPad: () => this.virtualPad,
       setVirtualPad: (pad) => void (this.virtualPad = pad),
       stepOnce: () => this.stepOnce(),
       refreshPresented: () => this.refreshPresented(),
-      arrival: () => ({ ...this.arrival.snapshot(performance.now()), indicator: this.arrivalIndicator.current.opacity, indicatorShown: this.indicatorSeen, history: this.arrivals.map((a) => ({ ...a })), aheadFor: this.aheadFor, progress: this.art?.progress() ?? null }),
+      arrival: () => ({ ...this.arrival.snapshot(performance.now()), indicator: this.overlays?.arrival.current.opacity ?? 0, indicatorShown: this.indicatorSeen, history: this.arrivals.map((a) => ({ ...a })), aheadFor: this.aheadFor, progress: this.art?.progress() ?? null }),
       arrivalHeld: () => this.arrival.blocking,
       whenArrived: () => this.whenArrived(),
       spawnDummy: (x, y, health) => this.session.spawn(new TrainingDummy(this.session.ids.next('dummy'), { x, y, health })).id,

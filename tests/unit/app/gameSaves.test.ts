@@ -180,7 +180,7 @@ describe('the slots as the screen shows them', () => {
   it('each slot with its state, the zone it picks up in, the time played and when it was saved; the one being played is marked', async () => {
     const { slots, saves } = await setup({ slot: 2 });
     await slots.store(1).save({ ...newProgress({ room: 'r3_chamber', entry: 'rest' }), stats: { ticks: 7200, deaths: 0, kills: 0, rooms: ['r3_chamber'] }, savedAt: 1_700_000_000_000 });
-    const cards = await saves.cards();
+    const cards = await (await saves.actions()).cards();
     expect(cards.map((c) => [c.slot, c.state, c.active])).toEqual([[1, 'ok', false], [2, 'empty', true], [3, 'empty', false]]);
     expect(cards[0]).toMatchObject({ zoneKey: 'room.r3.name', ticks: 7200, savedAt: 1_700_000_000_000 });
     expect(cards[1]).toMatchObject({ zoneKey: null, ticks: 0, savedAt: 0 });
@@ -192,7 +192,7 @@ describe('leaving for another game', () => {
   it('the game being left is saved as it stands, the choice is kept in the settings, the old game stops writing, and the page opens again', async () => {
     const { d, saves, settings, platform, read, storage } = await setup();
     d.step(240);
-    expect(await saves.switchTo(3)).toBe(true);
+    expect(await (await saves.actions()).switchTo(3)).toBe(true);
     expect((await read(1))?.stats.ticks, 'the stretch just played is not lost').toBe(240);
     expect(settings.value.slot).toBe(3);
     expect(JSON.parse((await storage.get('troid.settings')) ?? '{}').slot).toBe(3);
@@ -209,9 +209,9 @@ describe('leaving for another game', () => {
 
   it('choosing the game that is already being played does nothing; a slot that does not exist is refused', async () => {
     const { saves, platform, settings } = await setup({ slot: 2 });
-    expect(await saves.switchTo(2)).toBe(true);
-    expect(await saves.switchTo(7)).toBe(false);
-    expect(await saves.switchTo(0)).toBe(false);
+    expect(await (await saves.actions()).switchTo(2)).toBe(true);
+    expect(await (await saves.actions()).switchTo(7)).toBe(false);
+    expect(await (await saves.actions()).switchTo(0)).toBe(false);
     expect(platform.reloads).toBe(0);
     expect(settings.value.slot).toBe(1);
     expect(saves.stopped).toBe(false);
@@ -222,7 +222,7 @@ describe('leaving for another game', () => {
     const storage = new FlakyStorage();
     const { d, saves, platform, notices, read } = await setup({ storage });
     storage.failing = new Set(['set']);
-    expect(await saves.switchTo(2)).toBe(false);
+    expect(await (await saves.actions()).switchTo(2)).toBe(false);
     expect(platform.reloads).toBe(0);
     expect(saves.stopped).toBe(false);
     expect(notices.map((n) => n.kind)).toEqual(['failed']);
@@ -240,7 +240,7 @@ describe('a new game', () => {
     d.session.flags.set('old');
     await flush();
     expect((await read())?.flags).toContain('old');
-    expect(await saves.startOver(1)).toBe(true);
+    expect(await (await saves.actions()).startOver(1)).toBe(true);
     expect(await read()).toBeNull();
     expect(platform.reloads).toBe(1);
     d.session.flags.set('after');
@@ -256,17 +256,19 @@ describe('a new game', () => {
     await slots.store(2).save({ ...newProgress(START), flags: ['theirs'] });
     d.session.flags.set('mine');
     await flush();
-    expect(await saves.startOver(2)).toBe(true);
+    d.step(240); // a stretch played since the last write
+    expect(await (await saves.actions()).startOver(2)).toBe(true);
     expect(await read(2)).toBeNull();
     expect(settings.value.slot).toBe(2);
     expect((await read(1))?.flags, 'the game that was being played is untouched').toContain('mine');
+    expect((await read(1))?.stats.ticks, 'and the stretch it had played since its last write is saved: it is being LEFT, not destroyed').toBe(240);
     expect(platform.reloads).toBe(1);
   });
 
   it('a game that could not be read is kept aside, not thrown away, by a new game over it', async () => {
     const { saves, storage } = await setup();
     await storage.set(slotKey(1), 'half-writ');
-    await saves.startOver(1);
+    await (await saves.actions()).startOver(1);
     expect(await storage.get(slotKey(1))).toBeNull();
     expect(await storage.get(`${slotKey(1)}.corrupt`)).toBe('half-writ');
   });
@@ -279,7 +281,7 @@ describe('deleting', () => {
     await flush();
     await slots.store(2).save(newProgress(START));
     await slots.store(3).save(newProgress(START));
-    expect(await saves.erase(2)).toBe(true);
+    expect(await (await saves.actions()).erase(2)).toBe(true);
     expect(await read(2)).toBeNull();
     expect(await read(3)).not.toBeNull();
     expect((await read(1))?.flags).toContain('mine');
@@ -293,7 +295,7 @@ describe('deleting', () => {
     d.session.flags.set('mine');
     await flush();
     await storage.set(`${slotKey(1)}.corrupt`, 'old damage');
-    expect(await saves.erase(1)).toBe(true);
+    expect(await (await saves.actions()).erase(1)).toBe(true);
     expect(storage.keys().filter((k) => k.startsWith('troid.progress'))).toEqual([]);
     expect(platform.reloads).toBe(1);
     d.step(5000);
@@ -304,7 +306,7 @@ describe('deleting', () => {
 
   it('a slot that does not exist is refused', async () => {
     const { saves } = await setup();
-    expect(await saves.erase(9)).toBe(false);
+    expect(await (await saves.actions()).erase(9)).toBe(false);
     saves.dispose();
   });
 });
@@ -313,13 +315,13 @@ describe('taking a game out of the browser and putting one in', () => {
   it('exports a good game as the text a save is, named for its slot and the day; there is nothing to export from an empty or a damaged slot', async () => {
     const { saves, slots, storage } = await setup();
     await slots.store(2).save({ ...newProgress(START), flags: ['a'] });
-    const out = await saves.exportSlot(2);
+    const out = await (await saves.actions()).exportSlot(2);
     expect(out?.filename).toBe('troid-partida-2-2025-10-09.json');
     expect(parseProgress(out!.text)?.flags).toEqual(['a']);
-    expect(await saves.exportSlot(3)).toBeNull();
+    expect(await (await saves.actions()).exportSlot(3)).toBeNull();
     await storage.set(slotKey(3), 'half-writ');
-    expect(await saves.exportSlot(3)).toBeNull();
-    expect(await saves.exportSlot(9)).toBeNull();
+    expect(await (await saves.actions()).exportSlot(3)).toBeNull();
+    expect(await (await saves.actions()).exportSlot(9)).toBeNull();
     saves.dispose();
   });
 
@@ -327,8 +329,8 @@ describe('taking a game out of the browser and putting one in', () => {
     const { saves, slots, read } = await setup();
     const game = { ...newProgress(START, ['dash']), flags: ['a', 'b'], stats: { ticks: 99, deaths: 1, kills: 2, rooms: ['r1_gate'] }, savedAt: 5 };
     await slots.store(2).save(game);
-    const out = (await saves.exportSlot(2))!;
-    expect(await saves.importInto(3, out.text)).toEqual({ ok: true });
+    const out = (await (await saves.actions()).exportSlot(2))!;
+    expect(await (await saves.actions()).importInto(3, out.text)).toEqual({ ok: true });
     expect(await read(3)).toEqual(await read(2));
     saves.dispose();
   });
@@ -336,7 +338,7 @@ describe('taking a game out of the browser and putting one in', () => {
   it('an old game (version 1) is read by the same migration as any save, and what is hand-made is repaired, never trusted', async () => {
     const { saves, read } = await setup();
     const v1 = JSON.stringify({ saveVersion: 1, at: { room: 'r2_hall', entry: 'rest' }, checkpoint: { room: 'r2_hall', entry: 'rest' }, flags: ['x', '<script>', 7], abilities: ['dash'], cards: { owned: [], equipped: null }, bottleSlots: 99 });
-    expect(await saves.importInto(2, v1)).toEqual({ ok: true });
+    expect(await (await saves.actions()).importInto(2, v1)).toEqual({ ok: true });
     const p = await read(2);
     expect(p?.saveVersion).toBe(2);
     expect(p?.flags).toEqual(['x']);
@@ -347,11 +349,11 @@ describe('taking a game out of the browser and putting one in', () => {
   it('refuses what is not a save — not JSON, a settings file, a later version, a text the size of a book — and writes nothing', async () => {
     const { saves, storage } = await setup();
     for (const bad of ['', 'not json', '{}', '[]', '{"version":3}', JSON.stringify({ saveVersion: 99 }), 'x'.repeat(AUTOSAVE.importMaxBytes + 1)]) {
-      const r = await saves.importInto(2, bad);
+      const r = await (await saves.actions()).importInto(2, bad);
       expect(r.ok, bad.slice(0, 20)).toBe(false);
     }
-    expect((await saves.importInto(2, 'x'.repeat(AUTOSAVE.importMaxBytes + 1))).ok).toBe(false);
-    expect(await saves.importInto(9, serializeProgress(newProgress(START)))).toEqual({ ok: false, reason: 'unreadable' });
+    expect((await (await saves.actions()).importInto(2, 'x'.repeat(AUTOSAVE.importMaxBytes + 1))).ok).toBe(false);
+    expect(await (await saves.actions()).importInto(9, serializeProgress(newProgress(START)))).toEqual({ ok: false, reason: 'unreadable' });
     expect(storage.keys().filter((k) => k.startsWith('troid.progress'))).toEqual([]);
     saves.dispose();
   });
@@ -361,7 +363,7 @@ describe('taking a game out of the browser and putting one in', () => {
     d.session.flags.set('mine');
     await flush();
     const theirs = serializeProgress({ ...newProgress(START), flags: ['theirs'] });
-    expect(await saves.importInto(1, theirs)).toEqual({ ok: true });
+    expect(await (await saves.actions()).importInto(1, theirs)).toEqual({ ok: true });
     expect((await read(1))?.flags).toEqual(['theirs']);
     expect(platform.reloads).toBe(1);
     d.session.flags.set('after');
@@ -376,7 +378,7 @@ describe('taking a game out of the browser and putting one in', () => {
     const storage = new FlakyStorage();
     const { saves, platform } = await setup({ storage });
     storage.failing = new Set(['set']);
-    expect(await saves.importInto(2, serializeProgress(newProgress(START)))).toEqual({ ok: false, reason: 'storage' });
+    expect(await (await saves.actions()).importInto(2, serializeProgress(newProgress(START)))).toEqual({ ok: false, reason: 'storage' });
     expect(platform.reloads).toBe(0);
     saves.dispose();
   });

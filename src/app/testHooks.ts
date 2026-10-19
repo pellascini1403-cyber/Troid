@@ -78,7 +78,8 @@ export interface HookHost {
   readonly touchControls: TouchControls;
   readonly touchSource: TouchSource;
   readonly hudModel: HudModel;
-  readonly hud: HudView;
+  /** The HUD's view, once the overlays' chunk has arrived (`null` before). */
+  hud(): HudView | null;
   readonly translator: Translator;
   readonly settings: SettingsStore;
   readonly volume: MasterVolume;
@@ -186,7 +187,7 @@ export function createTestHooks(h: HookHost) {
     /** Test hook: where a point of the world is on screen (CSS px), with the camera of the last frame. */
     worldToScreen: (x: number, y: number) => h.renderer.worldToScreen(x, y),
     /** Test hook: the HUD as the model computed it and as laid out (px). */
-    hud: () => ({ state: h.hudModel.state, layout: h.hud.current }),
+    hud: () => ({ state: h.hudModel.state, layout: h.hud()?.current ?? null }),
     /** Test hook: the abstract gamepad, in the Gamepad API's own terms (+y of the stick is DOWN); `pressed` = held button indices. */
     pad: {
       set: (x: number, y: number, pressed: number[] = []) => {

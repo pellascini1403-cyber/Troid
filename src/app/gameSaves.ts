@@ -1,11 +1,10 @@
-import { ROOMS } from '@/content';
 import type { GameSession } from '@/gameplay/GameSession';
 import type { PlayStats } from '@/gameplay/PlayStats';
-import { parseProgress, serializeProgress } from '@/save/ProgressData';
 import type { Inspection } from '@/save/SafeStore';
-import { isSlot, type SaveSlots, type SlotState } from '@/save/SaveSlots';
+import type { SaveSlots, SlotState } from '@/save/SaveSlots';
 import type { SettingsStore } from '@/save/SettingsStore';
 import { attachProgressRecorder, type ProgressRecorder, type SaveReport } from './progressRecorder';
+import type { SaveActions } from './saveActions';
 
 /**
  * What the player is told about their saved game, in one word each (the interface turns it into a short, discreet line): it was `saved`; it did NOT reach the storage (`failed`); the game that was
@@ -88,21 +87,21 @@ export interface GameSavesOptions {
 }
 
 /**
- * The saved games of the page (docs/PROMPT14-LOG.md): the one place that knows how a game is saved, left for another and started over. The simulation knows nothing of it and the menu only asks.
+ * The saved games of the page (docs/PROMPT14-LOG.md): the one place that knows how a game is saved. The simulation knows nothing of it and the menu only asks.
  *
  *  - While a game is played it is saved when something of its PROGRESS changes (the recorder), and quietly when the hero has played a while since the last write and when the page is hidden or
  *    closed — the one moment a game would otherwise lose its last stretch.
- *  - Leaving for another game, starting one over, deleting the one being played and importing into it all END the page's own game: the recorder is stopped FIRST, so nothing the game does on its
- *    way out can write itself back over what was just chosen, and then the page is opened again on the slot the settings name.
- *  - A start over or a delete asked for by name is the one way a good game is lost; an unreadable one is never thrown away by anything but a delete (a start over keeps it aside).
+ *  - What only the menu does — leaving for another game, starting one over, deleting, taking a game out of the browser and putting one in — is `SaveActions`, a chunk of its own (`actions()`): the
+ *    cold start carries only what saves the game as it is played.
  *
- * Nothing here is a promise about the storage: a browser may clear a site's data, a device may be lost. The player is told so (the saves screen), and can take a copy out (`exportSlot`).
+ * Nothing here is a promise about the storage: a browser may clear a site's data, a device may be lost. The player is told so (the saves screen), and can take a copy out.
  */
 export class GameSaves {
   readonly slot: number;
   private recorder: ProgressRecorder | null = null;
   private readonly off: Array<() => void> = [];
   private lastFailedNotice = Number.NEGATIVE_INFINITY;
+  private loaded: Promise<SaveActions> | null = null;
 
   constructor(private readonly o: GameSavesOptions) {
     this.slot = o.slot;
@@ -138,78 +137,22 @@ export class GameSaves {
     return this.recorder?.saveNow('manual') ?? Promise.resolve(false);
   }
 
-  /** Every slot as the screen shows it (looked at without changing anything). */
-  async cards(): Promise<SlotCard[]> {
-    const list = await this.o.slots.summaries();
-    return list.map((s) => ({
-      slot: s.slot,
-      state: s.state,
-      active: s.slot === this.slot,
-      zoneKey: s.progress ? (ROOMS[s.progress.at.room]?.nameKey ?? null) : null,
-      ticks: s.progress?.stats.ticks ?? 0,
-      savedAt: s.progress?.savedAt ?? 0,
-    }));
+  /** What the menu does with the saved games (leave for another, start over, delete, export, import): fetched the first time it is asked for. */
+  actions(): Promise<SaveActions> {
+    this.loaded ??= import('./saveActions').then(
+      ({ SaveActions: Actions }) => new Actions(this.o, (saveFirst) => this.leave(saveFirst), () => this.failed()),
+      (err: unknown) => {
+        this.loaded = null; // a failed fetch is forgotten: the next ask tries again
+        throw err;
+      },
+    );
+    return this.loaded;
   }
 
-  /** Plays `slot`: this game is saved as it stands, the choice is kept in the settings and the page opens on it. Resolves to false (nothing changed) if the choice could not be kept. */
-  async switchTo(slot: number): Promise<boolean> {
-    if (!isSlot(slot)) return false;
-    if (slot === this.slot) return true;
-    if (!(await this.o.settings.update({ slot }))) return this.failed();
-    await this.recorder?.saveNow('leaving');
+  /** The game that is being played ends here: saved as it stands first (when it is being LEFT, not when it is being destroyed), and then it writes nothing more — whatever it does on its way out cannot write itself back. */
+  async leave(saveFirst: boolean): Promise<void> {
+    if (saveFirst) await this.recorder?.saveNow('leaving');
     this.recorder?.stop();
-    this.o.platform.reload();
-    return true;
-  }
-
-  /**
-   * A new game in `slot` (the caller has asked the player if there is a game there): what was saved goes — a copy that could not be read is kept aside — and the page opens on it. Resolves to
-   * false (nothing destroyed) if the choice could not be kept.
-   */
-  async startOver(slot: number): Promise<boolean> {
-    if (!isSlot(slot)) return false;
-    if (slot !== this.slot && !(await this.o.settings.update({ slot }))) return this.failed();
-    this.recorder?.stop(); // before anything is removed: the game on its way out must not write itself back
-    const ok = await this.o.slots.restart(slot);
-    this.o.platform.reload();
-    return ok;
-  }
-
-  /** Deletes `slot` and every copy of it. The one being played is deleted too: the page opens on a new game in it. */
-  async erase(slot: number): Promise<boolean> {
-    if (!isSlot(slot)) return false;
-    if (slot === this.slot) {
-      this.recorder?.stop();
-      const ok = await this.o.slots.erase(slot);
-      this.o.platform.reload();
-      return ok;
-    }
-    return this.o.slots.erase(slot);
-  }
-
-  /** The text of the game in `slot`, to keep outside the browser; `null` when there is no readable game there. */
-  async exportSlot(slot: number): Promise<{ filename: string; text: string } | null> {
-    if (!isSlot(slot)) return null;
-    const found = await this.o.slots.store(slot).inspect();
-    if (found.state !== 'ok') return null;
-    const day = new Date(this.o.platform.now()).toISOString().slice(0, 10);
-    return { filename: `troid-partida-${slot}-${day}.json`, text: serializeProgress(found.value) };
-  }
-
-  /**
-   * Puts a game taken out of the browser into `slot` (the caller has asked the player if there is a game there). Everything in it is treated as damaged or hand-made: it goes through the same reading as
-   * any save — the version, the migration, the repairs — and what cannot be read is refused. Importing into the game being played opens the page on it again.
-   */
-  async importInto(slot: number, text: string): Promise<ImportResult> {
-    if (!isSlot(slot)) return { ok: false, reason: 'unreadable' };
-    if (text.length > AUTOSAVE.importMaxBytes) return { ok: false, reason: 'tooBig' };
-    const data = parseProgress(text);
-    if (data === null) return { ok: false, reason: 'unreadable' };
-    if (slot === this.slot) this.recorder?.stop();
-    const ok = await this.o.slots.store(slot).save(data);
-    if (!ok) return { ok: false, reason: 'storage' };
-    if (slot === this.slot) this.o.platform.reload();
-    return { ok: true };
   }
 
   dispose(): void {
