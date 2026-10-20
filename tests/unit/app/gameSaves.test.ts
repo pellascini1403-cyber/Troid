@@ -194,6 +194,95 @@ describe('a game being played', () => {
   });
 });
 
+describe('two tabs of the same game on one storage', () => {
+  it('the tab that saved first goes on saving; the one that knew an older picture is refused ONCE, is told, stops, and never writes over the other\'s progress', async () => {
+    const a = await setup();
+    const b = await setup({ storage: a.storage as MemoryStorage });
+    a.d.session.flags.set('from-a');
+    await flush();
+    expect((await a.read())?.flags).toEqual(['from-a']);
+    expect(a.notices).toEqual([{ kind: 'saved', slot: 1 }]);
+    // B loaded when nothing was saved (it knows of no save), and now it wins something
+    b.platform.advance(5000);
+    b.d.session.flags.set('from-b');
+    await flush();
+    expect((await a.read())?.flags, 'what A saved is still there, whole').toEqual(['from-a']);
+    expect(b.notices).toEqual([{ kind: 'conflict', slot: 1 }]);
+    expect(b.saves.conflicted).toBe(true);
+    expect(b.saves.stopped).toBe(true);
+    // B does nothing more: not a quiet save, not leaving the page, not a save by hand
+    b.d.step(AUTOSAVE.afterTicks + 10);
+    b.platform.tick();
+    b.platform.leave();
+    expect(await b.saves.saveNow()).toBe(false);
+    await flush();
+    expect((await a.read())?.flags).toEqual(['from-a']);
+    expect(b.notices, 'it was said once').toEqual([{ kind: 'conflict', slot: 1 }]);
+    // and A is not affected: its next save goes through
+    a.d.session.flags.set('more-from-a');
+    await flush();
+    expect((await a.read())?.flags).toEqual(['from-a', 'more-from-a']);
+    expect(a.saves.conflicted).toBe(false);
+    a.saves.dispose();
+    b.saves.dispose();
+  });
+
+  it('a tab that LOADED the other\'s save knows of it, so what it saves next is its own — and it is the OTHER tab, which has not seen that save, that is refused at its next one', async () => {
+    const a = await setup();
+    a.d.session.flags.set('one');
+    await flush();
+    const loadedAt = (await a.read())!.savedAt;
+    // a second tab opens the game: it loads the save A made (it knows of it)
+    const b = await setup({ storage: a.storage as MemoryStorage });
+    b.saves.dispose();
+    const c = new GameSaves({ slots: b.slots, settings: b.settings, slot: 1, stats: b.stats, durable: true, platform: b.platform, notify: (n) => void b.notices.push(n) });
+    c.attach(b.d.session, loadedAt);
+    b.platform.advance(1000);
+    b.d.session.flags.set('two');
+    await flush();
+    expect((await a.read())?.flags, 'the second tab knew of the save it loaded: its own save is written').toEqual(['two']);
+    expect(c.conflicted).toBe(false);
+    expect(b.notices).toEqual([{ kind: 'saved', slot: 1 }]);
+    // the first tab has not seen that: its next save would write over the second tab\'s
+    a.platform.advance(60_000);
+    a.d.session.flags.set('three');
+    await flush();
+    expect(a.saves.conflicted).toBe(true);
+    expect(a.notices.at(-1)).toEqual({ kind: 'conflict', slot: 1 });
+    expect((await a.read())?.flags, 'and the second tab\'s save is untouched').toEqual(['two']);
+    // the second tab goes on saving as if nothing happened
+    b.platform.advance(1000);
+    b.d.session.flags.set('four');
+    await flush();
+    expect((await a.read())?.flags).toEqual(['four', 'two']);
+    a.saves.dispose();
+    c.dispose();
+  });
+
+  it('a page\'s own writes never conflict with each other, however many and however fast', async () => {
+    const a = await setup();
+    for (let i = 0; i < 12; i++) {
+      a.platform.advance(1);
+      a.d.session.flags.set(`f${i}`);
+      await flush();
+    }
+    expect(a.saves.conflicted).toBe(false);
+    expect((await a.read())?.flags).toHaveLength(12);
+    a.saves.dispose();
+  });
+
+  it('a page whose clock stood still (the same millisecond) is not mistaken for another: equal is its own', async () => {
+    const a = await setup();
+    a.d.session.flags.set('x');
+    await flush();
+    a.d.session.flags.set('y'); // the fake clock has not moved: the same stamp
+    await flush();
+    expect(a.saves.conflicted).toBe(false);
+    expect((await a.read())?.flags).toEqual(['x', 'y']);
+    a.saves.dispose();
+  });
+});
+
 describe('the slots as the screen shows them', () => {
   it('each slot with its state, the zone it picks up in, the time played and when it was saved; the one being played is marked', async () => {
     const { slots, saves } = await setup({ slot: 2 });

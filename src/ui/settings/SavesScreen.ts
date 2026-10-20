@@ -24,11 +24,16 @@ export type ImportOutcome = { ok: true } | { ok: false; reason: 'unreadable' | '
 /** A file the player chose: its text, or why it was not read (too big to be a saved game; the browser could not read it). */
 export type PickedFile = { kind: 'text'; text: string } | { kind: 'tooBig' } | { kind: 'unreadable' };
 
+/** How a save by hand ended: it reached the storage, it did not, or it was refused because another tab saved this game after this one (this page has stopped saving). */
+export type SaveOutcome = 'saved' | 'failed' | 'conflict';
+
 /** What the screen needs of the game, and nothing more: it reads, asks, and the game does it. */
 export interface SavesHost {
   cards(): Promise<SlotCardView[]>;
-  /** Saves the game being played now. Resolves to whether it reached the storage. */
-  saveNow(): Promise<boolean>;
+  /** Saves the game being played now. */
+  saveNow(): Promise<SaveOutcome>;
+  /** Another tab saved this game after this page did, so this page no longer saves (the screen says so, and does not offer a save that cannot happen). */
+  conflicted(): boolean;
   switchTo(slot: number): Promise<boolean>;
   startOver(slot: number): Promise<boolean>;
   erase(slot: number): Promise<boolean>;
@@ -63,6 +68,7 @@ export class SavesScreen {
   private readonly foot: HTMLElement;
   private readonly back: HTMLButtonElement;
   private cards: SlotCardView[] = [];
+  private conflict = false;
   private storageInfo: { durable: boolean; persisted: boolean | null } = { durable: true, persisted: null };
   private expanded: number | null = null;
   private pending: Pending | null = null;
@@ -151,6 +157,7 @@ export class SavesScreen {
     if (mine !== this.serial || !this.isOpen) return;
     this.cards = cards;
     this.storageInfo = storage;
+    this.conflict = this.host.conflicted();
     this.root.dataset['ready'] = '1';
     this.root.removeAttribute('aria-busy');
     this.render();
@@ -250,9 +257,10 @@ export class SavesScreen {
     const actions = doc.createElement('div');
     actions.className = 'saves-actions';
     const has = c.state === 'ok' || c.state === 'recovered';
-    if (c.active && has) actions.appendChild(this.button(doc, 'saves.saveNow', 'saves-save-now', () => void this.run(() => this.saveNow())));
-    else if (c.active && c.state === 'empty') actions.appendChild(this.button(doc, 'saves.saveNow', 'saves-save-now', () => void this.run(() => this.saveNow())));
-    else if (has) actions.appendChild(this.button(doc, 'saves.play', `saves-play-${c.slot}`, () => void this.run(() => this.play(c.slot))));
+    if (c.active && (has || c.state === 'empty')) {
+      // a page that has stopped saving (another tab saved the game after it) offers no save: it would be a button that cannot do what it says; the screen says why, below
+      if (!this.conflict) actions.appendChild(this.button(doc, 'saves.saveNow', 'saves-save-now', () => void this.run(() => this.saveNow())));
+    } else if (has) actions.appendChild(this.button(doc, 'saves.play', `saves-play-${c.slot}`, () => void this.run(() => this.play(c.slot))));
     else if (c.state === 'empty') actions.appendChild(this.button(doc, 'saves.new', `saves-new-${c.slot}`, () => void this.run(() => this.newGame(c.slot))));
     else actions.appendChild(this.button(doc, 'saves.newHere', `saves-newhere-${c.slot}`, () => this.ask({ slot: c.slot, kind: 'new' })));
     const open = this.expanded === c.slot;
@@ -306,6 +314,7 @@ export class SavesScreen {
       p.textContent = this.t(key);
       return p;
     };
+    if (this.conflict) out.push(note('saves.conflict', 'saves-conflict', 'warn'));
     if (!this.storageInfo.durable) out.push(note('saves.unavailable', 'saves-unavailable', 'warn'));
     out.push(note('saves.where', 'saves-where'), note('saves.auto', 'saves-auto'));
     const s = this.storageInfo;
@@ -359,7 +368,9 @@ export class SavesScreen {
   }
 
   private async saveNow(): Promise<{ key: string; tone: 'info' | 'warn' }> {
-    return (await this.host.saveNow()) ? { key: 'saves.savedNow', tone: 'info' } : { key: 'saves.saveFailed', tone: 'warn' };
+    const outcome = await this.host.saveNow();
+    if (outcome === 'conflict') return { key: 'saves.conflict', tone: 'warn' };
+    return outcome === 'saved' ? { key: 'saves.savedNow', tone: 'info' } : { key: 'saves.saveFailed', tone: 'warn' };
   }
 
   private async play(slot: number): Promise<{ key: string; tone: 'warn' } | null> {

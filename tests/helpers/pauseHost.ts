@@ -3,7 +3,7 @@ import { DEFAULT_BINDINGS } from '@/input/bindings';
 import { controlsReference } from '@/input/controlsReference';
 import { defaultSettings } from '@/save/SettingsData';
 import type { PauseHost } from '@/ui/settings/PauseMenu';
-import type { ImportOutcome, PickedFile, SavesHost, SlotCardView } from '@/ui/settings/SavesScreen';
+import type { ImportOutcome, PickedFile, SaveOutcome, SavesHost, SlotCardView } from '@/ui/settings/SavesScreen';
 import type { SettingsMenuHost } from '@/ui/settings/SettingsMenu';
 
 /** The data a profile of a game in progress has: some of everything, so a test sees each line. */
@@ -34,7 +34,8 @@ export interface SavesProbe {
   calls: string[];
   cards: SlotCardView[];
   answers: {
-    saveNow: boolean;
+    saveNow: SaveOutcome;
+    conflicted: boolean;
     switchTo: boolean;
     startOver: boolean;
     erase: boolean;
@@ -52,7 +53,8 @@ export function savesProbe(): SavesProbe {
     calls: [],
     cards: [slotCard(1, { state: 'ok', active: true, zoneKey: 'room.r1.name', ticks: 60 * 83, savedAt: Date.UTC(2026, 9, 19, 12, 30) }), slotCard(2), slotCard(3)],
     answers: {
-      saveNow: true,
+      saveNow: 'saved',
+      conflicted: false,
       switchTo: true,
       startOver: true,
       erase: true,
@@ -68,7 +70,12 @@ export function savesProbe(): SavesProbe {
   const log = (entry: string): void => void probe.calls.push(entry);
   probe.host = {
     cards: async () => probe.cards.map((c) => ({ ...c })),
-    saveNow: async () => (log('saveNow'), probe.answers.saveNow),
+    saveNow: async () => {
+      log('saveNow');
+      if (probe.answers.saveNow === 'conflict') probe.answers.conflicted = true; // (a page that was refused has stopped saving)
+      return probe.answers.saveNow;
+    },
+    conflicted: () => probe.answers.conflicted,
     switchTo: async (slot) => (log(`switchTo:${slot}`), probe.answers.switchTo),
     startOver: async (slot) => (log(`startOver:${slot}`), probe.answers.startOver),
     erase: async (slot) => (log(`erase:${slot}`), probe.answers.erase),

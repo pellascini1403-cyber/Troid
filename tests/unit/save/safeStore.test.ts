@@ -71,6 +71,53 @@ describe('SafeStore', () => {
   });
 });
 
+describe('SafeStore.writeGuarded: a write that asks what it would replace', () => {
+  it('writes when the guard agrees with what is stored now, and is given the value as the model reads it (null: nothing, or nothing readable)', async () => {
+    const storage = new MemoryStorage();
+    const store = make(storage);
+    const seen: Array<number | null> = [];
+    expect(await store.writeGuarded('5', (s) => (seen.push(s), true))).toBe('written');
+    expect(await store.writeGuarded('6', (s) => (seen.push(s), true))).toBe('written');
+    await storage.set('k', 'half-writ');
+    expect(await store.writeGuarded('7', (s) => (seen.push(s), true))).toBe('written');
+    expect(seen).toEqual([null, 5, null]);
+    expect(await storage.get('k')).toBe('7');
+  });
+
+  it('a refusal touches NOTHING: not the value, not its backup, not a copy', async () => {
+    const storage = new FlakyStorage();
+    await storage.set('k', '9');
+    const store = make(storage);
+    const before = storage.log.length;
+    expect(await store.writeGuarded('1', (s) => s === null)).toBe('conflict');
+    expect(storage.log.length, 'it wrote nothing').toBe(before);
+    expect(storage.keys()).toEqual(['k']);
+    expect(await storage.get('k')).toBe('9');
+  });
+
+  it('asks at the moment of the write, after the writes already asked for: it sees what they left', async () => {
+    const storage = new MemoryStorage();
+    const store = make(storage);
+    const first = store.write('3');
+    const guarded = store.writeGuarded('4', (s) => s === 3);
+    expect(await Promise.all([first, guarded])).toEqual([true, 'written']);
+    expect(await storage.get('k')).toBe('4');
+  });
+
+  it('a storage that fails is "failed", not "conflict" and not a throw', async () => {
+    const storage = new FlakyStorage();
+    storage.failing.add('set');
+    expect(await make(storage).writeGuarded('1', () => true)).toBe('failed');
+  });
+
+  it('the plain write is unchanged: it asks nothing and answers whether it reached the storage', async () => {
+    const storage = new MemoryStorage();
+    await storage.set('k', '9');
+    expect(await make(storage).write('1')).toBe(true);
+    expect(await storage.get('k')).toBe('1');
+  });
+});
+
 describe('SafeStore.inspect: a look that changes nothing', () => {
   it('finds nothing, a good value, a value that had to be recovered from the backup, or only what cannot be read', async () => {
     const storage = new MemoryStorage();

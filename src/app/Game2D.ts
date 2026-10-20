@@ -224,8 +224,17 @@ export class Game2D {
     const progress = slots ? slots.store(settings.value.slot) : null;
     let found: Inspection<ProgressData> | null = null;
     if (progress) {
-      if (options.newGame) await progress.erase();
-      else {
+      if (options.newGame) {
+        await progress.erase();
+        // `?new=1` is a request to start over ONCE: it is taken out of the address, so that reloading the page (or coming back to it from the history) continues the game that was begun instead of erasing it again
+        try {
+          const url = new URL(location.href);
+          url.searchParams.delete('new');
+          history.replaceState(history.state, '', url);
+        } catch {
+          // a page that cannot change its own address (a sandboxed frame): the game starts over as asked and the address stays as it was
+        }
+      } else {
         found = await progress.inspect(); // what is there, looked at before `load` repairs it: the player is told if it was not whole
         await progress.load();
       }
@@ -273,7 +282,7 @@ export class Game2D {
       ? new GameSaves({ slots, settings, slot: settings.value.slot, stats: this.stats, durable, platform: browserPlatform(), notify: (n) => this.showNotice(n.kind, n.slot) })
       : null;
     if (this.saves) {
-      this.saves.attach(this.session);
+      this.saves.attach(this.session, progress?.value?.savedAt ?? 0);
       this.lifecycle.add(() => this.saves?.dispose());
     }
     this.lifecycle.add(() => this.session.dispose());

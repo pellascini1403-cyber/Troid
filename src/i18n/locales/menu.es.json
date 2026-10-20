@@ -101,6 +101,7 @@
   "saves.switchNote": "Esta partida se guarda tal como está antes de cambiar.",
   "saves.savedNow": "Partida guardada.",
   "saves.saveFailed": "No se pudo guardar.",
+  "saves.conflict": "Otra pestaña guardó esta partida después que esta. Esta pestaña ya no guarda, para no pisar lo de la otra: recarga la página para seguir desde lo último que se guardó.",
   "saves.exported": "Copia exportada.",
   "saves.exportFailed": "No se pudo crear el archivo.",
   "saves.exportNone": "No hay una partida legible que exportar.",

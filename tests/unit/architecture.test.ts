@@ -182,6 +182,36 @@ describe('architecture: the picture never reaches the simulation (docs/ART-PIPEL
   });
 });
 
+describe('architecture: the player\'s settings never reach the simulation (docs/PROMPT14-LOG.md)', () => {
+  /**
+   * What the player chooses in the settings — the volume, the quality profile, the keys, the touch layout, fewer flashes, no camera shake, the size of the interface, the language — is applied by the
+   * PAGE, to the views and to the input, and is saved. The simulation never reads any of it: so no setting can change what the hero collides with, what hits them, how much a blow does or when a
+   * bottle is ready — whatever the player picks, the same inputs give the same game (the combat, the AI and the timers are the same bit for bit).
+   */
+  const SIMULATION = new Set(['player', 'combat', 'gameplay', 'world', 'enemies', 'abilities', 'interaction', 'progression', 'core', 'camera']);
+  const SETTINGS = /^save\/(Settings|index)/;
+
+  it('no simulation module imports the settings (their data, their store, or the save index that exports them)', () => {
+    const offenders = files
+      .filter((f) => SIMULATION.has(f.module))
+      .flatMap((f) => f.imports.filter((i) => SETTINGS.test(i)).map((i) => `${f.rel} → ${i}`));
+    expect(offenders).toEqual([]);
+  });
+
+  it('nor does it name one of the choices: no accessibility flag, no volume, no quality profile, no key map', () => {
+    const NAMES = /\b(reduceFlashes|reduceShake|hudScale|AccessibilitySettings|VolumeSettings|SettingsStore|QualitySetting)\b/;
+    const offenders = files.filter((f) => SIMULATION.has(f.module) && NAMES.test(f.code)).map((f) => f.rel);
+    expect(offenders).toEqual([]);
+  });
+
+  it('the guard has teeth: the settings live where the page and the menu can reach them, and the simulation list names real folders', () => {
+    const modules = new Set(files.map((f) => f.module));
+    for (const m of SIMULATION) expect(modules.has(m), m).toBe(true);
+    const readers = files.filter((f) => f.imports.some((i) => SETTINGS.test(i))).map((f) => f.module);
+    expect(new Set(readers), 'the settings\' own module, the page that applies them and the menu that shows them: nobody else').toEqual(new Set(['app', 'save', 'ui']));
+  });
+});
+
 describe('architecture: localization (GAME-SPEC-2D §18: no interface text in the code)', () => {
   /** A non-empty string literal assigned to something the player reads. Clearing (`= ''`) is fine. */
   const LITERAL_TEXT = [

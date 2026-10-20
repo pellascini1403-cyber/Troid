@@ -30,5 +30,6 @@
   "save.failed": "Could not save",
   "save.recovered": "The last good copy of game {slot} was recovered",
   "save.damaged": "Game {slot} was damaged: a copy is kept and you start a new one",
-  "save.unavailable": "This browser does not allow saving: your progress will be lost when you close it"
+  "save.unavailable": "This browser does not allow saving: your progress will be lost when you close it",
+  "save.conflict": "This game was saved from another tab. This one stopped saving so as not to overwrite it: reload the page"
 }

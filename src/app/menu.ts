@@ -48,7 +48,8 @@ export interface MenuDeps {
 function savesHost(saves: GameSaves): Omit<SavesHost, 'back'> {
   return {
     cards: async () => (await saves.actions()).cards(),
-    saveNow: () => saves.saveNow(),
+    saveNow: async () => ((await saves.saveNow()) ? 'saved' : saves.conflicted ? 'conflict' : 'failed'),
+    conflicted: () => saves.conflicted,
     switchTo: async (slot) => (await saves.actions()).switchTo(slot),
     startOver: async (slot) => (await saves.actions()).startOver(slot),
     erase: async (slot) => (await saves.actions()).erase(slot),

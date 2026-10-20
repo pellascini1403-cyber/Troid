@@ -138,10 +138,33 @@ describe('the saved games screen', () => {
       expect(probe.calls).toEqual(['saveNow']);
       expect(q(parent, 'saves-status').textContent).toBe('Partida guardada.');
       expect(q(parent, 'saves-status').dataset['tone']).toBe('info');
-      probe.answers.saveNow = false;
+      probe.answers.saveNow = 'failed';
       await click('saves-save-now');
       expect(q(parent, 'saves-status').textContent).toBe('No se pudo guardar.');
       expect(q(parent, 'saves-status').dataset['tone']).toBe('warn');
+    });
+
+    it('a save refused because another tab saved this game after this one says exactly that, not that the storage failed — and the screen keeps saying it and stops offering a save that cannot happen', async () => {
+      probe.answers.saveNow = 'conflict';
+      await open();
+      await click('saves-save-now');
+      expect(q(parent, 'saves-status').textContent).toBe('Otra pestaña guardó esta partida después que esta. Esta pestaña ya no guarda, para no pisar lo de la otra: recarga la página para seguir desde lo último que se guardó.');
+      expect(q(parent, 'saves-status').dataset['tone']).toBe('warn');
+      expect(q(parent, 'saves-conflict').dataset['tone'], 'and the screen keeps saying it, below').toBe('warn');
+      expect(q(parent, 'saves-save-now'), 'there is nothing to press that cannot do what it says').toBeNull();
+    });
+
+    it('a page that has already stopped saving for that reason says so the moment the screen opens, without being asked to save, and offers no save', async () => {
+      probe.answers.conflicted = true;
+      await open();
+      expect(q(parent, 'saves-conflict').textContent).toContain('Otra pestaña guardó esta partida');
+      expect(q(parent, 'saves-save-now')).toBeNull();
+      expect(q(parent, 'saves-more-1'), 'the options (a copy out, a game in) are still there').toBeTruthy();
+      probe.answers.conflicted = false;
+      screen.close();
+      await open();
+      expect(q(parent, 'saves-conflict')).toBeNull();
+      expect(q(parent, 'saves-save-now')).toBeTruthy();
     });
 
     it('another game is played with one press — nothing is lost by it, the game left is saved first by the host', async () => {
@@ -192,15 +215,15 @@ describe('the saved games screen', () => {
     });
 
     it('buttons are off while an action runs, and a second press during it is ignored', async () => {
-      let release: (v: boolean) => void = () => undefined;
-      probe.host.saveNow = () => new Promise<boolean>((resolve) => void (release = resolve));
+      let release: (v: 'saved') => void = () => undefined;
+      probe.host.saveNow = () => new Promise<'saved'>((resolve) => void (release = resolve));
       make();
       await open();
       q(parent, 'saves-save-now').click();
       await idle();
       expect(q(parent, 'saves-save-now').hasAttribute('disabled')).toBe(true);
       q(parent, 'saves-save-now').click();
-      release(true);
+      release('saved');
       await idle();
       expect(q(parent, 'saves-status').textContent).toBe('Partida guardada.');
       expect(q(parent, 'saves-save-now').hasAttribute('disabled')).toBe(false);

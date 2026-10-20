@@ -13,6 +13,7 @@ const TEXT: Readonly<Record<NoticeKind, string>> = {
   recovered: 'save.recovered',
   damaged: 'save.damaged',
   unavailable: 'save.unavailable',
+  conflict: 'save.conflict',
 };
 
 function noticeCss(): string {
@@ -26,9 +27,9 @@ function noticeCss(): string {
 .troid-notice[data-open="1"] { display:flex; }
 .troid-notice .notice-mark { flex:none; width:7px; height:7px; transform:rotate(45deg); background:${glow}; box-shadow:0 0 8px ${core}; }
 .troid-notice .notice-text { font-size:11px; letter-spacing:0.2em; text-transform:uppercase; text-shadow:0 0 10px ${rgba(PALETTE.energyCore, 0.5)}; }
-.troid-notice[data-kind="failed"], .troid-notice[data-kind="damaged"], .troid-notice[data-kind="unavailable"], .troid-notice[data-kind="recovered"] { border-right-color:${rgba(PALETTE.violetCore, 0.9)}; }
-.troid-notice[data-kind="failed"] .notice-mark, .troid-notice[data-kind="damaged"] .notice-mark, .troid-notice[data-kind="unavailable"] .notice-mark, .troid-notice[data-kind="recovered"] .notice-mark { background:${violet}; box-shadow:0 0 8px ${cssHex(PALETTE.violetCore)}; }
-.troid-notice[data-kind="failed"] .notice-text, .troid-notice[data-kind="damaged"] .notice-text, .troid-notice[data-kind="unavailable"] .notice-text, .troid-notice[data-kind="recovered"] .notice-text { font-size:12.5px; letter-spacing:0.02em; text-transform:none; text-shadow:none; line-height:1.3; }
+.troid-notice:not([data-kind="saved"]) { border-right-color:${rgba(PALETTE.violetCore, 0.9)}; }
+.troid-notice:not([data-kind="saved"]) .notice-mark { background:${violet}; box-shadow:0 0 8px ${cssHex(PALETTE.violetCore)}; }
+.troid-notice:not([data-kind="saved"]) .notice-text { font-size:12.5px; letter-spacing:0.02em; text-transform:none; text-shadow:none; line-height:1.3; }
 `;
 }
 

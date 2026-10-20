@@ -19,8 +19,9 @@ import { driver } from '../helpers/sim';
  * show is what the game holds, and what they ask for is done: the profile reads the session, the games screen reads and writes the slots, a change in the settings reaches the setter the game has.
  */
 const q = (root: ParentNode, id: string): HTMLElement => root.querySelector(`[data-testid="${id}"]`) as HTMLElement;
+/** Lets what is on its way finish: a few real milliseconds, because the first press of a screen may fetch a module (a dynamic import takes as long as the machine is busy). */
 const idle = async (): Promise<void> => {
-  for (let i = 0; i < 8; i++) await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  for (let i = 0; i < 25; i++) await new Promise<void>((resolve) => setTimeout(resolve, 2));
 };
 
 function fakePlatform(): SavePlatform & { reloads: number } {
@@ -269,6 +270,28 @@ describe('the pause menu over the real game', () => {
       expect(parseProgress(text)?.flags).toEqual(['lever:here']);
       expect(q(parent, 'saves-status').textContent).toBe('Copia exportada.');
       vi.restoreAllMocks();
+    });
+
+    it('a save refused because another tab saved this game first is said as it is: the real saves stop, the other tab\'s game is whole, and no save is offered that cannot happen', async () => {
+      await build();
+      const other = new GameSaves({ slots: new SaveSlots(storage), settings, slot: 1, stats: new PlayStats(), durable: true, platform: fakePlatform(), notify: () => undefined });
+      const d2 = driver({ room: ROOMS.r2_hall!, entry: 'west', unlocked: ['dash'], extra: { rooms: ROOMS } });
+      d2.settle();
+      other.attach(d2.session, 0);
+      d2.session.flags.set('from-the-other-tab');
+      await idle();
+      menu.open();
+      q(parent, 'pause-saves').click();
+      await idle();
+      q(parent, 'saves-save-now').click();
+      await idle();
+      expect(q(parent, 'saves-status').textContent).toContain('Otra pestaña guardó esta partida');
+      expect(saves?.conflicted).toBe(true);
+      expect(parseProgress((await storage.get(slotKey(1))) ?? '')?.flags).toEqual(['from-the-other-tab']);
+      expect(q(parent, 'saves-conflict')).toBeTruthy();
+      expect(q(parent, 'saves-save-now')).toBeNull();
+      expect(notices.at(-1)).toEqual({ kind: 'conflict', slot: 1 });
+      other.dispose();
     });
 
     it('says where the games live and what that means — nothing about a cloud', async () => {

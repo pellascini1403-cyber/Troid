@@ -101,6 +101,7 @@
   "saves.switchNote": "This game is saved as it stands before you switch.",
   "saves.savedNow": "Game saved.",
   "saves.saveFailed": "Could not save.",
+  "saves.conflict": "Another tab saved this game after this one. This tab no longer saves, so as not to overwrite the other: reload the page to go on from the latest save.",
   "saves.exported": "Copy exported.",
   "saves.exportFailed": "The file could not be created.",
   "saves.exportNone": "There is no readable game to export.",

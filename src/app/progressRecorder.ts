@@ -15,6 +15,8 @@ export interface SaveReport {
   reason: SaveReason;
   /** The platform's clock when it was written (milliseconds since 1970). */
   at: number;
+  /** It was NOT written because the game in the storage is newer than anything this page knows of (another tab saved it): this page has stopped saving. */
+  conflict?: true;
 }
 
 export interface RecorderOptions {
@@ -24,6 +26,11 @@ export interface RecorderOptions {
   now?: () => number;
   /** A save ended. The interface answers it (a discreet "saved", or the warning that it did not reach the storage). */
   onSaved?: (report: SaveReport) => void;
+  /**
+   * When the game this page loaded was saved (its `savedAt`; 0 for a new game). The storage is shared by every page of the game: a save is refused — and this page stops saving — if what is stored was
+   * written after that and after this page's own last write, because it is another page's progress and writing over it would lose it. Not given: nothing is guarded.
+   */
+  knownSavedAt?: number;
 }
 
 export interface ProgressRecorder {
@@ -36,6 +43,8 @@ export interface ProgressRecorder {
   /** Nothing is saved from now on (a game that is being left for another saved game must not write itself back over it). */
   stop(): void;
   readonly stopped: boolean;
+  /** This page stopped saving because another page saved the game after it: what is stored is the other one's, and was not written over. */
+  readonly conflicted: boolean;
 }
 
 /**
@@ -51,15 +60,32 @@ export function attachProgressRecorder(session: GameSession, store: ProgressStor
   const now = options.now ?? (() => 0);
   let pending: 'progress' | 'rest' | null = null;
   let closed = false;
+  let conflicted = false;
   let savedAtTick = session.now;
+  /** The latest save this page knows of: the one it loaded, or the last it wrote. A stored game saved after it is somebody else's. */
+  let known = options.knownSavedAt;
 
   const write = async (reason: SaveReason): Promise<boolean> => {
     if (closed) return false;
     savedAtTick = session.now;
     const at = now();
-    const ok = await store.save(captureProgress(session, { ...(options.stats ? { stats: options.stats.snapshot(session.now) } : {}), savedAt: at }));
-    options.onSaved?.({ ok, reason, at });
-    return ok;
+    const data = captureProgress(session, { ...(options.stats ? { stats: options.stats.snapshot(session.now) } : {}), savedAt: at });
+    if (known === undefined) {
+      const ok = await store.save(data);
+      options.onSaved?.({ ok, reason, at });
+      return ok;
+    }
+    const result = await store.saveGuarded(data, known);
+    if (result === 'conflict') {
+      // somebody else saved this game since: what is stored is theirs, and this page does not write over it, now or later
+      conflicted = true;
+      stop();
+      options.onSaved?.({ ok: false, reason, at, conflict: true });
+      return false;
+    }
+    known = Math.max(known, at); // (an attempt counts too: a write that reached the storage but did not read back is still this page's)
+    options.onSaved?.({ ok: result === 'written', reason, at });
+    return result === 'written';
   };
   const dirty = (reason: 'progress' | 'rest'): void => {
     if (closed) return;
@@ -86,6 +112,10 @@ export function attachProgressRecorder(session: GameSession, store: ProgressStor
     bus.on('checkpoint:set', () => dirty('rest')),
     bus.on('death:respawned', () => dirty('progress')),
   ];
+  function stop(): void {
+    closed = true;
+    for (const f of off) f();
+  }
   return {
     saveNow: write,
     saveIfPlayed(ticks, reason) {
@@ -94,12 +124,12 @@ export function attachProgressRecorder(session: GameSession, store: ProgressStor
     get unsavedTicks() {
       return session.now - savedAtTick;
     },
-    stop() {
-      closed = true;
-      for (const f of off) f();
-    },
+    stop,
     get stopped() {
       return closed;
+    },
+    get conflicted() {
+      return conflicted;
     },
   };
 }

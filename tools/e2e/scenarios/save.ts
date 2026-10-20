@@ -217,6 +217,12 @@ export const save: Scenario = {
     assert.equal(s.card, null);
     assert.equal(await stored(ctx.page), null, 'and the old save is gone');
     assert.equal(await ctx.page.evaluate(`Object.keys(localStorage).filter((k) => k.startsWith('troid.progress')).length`), 0, 'with its copies');
+    assert.ok(!ctx.page.url().includes('new=1'), 'the request to start over is taken out of the address: it was made once');
+    await sess('s.flags.set("defeated:r1_slime");');
+    await ctx.step(2);
+    await ctx.page.waitForTimeout(50);
+    await reload();
+    assert.deepEqual((await state()).flags, ['defeated:r1_slime'], 'reloading the page continues the game that was begun: it does not erase it again');
 
     assert.ok(worst <= 60, `draw calls peaked at ${worst}`);
     console.log(`  save: written as it happens, one key; reload restores room, flags, card, abilities, bottles and checkpoint; damaged, backup, future and ghost-room saves handled; playgrounds untouched; ?new=1 · worst ${worst} draw calls (budget 60)`);

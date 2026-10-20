@@ -1,11 +1,11 @@
 /** What the player can be told about their saved game (docs/PROMPT14-LOG.md). The words are the interface's (`save.*` keys); this only says which one, and for how long. */
-export type NoticeKind = 'saved' | 'failed' | 'recovered' | 'damaged' | 'unavailable';
+export type NoticeKind = 'saved' | 'failed' | 'recovered' | 'damaged' | 'unavailable' | 'conflict';
 
 /**
  * Seconds each notice stays once it is in. A plain "saved" is a blink — it must never ask for attention in the middle of a fight — while what the player has to ACT on or know (the save did not
  * reach the storage, a game was recovered, one could not be read, nothing can be kept) stays long enough to read.
  */
-export const NOTICE_HOLD: Readonly<Record<NoticeKind, number>> = { saved: 1.5, failed: 6, recovered: 6, damaged: 9, unavailable: 9 };
+export const NOTICE_HOLD: Readonly<Record<NoticeKind, number>> = { saved: 1.5, failed: 6, recovered: 6, damaged: 9, unavailable: 9, conflict: 14 };
 
 /** Seconds it takes to come in and to go. */
 export const NOTICE_FADE = { in: 0.18, out: 0.45 } as const;

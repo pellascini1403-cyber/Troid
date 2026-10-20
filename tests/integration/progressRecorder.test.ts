@@ -139,3 +139,56 @@ describe('the progress recorder', () => {
     expect(failing.value?.flags).toEqual(['a']);
   });
 });
+
+describe('the recorder over a storage another page shares (two tabs of the game)', () => {
+  const pair = () => {
+    const storage = new MemoryStorage();
+    const make = (known: number | undefined, clock: { t: number }) => {
+      const store = new ProgressStore(storage);
+      const d = driver({ room: ROOMS.r2_hall!, entry: 'west', unlocked: ['dash'], extra: { rooms: ROOMS } });
+      d.settle();
+      const reports: Array<{ ok: boolean; conflict?: true }> = [];
+      const recorder = attachProgressRecorder(d.session, store, { now: () => clock.t, onSaved: (r) => void reports.push({ ok: r.ok, ...(r.conflict ? { conflict: true as const } : {}) }), ...(known === undefined ? {} : { knownSavedAt: known }) });
+      return { d, store, recorder, reports, clock };
+    };
+    return { storage, make };
+  };
+
+  it('writes over its own saves, as many as it likes; a save by another page it does not know of is not written over — the recorder says so, once, and stops', async () => {
+    const { storage, make } = pair();
+    const a = make(0, { t: 1000 });
+    const b = make(0, { t: 2000 });
+    a.d.session.flags.set('a');
+    await flush(a.store);
+    expect(a.reports).toEqual([{ ok: true }]);
+    b.d.session.flags.set('b');
+    await flush(b.store);
+    expect(b.reports).toEqual([{ ok: false, conflict: true }]);
+    expect(b.recorder.conflicted).toBe(true);
+    expect(b.recorder.stopped).toBe(true);
+    expect((await saved(storage))?.flags, 'the other page\'s save is whole').toEqual(['a']);
+    b.d.session.flags.set('c');
+    await flush(b.store);
+    expect(b.reports, 'a page that has stopped says nothing more').toHaveLength(1);
+    expect(await b.recorder.saveNow('manual')).toBe(false);
+    // the first page is not disturbed
+    a.clock.t = 3000;
+    a.d.session.flags.set('d');
+    await flush(a.store);
+    expect(a.reports.at(-1)).toEqual({ ok: true });
+    expect(a.recorder.conflicted).toBe(false);
+    expect((await saved(storage))?.flags).toEqual(['a', 'd']);
+  });
+
+  it('without a known moment nothing is guarded (a recorder that was not told what to protect behaves as it always did)', async () => {
+    const { storage, make } = pair();
+    const a = make(undefined, { t: 1000 });
+    const b = make(undefined, { t: 2000 });
+    a.d.session.flags.set('a');
+    await flush(a.store);
+    b.d.session.flags.set('b');
+    await flush(b.store);
+    expect(b.recorder.conflicted).toBe(false);
+    expect((await saved(storage))?.flags).toEqual(['b']);
+  });
+});

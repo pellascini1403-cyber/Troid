@@ -25,7 +25,7 @@ describe('the notice model', () => {
 
   it('a plain "saved" is shorter than anything the player has to know', () => {
     expect(NOTICE_HOLD.saved).toBeLessThan(2);
-    for (const k of ['failed', 'recovered', 'damaged', 'unavailable'] as const) expect(NOTICE_HOLD[k], k).toBeGreaterThanOrEqual(6);
+    for (const k of ['failed', 'recovered', 'damaged', 'unavailable', 'conflict'] as const) expect(NOTICE_HOLD[k], k).toBeGreaterThanOrEqual(6);
   });
 
   it('a warning is never pushed out by a "saved" that arrives while it shows; a newer warning replaces an older one; "saved" after "saved" starts its hold again', () => {
@@ -99,6 +99,18 @@ describe('the notice on the page', () => {
     notice.show('failed', 2);
     notice.update(0.5);
     expect(words()).toBe('Could not save');
+  });
+
+  it('says that another tab saved the game, and that this one stopped saving — in both languages, as a warning that is not pushed out by a plain "saved"', () => {
+    notice.show('conflict', 1);
+    notice.update(0.5);
+    expect(el().dataset['kind']).toBe('conflict');
+    expect(words()).toBe('Esta partida se guardó desde otra pestaña. Esta ya no guarda para no pisarla: recarga la página');
+    tr.setLocale('en');
+    expect(words()).toBe('This game was saved from another tab. This one stopped saving so as not to overwrite it: reload the page');
+    notice.show('saved', 1);
+    notice.update(0.5);
+    expect(el().dataset['kind'], 'a plain "saved" does not push a warning out').toBe('conflict');
   });
 
   it('names the slot in what it says about one', () => {

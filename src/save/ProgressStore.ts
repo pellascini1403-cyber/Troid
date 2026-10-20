@@ -1,5 +1,5 @@
 import { parseProgress, repairProgress, serializeProgress, type ProgressData } from './ProgressData';
-import { SafeStore, type Inspection } from './SafeStore';
+import { SafeStore, type GuardedResult, type Inspection } from './SafeStore';
 import type { StorageAdapter } from './StorageAdapter';
 
 export interface ProgressStoreOptions {
@@ -39,6 +39,18 @@ export class ProgressStore {
     const clean = repairProgress(data);
     this.state = clean;
     return this.safe.write(serializeProgress(clean));
+  }
+
+  /**
+   * Saves `data` (repaired first) unless the game stored now was saved AFTER `knownSavedAt` — the moment of the last save this page knows of, its own or the one it loaded: someone else has written
+   * since (another tab of the same game: they share the storage), and writing over it would throw their progress away. Then nothing is written and the answer is `conflict`; the progress in force
+   * stays what it was. A storage with nothing in it, or nothing readable, is not a conflict.
+   */
+  async saveGuarded(data: Readonly<ProgressData>, knownSavedAt: number): Promise<GuardedResult> {
+    const clean = repairProgress(data);
+    const result = await this.safe.writeGuarded(serializeProgress(clean), (stored) => stored === null || stored.savedAt <= knownSavedAt);
+    if (result !== 'conflict') this.state = clean;
+    return result;
   }
 
   /** What is saved, looked at without touching it (`load` repairs while it reads; this does not). */

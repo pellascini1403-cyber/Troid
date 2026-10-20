@@ -182,6 +182,56 @@ describe('saving', () => {
   });
 });
 
+describe('saving over what another page saved (two tabs share one storage)', () => {
+  it('a game saved AFTER the moment this page knows of is somebody else\'s: it is not written over, nothing is touched, and the progress in force stays what it was', async () => {
+    const storage = new FlakyStorage();
+    const theirs = new ProgressStore(storage);
+    await theirs.save(at(['theirs'], { savedAt: 2000 }));
+    const mine = new ProgressStore(storage);
+    await mine.load();
+    await mine.save(at(['mine-loaded'], { savedAt: 1000 })); // (what this page loaded was older)
+    const before = storage.log.length;
+    // …that stood in the storage when it was loaded; now somebody saves later and this page does not know it
+    await theirs.save(at(['theirs', 'more'], { savedAt: 3000 }));
+    const after = storage.log.length;
+    expect(await mine.saveGuarded(at(['mine'], { savedAt: 4000 }), 1000)).toBe('conflict');
+    expect(storage.log.length, 'a refused save writes nothing').toBe(after);
+    expect(after).toBeGreaterThan(before);
+    expect(parseProgress((await storage.get(KEY))!)?.flags, 'what the other page saved is still there, whole').toEqual(['more', 'theirs']);
+    expect(mine.value?.flags, 'what this page holds is what it held').toEqual(['mine-loaded']);
+  });
+
+  it('a game saved at or before what this page knows of is its own: it is replaced', async () => {
+    const storage = new MemoryStorage();
+    const store = new ProgressStore(storage);
+    await store.save(at(['a'], { savedAt: 1000 }));
+    expect(await store.saveGuarded(at(['b'], { savedAt: 2000 }), 1000)).toBe('written');
+    expect(await store.saveGuarded(at(['c'], { savedAt: 3000 }), 2000)).toBe('written');
+    expect(parseProgress((await storage.get(KEY))!)?.flags).toEqual(['c']);
+    expect(store.value?.flags).toEqual(['c']);
+  });
+
+  it('nothing stored, or nothing that can be read, is not a conflict (a new game, a damaged copy)', async () => {
+    const storage = new MemoryStorage();
+    const store = new ProgressStore(storage);
+    expect(await store.saveGuarded(at(['a'], { savedAt: 500 }), 0)).toBe('written');
+    await storage.set(KEY, 'half-writ');
+    expect(await store.saveGuarded(at(['b'], { savedAt: 600 }), 0)).toBe('written');
+  });
+
+  it('a game from before the stamps (savedAt 0) never looks newer than a page that knows of none', async () => {
+    const storage = new MemoryStorage();
+    await new ProgressStore(storage).save(at(['old'], { savedAt: 0 }));
+    expect(await new ProgressStore(storage).saveGuarded(at(['new'], { savedAt: 10 }), 0)).toBe('written');
+  });
+
+  it('a storage that fails is "failed", not a conflict', async () => {
+    const storage = new FlakyStorage();
+    storage.failing.add('set');
+    expect(await new ProgressStore(storage).saveGuarded(at(['a'], { savedAt: 1 }), 0)).toBe('failed');
+  });
+});
+
 describe('a new game', () => {
   it('erase forgets the save, its backup and its damaged copy, and the value is null', async () => {
     const storage = new MemoryStorage();

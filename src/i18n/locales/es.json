@@ -30,5 +30,6 @@
   "save.failed": "No se pudo guardar",
   "save.recovered": "Se recuperó la última copia buena de la partida {slot}",
   "save.damaged": "La partida {slot} estaba dañada: se conserva una copia y empiezas una nueva",
-  "save.unavailable": "Este navegador no permite guardar: el progreso se perderá al cerrar"
+  "save.unavailable": "Este navegador no permite guardar: el progreso se perderá al cerrar",
+  "save.conflict": "Esta partida se guardó desde otra pestaña. Esta ya no guarda para no pisarla: recarga la página"
 }

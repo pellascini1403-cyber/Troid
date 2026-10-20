@@ -8,10 +8,10 @@ import type { SaveActions } from './saveActions';
 
 /**
  * What the player is told about their saved game, in one word each (the interface turns it into a short, discreet line): it was `saved`; it did NOT reach the storage (`failed`); the game that was
- * loaded had to be recovered from its last good copy (`recovered`) or could not be read at all and a new one began, the unreadable one kept (`damaged`); or the browser keeps nothing at all, so
- * the progress will not survive the page (`unavailable`).
+ * loaded had to be recovered from its last good copy (`recovered`) or could not be read at all and a new one began, the unreadable one kept (`damaged`); the browser keeps nothing at all, so
+ * the progress will not survive the page (`unavailable`); or another tab saved this game after this page did, so this page stopped saving rather than write over it (`conflict`).
  */
-export type SaveNoticeKind = 'saved' | 'failed' | 'recovered' | 'damaged' | 'unavailable';
+export type SaveNoticeKind = 'saved' | 'failed' | 'recovered' | 'damaged' | 'unavailable' | 'conflict';
 
 export interface SaveNotice {
   kind: SaveNoticeKind;
@@ -107,13 +107,17 @@ export class GameSaves {
     this.slot = o.slot;
   }
 
-  /** Begins saving `session`. */
-  attach(session: GameSession): void {
+  /**
+   * Begins saving `session`. `knownSavedAt` is when the game this page loaded was saved (0: a new game): the storage is shared with every other tab of the game, and a save that would replace
+   * one made after that — by another tab — is refused, and this page stops saving (the player is told).
+   */
+  attach(session: GameSession, knownSavedAt = 0): void {
     const { platform } = this.o;
     this.recorder = attachProgressRecorder(session, this.o.slots.store(this.slot), {
       stats: this.o.stats,
       now: () => platform.now(),
       onSaved: (r) => this.report(r),
+      knownSavedAt,
     });
     this.off.push(
       platform.onLeave(() => this.recorder?.saveIfPlayed(1, 'leaving')),
@@ -123,6 +127,11 @@ export class GameSaves {
 
   get stopped(): boolean {
     return this.recorder?.stopped ?? true;
+  }
+
+  /** Another tab saved this game after this page did: this page stopped saving so as not to write over it. */
+  get conflicted(): boolean {
+    return this.recorder?.conflicted ?? false;
   }
 
   /** Does what is saved outlive the page? (`false`: the browser offers no storage and the games live in memory.) */
@@ -171,6 +180,10 @@ export class GameSaves {
   /** A save ended: the player is told it did, quietly, when it was about their progress; and that it did NOT, but not more than once in a while. */
   private report(r: SaveReport): void {
     const { notify } = this.o;
+    if (r.conflict) {
+      notify({ kind: 'conflict', slot: this.slot }); // once: the recorder has stopped, nothing more will be reported
+      return;
+    }
     if (!r.ok) {
       if (r.at - this.lastFailedNotice >= AUTOSAVE.failedNoticeMs) {
         this.lastFailedNotice = r.at;

@@ -11,6 +11,9 @@ export interface SafeStoreOptions<T> {
   warn?: (message: string) => void;
 }
 
+/** How a guarded write ended: it reached the storage, it did not, or the guard refused it (what is stored is not what the writer thinks it is replacing). */
+export type GuardedResult = 'written' | 'failed' | 'conflict';
+
 /** What a LOOK at the storage found (nothing was written to find it): no value, a good one (`recovered`: only the backup of a write that stopped halfway was readable), or only what cannot be read. */
 export type Inspection<T> = { state: 'empty' } | { state: 'ok'; value: T; recovered: boolean } | { state: 'damaged' };
 
@@ -68,7 +71,18 @@ export class SafeStore<T> {
 
   /** Saves `text` after the writes already asked for. Resolves to whether it reached the storage. */
   write(text: string): Promise<boolean> {
-    const written = this.queue.then(() => this.put(text));
+    const written = this.queue.then(async () => (await this.put(text)) === 'written');
+    this.queue = written;
+    return written;
+  }
+
+  /**
+   * Saves `text` only if `allowed` agrees to what it would REPLACE: it is given the value stored right now (`null`: nothing there, or nothing that can be read) at the moment of the write, after
+   * the writes already asked for. Where the storage is shared with another page — two tabs of the same game — this is how a page that holds an old picture of the value finds out, instead of
+   * writing over what the other one saved. A refused write touches nothing.
+   */
+  writeGuarded(text: string, allowed: (stored: T | null) => boolean): Promise<GuardedResult> {
+    const written = this.queue.then(() => this.put(text, allowed));
     this.queue = written;
     return written;
   }
@@ -134,12 +148,13 @@ export class SafeStore<T> {
     return { state: 'empty' };
   }
 
-  private async put(text: string): Promise<boolean> {
+  private async put(text: string, allowed?: (stored: T | null) => boolean): Promise<GuardedResult> {
     const { key, label } = this.options;
     const bak = `${key}.bak`;
     try {
       const previous = await this.storage.get(key);
-      if (previous === text) return true; // it is already exactly what is stored: nothing to write, so nothing to put at risk
+      if (allowed && !allowed(previous === null ? null : this.options.parse(previous))) return 'conflict';
+      if (previous === text) return 'written'; // it is already exactly what is stored: nothing to write, so nothing to put at risk
       // Only a GOOD previous copy is worth keeping: a damaged one (a write that stopped halfway) must never replace the good backup.
       const replacing = previous !== null && this.options.parse(previous) !== null;
       if (replacing) {
@@ -147,19 +162,19 @@ export class SafeStore<T> {
         // the main file is not touched until the backup is known to be there: a backup that did not land leaves the main file as it was
         if ((await this.storage.get(bak)) !== previous) {
           this.report(`the backup of the ${label} did not read back as written; nothing was changed`);
-          return false;
+          return 'failed';
         }
       }
       await this.storage.set(key, text);
       if ((await this.storage.get(key)) !== text) {
         this.report(`a ${label} write did not read back as written; the previous copy is kept`);
-        return false;
+        return 'failed';
       }
       if (replacing) await this.storage.remove(bak);
-      return true;
+      return 'written';
     } catch (error) {
       this.report(`${label} could not be saved: ${message(error)}`);
-      return false;
+      return 'failed';
     }
   }
 

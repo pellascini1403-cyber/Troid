@@ -59,6 +59,47 @@ async function closeMenu(page: Page): Promise<void> {
   await page.waitForSelector('[data-testid="pause-menu"][data-open="0"]', { state: 'attached' });
 }
 
+/**
+ * What the simulation decided, and nothing of how it was drawn: the same inputs must end in the same digest whatever the settings. The clock is counted from where the fight began — a page runs a
+ * handful of real-time ticks before a test stops it, and how many depends on how fast the machine was that moment — and an enemy's own tick counter is left out for the same reason. Of the enemies,
+ * only those near the fight count: the room's own slime patrols far away from it, and where it is depends on those same first ticks.
+ */
+const DIGEST = `(() => { const s = window.__troid.state(); return { room: s.room, since: s.now - window.__fightStart, x: s.x, y: s.y, vx: s.vx, vy: s.vy, grounded: s.grounded, state: s.state, health: s.health, maxHealth: s.maxHealth, magic: s.magic,
+  bottles: s.bottles, invulnerable: s.invulnerable, hitStop: s.hitStop, combat: s.combat, flags: [...s.flags].sort(),
+  dummies: s.dummies.map((d) => [d.id, d.x, d.vx, d.hp, d.hits]), enemies: s.enemies.filter((e) => Math.abs(e.x - s.x) < 30).map((e) => [e.id, e.def, e.state, e.x, e.y, e.vx, e.hp, e.hits]) }; })()`;
+
+/** A fixed fight, with real keys and a hostile blow, in about 330 ticks: the hero strikes the dummy in front of them, walks on, attacks, jumps, dashes and is struck. */
+async function fight(ctx: Ctx): Promise<unknown> {
+  const { page } = ctx;
+  await page.evaluate('window.__fightStart = window.__troid.state().now');
+  await ctx.step(30);
+  const x0 = (await ctx.state()).x;
+  await page.evaluate(`window.__troid.spawnDummy(${x0 + 1.3}, 0, 12)`);
+  await page.evaluate(`window.__troid.spawnSlime(${x0 + 9}, 0, -1)`);
+  await ctx.step(10);
+  const hold = async (code: string, ticks: number): Promise<void> => {
+    await page.keyboard.down(code);
+    await ctx.step(ticks);
+    await page.keyboard.up(code);
+  };
+  for (let i = 0; i < 3; i++) {
+    await hold('KeyJ', 6);
+    await ctx.step(14);
+  }
+  await hold('KeyD', 40);
+  await hold('KeyJ', 6);
+  await ctx.step(30);
+  await hold('Space', 12);
+  await ctx.step(30);
+  await hold('ShiftLeft', 6);
+  await ctx.step(10);
+  await page.evaluate('window.__troid.strikePlayer(1)');
+  await ctx.step(50);
+  await hold('KeyJ', 6);
+  await ctx.step(60);
+  return page.evaluate(DIGEST);
+}
+
 export const accessibility: Scenario = {
   name: 'accessibility',
   async run(ctx: Ctx) {
@@ -184,6 +225,27 @@ export const accessibility: Scenario = {
       assert.ok(d.hit >= 44 - 1e-6, `and is still a finger (${d.hit})`);
     }
     await ctx.shot('b-01-phone-big-hud');
+
+    // ================================================================================================ none of it touches the rules: the same fight, bit for bit, with every choice on and with none
+    await ctx.open('new=1', { width: 1280, height: 720, dpr: 1 });
+    const plain = await fight(ctx);
+    const chosen = {
+      version: 3, language: 'en', quality: 'low', volume: { master: 0 }, keys: {}, slot: 1,
+      touch: { scale: 1.4, opacity: 0.3, side: 'left', offsetX: 1, offsetY: 1 },
+      accessibility: { reduceFlashes: true, reduceShake: true, hudScale: 1.35 },
+    };
+    await ctx.open('new=1', {
+      width: 1280, height: 720, dpr: 1,
+      prepare: async (context) => {
+        await context.addInitScript(`if (!localStorage.getItem(${JSON.stringify(KEY)})) localStorage.setItem(${JSON.stringify(KEY)}, ${JSON.stringify(JSON.stringify(chosen))});`);
+      },
+    });
+    page = ctx.page;
+    assert.equal((await ctx.state()).screen?.calm, true, 'this page really is running with the choices on');
+    assert.equal(await attr(page, 'hud', 'data-calm'), '1');
+    const withChoices = await fight(ctx);
+    assert.deepEqual(withChoices, plain, 'the same inputs gave the same fight: position, life, magic, bottles, the dummy, the slime and the clock are identical');
+    assert.ok(((plain as { dummies: unknown[][] }).dummies[0]?.[4] as number) > 0, `and it was a fight: the dummy was hit (${JSON.stringify(plain)})`);
     console.log('  accessibility: no camera shake (and the shake it had stops) · fewer flashes (HUD and screen pulses, kept across a rebuild of the effects) · interface size (the HUD, the pause button and the touch buttons make way) · saved, kept after a reload, reversible');
   },
 };
