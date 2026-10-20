@@ -20,7 +20,9 @@ function menuCss(): string {
 .troid-settings[data-open="1"] { display:flex; }
 .troid-settings .settings-panel { width:min(460px, 92vw); max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-sizing:border-box; padding:18px 20px 20px; border-radius:10px; border:1px solid ${rim}; background:${panel}; box-shadow:0 0 28px ${rgba(PALETTE.energyGlow, 0.25)}; }
 .troid-settings .settings-title { flex:none; font-size:1.35rem; font-weight:300; letter-spacing:0.14em; text-align:center; margin:0 0 14px; text-shadow:0 0 14px ${core}88; }
-.troid-settings .settings-body { flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; margin:0 -8px; padding:2px 8px; overscroll-behavior:contain; }
+.troid-settings .settings-body { flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; margin:0 -8px; padding:2px 8px; overscroll-behavior:contain; scroll-padding:8px 0 28px; }
+/* a screen that does not fit scrolls, and says so: while there is more below (\`ScrollHint\` sets data-more) its last lines fade out; a screen that fits, or one scrolled to its end, shows its last line plainly */
+.troid-settings .settings-body[data-more="1"] { -webkit-mask-image:linear-gradient(180deg, #000 calc(100% - 26px), transparent); mask-image:linear-gradient(180deg, #000 calc(100% - 26px), transparent); }
 .troid-settings .settings-section { margin:0 0 14px; }
 .troid-settings .settings-label { font-size:0.8rem; letter-spacing:0.08em; opacity:0.75; margin:0 0 6px; }
 .troid-settings .settings-note { font-size:0.74rem; line-height:1.35; opacity:0.62; margin:6px 0 0; }

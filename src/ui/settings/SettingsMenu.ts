@@ -7,6 +7,7 @@ import { keyLabel } from '@/input/glyphs';
 import { assignKey, effectiveKeys, REMAPPABLE, type KeyMap, type Remappable } from '@/input/remap';
 import type { QualitySetting } from '@/presentation/viewport';
 import { ensureMenuStyle } from './menuStyle';
+import { ScrollHint } from './scrollHint';
 import { HUD_SCALE_LIMITS, TOUCH_LIMITS, VOLUME_LIMITS, type AccessibilitySettings, type TouchSettings } from '@/save/SettingsData';
 
 /** What the menu needs from the game, and nothing more: it reads values, reports a choice, and asks to close. */
@@ -115,6 +116,7 @@ export class SettingsMenu {
   private readonly offsetX: HTMLInputElement;
   private readonly offsetY: HTMLInputElement;
   private readonly resume: HTMLButtonElement;
+  private readonly hint: ScrollHint;
   private readonly screen: SettingsScreen;
   private readonly flashes: HTMLButtonElement;
   private readonly shake: HTMLButtonElement;
@@ -288,6 +290,7 @@ export class SettingsMenu {
 
     // the title and the way out stay where they are; what lies between them scrolls
     const body = el('div', 'settings-body');
+    this.hint = this.store.add(new ScrollHint(body));
     const parts: HTMLElement[] = [];
     if (sectionsOf('settings')) parts.push(language, volume, quality, access);
     // the controls screen is laid out by `placeGroups` (the device in use first); the single panel keeps the keys and the touch layout, in that order
@@ -321,6 +324,7 @@ export class SettingsMenu {
     this.message = null;
     this.refresh();
     this.root.dataset['open'] = '1';
+    this.hint.update(); // it has a size now
     this.resume.focus({ preventScroll: true });
   }
 

@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { CATALOGS, createTranslator } from '@/i18n';
 import { createPlayerStatus, type PlayerStatus } from '@/gameplay/PlayerStatus';
+import { PALETTE } from '@/presentation/palette';
 import { HudModel } from '@/ui/hud/HudModel';
 import { HudView, type HudPointerSink } from '@/ui/hud/HudView';
 import { computeHudLayout } from '@/ui/hud/layout';
@@ -358,6 +359,23 @@ describe('hud view', () => {
     expect(q(host, 'hud-card-key').dataset['on'], 'the power was taken off: the key goes with it').toBe('0');
   });
 
+  it('with an empty slot, telling the HUD the key every frame costs no DOM write: the key is only ever written for a power that is there', () => {
+    show(status(), 5);
+    const records: MutationRecord[] = [];
+    const observer = new MutationObserver((r) => records.push(...r));
+    observer.observe(host, { attributes: true, childList: true, subtree: true, characterData: true });
+    for (let i = 0; i < 20; i++) {
+      view.setGlyphs({ ability: 'K' }); // what the game does on every frame
+      show(status());
+    }
+    expect([...records, ...observer.takeRecords()], 'the key chip was never written, nor cleared again').toHaveLength(0);
+    expect(q(host, 'hud-card-key').dataset['on']).toBe('0');
+    // …and the moment a power is equipped the key it was told appears, from the very next frame
+    show(status((s) => equip(s)));
+    expect(text('hud-card-key')).toBe('K');
+    observer.disconnect();
+  });
+
   it('the bottle that recharges says how many seconds are left; a ready one and one that only waits its turn say nothing', () => {
     show(
       status((s) => {
@@ -448,6 +466,63 @@ describe('hud view', () => {
     const calm = Number.parseFloat((q(host, 'hud-life-seg-4').querySelector('div') as HTMLElement).style.opacity);
     expect(calm).toBeLessThan(0.35);
     expect(calm).toBeGreaterThan(0);
+  });
+
+  it('with fewer flashes the wave of light of a segment that is back is still there but a third as bright — also when the choice is made while the wave is crossing', () => {
+    const wave = (i: number): number => Number.parseFloat((q(host, `hud-life-seg-${i}`).querySelector('.hud-seg-heal') as HTMLElement).style.opacity || '0');
+    show(status((s) => (s.life.current = 2)));
+    show(status((s) => (s.life.current = 4)));
+    expect(wave(2), 'as designed').toBeGreaterThan(0.9);
+    // the choice changes while the wave is crossing: the next frame draws it softened, though the wave itself did not move
+    view.setCalm(true);
+    show(status((s) => (s.life.current = 4)), 0);
+    expect(wave(2)).toBeGreaterThan(0);
+    expect(wave(2)).toBeLessThanOrEqual(0.3);
+    // and one that starts under the choice is softened from its first frame
+    show(status((s) => (s.life.current = 4)), 3);
+    expect(wave(2)).toBe(0);
+    show(status((s) => (s.life.current = 2)));
+    show(status((s) => (s.life.current = 5)));
+    expect(wave(4)).toBeGreaterThan(0);
+    expect(wave(4)).toBeLessThanOrEqual(0.3);
+    // going back: the wave is as designed again
+    view.setCalm(false);
+    show(status((s) => (s.life.current = 2)));
+    show(status((s) => (s.life.current = 5)));
+    expect(wave(4)).toBeGreaterThan(0.9);
+  });
+
+  it('with fewer flashes the white glow of a card or a bottle that is picked up, and of a bottle that is drunk, is not drawn: those rules apply only when the choice is off', () => {
+    const css = document.head.querySelector('style')?.textContent ?? '';
+    for (const sel of ['.hud-card[data-gain="1"]', '.hud-card[data-gain="1"] .hud-card-plate', '.hud-vial[data-drinking="1"] .hud-glass', '.hud-vial[data-drinking="1"] .hud-glass-rim', '.hud-vial[data-gain="1"] .hud-glass', '.hud-vial[data-gain="1"] .hud-glass-rim']) {
+      expect(css, sel).toContain(`.troid-hud:not([data-calm="1"]) ${sel} {`);
+      expect(css.includes(`\n.troid-hud ${sel} {`), `${sel} must not be drawn for everyone`).toBe(false);
+    }
+    // the states keep their own look under the choice: those rules are not scoped
+    expect(css).toContain('\n.troid-hud .hud-vial[data-state="ready"] .hud-glass {');
+  });
+
+  it('with fewer flashes a card or a bottle that is picked up, and a bottle that is drunk, are still told apart: by a steady glow in the cyan of the energy — not the white one that comes and goes', () => {
+    const css = document.head.querySelector('style')?.textContent ?? '';
+    const rgb = (hex: number): string => `${(hex >> 16) & 255},${(hex >> 8) & 255},${hex & 255}`;
+    const rule = (selector: string): string => new RegExp(`\n${selector.replace(/[[\]().*]/g, '\\$&')} \\{([^}]*)\\}`).exec(css)?.[1] ?? '';
+    const vial = css.split('\n').find((l) => l.startsWith('.troid-hud[data-calm="1"] .hud-vial[data-drinking="1"] .hud-glass')) ?? '';
+    expect(vial, 'the bottle that is drunk and the one that is new').toContain('.troid-hud[data-calm="1"] .hud-vial[data-gain="1"] .hud-glass');
+    expect(vial).toContain(`drop-shadow(0 0 7px rgba(${rgb(PALETTE.energyGlow)},0.85))`);
+    expect(rule('.troid-hud[data-calm="1"] .hud-card[data-gain="1"]')).toContain(`drop-shadow(0 0 7px rgba(${rgb(PALETTE.energyGlow)},0.75))`);
+    for (const line of css.split('\n').filter((l) => l.startsWith('.troid-hud[data-calm="1"] .hud-vial') || l.startsWith('.troid-hud[data-calm="1"] .hud-card'))) {
+      expect(line, 'no white in any of them').not.toContain(rgb(PALETTE.whiteHot));
+    }
+  });
+
+  it('telling the HUD the same choice again changes nothing', () => {
+    view.setCalm(true);
+    const records: MutationRecord[] = [];
+    const observer = new MutationObserver((r) => records.push(...r));
+    observer.observe(host, { attributes: true, childList: true, subtree: true });
+    for (let i = 0; i < 10; i++) view.setCalm(true);
+    expect([...records, ...observer.takeRecords()]).toHaveLength(0);
+    observer.disconnect();
   });
 
   it('with fewer flashes nothing in the HUD blinks or shines by itself: the stylesheet turns its animations off under that choice', () => {

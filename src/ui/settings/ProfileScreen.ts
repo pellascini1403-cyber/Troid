@@ -4,6 +4,7 @@ import { DisposableStore } from '@/core/lifecycle';
 import type { Translator } from '@/i18n/translator';
 import { formatClock } from './menuFormat';
 import { ensureMenuStyle } from './menuStyle';
+import { ScrollHint } from './scrollHint';
 
 /** What the profile needs of the game: the data of the game being played, now, and the way out. */
 export interface ProfileHost {
@@ -26,6 +27,7 @@ export class ProfileScreen {
   private readonly title: HTMLElement;
   private readonly body: HTMLElement;
   private readonly back: HTMLButtonElement;
+  private readonly hint: ScrollHint;
 
   constructor(
     parent: HTMLElement,
@@ -47,6 +49,7 @@ export class ProfileScreen {
     this.title.className = 'settings-title';
     this.body = doc.createElement('div');
     this.body.className = 'settings-body';
+    this.hint = this.store.add(new ScrollHint(this.body));
     this.back = doc.createElement('button');
     this.back.type = 'button';
     this.back.className = 'settings-button settings-resume';
@@ -67,6 +70,7 @@ export class ProfileScreen {
   open(): void {
     this.render();
     this.root.dataset['open'] = '1';
+    this.hint.update(); // it has a size now
     this.back.focus({ preventScroll: true });
   }
 

@@ -8,6 +8,7 @@ import type { KeyMap } from '@/input/remap';
 import { QUALITY_SETTINGS, type QualitySetting } from '@/presentation/viewport';
 import { defaultSettings, HUD_SCALE_LIMITS, type AccessibilitySettings, type TouchSettings } from '@/save/SettingsData';
 import { languageName, SettingsMenu, type SettingsMenuHost, type SettingsScreen } from '@/ui/settings/SettingsMenu';
+import { stubScrollLayout } from '../../helpers/layout';
 
 /**
  * The pause / settings menu (docs/GAME-SPEC-2D.md §17; docs/PROMPT6-LOG.md S30): the language, each in its own name; the volume (prepared); the quality
@@ -205,6 +206,18 @@ describe('settings menu', () => {
     menu.open();
     q(host, 'settings-resume').click();
     expect(calls).toEqual(['close']);
+  });
+
+  it('its middle scrolls and says so: the scroll area tells the stylesheet whether there is more below, looked at when the menu opens (it has a size only then)', () => {
+    const body = menu.root.querySelector('.settings-body') as HTMLElement;
+    expect(body.dataset['more']).toBe('0');
+    const layout = stubScrollLayout(body, { scroll: 529, client: 278 });
+    menu.open();
+    expect(body.dataset['more']).toBe('1');
+    menu.close();
+    layout.client = 800; // a bigger window: it all fits
+    menu.open();
+    expect(body.dataset['more']).toBe('0');
   });
 
   it('opening puts the focus on Resume (a keyboard player can leave at once)', () => {

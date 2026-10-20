@@ -341,7 +341,7 @@ R1–R13 vienen de la auditoría (se actualiza su estado); R14+ son nuevos.
 - [x] *Spike* (S1): escena de estrés ≤ 60 *draw calls* (5; el criterio de reversión del ADR-0002 **no** se activó).
 - [x] Determinismo bit a bit con combate y enemigo (tests de integración y **dos reproducciones en el navegador comparadas con la simulación cada 50 ticks**); **sin fugas** tras N recargas de sala (listeners, entidades, vistas, objetos de cada capa de la escena); *pools* estables.
 - [x] i18n: paridad es/en y ningún literal de interfaz en `ui/` (tests de catálogos y regla de arquitectura).
-- [x] Bundle JS **que descarga un arranque en frío de R1: 195.6 KB gz** (≤ 200 KB gz; `npm run bench:bundle`). Ojo: `dist/` entero suma 237 KB gz porque incluye los laboratorios y los *renderers* WebGPU/Canvas que no se descargan; el margen real es de ≈ 4 KB.
+- [x] Bundle JS **que descarga un arranque en frío de R1: 195.6 KB gz** (≤ 200 KB gz; `npm run bench:bundle`; **197.8 KB tras el Prompt 14**, con el HUD, los avisos y el menú en *chunks* diferidos). Ojo: `dist/` entero suma 237 KB gz porque incluye los laboratorios y los *renderers* WebGPU/Canvas que no se descargan; el margen real es de ≈ 4 KB.
 
 **Proceso:**
 - [x] Un commit por paso (o varios pequeños: S9, S10 y S11 tienen 2–3) con los *trailers*; `wip/f6-combat-core` **intacta** (`b695c98`, local y en `origin`).

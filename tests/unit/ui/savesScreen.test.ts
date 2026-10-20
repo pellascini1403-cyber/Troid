@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { CATALOGS, createTranslator } from '@/i18n';
 import { MENU_CATALOGS } from '@/i18n/menuCatalogs';
 import { SavesScreen } from '@/ui/settings/SavesScreen';
+import { stubScrollLayout } from '../../helpers/layout';
 import { savesProbe, slotCard, type SavesProbe } from '../../helpers/pauseHost';
 
 /**
@@ -59,6 +60,14 @@ describe('the saved games screen', () => {
     await open();
     expect(screen.isOpen).toBe(true);
     expect(q(parent, 'saves-screen').querySelector('.settings-title')?.textContent).toBe('Partidas');
+  });
+
+  it('its middle scrolls and says so: the scroll area tells the stylesheet whether there is more below, looked at when the screen opens and again when the games are drawn', async () => {
+    const body = q(parent, 'saves-screen').querySelector('.settings-body') as HTMLElement;
+    expect(body.dataset['more']).toBe('0');
+    stubScrollLayout(body, { scroll: 790, client: 278 });
+    await open();
+    expect(body.dataset['more']).toBe('1');
   });
 
   it('asks the host for the games every time it opens, and shows the three slots', async () => {
@@ -505,6 +514,41 @@ describe('the saved games screen', () => {
     await opening;
     await idle();
     expect(q(parent, 'saves-slot-1')).toBeNull();
+  });
+
+  it('a host that cannot read the games (the code for it could not be fetched) is a message, not a screen that shows nothing and is silent — and the way back still works', async () => {
+    probe.host.cards = () => Promise.reject(new Error('Failed to fetch dynamically imported module'));
+    make();
+    await open();
+    expect(screen.root.dataset['ready']).toBe('1');
+    expect(q(parent, 'saves-status').textContent).toBe('No se pudieron leer las partidas. Vuelve a abrir esta pantalla; si sigue igual, recarga la página.');
+    expect(q(parent, 'saves-status').dataset['tone']).toBe('warn');
+    expect(q(parent, 'saves-slot-1')).toBeNull();
+    await click('saves-back');
+    expect(backs).toBe(1);
+  });
+
+  it('opening the screen again asks again: what could not be read once can be the next time', async () => {
+    let healthy = false;
+    const working = probe.host.cards;
+    probe.host.cards = () => (healthy ? working() : Promise.reject(new Error('could not read')));
+    make();
+    await open();
+    expect(q(parent, 'saves-slot-1')).toBeNull();
+    screen.close();
+    healthy = true;
+    await open();
+    expect([1, 2, 3].map((n) => q(parent, `saves-slot-${n}`).dataset['state'])).toEqual(['ok', 'empty', 'empty']);
+    expect(q(parent, 'saves-status').textContent, 'the message of the failed ask is gone').toBe('');
+  });
+
+  it('when the games cannot be read it still says what the page knows of itself: another tab holds the game, and this page has stopped saving', async () => {
+    probe.answers.conflicted = true;
+    probe.host.cards = () => Promise.reject(new Error('Failed to fetch dynamically imported module'));
+    make();
+    await open();
+    expect(q(parent, 'saves-status').dataset['tone']).toBe('warn');
+    expect(q(parent, 'saves-conflict').textContent).toContain('Otra pestaña guardó esta partida');
   });
 
   it('shows no game while it reads them again (a game deleted since the last time is never shown), and says when it is ready', async () => {

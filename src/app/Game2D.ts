@@ -279,7 +279,7 @@ export class Game2D {
     this.stats = new PlayStats(saved?.stats);
     this.lifecycle.add(this.stats.attach(this.session.bus, this.session.room.id));
     this.saves = slots
-      ? new GameSaves({ slots, settings, slot: settings.value.slot, stats: this.stats, durable, platform: browserPlatform(), notify: (n) => this.showNotice(n.kind, n.slot) })
+      ? new GameSaves({ slots, settings, slot: settings.value.slot, stats: this.stats, durable, platform: browserPlatform(), notify: (n) => this.showNotice(n.kind, n.slot), warn: (message) => log.scope('save').warn(message) })
       : null;
     if (this.saves) {
       this.saves.attach(this.session, progress?.value?.savedAt ?? 0);
@@ -886,7 +886,14 @@ export class Game2D {
     this.loop.timeScale = this.debug.get('timeScale');
     this.loop.paused = this.debug.get('paused') || this.menuOpen || this.veiled || this.arrival.blocking;
     // the game is paused, so no tick samples the input: the menu watches for the pause key / button itself
-    if (this.menuOpen && this.input.sample().pausePressed) this.menuBack();
+    if (this.menuOpen) {
+      if (this.input.sample().pausePressed) this.menuBack();
+    } else if (this.arrival.blocking || this.veiled) {
+      // …and so does a world that is held (at the black of a change of zone, behind the boot curtain): no tick runs, so nobody would see the pause key — only that press is taken, the rest wait for the ticks
+      const pressed = this.input.takePause();
+      // behind the curtain it is taken and let go: a press made while the page was loading must not open the menu a moment after
+      if (pressed && !this.veiled) this.openMenu();
+    }
     this.session.godMode = this.debug.get('godMode');
     this.tools?.frame(performance.now());
 
@@ -974,6 +981,7 @@ export class Game2D {
         this.lifecycle.add(() => disposeOverlays(made));
         this.overlays = made;
         made.pause.setHidden(this.menuOpen);
+        made.hud.setPaused(this.menuOpen); // (the menu may have been opened before the HUD arrived)
         this.layoutUi();
         if (this.pendingNotice) {
           made.notice.show(this.pendingNotice.kind, this.pendingNotice.slot);
@@ -1038,7 +1046,7 @@ export class Game2D {
     this.input.releaseAll();
   }
 
-  /** Fetches the pause menu the first time it is asked for (a player's first load never carries it: its screens and its wiring are a chunk of their own). A failed fetch is forgotten, so that the next ask tries again. */
+  /** Fetches the pause menu the first time it is asked for (a player's first load never carries it: its screens and its wiring are a chunk of their own). A failed fetch is forgotten, so that the next ask tries again (a browser may remember a failed module fetch until the page is reloaded: the game goes on without the menu rather than wait for it). */
   private loadMenu(): Promise<void> {
     this.menuRequest ??= import('./menu').then(
       ({ createPauseMenu }) => {

@@ -42,13 +42,15 @@ export class ProgressStore {
   }
 
   /**
-   * Saves `data` (repaired first) unless the game stored now was saved AFTER `knownSavedAt` — the moment of the last save this page knows of, its own or the one it loaded: someone else has written
-   * since (another tab of the same game: they share the storage), and writing over it would throw their progress away. Then nothing is written and the answer is `conflict`; the progress in force
-   * stays what it was. A storage with nothing in it, or nothing readable, is not a conflict.
+   * Saves `data` (repaired first) unless the game stored now was saved by SOMEONE ELSE since: `owns` says whether a stored `savedAt` is one this page knows of — a number is the moment of the last save it knows
+   * of (the one it loaded, or its last write: anything at or before it is its own); a function is asked at the moment of the write, after the writes already asked for, and is how a page that has several
+   * writes on their way tells its own from another page's (they share the storage: another tab of the same game). Writing over somebody else's save would throw their progress away: then nothing is
+   * written and the answer is `conflict`; the progress in force stays what it was. A storage with nothing in it, or nothing readable, is not a conflict.
    */
-  async saveGuarded(data: Readonly<ProgressData>, knownSavedAt: number): Promise<GuardedResult> {
+  async saveGuarded(data: Readonly<ProgressData>, owns: number | ((savedAt: number) => boolean)): Promise<GuardedResult> {
     const clean = repairProgress(data);
-    const result = await this.safe.writeGuarded(serializeProgress(clean), (stored) => stored === null || stored.savedAt <= knownSavedAt);
+    const mine = typeof owns === 'number' ? (savedAt: number): boolean => savedAt <= owns : owns;
+    const result = await this.safe.writeGuarded(serializeProgress(clean), (stored) => stored === null || mine(stored.savedAt));
     if (result !== 'conflict') this.state = clean;
     return result;
   }

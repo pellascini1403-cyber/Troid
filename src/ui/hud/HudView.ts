@@ -66,8 +66,8 @@ function hudCss(): string {
 .troid-hud .hud-card-body { position:relative; display:flex; align-items:center; justify-content:center; padding-bottom:13px; filter:drop-shadow(0 0 5px ${rgba(PALETTE.energyCore, 0.55)}); }
 .troid-hud .hud-card[data-state="empty"] .hud-card-plate { opacity:0.45; }
 .troid-hud .hud-card[data-state="empty"] .hud-card-body { filter:none; padding-bottom:0; }
-.troid-hud .hud-card[data-gain="1"] { filter:drop-shadow(0 0 9px ${rgba(PALETTE.whiteHot, 0.9)}); }
-.troid-hud .hud-card[data-gain="1"] .hud-card-plate { background:linear-gradient(165deg, ${white}, ${rgba(PALETTE.whiteHot, 0.5)}); }
+.troid-hud:not([data-calm="1"]) .hud-card[data-gain="1"] { filter:drop-shadow(0 0 9px ${rgba(PALETTE.whiteHot, 0.9)}); }
+.troid-hud:not([data-calm="1"]) .hud-card[data-gain="1"] .hud-card-plate { background:linear-gradient(165deg, ${white}, ${rgba(PALETTE.whiteHot, 0.5)}); }
 .troid-hud .hud-card[data-state="noMagic"] .hud-card-icon { opacity:0.38; filter:grayscale(0.85); }
 .troid-hud .hud-card[data-state="noMagic"] .hud-card-body { filter:none; }
 .troid-hud .hud-card-empty { width:14px; height:2px; border-radius:1px; background:${rgba(PALETTE.energyCore, 0.34)}; }
@@ -120,10 +120,10 @@ function hudCss(): string {
 .troid-hud .hud-vial[data-state="ready"] .hud-glass { filter:drop-shadow(0 0 5px ${rgba(PALETTE.energyGlow, 0.6)}); }
 .troid-hud .hud-vial[data-state="ready"] .hud-glass-rim { background:linear-gradient(180deg, ${white}, ${glow}); }
 .troid-hud .hud-vial[data-state="empty"] .hud-glass { opacity:0.55; }
-.troid-hud .hud-vial[data-drinking="1"] .hud-glass { filter:drop-shadow(0 0 8px ${rgba(PALETTE.whiteHot, 0.8)}); }
-.troid-hud .hud-vial[data-drinking="1"] .hud-glass-rim { background:${white}; }
-.troid-hud .hud-vial[data-gain="1"] .hud-glass { filter:drop-shadow(0 0 9px ${rgba(PALETTE.whiteHot, 0.9)}); }
-.troid-hud .hud-vial[data-gain="1"] .hud-glass-rim { background:${white}; }
+.troid-hud:not([data-calm="1"]) .hud-vial[data-drinking="1"] .hud-glass { filter:drop-shadow(0 0 8px ${rgba(PALETTE.whiteHot, 0.8)}); }
+.troid-hud:not([data-calm="1"]) .hud-vial[data-drinking="1"] .hud-glass-rim { background:${white}; }
+.troid-hud:not([data-calm="1"]) .hud-vial[data-gain="1"] .hud-glass { filter:drop-shadow(0 0 9px ${rgba(PALETTE.whiteHot, 0.9)}); }
+.troid-hud:not([data-calm="1"]) .hud-vial[data-gain="1"] .hud-glass-rim { background:${white}; }
 .troid-hud .hud-vial[data-state="recharging"] .hud-liquid { opacity:0.7; background:linear-gradient(0deg, ${mid}, ${core}); }
 .troid-hud .hud-vial[data-state="recharging"] .hud-glass-rim { background:${rgba(PALETTE.energyCore, 0.75)}; }
 
@@ -132,6 +132,9 @@ function hudCss(): string {
 @media (prefers-reduced-motion: reduce) { .troid-hud * { animation:none !important; } }
 /* "fewer flashes": the last segment does not blink and the magic does not shine as it fills */
 .troid-hud[data-calm="1"] * { animation:none !important; }
+/* …and a card or a bottle that is picked up, and a bottle that is drunk, are still told apart — by a STEADY cyan glow, not a white one that comes and goes */
+.troid-hud[data-calm="1"] .hud-card[data-gain="1"] { filter:drop-shadow(0 0 7px ${rgba(PALETTE.energyGlow, 0.75)}); }
+.troid-hud[data-calm="1"] .hud-vial[data-drinking="1"] .hud-glass, .troid-hud[data-calm="1"] .hud-vial[data-gain="1"] .hud-glass { filter:drop-shadow(0 0 7px ${rgba(PALETTE.energyGlow, 0.85)}); }
 /* the game waits (the pause menu): what moves by itself waits with it */
 .troid-hud[data-paused="1"] *, .troid-hud[data-paused="1"] *::after { animation-play-state:paused !important; }
 `;
@@ -189,6 +192,7 @@ export class HudView {
   private height = 0;
   private size: number;
   private calm = false;
+  private slotEmpty = true;
   private glyphs: HudGlyphs = { ability: '' };
   private layout: HudLayout;
   private lifeMax = 0;
@@ -214,6 +218,7 @@ export class HudView {
     this.root = doc.createElement('div');
     this.root.className = 'troid-hud';
     this.root.dataset['testid'] = 'hud';
+    this.root.dataset['calm'] = '0';
     this.block = div(doc, 'hud-block', 'hud-block');
     this.card = div(doc, 'hud-card', 'hud-card');
     this.card.dataset['state'] = 'empty';
@@ -271,13 +276,23 @@ export class HudView {
   /** The key or button of the device in use to label the power with (empty: nothing). Call whenever the device or the keys change; only a change reaches the DOM. */
   setGlyphs(glyphs: HudGlyphs): void {
     this.glyphs = glyphs;
-    this.writeGlyph(this.cardKey, 'cardKey', glyphs.ability);
+    // the key of the power only shows with a power in the slot (the same value `updateCard` writes: asked every frame, an empty slot costs no DOM write)
+    this.writeGlyph(this.cardKey, 'cardKey', this.slotEmpty ? '' : glyphs.ability);
   }
 
-  /** "Fewer flashes" (the accessibility setting): the white flash of a lost segment is left out, its ghost is softened and nothing blinks or shines by itself. */
+  /**
+   * "Fewer flashes" (the accessibility setting): the white flash of a lost segment is left out, its ghost and the wave of light of a segment that is back are softened, a bottle that is drunk or picked up and
+   * a new card are told apart by a steady cyan glow instead of a white one, and nothing blinks or shines by itself.
+   */
   setCalm(calm: boolean): void {
+    if (this.calm === calm) return;
     this.calm = calm;
     this.root.dataset['calm'] = calm ? '1' : '0';
+    // what was drawn under the other mode is drawn again with the next frame, even if the quantised value did not move
+    for (const c of this.lastSeg) {
+      delete c['ghost'];
+      delete c['heal'];
+    }
   }
 
   /** The game is paused (the pause menu is up): the animations the stylesheet runs on its own stop where they are and go on from there. */
@@ -317,10 +332,10 @@ export class HudView {
       const strength = this.calm ? seg.ghost * 0.3 : Math.max(seg.ghost * 0.55, seg.flash);
       const a = Math.round(strength * 20) / 20;
       set(c, 'ghost', a, () => (view.ghost.style.opacity = String(a)));
-      // a segment that is back: a wave of light crosses it once
+      // a segment that is back: a wave of light crosses it once (calm: the same wave, a third as bright)
       const h = Math.round(seg.heal * 20) / 20;
       set(c, 'heal', h, () => {
-        view.heal.style.opacity = h === 0 ? '0' : String(Math.min(1, h * 1.6));
+        view.heal.style.opacity = h === 0 ? '0' : String(Math.min(1, h * 1.6) * (this.calm ? 0.3 : 1));
         view.heal.style.transform = h === 0 ? '' : `translateX(${((1 - h) * 160 - 60).toFixed(0)}%)`;
       });
     }
@@ -362,6 +377,7 @@ export class HudView {
 
   private updateCard(s: Readonly<HudState>): void {
     const c = s.card;
+    this.slotEmpty = c.state === 'empty';
     const stateChanged = set(this.last, 'cardState', c.state, () => (this.card.dataset['state'] = c.state));
     const iconChanged = set(this.last, 'cardIcon', c.iconId, () => undefined);
     if (stateChanged || iconChanged) {
@@ -386,7 +402,7 @@ export class HudView {
     this.writeGlyph(this.cardCost, 'cardCost', c.cost > 0 && c.state !== 'empty' ? String(Math.round(c.cost)) : '');
     set(this.last, 'cardAfford', s.magic.affordable, () => (this.card.dataset['afford'] = s.magic.affordable ? '1' : '0'));
     // the key of the power only shows with a power in the slot
-    this.writeGlyph(this.cardKey, 'cardKey', c.state === 'empty' ? '' : this.glyphs.ability);
+    this.writeGlyph(this.cardKey, 'cardKey', this.slotEmpty ? '' : this.glyphs.ability);
     // a refused cast shakes the slot, a new card makes it swell and settle: both are one transform
     const shakeX = Math.round(c.shakeX * 10) / 10;
     const swell = Math.round(0.35 * c.gain * 20) / 20;

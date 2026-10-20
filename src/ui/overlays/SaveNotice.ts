@@ -97,7 +97,10 @@ export class SaveNotice {
     const open = s.kind !== null && s.opacity > 0;
     if (open !== (this.root.dataset['open'] === '1')) this.root.dataset['open'] = open ? '1' : '0';
     if (!open) {
+      // closed: what was written is forgotten, so the next notice — even the same kind for the same slot — is worded again, in the language in force by then
       l.opacity = 0;
+      l.kind = '';
+      l.slot = -1;
       return;
     }
     if ((s.kind ?? '') !== l.kind || s.slot !== l.slot) {

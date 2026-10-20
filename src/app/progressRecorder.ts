@@ -2,6 +2,7 @@ import type { GameSession } from '@/gameplay/GameSession';
 import type { PlayStats } from '@/gameplay/PlayStats';
 import { captureProgress } from '@/gameplay/progress';
 import type { ProgressStore } from '@/save/ProgressStore';
+import type { GuardedResult } from '@/save/SafeStore';
 
 /**
  * Why a save was made: something of the hero's PROGRESS changed (a flag, a card, an ability, a bottle, a room), the hero RESTED at a checkpoint, a stretch of play went by with nothing
@@ -43,6 +44,12 @@ export interface ProgressRecorder {
   /** Nothing is saved from now on (a game that is being left for another saved game must not write itself back over it). */
   stop(): void;
   readonly stopped: boolean;
+  /**
+   * Nothing is written for a while, and nothing is forgotten: what the game wins meanwhile is saved when `resume` comes. It is for a write the page makes ITSELF into this game's slot (an imported copy), which the
+   * game's own writes must not land after; if that write fails the game goes on as if nothing had happened.
+   */
+  suspend(): void;
+  resume(): void;
   /** This page stopped saving because another page saved the game after it: what is stored is the other one's, and was not written over. */
   readonly conflicted: boolean;
 }
@@ -61,21 +68,41 @@ export function attachProgressRecorder(session: GameSession, store: ProgressStor
   let pending: 'progress' | 'rest' | null = null;
   let closed = false;
   let conflicted = false;
+  let suspended = false;
+  /** Something that asks for a save happened while suspended: it is saved when the recorder resumes. */
+  let missed = false;
+  /** The ticks that count as saved are the ones of the latest write that LANDED: a write the storage refused leaves the quiet saves (the interval, leaving the page) owed. */
   let savedAtTick = session.now;
+  /** …and the latest one ASKED FOR: a quiet save does not ask for the same ticks twice while the first is still on its way (a page being left raises several events at once). A refusal withdraws the claim. */
+  let issuedTick = session.now;
+  /** How many writes are on their way: the claim is only withdrawn when the last of them has been refused (an earlier refusal must not wipe the claim of one that is still on its way). */
+  let inFlight = 0;
   /** The latest save this page knows of: the one it loaded, or the last it wrote. A stored game saved after it is somebody else's. */
   let known = options.knownSavedAt;
+  /** The moments of this page's own writes that are still on their way: a later write finds one of them stored — it is its own, not another tab's — even before the page has heard that it landed. */
+  const mine = new Set<number>();
+  const owns = (savedAt: number): boolean => known === undefined || savedAt <= known || mine.has(savedAt);
 
   const write = async (reason: SaveReason): Promise<boolean> => {
     if (closed) return false;
-    savedAtTick = session.now;
-    const at = now();
-    const data = captureProgress(session, { ...(options.stats ? { stats: options.stats.snapshot(session.now) } : {}), savedAt: at });
-    if (known === undefined) {
-      const ok = await store.save(data);
-      options.onSaved?.({ ok, reason, at });
-      return ok;
+    if (suspended) {
+      missed = true;
+      return false;
     }
-    const result = await store.saveGuarded(data, known);
+    const tick = session.now;
+    const at = now();
+    inFlight++;
+    issuedTick = Math.max(issuedTick, tick);
+    if (known !== undefined) mine.add(at);
+    let result: GuardedResult;
+    try {
+      const data = captureProgress(session, { ...(options.stats ? { stats: options.stats.snapshot(session.now) } : {}), savedAt: at });
+      result = known === undefined ? ((await store.save(data)) ? 'written' : 'failed') : await store.saveGuarded(data, owns);
+    } catch {
+      result = 'failed'; // (the stores never reject; if one ever did, it is a refusal like any other — the game does not go down with it)
+    }
+    mine.delete(at);
+    inFlight--;
     if (result === 'conflict') {
       // somebody else saved this game since: what is stored is theirs, and this page does not write over it, now or later
       conflicted = true;
@@ -83,12 +110,20 @@ export function attachProgressRecorder(session: GameSession, store: ProgressStor
       options.onSaved?.({ ok: false, reason, at, conflict: true });
       return false;
     }
-    known = Math.max(known, at); // (an attempt counts too: a write that reached the storage but did not read back is still this page's)
-    options.onSaved?.({ ok: result === 'written', reason, at });
-    return result === 'written';
+    if (known !== undefined) known = Math.max(known, at); // (an attempt counts too: a write that reached the storage but did not read back is still this page's)
+    const ok = result === 'written';
+    // the ticks played count as saved only once the write has landed: after a refused one the quiet saves (the interval, leaving the page) are still owed
+    if (ok) savedAtTick = Math.max(savedAtTick, tick);
+    else if (inFlight === 0) issuedTick = savedAtTick;
+    options.onSaved?.({ ok, reason, at });
+    return ok;
   };
   const dirty = (reason: 'progress' | 'rest'): void => {
     if (closed) return;
+    if (suspended) {
+      missed = true;
+      return;
+    }
     if (pending !== null) {
       if (reason === 'rest') pending = 'rest'; // a rest in the burst is what the player is told about
       return;
@@ -119,7 +154,20 @@ export function attachProgressRecorder(session: GameSession, store: ProgressStor
   return {
     saveNow: write,
     saveIfPlayed(ticks, reason) {
-      if (!closed && session.now - savedAtTick >= Math.max(1, ticks)) void write(reason);
+      if (closed || session.now - Math.max(savedAtTick, issuedTick) < Math.max(1, ticks)) return;
+      if (suspended) missed = true; // a page that is hidden while an import is being written still owes this stretch: it is saved the moment the writes are let go
+      else void write(reason);
+    },
+    suspend() {
+      suspended = true;
+    },
+    resume() {
+      if (!suspended) return;
+      suspended = false;
+      if (missed && !closed) {
+        missed = false;
+        dirty('progress');
+      }
     },
     get unsavedTicks() {
       return session.now - savedAtTick;

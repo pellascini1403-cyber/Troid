@@ -7,7 +7,7 @@ import { SaveSlots, slotKey } from '@/save/SaveSlots';
 import { SettingsStore } from '@/save/SettingsStore';
 import { MemoryStorage } from '@/save/StorageAdapter';
 import { driver } from '../../helpers/sim';
-import { FlakyStorage } from '../../helpers/storage';
+import { FlakyStorage, SlowStorage } from '../../helpers/storage';
 
 /**
  * THE SAVED GAMES OF THE PAGE (docs/PROMPT14-LOG.md), with a page that is a fake: a clock, a reload, "the page is being left" and a timer, all in the test's hands. What is held here is what a player is
@@ -54,7 +54,7 @@ function fakePlatform(): Fake {
 const START = { room: 'r1_gate', entry: 'start' };
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
-async function setup(opts: { storage?: MemoryStorage | FlakyStorage; durable?: boolean; slot?: number } = {}) {
+async function setup(opts: { storage?: MemoryStorage | FlakyStorage | SlowStorage; durable?: boolean; slot?: number } = {}) {
   const storage = opts.storage ?? new MemoryStorage();
   const slots = new SaveSlots(storage);
   const settings = new SettingsStore(storage);
@@ -327,16 +327,103 @@ describe('leaving for another game', () => {
 
   it('if the choice cannot be KEPT, nothing changes: the game goes on writing, the page does not reopen, and the player is told', async () => {
     const storage = new FlakyStorage();
-    const { d, saves, platform, notices, read } = await setup({ storage });
-    storage.failing = new Set(['set']);
+    const { d, saves, settings, platform, notices, read } = await setup({ storage });
+    storage.failIf = (key) => key === 'troid.settings'; // the game goes in; the choice does not
     expect(await (await saves.actions()).switchTo(2)).toBe(false);
     expect(platform.reloads).toBe(0);
     expect(saves.stopped).toBe(false);
     expect(notices.map((n) => n.kind)).toEqual(['failed']);
-    storage.failing = new Set();
+    expect(settings.value.slot, 'the choice that was not kept is not kept in memory either').toBe(1);
+    storage.failIf = null;
+    // a later change of ANOTHER setting writes the whole settings: it must not carry a game nobody chose
+    expect(await settings.update({ quality: 'low' })).toBe(true);
+    expect(JSON.parse((await storage.get('troid.settings')) ?? '{}').slot).toBe(1);
     d.session.flags.set('still-here');
     await flush();
     expect((await read())?.flags).toContain('still-here');
+    saves.dispose();
+  });
+
+  it('if the game being left cannot be saved first it is NOT left: nothing is chosen (the settings are not even written), the game goes on writing, the page does not reopen and the player is told', async () => {
+    const storage = new FlakyStorage();
+    const { d, saves, settings, platform, notices, read } = await setup({ storage });
+    d.step(240); // played since the last write: there is something to lose
+    storage.failIf = (key) => key.startsWith('troid.progress'); // the settings would still go in; the game does not
+    const before = storage.log.length;
+    expect(await (await saves.actions()).switchTo(2)).toBe(false);
+    expect(platform.reloads).toBe(0);
+    expect(saves.stopped, 'the game it could not save is not ended').toBe(false);
+    expect(settings.value.slot).toBe(1);
+    expect(storage.log.slice(before).filter((l) => l.startsWith('set troid.settings')), 'the choice was never taken, so there is nothing to take back: no settings were written').toEqual([]);
+    expect(await storage.get('troid.settings')).toBeNull();
+    expect(notices.length).toBeGreaterThan(0);
+    expect(new Set(notices.map((n) => n.kind))).toEqual(new Set(['failed']));
+    // the storage comes back: the game that kept going saves everything it has
+    storage.failIf = null;
+    d.session.flags.set('still-here');
+    await flush();
+    const saved = await read();
+    expect(saved?.flags).toContain('still-here');
+    expect(saved?.stats.ticks, 'the stretch that could not be saved is in this one').toBe(240);
+    saves.dispose();
+  });
+
+  it('a browser that keeps nothing cannot keep the choice either: nothing changes and the player is told (the page would open on an empty game and this one would be lost with it)', async () => {
+    const { saves, settings, platform, notices } = await setup({ durable: false });
+    expect(await (await saves.actions()).switchTo(2)).toBe(false);
+    expect(platform.reloads).toBe(0);
+    expect(settings.value.slot).toBe(1);
+    expect(saves.stopped).toBe(false);
+    expect(notices.map((n) => n.kind)).toEqual(['failed']);
+    saves.dispose();
+  });
+
+  it('a game that another tab holds has nothing of its own to save: leaving it is not refused, and nothing is written over the other tab\'s', async () => {
+    const a = await setup();
+    const b = await setup({ storage: a.storage as MemoryStorage });
+    a.d.session.flags.set('from-a');
+    await flush();
+    b.platform.advance(5000);
+    b.d.session.flags.set('from-b'); // refused: B is told, and stops
+    await flush();
+    expect(b.saves.conflicted).toBe(true);
+    const before = await a.storage.get(slotKey(1));
+    expect(await b.saves.saveForLeaving(), 'a game another tab holds has nothing of its own to save').toBe(true);
+    expect(await a.storage.get(slotKey(1)), 'what A saved is exactly as it was').toBe(before);
+    a.saves.dispose();
+  });
+});
+
+describe('ending the game that is being played', () => {
+  it('a game that is being LEFT is saved as it stands and goes on writing until it is stopped; one that is being destroyed is not saved at all', async () => {
+    const left = await setup();
+    left.d.step(100);
+    expect(await left.saves.saveForLeaving()).toBe(true);
+    expect((await left.read())?.stats.ticks, 'saved as it stood').toBe(100);
+    expect(left.saves.stopped, 'saving it is not ending it').toBe(false);
+    left.saves.stop();
+    expect(left.saves.stopped).toBe(true);
+    left.d.session.flags.set('too-late');
+    await flush();
+    expect((await left.read())?.flags, 'once stopped, whatever it does on its way out is not written').not.toContain('too-late');
+    const gone = await setup();
+    gone.d.step(100);
+    gone.saves.stop();
+    expect(await gone.read(), 'a game on its way out is not written first').toBeNull();
+    expect(gone.saves.stopped).toBe(true);
+  });
+
+  it('a game that could not be saved before leaving answers false, is not ended and goes on writing', async () => {
+    const storage = new FlakyStorage();
+    const { d, saves, read } = await setup({ storage });
+    d.step(100);
+    storage.failing = new Set(['set']);
+    expect(await saves.saveForLeaving()).toBe(false);
+    expect(saves.stopped).toBe(false);
+    storage.failing = new Set();
+    d.session.flags.set('later');
+    await flush();
+    expect((await read())?.flags).toContain('later');
     saves.dispose();
   });
 });
@@ -370,6 +457,25 @@ describe('a new game', () => {
     expect((await read(1))?.flags, 'the game that was being played is untouched').toContain('mine');
     expect((await read(1))?.stats.ticks, 'and the stretch it had played since its last write is saved: it is being LEFT, not destroyed').toBe(240);
     expect(platform.reloads).toBe(1);
+  });
+
+  it('in another slot, when the game being left cannot be saved first: nothing is destroyed — the game in that slot is still there, no choice is taken and this game goes on', async () => {
+    const storage = new FlakyStorage();
+    const { d, saves, slots, settings, platform, read } = await setup({ storage });
+    await slots.store(2).save({ ...newProgress(START), flags: ['theirs'] });
+    d.step(240);
+    storage.failIf = (key) => key.startsWith('troid.progress');
+    expect(await (await saves.actions()).startOver(2)).toBe(false);
+    storage.failIf = null;
+    expect((await read(2))?.flags, 'the game in the slot the player did not get to replace').toEqual(['theirs']);
+    expect(settings.value.slot).toBe(1);
+    expect(await storage.get('troid.settings'), 'the choice was never taken: nothing was written to the settings').toBeNull();
+    expect(platform.reloads).toBe(0);
+    expect(saves.stopped).toBe(false);
+    d.session.flags.set('still-here');
+    await flush();
+    expect((await read(1))?.flags).toContain('still-here');
+    saves.dispose();
   });
 
   it('a game that could not be read is kept aside, not thrown away, by a new game over it', async () => {
@@ -479,6 +585,76 @@ describe('taking a game out of the browser and putting one in', () => {
     await flush();
     expect((await read(1))?.flags, 'the page\'s old game cannot write itself over what was imported').toEqual(['theirs']);
     expect(await storage.get(slotKey(1))).toBe(theirs);
+  });
+
+  it('importing into the game being played, when the storage refuses the copy: the game goes on as if nothing had happened — and what it won while the copy was being written is saved', async () => {
+    const storage = new FlakyStorage();
+    const { d, saves, platform, read } = await setup({ storage });
+    d.session.flags.set('mine');
+    await flush();
+    storage.failIf = (_key, value) => value.includes('"theirs"'); // only the copy being imported is refused
+    const copy = serializeProgress({ ...newProgress(START), flags: ['theirs'] });
+    const pending = (await saves.actions()).importInto(1, copy);
+    d.session.flags.set('won-while-importing'); // the game\'s own write waits for the copy
+    expect(await pending).toEqual({ ok: false, reason: 'storage' });
+    await flush();
+    await new Promise((r) => setTimeout(r, 5));
+    expect(platform.reloads, 'the page is not reopened on nothing').toBe(0);
+    expect(saves.stopped).toBe(false);
+    const kept = await read();
+    expect(kept?.flags).toEqual(expect.arrayContaining(['mine', 'won-while-importing']));
+    expect(kept?.flags).not.toContain('theirs');
+    d.session.flags.set('after');
+    await flush();
+    expect((await read())?.flags, 'and it saves as it always did').toContain('after');
+    saves.dispose();
+  });
+
+  it('importing into the game being played, when it goes in: the game\'s own writes were waiting and do not land after the copy', async () => {
+    const { d, saves, platform, read } = await setup();
+    d.session.flags.set('mine');
+    await flush();
+    const copy = serializeProgress({ ...newProgress(START), flags: ['theirs'] });
+    const pending = (await saves.actions()).importInto(1, copy);
+    d.session.flags.set('won-while-importing');
+    d.step(5000);
+    expect(await pending).toEqual({ ok: true });
+    await flush();
+    await new Promise((r) => setTimeout(r, 5));
+    expect((await read())?.flags, 'the copy is what is stored: nothing of the old game landed after it').toEqual(['theirs']);
+    expect(platform.reloads).toBe(1);
+    expect(saves.stopped).toBe(true);
+  });
+
+  it('importing into the game being played over a storage that takes its time: a write of the game that was already on its way lands BEFORE the copy — the copy is the last word', async () => {
+    const slow = new SlowStorage(2);
+    const { d, saves, platform, read } = await setup({ storage: slow });
+    const actions = await saves.actions(); // (fetched before: the point is the writes, not the chunk)
+    d.session.flags.set('mine'); // a write of the game, which takes a while
+    await Promise.resolve();
+    const copy = serializeProgress({ ...newProgress(START), flags: ['theirs'] });
+    const pending = actions.importInto(1, copy);
+    d.session.flags.set('won-while-importing'); // waits for the copy, and is never written after it
+    d.step(5000);
+    expect(await pending).toEqual({ ok: true });
+    await new Promise((resolve) => setTimeout(resolve, 40)); // anything stray would have landed by now
+    expect((await read())?.flags).toEqual(['theirs']);
+    expect(await slow.get(slotKey(1))).toBe(copy);
+    expect(platform.reloads).toBe(1);
+    expect(saves.stopped).toBe(true);
+  });
+
+  it('if writing the copy goes wrong in a way nobody expected (it throws), the game\'s own writes are let go all the same — it never goes on silently unsaved', async () => {
+    const { d, saves, slots, read, platform } = await setup();
+    slots.store(1).save = () => Promise.reject(new Error('the storage blew up'));
+    const actions = await saves.actions();
+    await expect(actions.importInto(1, serializeProgress({ ...newProgress(START), flags: ['theirs'] }))).rejects.toThrow('the storage blew up');
+    expect(platform.reloads).toBe(0);
+    expect(saves.stopped).toBe(false);
+    d.session.flags.set('still-saved');
+    await flush();
+    expect((await read())?.flags, 'the game goes on saving').toContain('still-saved');
+    saves.dispose();
   });
 
   it('a storage that refuses the write is reported, and the page is not reopened on nothing', async () => {

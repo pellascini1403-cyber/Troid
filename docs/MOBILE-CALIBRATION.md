@@ -173,3 +173,27 @@ Lo anterior es la geometría de los controles. El Prompt 8 añadió arte, luz y 
 | iPad — *sin medir* | | | | | | | |
 | Android — *sin medir* | | | | | | | |
 | Android de gama baja — *sin medir* | | | | | | | |
+
+## 8. La interfaz del Prompt 14 (HUD, pausa, partidas) — **SIN MEDIR**
+
+El HUD, el botón de pausa, el menú, el aviso de guardado y el guardado en sí **no se han visto ni tocado en un dispositivo real**: la geometría está auditada con funciones puras (10 clases de ventana × 4 márgenes seguros × tamaños × lados × posiciones, **también con la interfaz al 85–135 %**) y lo que se ve se fotografió en Chromium sin cabeza (844 × 390 a 2×, 390 × 844 a 2×, 1280 × 720). Lo que sigue son los datos que mandan y qué mirar:
+
+| Dato | Valor hoy | Dónde | Síntoma de que está mal | Qué probar |
+|---|---|---|---|---|
+| tamaño del HUD | diseño a 1×, escala con la ventana (`uiScale`, tope 1.6) y con el ajuste (0.85–1.35) | `ui/hud/layout.ts` (`computeHudLayout`, `HUD_DESIGN`), `SettingsData.accessibility.hudScale` | las cifras (coste, segundos de recarga, tecla) no se leen; el HUD tapa algo o lo tapa un dedo | un teléfono pequeño en horizontal con el ajuste en 100 % y en 135 % |
+| objetivos táctiles | ≥ 44 px (frascos del HUD, botón de pausa, botones del menú) | `ui/hud`, `ui/settings/PauseButton.ts`, `menuStyle.ts` | se pulsa el frasco de al lado; el botón de pausa se pulsa sin querer | beber con el pulgar mientras se mueve con el otro; abrir la pausa a una mano |
+| el botón de pausa | arriba al centro, fuera del lado de los tres botones | `PauseButton.pauseBox` | choca con una muesca o con la barra del navegador | un teléfono con *notch* y con la barra del navegador visible |
+| el menú en horizontal bajo | un teléfono en horizontal mide ≈ 390 px de alto: el centro de cada pantalla **se desplaza** y sus últimas líneas se desvanecen mientras hay más abajo | `ui/settings/menuStyle.ts`, `scrollHint.ts` | no se ve que hay más abajo, o el desvanecido tapa un control | Ajustes y Partidas en horizontal; Controles en inglés (textos más largos) |
+| el aviso de guardado | arriba a la derecha dentro del área segura; «Guardado» dura 1.5 s | `ui/overlays/SaveNotice.ts`, `saveNoticeModel.ts` (`NOTICE_HOLD`) | se ve como ruido en una pelea, o una advertencia desaparece antes de leerse | jugar una pelea con guardados al ganar algo; provocar «no se pudo guardar» |
+| exportar e importar | un archivo `troid-partida-N-AAAA-MM-DD.json` por un enlace `download`; el archivo entra por un `<input type="file">` | `app/files.ts` | iOS Safari no ofrece guardar el archivo o el selector no deja elegirlo | exportar una partida y volver a importarla en iOS y en Android |
+| protección del almacenamiento | `navigator.storage.persist()` solo con el botón | `app/storage.ts` | el navegador lo concede sin avisar, o lo niega siempre | pulsar el botón en cada navegador y mirar lo que dice la pantalla |
+| borrado por falta de espacio | el guardado vive en `localStorage` | `app/storage.ts` | Safari borra el almacenamiento de un sitio sin uso (7 días) salvo que esté instalado en la pantalla de inicio | no jugar una semana en Safari, y jugar con la página instalada |
+
+### Resultados en dispositivo — **SIN MEDIR**
+
+| Dispositivo | HUD legible (cifras, frascos) | Pausa y menú (tacto, desplazamiento) | Aviso de guardado | Exportar / importar | Notas |
+|---|---|---|---|---|---|
+| iPhone — *sin medir* | | | | | |
+| iPad — *sin medir* | | | | | |
+| Android — *sin medir* | | | | | |
+| Android de gama baja — *sin medir* | | | | | |

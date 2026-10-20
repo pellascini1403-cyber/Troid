@@ -4,6 +4,7 @@ import { CATALOGS, createTranslator } from '@/i18n';
 import { MENU_CATALOGS } from '@/i18n/menuCatalogs';
 import type { ProfileData } from '@/app/profile';
 import { ProfileScreen } from '@/ui/settings/ProfileScreen';
+import { stubScrollLayout } from '../../helpers/layout';
 import { profileData } from '../../helpers/pauseHost';
 
 /**
@@ -44,6 +45,14 @@ describe('the profile screen', () => {
     expect(screen.isOpen).toBe(true);
     expect(screen.root.getAttribute('aria-label')).toBe('Perfil');
     expect(document.activeElement).toBe(q(parent, 'profile-back'));
+  });
+
+  it('its middle scrolls and says so: the scroll area tells the stylesheet whether there is more below, looked at when the screen opens (it has a size only then)', () => {
+    const body = q(parent, 'profile-screen').querySelector('.settings-body') as HTMLElement;
+    expect(body.dataset['more']).toBe('0');
+    stubScrollLayout(body, { scroll: 529, client: 278 });
+    screen.open();
+    expect(body.dataset['more']).toBe('1');
   });
 
   it('shows what the host says, line by line: the game, the time, the zone, the rooms, the abilities, the cards, the bottles, the bosses, the life and the counts', () => {

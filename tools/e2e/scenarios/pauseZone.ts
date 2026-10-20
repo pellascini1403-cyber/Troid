@@ -87,7 +87,11 @@ export const pauseZone: Scenario = {
     await page.evaluate('window.__troid.resume()'); // the loop runs in real time: the change of zone, the wait and the art are a player's
     await ctx.teleport(89.5, 0);
     await waitFor(page, `window.__troid.arrival().blocking === true`, 'the world to be held at the black');
-    await openMenu(page);
+    // the pause KEY is heard while the world is held (no tick runs, so nobody samples the input: the page looks for it itself), and only that press is taken
+    await page.keyboard.down('KeyJ'); // an attack press in the same moment: it must not be eaten by the look for the pause key
+    await page.keyboard.press('Escape');
+    await page.waitForSelector('[data-testid="pause-menu"][data-open="1"]', { timeout: 15000 });
+    await page.keyboard.up('KeyJ');
     const held = await stateOf(page);
     assert.equal(held.room, 'r3_chamber', 'the simulation has swapped the room under the black');
     assert.equal(held.transition?.phase, 'hold');

@@ -130,6 +130,33 @@ describe('InputManager', () => {
     expect(calls).toBe(2);
   });
 
+  it('takePause takes ONLY the pause press: the other presses stay latched for the next sample, and a second look finds nothing', () => {
+    const input = make();
+    input.setAction('kb', 'jump', true);
+    input.setAction('kb', 'pause', true);
+    input.setAction('kb', 'pause', false);
+    expect(input.takePause()).toBe(true);
+    expect(input.takePause()).toBe(false);
+    const f = input.sample();
+    expect([f.pausePressed, f.jumpPressed]).toEqual([false, true]);
+  });
+
+  it('takePause polls the polled devices first (a pad\'s Start is only seen when somebody looks)', () => {
+    const input = make();
+    let start = false;
+    let down = false;
+    input.addPoller(() => {
+      if (start !== down) {
+        down = start;
+        input.setAction('pad', 'pause', down);
+      }
+    });
+    start = true;
+    expect(input.takePause()).toBe(true);
+    start = false;
+    expect(input.takePause()).toBe(false);
+  });
+
   it('the frame object is reused (no per-tick allocation)', () => {
     const input = make();
     expect(input.sample()).toBe(input.sample());

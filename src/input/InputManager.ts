@@ -68,6 +68,15 @@ export class InputManager {
   }
 
   /**
+   * Was the pause key (or button) pressed since the last look? Takes ONLY that press: the others stay latched for the next `sample()`. It is for the page, to open its menu while no tick is being run —
+   * the world is held at the black of a change of zone, so nobody samples the input — without eating the jump or the attack that came in the meantime. Polled devices (the pad's Start) are polled first.
+   */
+  takePause(): boolean {
+    for (const poll of this.pollers) poll();
+    return this.pressedLatch.delete('pause');
+  }
+
+  /**
    * Drink a bottle on behalf of `source` (a tap on a HUD icon): `slot` −1 is "the next one that is ready", 0.. a specific
    * slot. The request is an edge like any other press: it survives until the next `sample()`.
    */

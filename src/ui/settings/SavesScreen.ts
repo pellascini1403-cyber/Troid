@@ -3,6 +3,7 @@ import { DisposableStore } from '@/core/lifecycle';
 import type { Translator } from '@/i18n/translator';
 import { formatClock, formatSavedAt } from './menuFormat';
 import { ensureMenuStyle } from './menuStyle';
+import { ScrollHint } from './scrollHint';
 
 /** One saved game as the screen shows it. */
 export interface SlotCardView {
@@ -67,6 +68,7 @@ export class SavesScreen {
   private readonly list: HTMLElement;
   private readonly foot: HTMLElement;
   private readonly back: HTMLButtonElement;
+  private readonly hint: ScrollHint;
   private cards: SlotCardView[] = [];
   private conflict = false;
   private storageInfo: { durable: boolean; persisted: boolean | null } = { durable: true, persisted: null };
@@ -111,6 +113,7 @@ export class SavesScreen {
     // the title, the line that says what just happened and the way out stay where they are; the games and the notes between them scroll
     const body = doc.createElement('div');
     body.className = 'settings-body';
+    this.hint = this.store.add(new ScrollHint(body));
     body.append(this.list, this.foot);
     panel.append(this.title, this.status, body, this.back);
     this.root.appendChild(panel);
@@ -133,6 +136,7 @@ export class SavesScreen {
     this.root.dataset['ready'] = '0';
     this.root.setAttribute('aria-busy', 'true');
     this.render();
+    this.hint.update(); // it has a size now
     this.back.focus({ preventScroll: true });
     await this.reload();
   }
@@ -153,10 +157,23 @@ export class SavesScreen {
   /** Asks the game for the slots and for what the browser says of keeping them (a late answer to an older ask is dropped). */
   private async reload(): Promise<void> {
     const mine = ++this.serial;
-    const [cards, storage] = await Promise.all([this.host.cards(), this.host.storage()]);
+    let read: [SlotCardView[], { durable: boolean; persisted: boolean | null }];
+    try {
+      read = await Promise.all([this.host.cards(), this.host.storage()]);
+    } catch {
+      // the games could not be read: the screen says so instead of showing nothing — the page that asked has logged the cause — and the way back still works. Opening the screen again asks again.
+      // What the page knows of itself is still true: whether another tab holds the game, for one
+      if (mine !== this.serial || !this.isOpen) return;
+      this.cards = [];
+      this.conflict = this.host.conflicted();
+      this.message = { key: 'saves.loadFailed', tone: 'warn' };
+      this.root.dataset['ready'] = '1';
+      this.root.removeAttribute('aria-busy');
+      this.render();
+      return;
+    }
     if (mine !== this.serial || !this.isOpen) return;
-    this.cards = cards;
-    this.storageInfo = storage;
+    [this.cards, this.storageInfo] = read;
     this.conflict = this.host.conflicted();
     this.root.dataset['ready'] = '1';
     this.root.removeAttribute('aria-busy');

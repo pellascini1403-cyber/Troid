@@ -113,6 +113,20 @@ describe('the notice on the page', () => {
     expect(el().dataset['kind'], 'a plain "saved" does not push a warning out').toBe('conflict');
   });
 
+  it('a notice that comes back after it closed is worded again, in the language in force by then — not in the one it was first written in', () => {
+    notice.show('saved', 1);
+    notice.update(0.5);
+    expect(words()).toBe('Guardado');
+    notice.update(NOTICE_HOLD.saved);
+    notice.update(NOTICE_FADE.out + 0.1);
+    expect(el().dataset['open']).toBe('0');
+    tr.setLocale('en'); // while it is closed: nothing is showing to rewrite
+    notice.show('saved', 1); // the very same kind for the very same slot
+    notice.update(0.5);
+    expect(el().dataset['open']).toBe('1');
+    expect(words()).toBe('Saved');
+  });
+
   it('names the slot in what it says about one', () => {
     notice.show('damaged', 2);
     notice.update(0.5);

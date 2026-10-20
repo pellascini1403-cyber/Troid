@@ -47,7 +47,7 @@ export const pause: Scenario = {
       await page.waitForTimeout(110);
     }
     assert.ok(frames.size > 1, `the hero's run is animated while the game runs (${[...frames].join(', ')})`);
-    assert.equal(await attr(page, 'hud', 'data-paused'), null, 'the HUD is not paused');
+    assert.notEqual(await attr(page, 'hud', 'data-paused'), '1', 'the HUD is not paused');
 
     // ================================================================================================ the button opens it: the world stops — all of it
     const before = await world(ctx);
@@ -191,6 +191,58 @@ export const pause: Scenario = {
     assert.equal((await ctx.state()).menuOpen, false);
     await ctx.shot('a-02-after');
     await page.evaluate('window.__troid.pause()');
-    console.log('  pause: the world waits (clock, hero, camera, HUD) · Escape / P / the page in the background · no burst on return · no leaks');
+
+    // ================================================================================================ a menu that cannot be fetched (no network, a file that is gone) does not trap the game
+    await ctx.open('new=1', {
+      ...SIZE,
+      prepare: async (context) => {
+        await context.route(/\/(app\/menu\.ts|assets\/menu-[^/]+\.js)(\?.*)?$/, (route) => route.abort());
+      },
+    });
+    page = ctx.page;
+    await page.evaluate('window.__troid.resume()');
+    await waitFor(page, 'window.__troid.state().now > 20', 'the game runs');
+    await q(page, 'pause-button').click();
+    // it tried, failed, and let the game go on rather than wait for a menu that is not coming
+    await waitFor(page, `window.__troid.state().menuOpen === false && document.querySelector('[data-testid="pause-button"]').style.visibility === 'visible'`, 'the game to be released');
+    const after = (await world(ctx)).now;
+    await waitFor(page, `window.__troid.state().now > ${after + 30}`, 'the world goes on');
+    assert.equal(await q(page, 'pause-menu').count(), 0, 'there is no menu');
+    assert.equal(await attr(page, 'hud', 'data-paused'), '0', 'and the HUD was let go');
+    await page.keyboard.press('Escape'); // the key does not trap either
+    await page.waitForTimeout(800);
+    assert.equal((await ctx.state()).menuOpen, false);
+    await waitFor(page, `window.__troid.state().now > ${after + 60}`, 'the world still goes on');
+    ctx.errors.splice(0); // the failed request IS the console error this part asked for
+    await page.evaluate('window.__troid.pause()');
+
+    // ================================================================================================ the code of the saved games' actions cannot be fetched (the connection was lost after the menu came): the screen says so, the way back works, and the cause is in the log
+    const lost: string[] = [];
+    await ctx.open('new=1', {
+      ...SIZE,
+      prepare: async (context) => {
+        await context.route(/\/(app\/saveActions\.ts|assets\/saveActions-[^/]+\.js)(\?.*)?$/, (route) => route.abort());
+      },
+    });
+    page = ctx.page;
+    page.on('console', (m) => {
+      if (m.type() === 'warning') lost.push(m.text());
+    });
+    await q(page, 'pause-button').click();
+    await menuIs(page, true); // the menu itself came: only the code of the saves' actions is missing
+    await q(page, 'pause-saves').click();
+    await page.waitForSelector('[data-testid="saves-screen"][data-open="1"][data-ready="1"]', { timeout: 15000 });
+    const said = (await q(page, 'saves-status').textContent()) ?? '';
+    assert.match(said, /could not be read.*reload the page/, `the screen says what happened and what to do (${said})`);
+    assert.equal(await q(page, 'saves-status').getAttribute('data-tone'), 'warn');
+    assert.equal(await page.locator('[data-testid^="saves-slot-"]').count(), 0, 'and shows no game as if there were none');
+    assert.ok(lost.some((m) => m.includes("the saved games' actions could not be loaded")), `the cause went to the log (${JSON.stringify(lost)})`);
+    await q(page, 'saves-back').click();
+    await screenIs(page, 'main');
+    await q(page, 'pause-resume').click();
+    await menuIs(page, false);
+    ctx.errors.splice(0); // the failed request IS the console error this part asked for
+    await page.evaluate('window.__troid.pause()');
+    console.log('  pause: the world waits (clock, hero, camera, HUD) · Escape / P / the page in the background · no burst on return · no leaks · a menu that cannot be fetched does not trap the game · the code of the saves that cannot be fetched is said, not hidden');
   },
 };

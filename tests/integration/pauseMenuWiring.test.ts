@@ -280,6 +280,7 @@ describe('the pause menu over the real game', () => {
       other.attach(d2.session, 0);
       d2.session.flags.set('from-the-other-tab');
       await idle();
+      platform.now = () => 1_760_000_005_000; // this page asks to save a little later than the other tab saved: two tabs never write in the same millisecond
       menu.open();
       q(parent, 'pause-saves').click();
       await idle();

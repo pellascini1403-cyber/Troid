@@ -84,6 +84,8 @@ export interface GameSavesOptions {
   durable: boolean;
   platform: SavePlatform;
   notify: (notice: SaveNotice) => void;
+  /** Where problems are reported (never thrown at the player): the page wires it to the log. */
+  warn?: (message: string) => void;
 }
 
 /**
@@ -155,19 +157,39 @@ export class GameSaves {
   /** What the menu does with the saved games (leave for another, start over, delete, export, import): fetched the first time it is asked for. */
   actions(): Promise<SaveActions> {
     this.loaded ??= import('./saveActions').then(
-      ({ SaveActions: Actions }) => new Actions(this.o, (saveFirst) => this.leave(saveFirst), () => this.failed()),
+      ({ SaveActions: Actions }) => new Actions(this.o, { saveForLeaving: () => this.saveForLeaving(), stop: () => this.stop(), hold: () => this.hold(), release: () => this.release(), failed: () => this.failed() }),
       (err: unknown) => {
-        this.loaded = null; // a failed fetch is forgotten: the next ask tries again
+        this.o.warn?.(`the saved games' actions could not be loaded: ${String(err)}`);
+        this.loaded = null; // a failed fetch is forgotten, so the next ask tries again (a browser may fail it again until the page is reloaded: the screen says so)
         throw err;
       },
     );
     return this.loaded;
   }
 
-  /** The game that is being played ends here: saved as it stands first (when it is being LEFT, not when it is being destroyed), and then it writes nothing more — whatever it does on its way out cannot write itself back. */
-  async leave(saveFirst: boolean): Promise<void> {
-    if (saveFirst) await this.recorder?.saveNow('leaving');
+  /**
+   * The game that is being played is about to be LEFT for another: it is saved as it stands (and goes on writing until `stop`). Resolves to whether nothing is lost; `false` means it could NOT be saved,
+   * and then it must not be left — what the player did since its last good save would be lost in silence. A page that has already stopped saving (another tab holds the game) has nothing of its own to
+   * save, and what is stored is the other tab's, whole: it counts as saved.
+   */
+  async saveForLeaving(): Promise<boolean> {
+    const r = this.recorder;
+    if (!r || r.stopped) return true;
+    return (await r.saveNow('leaving')) || r.conflicted || r.stopped;
+  }
+
+  /** The game that is being played ends here: it writes nothing more, whatever it does on its way out — nothing can write itself back over what was just chosen. */
+  stop(): void {
     this.recorder?.stop();
+  }
+
+  /** The page is about to write into this game's slot itself: the game's own writes wait (`release` lets them go on, `leave` ends them). */
+  hold(): void {
+    this.recorder?.suspend();
+  }
+
+  release(): void {
+    this.recorder?.resume();
   }
 
   dispose(): void {

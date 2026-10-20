@@ -123,4 +123,4 @@ La pasada completa de desarrollo con **las 50 a la vez** se repite en la regresi
 - **La carga anticipada no se hace** con Ahorro de datos ni en un dispositivo con ≤ 2 GB: allí, el cambio de zona espera en el negro lo que tarde (con el indicador). Es un criterio prudente, no medido.
 - **El fundido no empieza «al acercarse»** (ver §2): se carga en silencio y se funde al tocar la salida. Si el usuario quiere oscurecer al aproximarse, es un cambio de diseño, no técnico.
 - **No hay audio** en el juego (hay señales, no motor): la llegada no toca nada de sonido, y no hay nada que se pueda duplicar al cambiar de zona.
-- **Mientras el mundo se sostiene, la tecla de pausa no responde** (hasta ≈ 10 s en el peor caso; lo normal es cero).
+- **Mientras el mundo se sostiene, la tecla de pausa no responde** (hasta ≈ 10 s en el peor caso; lo normal es cero). *(Corregido en el Prompt 14: la página mira esa pulsación aunque no corra ningún tick; ver [PROMPT14-LOG §3.1](PROMPT14-LOG.md#31--detener-la-simulación-de-verdad).)*
