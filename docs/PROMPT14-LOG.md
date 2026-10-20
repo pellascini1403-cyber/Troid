@@ -225,4 +225,31 @@ La ventaja de IndexedDB (cuota, trabajo fuera del hilo principal) **no se aprove
 
 ## 11 · Resultados
 
-*(se completa con la regresión final; ver el informe)*
+Medido sobre el código que se entrega: las dos pasadas completas de E2E corrieron sobre el mismo código (entre ellas solo cambió un comentario de `src/app/gameSaves.ts`) y ningún cambio de `src/` las siguió.
+
+| Comprobación | Resultado |
+|---|---|
+| `npx tsc --noEmit` | sin errores |
+| `npx vitest run` | **187 archivos, 3021 pruebas, todas pasan** (partía de 184 archivos y 2797 pruebas; ninguna se quitó ni se debilitó: las que cambiaron se adaptaron al formato nuevo —progreso v2, ajustes v3, un *snapshot* con tres campos más, el menú en pantallas— y siguen comprobando lo mismo, ampliadas) |
+| `npm run build` (= `tsc` + `assets:check` + `vite build`) | ✓ |
+| `npm run bench:bundle` | arranque en frío de R1: **197.7 KB gz en 40 *scripts*** (presupuesto 200; 196.7 antes del encargo). Diferido: HUD, negros, avisos y botón (`overlays`) 11.0 KB gz · menú con sus pantallas, su cableado y su catálogo (`menu`) 17.4 KB gz · acciones del guardado (`saveActions`) 0.8 KB gz |
+| E2E, desarrollo (`npm run test:e2e`) | **55 de 55 escenas pasan** (≈ 22 min), sobre el código final |
+| E2E, producción (`npm run test:e2e -- --prod`) | **en ejecución al escribir esta fila** (sobre la compilación de este mismo código); su resultado se anota en el commit siguiente |
+
+**Defectos que la propia verificación encontró y que se corrigieron** (cada uno tiene ahora una prueba que **falla sin el arreglo**: se comprobó quitándolo):
+
+| Defecto | Dónde se vio | Arreglo |
+|---|---|---|
+| Importar una partida sobre la que se está jugando **paraba el grabador antes de saber si la copia entraba**: si fallaba, el juego seguía sin guardar | revisión del código | las escrituras del juego **esperan** (`suspend`/`resume`) mientras entra la copia; si no entra —o algo lanza— se sueltan en un `finally` y lo ganado entretanto se guarda |
+| Cambiar de partida o empezar otra **dejaba la actual aunque no se hubiera podido guardar**, y la elección ya estaba escrita en los ajustes | revisión del código | el orden pasó a ser **guardar la que se deja → elegir → parar → reabrir**: si lo primero falla no se ha tomado ninguna decisión que deshacer |
+| Los tics jugados se daban por guardados **antes de saber si la escritura había entrado** | revisión del código | cuentan cuando **aterrizan**; una escritura rechazada no pone a cero la deuda del siguiente guardado silencioso |
+| Con un almacenamiento **lento** (uno nativo, IndexedDB), una escritura de la propia página se tomaba por **«otra pestaña»** y la página dejaba de guardar | revisión del código (no ocurre con `localStorage`, que termina dentro de una tarea; se reprodujo con un almacenamiento de pruebas lento) | la protección reconoce las escrituras propias que siguen en camino; un guardado silencioso no se pide dos veces mientras otro está en camino |
+| El aviso de guardado **se quedaba en el idioma anterior** si el idioma cambiaba mientras estaba cerrado | revisión del código | olvida lo escrito al cerrarse |
+| El HUD **escribía dos veces por fotograma** la tecla del poder con la ranura vacía | revisión del código | una sola escritura (`MutationObserver`: 0 mutaciones) |
+| «Menos destellos» **no alcanzaba** la onda de curación ni el resplandor blanco de botellas y cartas | revisión del código | la onda a un tercio y un brillo cian fijo; comprobado en un Chromium real con **una botella bebida de verdad** |
+| La pausa **no se oía con el mundo sostenido** en un cambio de zona (venía del Prompt 13: solo respondía el botón) | E2E `pauseZone` | `InputManager.takePause()`: se toma **solo** esa pulsación |
+| Con una ventana de 720 px de alto la pantalla de Ajustes **seguía teniendo desplazamiento en blanco** tras una primera versión del desvanecido de «hay más abajo» | capturas | el desvanecido pasó a ser una máscara que **solo existe mientras hay algo más abajo** (`ScrollHint`) |
+| Se había previsto un «Reintentar» para cuando el código de las acciones de guardado no llega | experimento con Chromium: **un módulo que falló al cargarse no se vuelve a pedir en la misma página** | se quitó; la pantalla dice que se recargue (§10) |
+| Un E2E de la onda de curación **medía mal** (miraba fotogramas, y un fotograma lento con GL por software terminaba la onda antes de mirar) | 1 de cada 4 ejecuciones | observa **las escrituras** del HUD |
+
+**Lo que sigue sin verificarse**: todo lo que depende de un dispositivo real (legibilidad, tacto, rendimiento en un teléfono de gama baja, el selector de archivos y la descarga en iOS), el comportamiento del almacenamiento de cada navegador ante un borrado por falta de espacio, y el audio (no existe).

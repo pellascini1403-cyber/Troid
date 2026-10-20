@@ -183,7 +183,7 @@ export class GameSaves {
     this.recorder?.stop();
   }
 
-  /** The page is about to write into this game's slot itself: the game's own writes wait (`release` lets them go on, `leave` ends them). */
+  /** The page is about to write into this game's slot itself: the game's own writes wait (`release` lets them go on, `stop` ends them). */
   hold(): void {
     this.recorder?.suspend();
   }
