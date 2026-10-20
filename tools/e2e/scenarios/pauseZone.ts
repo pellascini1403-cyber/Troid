@@ -90,6 +90,9 @@ export const pauseZone: Scenario = {
     // the pause KEY is heard while the world is held (no tick runs, so nobody samples the input: the page looks for it itself), and only that press is taken
     await page.keyboard.down('KeyJ'); // an attack press in the same moment: it must not be eaten by the look for the pause key
     await page.keyboard.press('Escape');
+    // …and it is heard WHILE the world is held: every art file waits 2.5 s on this line, so a press that was only noticed when the wait ended (the first tick afterwards) would not open the menu in a second and a half
+    await waitFor(page, `window.__troid.state().menuOpen === true`, 'the pause key to be heard while the world is held', 1500);
+    assert.equal(await page.evaluate('window.__troid.arrival().blocking'), true, 'the menu opened while the world was STILL held at the black — not when the wait ended');
     await page.waitForSelector('[data-testid="pause-menu"][data-open="1"]', { timeout: 15000 });
     await page.keyboard.up('KeyJ');
     const held = await stateOf(page);
