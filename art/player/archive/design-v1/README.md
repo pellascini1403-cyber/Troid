@@ -1,8 +1,7 @@
 # Protagonista — diseño anterior (`design-v1`)
 
 El protagonista que tuvo el juego **hasta el Prompt 16**, guardado entero y **fuera del juego**. El diseño de hoy es el de la hoja de personaje del usuario (`../../source/character-sheet.png`); este
-es el que reemplazó. No se borró nada de él: está aquí, con la misma disposición que `art/player/` (para poder volver a ponerlo tal cual) y también en el historial de Git (etiqueta `protagonista-v1`,
-el commit `48684b9`, el último con ese diseño en el juego).
+es el que reemplazó. No se borró nada de él: está aquí, con la misma disposición que `art/player/` (para poder volver a ponerlo tal cual) y también en el historial de Git: el commit `48684b9` es el último con ese diseño en el juego (en el repositorio donde se hizo el cambio hay además una etiqueta `protagonista-v1` que apunta a él; el servidor no dejó subirla).
 
 ```
 art/player/archive/design-v1/
@@ -26,7 +25,7 @@ art/player/archive/design-v1/
 
 ## Volver a este diseño
 
-Con Git, desde un árbol limpio (todo guardado en un commit): `git rm -r -q art/player public/art/player && git checkout protagonista-v1 -- art/player public/art/player` — el `rm` primero, porque `checkout` solo añade y sobrescribe: un fotograma del diseño de hoy que el anterior no tenía (`walk_04.png`, por ejemplo) se quedaría en la carpeta. La etiqueta apunta al commit `48684b9`, el último con este diseño en el juego (`git checkout 48684b9 -- …` es lo mismo si la etiqueta no está). Después, `npm run assets:check`.
+Con Git, desde un árbol limpio (todo guardado en un commit): `git rm -r -q art/player public/art/player && git checkout 48684b9 -- art/player public/art/player` — el `rm` primero, porque `checkout` solo añade y sobrescribe: un fotograma del diseño de hoy que el anterior no tenía (`walk_04.png`, por ejemplo) se quedaría en la carpeta. `48684b9` es el último commit con este diseño en el juego (`protagonista-v1` es una etiqueta local que apunta a él: no se pudo subir al servidor). Después, `npm run assets:check`.
 
 Sin Git, desde esta carpeta (los pasos que sigue la prueba de reversión; ver `docs/PROMPT16-LOG.md`):
 
