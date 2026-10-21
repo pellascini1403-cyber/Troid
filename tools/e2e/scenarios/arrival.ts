@@ -175,7 +175,8 @@ export const arrival: Scenario = {
     }
 
     // ================================================================================================ A · a slow line, the first visit to R2 — in real time, as a player sees it
-    const SLOW = 600;
+    // (the world must stay held through the checks below: a page capture takes half a second on a slow machine, and with 600 ms a file the hold was over before it was taken)
+    const SLOW = 1500;
     {
       const w = await world(browser, origin, '', PHONE);
       await settled(w.page);
@@ -527,7 +528,7 @@ export const arrival: Scenario = {
       assert.deepEqual((await stateOf(w.page)).respawnPoint, { room: 'r1_gate', entry: 'start' }, 'a defeat in R3 brings the hero back to R1');
       await w.page.evaluate(`(() => { const s = window.__troid.session; for (const e of s.entities) s.despawn(e); })()`);
       await w.page.evaluate(EVENTS);
-      w.net.delay = 1200; // (what R1 needs back is one small pack: a line this slow makes the wait long enough for the indicator to come in)
+      w.net.delay = 2500; // (what R1 needs back is one small pack: a line this slow makes the wait long enough for the indicator to come in)
       await w.page.evaluate(RECORDER);
       await sess(w.page, 's.player.health.damage(s.player.health.current - 1);');
       await w.page.evaluate('window.__troid.strikePlayer(1)');
