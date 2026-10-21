@@ -163,12 +163,13 @@ export function createTestHooks(h: HookHost) {
         damage: 1, knockback: { x: 5.5, y: 4 }, stun: 14, hitStop: 6, shake: 0.2, facing, alreadyHit: new Set(),
       });
     },
-    /** Test hook: what the touch layer sees right now (fingers owned, the movement gesture, the layout in px). */
+    /** Test hook: what the touch layer sees right now (fingers owned, the movement gesture, the layout in px) and what the settings hold of it (the size, the opacity and the places the player put the buttons). */
     touch: () => ({
       visible: h.touchControls.isVisible,
       active: h.touchSource.active,
       gesture: h.touchSource.gesture,
       layout: h.touchControls.current,
+      settings: h.settings.value.touch,
     }),
     /** Test hook (S41): forgets the cues written down so far (a test looks at what ONE thing raises). */
     clearCues: () => void h.cueLog()?.clear(),

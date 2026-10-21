@@ -5,6 +5,7 @@ import { defaultSettings } from '@/save/SettingsData';
 import type { PauseHost } from '@/ui/settings/PauseMenu';
 import type { ImportOutcome, PickedFile, SaveOutcome, SavesHost, SlotCardView } from '@/ui/settings/SavesScreen';
 import type { SettingsMenuHost } from '@/ui/settings/SettingsMenu';
+import { computeTouchLayout } from '@/ui/touch/layout';
 
 /** The data a profile of a game in progress has: some of everything, so a test sees each line. */
 export function profileData(over: Partial<ProfileData> = {}): ProfileData {
@@ -104,6 +105,9 @@ export function settingsProbe(over: { touch?: boolean; keyboard?: boolean } = {}
     setQuality: (quality) => void calls.push(`quality:${quality}`),
     setKeys: (keys) => void calls.push(`keys:${JSON.stringify(keys)}`),
     setTouch: (patch) => void calls.push(`touch:${JSON.stringify(patch)}`),
+    // the layout of the design on the reference screen: what the small picture in the settings draws
+    touchPreview: () => (over.touch ?? true ? { width: 844, height: 390, layout: computeTouchLayout(844, 390) } : null),
+    editTouch: () => void calls.push('edit-touch'),
     setAccessibility: (patch) => void calls.push(`access:${JSON.stringify(patch)}`),
   };
   return { host, calls };

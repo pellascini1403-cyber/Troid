@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type { Page } from 'playwright-core';
 import { DEFAULT_TOUCH } from '@/input/gestures/TouchConfig';
 import { BOSS_BAR, computeBossBarLayout } from '@/ui/hud/bossBarLayout';
-import { computeTouchLayout, type Disc, type Insets, type Placement, type TouchLayout } from '@/ui/touch/layout';
+import { computeTouchLayout, type ButtonPlacements, type Disc, type Insets, type TouchLayout } from '@/ui/touch/layout';
 import { reload } from '../bossKit';
 import { frames } from '../frames';
 import type { Ctx, Scenario } from '../scenario';
@@ -17,7 +17,8 @@ import { TouchScreen } from '../touch';
  *    is left a usable stretch of screen — nothing out of the window, nothing that scrolls;
  *  - the boss's bar (here from a synthetic `boss:started`: this looks at WHERE the bar is, not at the fight, which is the `boss` scenario's) is inside the safe
  *    area, wide enough to read, never under a button, and exactly where the pure function says;
- *  - what the player saved (the other side, a bigger size, as far in and up as it goes) is what the page lays out from its first frame;
+ *  - what the player saved (the buttons for the other hand, a bigger size, places spread over the screen) is what the page lays out from its first frame — also from a file the first versions of
+ *    the settings wrote (a block of buttons moved to the left, in and up: it becomes the place of each button);
  *  - with REAL multitouch through the DevTools protocol (a finger running, a second one on Attack, then Dash, then the Ability, then the bottle) every
  *    button answers at its real place on the DOM, and nothing is left pressed.
  *
@@ -86,7 +87,7 @@ interface Audit {
 }
 
 /** The page with the whole interface on it at its widest — a card (the Ability button), a fourth bottle, a hero who is hurt (the chip) — and every claim about where it is. */
-async function audit(ctx: Ctx, label: string, c: WindowClass, placement?: { scale: number; placement: Placement }): Promise<Audit> {
+async function audit(ctx: Ctx, label: string, c: WindowClass, placement?: { scale: number; buttons: ButtonPlacements }, zoneClear = true): Promise<Audit> {
   const { page } = ctx;
   const { width, height, safe } = c;
   await sess(page, 's.loadout.acquire("card_spirit_bolt"); s.bottles.addSlot("energy_bottle"); s.player.health.damage(2);');
@@ -135,7 +136,8 @@ async function audit(ctx: Ctx, label: string, c: WindowClass, placement?: { scal
   const zone = await rectOf(page, 'touch-zone');
   assert.ok(inside(zone, window_), `${label}: the movement zone is in the window`);
   assert.ok(side(zone) >= (width - safe.left - safe.right) * 0.25 - 1, `${label}: and a usable stretch (${side(zone).toFixed(0)} px)`);
-  for (const b of BUTTONS) assert.ok(!circleHits(buttons[b], zone), `${label}: ${b} is not in the movement zone`);
+  // (buttons the player spread over both sides of the screen are drawn over the zone: they are above it, and a finger on one is theirs — only where the buttons are together is the zone clear of them)
+  if (zoneClear) for (const b of BUTTONS) assert.ok(!circleHits(buttons[b], zone), `${label}: ${b} is not in the movement zone`);
 
   // the HUD and the pause button
   const hud = await rectOf(page, 'hud-block');
@@ -157,7 +159,7 @@ async function audit(ctx: Ctx, label: string, c: WindowClass, placement?: { scal
 
   // what is saved is what is laid out
   if (placement) {
-    const expected = computeTouchLayout(width, height, safe, placement.scale, DEFAULT_TOUCH, placement.placement);
+    const expected = computeTouchLayout(width, height, safe, { scale: placement.scale, buttons: placement.buttons });
     for (const b of BUTTONS) {
       assert.ok(Math.hypot(expected[b].cx - layout[b].cx, expected[b].cy - layout[b].cy) < 0.01, `${label}: ${b} is where the saved placement puts it from the first frame`);
     }
@@ -282,24 +284,34 @@ export const mobile: Scenario = {
 
     // ================================================================================================ what the player saved, from the first frame
     const phone = CLASSES[1]!;
-    const left: Placement = { side: 'left', offsetX: 1, offsetY: 1 };
-    await load(ctx, phone, { version: 2, touch: { scale: 1.4, opacity: 1, ...left } });
-    let a = await audit(ctx, 'phone · left, in and up, ×1.4', phone, { scale: 1.4, placement: left });
+    // the buttons for the left hand, a size of 1.4: the place of each (a fraction of the safe area) is what the page lays out from its first frame
+    const leftHand: ButtonPlacements = { attack: { x: 0.2, y: 0.72, scale: 1 }, dash: { x: 0.34, y: 0.84, scale: 1.1 }, ability: { x: 0.28, y: 0.6, scale: 0.9 } };
+    await load(ctx, phone, { version: 4, touch: { scale: 1.2, opacity: 1, buttons: leftHand } });
+    let a = await audit(ctx, 'phone · left hand, ×1.2', phone, { scale: 1.2, buttons: leftHand });
     assert.equal(a.layout.side, 'left');
     assert.ok(a.layout.attack.cx < phone.width / 2, 'the buttons are on the left now');
-    // the window cannot hold that size, so far in and so far up, next to the HUD: the size gives way to what fits, and a finger is still a finger
-    assert.ok(a.layout.controlScale < 1.4 * a.layout.gestureScale - 1e-6, `the size asked (×1.4) did not fit this window: the buttons are ×${a.layout.controlScale.toFixed(2)}`);
-    assert.ok(a.layout.controlScale >= 0.72 - 1e-6, 'but never smaller than the floor');
-    await fingers(ctx, 'phone · left', a);
-    await ctx.shot('phone-left-in-up');
-    console.log(`  phone, left     ${a.summary}`);
+    assert.ok(a.layout.zone.x + a.layout.zone.w > phone.width / 2, 'and the movement zone on the right');
+    await fingers(ctx, 'phone · left hand', a);
+    await ctx.shot('phone-left-hand');
+    console.log(`  phone, left hand  ${a.summary}`);
 
+    // a file the first versions of the settings wrote — the block of buttons on the left, in and up, ×1.2 — is migrated: each button gets its place, and the page lays them out as the pure function does
+    await load(ctx, phone, { version: 2, touch: { scale: 1.2, opacity: 1, side: 'left', offsetX: 1, offsetY: 1 } });
+    const migrated = ((await ctx.page.evaluate('window.__troid.touch()')) as { settings: { buttons: ButtonPlacements; scale: number } }).settings;
+    assert.deepEqual(Object.keys(migrated.buttons).sort(), ['ability', 'attack', 'dash'], 'the three buttons were placed by the migration');
+    a = await audit(ctx, 'phone · migrated from version 2, ×1.2', phone, { scale: 1.2, buttons: migrated.buttons });
+    assert.equal(a.layout.side, 'left');
+    assert.ok(a.layout.attack.cx < phone.width / 2);
+    await fingers(ctx, 'phone · migrated', a);
+    console.log(`  phone, migrated   ${a.summary}`);
+
+    // places spread over the screen, big and small, on the smallest class of phone: still inside, apart and clear of everything
     const small = CLASSES[0]!;
-    const right: Placement = { side: 'right', offsetX: 1, offsetY: 1 };
-    await load(ctx, small, { version: 2, touch: { scale: 1.4, opacity: 1, ...right } });
-    a = await audit(ctx, 'small phone · right, in and up, ×1.4', small, { scale: 1.4, placement: right });
-    await ctx.shot('small-phone-right-in-up');
-    console.log(`  small, right    ${a.summary}`);
+    const spread: ButtonPlacements = { attack: { x: 0.9, y: 0.45, scale: 1.4 }, dash: { x: 0.12, y: 0.8, scale: 0.8 }, ability: { x: 0.5, y: 0.25, scale: 1.5 } };
+    await load(ctx, small, { version: 4, touch: { scale: 1.4, opacity: 1, buttons: spread } });
+    a = await audit(ctx, 'small phone · spread, ×1.4', small, { scale: 1.4, buttons: spread }, false);
+    await ctx.shot('small-phone-spread');
+    console.log(`  small, spread     ${a.summary}`);
 
     // ================================================================================================ a window held upright: nothing falls out (the game is meant to be played sideways)
     const portrait: WindowClass = { name: 'phone, portrait', width: 390, height: 844, dpr: 3, safe: { top: 47, right: 0, bottom: 34, left: 0 } };

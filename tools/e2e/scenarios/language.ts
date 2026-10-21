@@ -103,7 +103,7 @@ export const language: Scenario = {
     assert.equal(await page.locator('[data-testid="pause-title"]').textContent(), 'Pausa', 'the list behind it speaks Spanish too');
     assert.equal(await page.locator('[data-testid="pause-button"]').getAttribute('aria-label'), 'Pausa y ajustes');
     await savedLanguage(page, 'es');
-    assert.deepEqual((await saved(page))!['touch'], { scale: 1, opacity: 1, side: 'right', offsetX: 0, offsetY: 0 }, 'the touch settings saved are the designed ones (S30 added the side and the position)');
+    assert.deepEqual((await saved(page))!['touch'], { scale: 1, opacity: 1, buttons: {} }, 'the touch settings saved are the designed ones: no button has been placed (version 4 keeps the place of each button the player moved)');
     // the touch layer is not there on a desktop: its settings are not offered on the controls screen
     await page.locator('[data-testid="settings-back"]').click();
     await enter(page, 'controls');
@@ -173,7 +173,7 @@ export const language: Scenario = {
     await enter(page, 'settings');
     await page.locator('[data-testid="settings-lang-es"]').click();
     await savedLanguage(page, 'es');
-    assert.equal((await saved(page))!['version'], 3, 'and a new choice is saved properly, as the current version of the settings (3 since the accessibility choices and the saved game in use)');
+    assert.equal((await saved(page))!['version'], 4, 'and a new choice is saved properly, as the current version of the settings (4 since each touch button has its own place; 3 had the accessibility choices and the saved game in use)');
 
     // a value from a LATER game is kept aside, never overwritten silently
     await page.evaluate(`localStorage.setItem(${JSON.stringify(KEY)}, '{"version":9,"language":"es"}')`);
@@ -199,7 +199,7 @@ export const language: Scenario = {
     assert.ok(Math.abs(after2 / before - 1.3) < 0.01, `the controls grew by 30 % at once (${before} → ${after2})`);
     assert.equal(await page.locator('[data-testid="touch-layer"]').evaluate((e) => (e as HTMLElement).style.opacity), '0.5', 'and fade at once');
     for (let i = 0; i < 40 && ((await saved(page))?.['touch'] as { scale?: number } | undefined)?.scale !== 1.3; i++) await page.waitForTimeout(50);
-    assert.deepEqual((await saved(page))!['touch'], { scale: 1.3, opacity: 0.5, side: 'right', offsetX: 0, offsetY: 0 }, 'what the player chose, and the designed side and position');
+    assert.deepEqual((await saved(page))!['touch'], { scale: 1.3, opacity: 0.5, buttons: {} }, 'what the player chose, and no button placed');
     await page.locator('[data-testid="controls-back"]').click();
     await page.locator('[data-testid="pause-resume"]').click();
     await page.reload();

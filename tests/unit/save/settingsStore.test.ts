@@ -122,18 +122,30 @@ describe('saving', () => {
     expect(JSON.parse((await storage.get(KEY)) ?? '').touch).toEqual({ ...defaultSettings().touch, scale: 1.4, opacity: 0.3 });
   });
 
-  it('the volume, the quality, the keys and the position of the touch controls are saved and merge like the rest (S30)', async () => {
+  it('the volume, the quality, the keys and the place of each touch button are saved and merge like the rest (S30, docs/PROMPT15-LOG.md)', async () => {
     const storage = new MemoryStorage();
     const store = new SettingsStore(storage);
     await store.load();
     await store.update({ volume: { master: 0.35 }, quality: 'low' });
-    await store.update({ keys: { attack: 'KeyF' }, touch: { side: 'left', offsetX: 0.5 } });
-    await store.update({ touch: { offsetY: 0.25 } });
-    const want = { ...defaultSettings(), volume: { master: 0.35 }, quality: 'low', keys: { attack: 'KeyF' }, touch: { ...defaultSettings().touch, side: 'left', offsetX: 0.5, offsetY: 0.25 } };
+    await store.update({ keys: { attack: 'KeyF' }, touch: { buttons: { attack: { x: 0.2, y: 0.7, scale: 1.1 } } } });
+    await store.update({ touch: { scale: 1.25 } });
+    const want = { ...defaultSettings(), volume: { master: 0.35 }, quality: 'low', keys: { attack: 'KeyF' }, touch: { ...defaultSettings().touch, scale: 1.25, buttons: { attack: { x: 0.2, y: 0.7, scale: 1.1 } } } };
     expect(store.value).toEqual(want);
     expect(JSON.parse((await storage.get(KEY)) ?? '')).toEqual(want);
     // and a new store reads it back as it was
     expect(await new SettingsStore(storage).load()).toEqual(want);
+  });
+
+  it('a patch of the buttons REPLACES the map too: restoring the defaults is `{}`, and a button that is not in the new map is where the design has it', async () => {
+    const store = new SettingsStore(new MemoryStorage());
+    await store.load();
+    await store.update({ touch: { buttons: { attack: { x: 0.2, y: 0.7, scale: 1 }, dash: { x: 0.3, y: 0.8, scale: 1 } } } });
+    await store.update({ touch: { opacity: 0.5 } });
+    expect(Object.keys(store.value.touch.buttons), 'another change of the touch settings keeps them').toEqual(['attack', 'dash']);
+    await store.update({ touch: { buttons: { dash: { x: 0.3, y: 0.8, scale: 1 } } } });
+    expect(Object.keys(store.value.touch.buttons)).toEqual(['dash']);
+    await store.update({ touch: { buttons: {} } });
+    expect(store.value.touch.buttons).toEqual({});
   });
 
   it('a patch of the keys REPLACES the map (the menu decides swaps): a second map does not keep what the first one had', async () => {
@@ -146,15 +158,15 @@ describe('saving', () => {
     expect(store.value.keys).toEqual({});
   });
 
-  it('bad values of the new settings are repaired on the way in as well: a volume out of range, a quality nobody offers, a reserved key, a side that is not one', async () => {
+  it('bad values of the new settings are repaired on the way in as well: a volume out of range, a quality nobody offers, a reserved key, a button outside the screen', async () => {
     const storage = new MemoryStorage();
     const store = new SettingsStore(storage);
     await store.load();
-    await store.update({ volume: { master: 7 }, quality: 'ultra' as never, keys: { attack: 'KeyD', jump: 'Tab', dash: 'KeyG' }, touch: { side: 'up' as never, offsetX: -3, offsetY: 9 } });
+    await store.update({ volume: { master: 7 }, quality: 'ultra' as never, keys: { attack: 'KeyD', jump: 'Tab', dash: 'KeyG' }, touch: { buttons: { attack: { x: -3, y: 9, scale: 99 }, dash: { x: Number.NaN, y: 0.5, scale: 1 } } } });
     expect(store.value.volume.master).toBe(1);
     expect(store.value.quality).toBe('auto');
     expect(store.value.keys, 'KeyD is movement and Tab is the browser\'s').toEqual({ dash: 'KeyG' });
-    expect(store.value.touch).toMatchObject({ side: 'right', offsetX: 0, offsetY: 1 });
+    expect(store.value.touch.buttons, 'the one outside the screen is held inside it, the one with no place is not placed').toEqual({ attack: { x: 0, y: 1, scale: 1.5 } });
     expect(JSON.parse((await storage.get(KEY)) ?? '')).toEqual(store.value);
   });
 

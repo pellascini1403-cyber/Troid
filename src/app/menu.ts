@@ -9,6 +9,9 @@ import type { AccessibilitySettings, TouchSettings } from '@/save/SettingsData';
 import type { SettingsStore } from '@/save/SettingsStore';
 import { PauseMenu } from '@/ui/settings/PauseMenu';
 import type { SavesHost } from '@/ui/settings/SavesScreen';
+import type { Insets } from '@/ui/touch/layout';
+import { TouchEditor } from '@/ui/touch/TouchEditor';
+import type { TouchPreviewData } from '@/ui/touch/TouchPreview';
 import { downloadText, pickTextFile } from './files';
 import { AUTOSAVE, type GameSaves } from './gameSaves';
 import { buildProfile } from './profile';
@@ -30,6 +33,12 @@ export interface MenuDeps {
   /** The keys in force (they are replaced by a remap: asked for every time). */
   bindings(): Bindings;
   touchAvailable(): boolean;
+  /** The window as the touch buttons are laid out in it, and the size the player chose for the HUD (the editor of the buttons draws with them). */
+  touchWindow(): { width: number; height: number; insets: Insets; hudScale: number };
+  /** The layout of the touch buttons as the game has it now (`null`: there is no touch layer). */
+  touchPreview(): TouchPreviewData | null;
+  /** The game's touch layer steps aside while the editor has the screen, and comes back after. */
+  suspendTouch(suspended: boolean): void;
   /** The device the player used last was a keyboard. */
   keyboardInUse(): boolean;
   change: {
@@ -64,7 +73,8 @@ function savesHost(saves: GameSaves): Omit<SavesHost, 'back'> {
 
 export function createPauseMenu(d: MenuDeps): PauseMenu {
   const { saves } = d;
-  return new PauseMenu(d.parent, d.translator, {
+  let editor: TouchEditor | null = null;
+  const menu: PauseMenu = new PauseMenu(d.parent, d.translator, {
     settings: {
       languages: SUPPORTED_LOCALES,
       touchAvailable: d.touchAvailable,
@@ -80,11 +90,30 @@ export function createPauseMenu(d: MenuDeps): PauseMenu {
       setQuality: d.change.quality,
       setKeys: d.change.keys,
       setTouch: d.change.touch,
+      touchPreview: d.touchPreview,
+      // the editor of the touch buttons: it has the screen (the menu steps aside) and reports what the player kept, which the game applies and saves like any other choice
+      editTouch: () => {
+        editor ??= new TouchEditor(d.parent, d.translator, {
+          window: d.touchWindow,
+          current: () => ({ scale: d.settings.value.touch.scale, buttons: d.settings.value.touch.buttons }),
+          save: (buttons) => d.change.touch({ buttons }),
+          suspend: d.suspendTouch,
+          done: () => menu.setAside(false),
+        });
+        menu.setAside(true);
+        editor.open();
+      },
       setAccessibility: d.change.accessibility,
     },
     // a playground (`?room=`) saves nothing: it has no saved games to show and no profile to keep
     saves: saves ? savesHost(saves) : null,
     profile: () => buildProfile(d.session, d.stats.snapshot(d.session.now), saves ? saves.slot : null),
     resume: d.resume,
+    interrupt: () => {
+      if (!editor?.active) return false;
+      editor.cancel();
+      return true;
+    },
   });
+  return menu;
 }

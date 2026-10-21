@@ -313,9 +313,9 @@ export class Game2D {
     this.touchSource = new TouchSource(this.input, DEFAULT_TOUCH, () => this.touchControls.gestureScale);
     const saved0 = settings.value.touch;
     this.touchControls = new TouchControls(ui, this.touchSource, this.translator, {
-      size: saved0.scale,
+      scale: saved0.scale,
       opacity: saved0.opacity,
-      placement: { side: saved0.side, offsetX: saved0.offsetX, offsetY: saved0.offsetY },
+      buttons: saved0.buttons,
       hudScale: settings.value.accessibility.hudScale,
     });
     this.lifecycle.add(() => this.touchControls.dispose());
@@ -639,10 +639,7 @@ export class Game2D {
 
   /** Places the DOM interface (the touch controls today) for the window and its safe area. Called on start and on every resize. */
   private layoutUi(): void {
-    const ui = document.getElementById('ui') ?? document.body;
-    const width = ui.clientWidth || window.innerWidth;
-    const height = ui.clientHeight || window.innerHeight;
-    const insets = this.safeArea.read();
+    const { width, height, insets } = this.uiFrame();
     this.touchControls.place(width, height, insets);
     const o = this.overlays;
     o?.hud.place(width, height, insets);
@@ -650,6 +647,12 @@ export class Game2D {
     o?.pause.place(width, height, insets, this.touchControls.gestureScale, this.settings.value.accessibility.hudScale);
     o?.notice.place(width, height, insets, this.touchControls.gestureScale);
     this.placeBossBar(width, height, insets);
+  }
+
+  /** The window the interface is laid out in: its size and its safe area. */
+  private uiFrame(): { width: number; height: number; insets: Insets } {
+    const ui = document.getElementById('ui') ?? document.body;
+    return { width: ui.clientWidth || window.innerWidth, height: ui.clientHeight || window.innerHeight, insets: this.safeArea.read() };
   }
 
   /** The boss's bar goes at the bottom centre and out of the way of the touch buttons while they are on screen (S31); there is nothing to avoid on a keyboard. */
@@ -668,7 +671,9 @@ export class Game2D {
     const bar = this.bossBarModel.update(dt);
     this.bossBar?.update(bar);
     this.touchControls.setChip(st.bottleUseful);
-    this.touchControls.setAbility(st.card.equipped, st.card.iconId, st.card.state !== 'noMagic');
+    // each button exists only when the hero can do what it does, and is faint while they cannot yet: the dash while it recharges, the magic while it recharges or there is not enough of it
+    this.touchControls.setDash(st.dash.unlocked, st.dash.cooldown01 === 0);
+    this.touchControls.setAbility(st.card.equipped, st.card.state === 'ready');
   }
 
   /** The interaction icon floats over its object: the world point goes through the camera, the DOM gets screen pixels. */
@@ -1060,6 +1065,9 @@ export class Game2D {
           saves: this.saves,
           bindings: () => this.bindings,
           touchAvailable: () => this.touchControls.isVisible,
+          touchWindow: () => ({ ...this.uiFrame(), hudScale: this.settings.value.accessibility.hudScale }),
+          touchPreview: () => (this.touchControls.isVisible ? { ...this.touchControls.size, layout: this.touchControls.current } : null),
+          suspendTouch: (suspended) => this.touchControls.setSuspended(suspended),
           keyboardInUse: () => this.input.device === 'keyboard',
           change: {
             language: (language) => this.setLanguage(language),
@@ -1087,13 +1095,13 @@ export class Game2D {
     void this.settings.update({ language: this.translator.locale });
   }
 
-  /** The player moved a slider or chose a side: the touch controls follow at once and the choice is saved. */
+  /** The player moved a slider or placed the buttons: the touch controls follow at once and the choice is saved. */
   private setTouch(patch: Partial<TouchSettings>): void {
     void this.settings.update({ touch: patch });
     const next = this.settings.value.touch; // repaired: what is applied is what is saved
-    this.touchControls.setSize(next.scale);
     this.touchControls.setOpacity(next.opacity);
-    this.touchControls.setPlacement({ side: next.side, offsetX: next.offsetX, offsetY: next.offsetY });
+    this.touchControls.setScale(next.scale);
+    this.touchControls.setButtons(next.buttons);
     this.layoutUi();
   }
 

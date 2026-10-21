@@ -25,6 +25,8 @@ export interface PauseHost {
   profile(): ProfileData;
   /** Closes the menu and lets the game go on. */
   resume(): void;
+  /** Something has the screen over the menu (the editor of the touch buttons): asks it to give up. Answers whether there was one to give up. */
+  interrupt?(): boolean;
 }
 
 interface Entry {
@@ -144,6 +146,7 @@ export class PauseMenu {
 
   /** Hides the menu and every screen of it. */
   close(): void {
+    this.host.interrupt?.();
     this.hideScreens();
     this.current = null;
     this.root.dataset['open'] = '0';
@@ -154,9 +157,19 @@ export class PauseMenu {
    * One step back: from a screen to the list. Answers whether it took the step; from the list (or closed) it does nothing and answers false — the caller closes the menu then, which is resuming the game.
    */
   back(): boolean {
+    if (this.host.interrupt?.()) return true; // what has the screen over the menu gives way first
     if (this.current === null || this.current === 'main') return false;
     this.show('main');
     return true;
+  }
+
+  /**
+   * Steps out of the way while something else has the screen (the editor of the touch buttons): nothing is closed and nothing is forgotten, so that when it is done the menu is where it was — and,
+   * on the controls screen, shows what the editor kept.
+   */
+  setAside(aside: boolean): void {
+    this.root.dataset['aside'] = aside ? '1' : '0';
+    if (!aside && this.current === 'controls') this.screens.controls?.sync();
   }
 
   dispose(): void {

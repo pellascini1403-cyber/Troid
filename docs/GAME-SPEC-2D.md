@@ -252,13 +252,13 @@ El móvil es plataforma prioritaria. **No hay joystick visible.** Se reparte as�
 │ [carta] ▮▮▮▮▮ vida                                                            │
 │         ▬▬▬▬▬▬▬ magia                          (HUD, pointer-events: none)     │
 │         ⬡ ⬡ ⬡ botellas (tocables)                                  ◌ botella  │
-│                                                              (chip contextual) │
-│   ZONA DE MOVIMIENTO                              ┌────────┐                   │
-│   (izquierda, ~46 % del ancho,                    │ Habil. │      ┌──────┐     │
-│    INVISIBLE; todo el alto)                       └────────┘      │Ataque│     │
-│                                              ┌──────┐             └──────┘     │
-│                                              │ Dash │                          │
-│                                              └──────┘                          │
+│                                                                  (chip, sobre  │
+│   ZONA DE MOVIMIENTO                                              el Ataque)   │
+│   (izquierda, ~46 % del ancho,                                   ┌────────┐   │
+│    INVISIBLE; todo el alto)                            ⬡ Magia   │ Ataque │   │
+│                                                    ┌────────┐    └────────┘   │
+│                                                    │  Dash  │                  │
+│                                                    └────────┘                  │
 └───────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -313,20 +313,25 @@ Ejemplo (844×390, 1 dp = 1 px): toca en (120, 300) · arrastra a (176, 300) →
 - **Agacharse:** arrastrar el dedo **hacia abajo**. `move.y = ay` negativo; la simulación entra en agachado con `move.y ≤ −0.6` (≈ 26 dp) y sale con `≥ −0.4` (§6).
 - **Atravesar plataforma de un solo sentido:** un *flick* hacia abajo (≥ 28 dp en ≤ 100 ms) emite `dropPressed`. Solo tiene efecto sobre una plataforma *one-way*; en cualquier otro caso se ignora.
 
-#### 4.3.4 Botones de la derecha (los únicos fijos)
+#### 4.3.4 Botones de combate (los únicos fijos)
 
-Solo **Ataque**, **Dash** y **Habilidad**. Sin botón de salto ni de interacción ni de botella. Cada botón captura **su propio puntero** (`pointerdown` activa en el acto; arrastrar fuera no cancela hasta soltar).
+Solo **Ataque** (cuerpo a cuerpo), **Dash** y **Magia** (ataque a distancia). Sin botón de salto ni de interacción ni de botella. Cada botón captura **su propio puntero** (`pointerdown` activa en el acto; arrastrar fuera no cancela hasta soltar) y **es una fuente más de la misma acción** que la tecla o el botón del mando (`attack`, `dash`, `ability`): no tiene reglas propias.
 
-| Control | Centro desde la esquina inferior derecha segura (dx, dy) | Diámetro visible | Zona táctil |
+**Su aspecto son los PNG del artista** (`src/ui/touch/buttons/`, byte a byte los entregados; ver su README): una placa hexagonal blanca, medio transparente, con el glifo recortado. Se muestran con un `<img>` escalado **solo en proporción**; el estado «pulsado» es un 7 % menos de tamaño y el «no disponible» un 45 % de opacidad. No hay nada dibujado encima ni debajo.
+
+Disposición **por defecto** (medida sobre la referencia de 844 × 390; centro desde la esquina inferior derecha **segura**, en dp, a la escala de esa pantalla):
+
+| Control | Centro (dx, dy) | Diámetro de la placa | Existe cuando |
 |---|---|---|---|
-| Ataque | (−96, −96) | 88 | 104 |
-| Dash | (−196, −60) | 68 | 84 |
-| Habilidad | (−184, −164) | 68 | 84 |
-| Chip de botella (contextual) | (−64, −196) | 52 | 64 |
+| Ataque | (−65, −100) | 70 | siempre |
+| Dash | (−166, −63) | 70 | el héroe tiene la habilidad `dash` (§8) |
+| Magia | (−126, −109) | 31 | hay una carta equipada (§10) |
+| Chip de botella (contextual) | cuelga **sobre el Ataque**, a 16 dp | 52 (zona táctil +6 dp) | hay una botella lista y sirve ahora |
 
-Comprobado por cálculo ✅: no hay solapes entre zonas táctiles (hueco mínimo 12 dp, entre Ataque y Dash) y los huecos visibles son ≥ 28 dp. Disposición **provisional**: se valida en dispositivo.
-> **Implementado en el Prompt 5** (S18) y **ampliado en el Prompt 6** (S30, S31): el tamaño (**80–140 %**), la opacidad (**30–100 %**), el **lado** (derecha / izquierda: el bloque se espeja y la zona de movimiento pasa al otro lado) y la **posición** (hacia dentro hasta 120 dp y hacia arriba hasta 90 dp, solo hasta donde la ventana lo permite) son ajustables en el menú de pausa, se aplican al instante y se guardan (ajustes versión 2). **Qué cede ante qué (S31):** la posición y el tamaño son una **preferencia**; la ventana decide lo que cabe: los botones nunca salen del área segura, nunca se pisan, nunca llegan al HUD (si lo pedido no cabe, el tamaño baja a lo mayor que sí cabe, con un suelo de escala 0.72 en el que cada zona táctil sigue midiendo ≥ 44 px) y la zona de movimiento conserva ≥ 25 % del ancho útil. A la derecha (el diseño) el tamaño pedido se respeta en todo móvil y tableta; a la izquierda puede ceder (el botón de botella, arriba del bloque, queda bajo el HUD al espejarse). Todo esto está **verificado por geometría y con Chromium, no en un dispositivo**: ver [MOBILE-CALIBRATION](MOBILE-CALIBRATION.md).
-**Habilidad** ejecuta la carta equipada (§10); si todavía no hay carta, el botón **no se dibuja** (no hay controles sobrantes).
+La jerarquía es la de la referencia: **Ataque y Dash grandes, Magia pequeña** entre los dos y por encima. La zona táctil de cada botón es su placa más un margen de hasta 8 dp, **nunca menor que un dedo (44 px)**, y **nunca se solapa** con la de otro.
+
+> **Implementado en el Prompt 15** ([PROMPT15-LOG](PROMPT15-LOG.md)). **El jugador pone cada botón donde quiere**: Pausa → Controles → «Botones táctiles» → *Editar disposición*, un modo propio donde **arrastrar un botón lo mueve y no dispara nada** (la capa real se aparta; ninguno de los dedos llega a `TouchSource`). Se elige el **lugar** de cada botón (una fracción del área segura), su **tamaño** (70 – 150 %) y, aparte, el tamaño de todos (80 – 140 %) y su opacidad (30 – 100 %); hay *Invertir lados* (para la otra mano), *Restablecer* (vuelve a la referencia), *Guardar* y *Cancelar* (nada se guarda hasta Guardar), y una vista previa en Configuración. Se guarda en los ajustes (versión 4) y persiste entre recargas, zonas y partidas. **Qué cede ante qué:** lo elegido es una **preferencia**; la ventana decide lo que cabe: un botón se queda en el **lugar libre más cercano** al pedido —nunca fuera del área segura, nunca sobre el HUD, el botón de pausa ni la sala de la barra del jefe, nunca sobre otro botón—; si todo lo pedido no cabe cede **primero el tamaño** (hasta un suelo de 0.72, donde cada zona táctil sigue midiendo ≥ 44 px) y luego, de una en una y por este orden, la sala de la barra del jefe, el botón de pausa, el HUD y la separación entre botones. La zona de movimiento va en el lado contrario al de los botones (30 – 46 % del ancho útil) y cede ante ellos. Todo esto está **verificado por geometría y con Chromium, no en un dispositivo**: ver [MOBILE-CALIBRATION](MOBILE-CALIBRATION.md). *(Antes del Prompt 15 había un solo bloque que se movía entero —lado y dos desplazamientos— y otros tamaños; ajustes versión 2 y 3.)*
+**Magia** ejecuta la carta equipada (§10); si todavía no hay carta, el botón **no se dibuja** (no hay controles sobrantes), y mientras no hay magia para ella o se recarga se dibuja **apagado** (sigue siendo tocable: la decisión es del juego). **Dash** ejecuta el dash con sus condiciones reales (§8): sin la habilidad el botón **no se dibuja**, y mientras recarga se dibuja apagado.
 
 #### 4.3.5 Botellas — solución táctil (DC-26)
 

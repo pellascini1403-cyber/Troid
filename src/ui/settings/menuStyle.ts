@@ -28,12 +28,12 @@ function menuCss(): string {
 .troid-settings .settings-note { font-size:0.74rem; line-height:1.35; opacity:0.62; margin:6px 0 0; }
 .troid-settings .settings-note[data-tone="warn"] { color:${violet}; opacity:0.95; }
 .troid-settings .settings-row { display:flex; gap:8px; }
-.troid-settings .settings-button { flex:1; min-height:44px; box-sizing:border-box; font:inherit; font-size:1rem; color:${white}; background:${rgba(PALETTE.uiPanel, 0.9)}; border:1px solid ${rgba(PALETTE.energyCore, 0.3)}; border-radius:8px; cursor:pointer; padding:0 12px; }
-.troid-settings .settings-button[aria-pressed="true"] { border-color:${glow}; box-shadow:0 0 10px ${rgba(PALETTE.energyGlow, 0.5)}; color:${glow}; }
-.troid-settings .settings-button:focus-visible, .troid-settings .settings-range:focus-visible { outline:2px solid ${glow}; outline-offset:2px; }
+.troid-settings .settings-button, .troid-touch-editor .settings-button { flex:1; min-height:44px; box-sizing:border-box; font:inherit; font-size:1rem; color:${white}; background:${rgba(PALETTE.uiPanel, 0.9)}; border:1px solid ${rgba(PALETTE.energyCore, 0.3)}; border-radius:8px; cursor:pointer; padding:0 12px; }
+.troid-settings .settings-button[aria-pressed="true"], .troid-touch-editor .settings-button[aria-pressed="true"] { border-color:${glow}; box-shadow:0 0 10px ${rgba(PALETTE.energyGlow, 0.5)}; color:${glow}; }
+.troid-settings .settings-button:focus-visible, .troid-settings .settings-range:focus-visible, .troid-touch-editor .settings-button:focus-visible, .troid-touch-editor .settings-range:focus-visible { outline:2px solid ${glow}; outline-offset:2px; }
 .troid-settings .settings-slider { display:grid; grid-template-columns:7.5rem 1fr 2.6rem; align-items:center; gap:10px; min-height:44px; }
 .troid-settings .settings-slider output { font-size:0.82rem; opacity:0.75; text-align:right; font-variant-numeric:tabular-nums; }
-.troid-settings .settings-range { width:100%; accent-color:${core}; }
+.troid-settings .settings-range, .troid-touch-editor .settings-range { width:100%; accent-color:${core}; }
 .troid-settings .settings-keys { display:grid; grid-template-columns:1fr auto; gap:6px 10px; align-items:center; }
 .troid-settings .settings-keys .settings-keyname { font-size:0.95rem; }
 .troid-settings .settings-key { min-width:7.5rem; flex:none; font-variant-numeric:tabular-nums; }
@@ -97,6 +97,37 @@ function menuCss(): string {
 .troid-settings .saves-status[data-tone="warn"] { color:${violet}; }
 .troid-settings .saves-foot { margin-top:14px; }
 .troid-settings .saves-foot .settings-button { margin-top:8px; }
+
+/* ---- the touch buttons: a small picture of the screen in the settings, and the editor that has the screen over the game ---- */
+.troid-settings .tp-screen { position:relative; margin:4px auto 10px; box-sizing:border-box; overflow:hidden; user-select:none; -webkit-user-select:none; border:1px solid ${rim}; border-radius:4px; background:linear-gradient(180deg, ${rgba(PALETTE.worldVoid, 0.96)}, ${rgba(PALETTE.uiPanel, 0.9)}); }
+.troid-settings .tp-screen[hidden] { display:none; }
+.troid-settings .tp-zone { position:absolute; box-sizing:border-box; border:1px dashed ${rgba(PALETTE.energyCore, 0.4)}; background:${rgba(PALETTE.energyCore, 0.06)}; }
+.troid-settings .tp-keep { position:absolute; box-sizing:border-box; border:1px dashed ${rgba(PALETTE.violetCore, 0.45)}; background:${rgba(PALETTE.violetCore, 0.1)}; border-radius:2px; }
+.troid-settings .tp-pause { border-radius:50%; }
+.troid-settings .tp-button { position:absolute; transform:translate(-50%, -50%); pointer-events:none; }
+.troid-settings .settings-touch-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+.troid-settings .settings-touch-actions .settings-button { flex:1 1 auto; min-height:40px; }
+.troid-pausemenu[data-aside="1"] { display:none; }
+.troid-touch-editor { position:absolute; inset:0; z-index:46; display:none; pointer-events:auto; touch-action:none; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:${white}; user-select:none; -webkit-user-select:none; }
+.troid-touch-editor[data-open="1"] { display:block; }
+.troid-touch-editor .te-scrim { position:absolute; inset:0; background:${rgba(PALETTE.worldVoid, 0.4)}; }
+.troid-touch-editor .te-zone { position:absolute; box-sizing:border-box; display:flex; align-items:center; justify-content:center; border:1px dashed ${rgba(PALETTE.energyCore, 0.55)}; background:${rgba(PALETTE.energyCore, 0.07)}; pointer-events:none; }
+.troid-touch-editor .te-zone-label { font-size:0.74rem; letter-spacing:0.16em; text-transform:uppercase; opacity:0.6; text-align:center; padding:0 8px; }
+.troid-touch-editor .te-keep { position:absolute; box-sizing:border-box; border:1px dashed ${rgba(PALETTE.violetCore, 0.6)}; border-radius:4px; background:repeating-linear-gradient(135deg, ${rgba(PALETTE.violetCore, 0.2)} 0 6px, transparent 6px 12px); pointer-events:none; }
+.troid-touch-editor .te-button { position:absolute; display:flex; align-items:center; justify-content:center; box-sizing:border-box; border-radius:50%; touch-action:none; cursor:grab; outline:none; -webkit-tap-highlight-color:transparent; }
+.troid-touch-editor .te-button[data-selected="1"] { box-shadow:0 0 0 2px ${rgba(PALETTE.energyCore, 0.95)}, 0 0 18px ${rgba(PALETTE.energyGlow, 0.45)}; }
+.troid-touch-editor .te-button:focus-visible { box-shadow:0 0 0 3px ${white}; }
+.troid-touch-editor .te-button[data-dragging="1"] { cursor:grabbing; }
+.troid-touch-editor .te-panel { position:absolute; display:flex; flex-direction:column; gap:5px; box-sizing:border-box; padding:9px 12px 10px; border:1px solid ${rim}; border-radius:6px; background:${panel}; box-shadow:0 0 24px ${rgba(PALETTE.worldVoid, 0.7)}; }
+.troid-touch-editor .te-title { margin:0; font-size:0.95rem; font-weight:300; letter-spacing:0.2em; text-transform:uppercase; text-shadow:0 0 12px ${core}88; }
+.troid-touch-editor .te-hint { margin:0; font-size:0.8rem; line-height:1.35; opacity:0.75; }
+.troid-touch-editor .te-reserved { font-size:0.72rem; opacity:0.55; }
+.troid-touch-editor .te-size { display:grid; grid-template-columns:auto 1fr 3.2em; align-items:center; gap:8px; font-size:0.85rem; min-height:34px; }
+.troid-touch-editor .te-size output { text-align:right; font-variant-numeric:tabular-nums; }
+.troid-touch-editor .te-actions { display:flex; flex-wrap:wrap; gap:6px; }
+.troid-touch-editor .te-actions .settings-button { flex:1 1 auto; min-height:38px; font-size:0.86rem; padding:0 10px; }
+.troid-touch-editor .te-save { border-color:${glow}; box-shadow:0 0 10px ${rgba(PALETTE.energyGlow, 0.4)}; }
+@media (max-height:430px) { .troid-touch-editor .te-panel { gap:3px; padding:6px 10px 8px; } .troid-touch-editor .te-reserved { display:none; } .troid-touch-editor .te-actions .settings-button { min-height:34px; } }
 
 /* ---- the profile ---- */
 .troid-settings .profile-grid { display:grid; grid-template-columns:1fr auto; gap:9px 16px; align-items:baseline; margin:0 0 12px; }

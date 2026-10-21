@@ -12,6 +12,7 @@ import { SaveSlots, slotKey } from '@/save/SaveSlots';
 import { SettingsStore } from '@/save/SettingsStore';
 import { MemoryStorage } from '@/save/StorageAdapter';
 import type { PauseMenu } from '@/ui/settings/PauseMenu';
+import { computeTouchLayout, NO_INSETS } from '@/ui/touch/layout';
 import { driver } from '../helpers/sim';
 
 /**
@@ -48,6 +49,8 @@ describe('the pause menu over the real game', () => {
   let resumed: number;
   let notices: SaveNotice[];
   let platform: ReturnType<typeof fakePlatform>;
+  /** What the game was asked about the touch layer while the editor of the buttons had the screen (it steps aside and comes back). */
+  let suspended: boolean[];
   const tr = createTranslator(CATALOGS, 'es');
 
   async function build(over: { playground?: boolean; touch?: boolean; keyboard?: boolean } = {}): Promise<void> {
@@ -64,6 +67,7 @@ describe('the pause menu over the real game', () => {
     saves = over.playground ? null : new GameSaves({ slots, settings, slot: 1, stats, durable: true, platform, notify: (n) => void notices.push(n) });
     saves?.attach(d.session);
     changes = [];
+    suspended = [];
     resumed = 0;
     const deps: MenuDeps = {
       parent,
@@ -74,13 +78,19 @@ describe('the pause menu over the real game', () => {
       saves,
       bindings: () => applyKeyMap(DEFAULT_BINDINGS, settings.value.keys),
       touchAvailable: () => over.touch ?? false,
+      touchWindow: () => ({ width: 844, height: 390, insets: NO_INSETS, hudScale: 1 }),
+      touchPreview: () => (over.touch ? { width: 844, height: 390, layout: computeTouchLayout(844, 390, NO_INSETS, { scale: settings.value.touch.scale, buttons: settings.value.touch.buttons }) } : null),
+      suspendTouch: (s) => void suspended.push(s),
       keyboardInUse: () => over.keyboard ?? true,
       change: {
         language: (l) => void changes.push(`language:${l}`),
         volume: (v) => void changes.push(`volume:${v}`),
         quality: (qq) => void changes.push(`quality:${qq}`),
         keys: (k) => void changes.push(`keys:${JSON.stringify(k)}`),
-        touch: (p) => void changes.push(`touch:${JSON.stringify(p)}`),
+        touch: (p) => {
+          changes.push(`touch:${JSON.stringify(p)}`);
+          void settings.update({ touch: p }); // (the game applies and saves it: here the real store takes it)
+        },
         accessibility: (p) => void changes.push(`access:${JSON.stringify(p)}`),
       },
       resume: () => void resumed++,
@@ -119,7 +129,7 @@ describe('the pause menu over the real game', () => {
     saves = new GameSaves({ slots, settings, slot: 1, stats, durable: true, platform, notify: () => undefined });
     menu = createPauseMenu({
       parent, translator: tr, settings, session: d.session, stats, saves,
-      bindings: () => DEFAULT_BINDINGS, touchAvailable: () => false, keyboardInUse: () => true,
+      bindings: () => DEFAULT_BINDINGS, touchAvailable: () => false, touchWindow: () => ({ width: 844, height: 390, insets: NO_INSETS, hudScale: 1 }), touchPreview: () => null, suspendTouch: () => undefined, keyboardInUse: () => true,
       change: { language: () => undefined, volume: () => undefined, quality: () => undefined, keys: () => undefined, touch: () => undefined, accessibility: () => undefined },
       resume: () => undefined,
     });
@@ -340,6 +350,98 @@ describe('the pause menu over the real game', () => {
       expect(q(parent, 'settings-controls').style.display).toBe('none');
       expect(q(parent, 'settings-touch').style.display).toBe('');
       expect(q(parent, 'settings-controls-body').firstElementChild?.getAttribute('data-testid')).toBe('settings-reference-touch');
+    });
+
+    describe('the editor of the touch buttons, from the controls screen (docs/PROMPT15-LOG.md)', () => {
+      const pointer = (type: string, id: number, x: number, y: number): PointerEvent => new PointerEvent(type, { pointerId: id, clientX: x, clientY: y, bubbles: true, cancelable: true, pointerType: 'touch' });
+      const openEditor = async (): Promise<void> => {
+        await build({ touch: true, keyboard: false });
+        menu.open();
+        q(parent, 'pause-controls').click();
+        q(parent, 'settings-touch-edit').click();
+      };
+      const dragAttack = (x: number, y: number): void => {
+        const attack = q(parent, 'touch-editor-attack');
+        const from = { x: Number.parseFloat(attack.style.left) + Number.parseFloat(attack.style.width) / 2, y: Number.parseFloat(attack.style.top) + Number.parseFloat(attack.style.height) / 2 };
+        attack.dispatchEvent(pointer('pointerdown', 1, from.x, from.y));
+        attack.dispatchEvent(pointer('pointermove', 1, x, y));
+        attack.dispatchEvent(pointer('pointerup', 1, x, y));
+      };
+
+      it('"Edit layout" gives the screen to the editor: the menu steps aside (nothing closed, the game still stopped), the game\'s touch layer steps aside, and the three buttons are the editor\'s', async () => {
+        await openEditor();
+        expect(q(parent, 'touch-editor').dataset['open']).toBe('1');
+        expect(q(parent, 'pause-menu').dataset['aside']).toBe('1');
+        expect(getComputedStyle(q(parent, 'pause-menu')).display).toBe('none');
+        expect(menu.isOpen).toBe(true);
+        expect(menu.screen).toBe('controls');
+        expect(suspended).toEqual([true]);
+        expect(resumed).toBe(0);
+        for (const id of ['attack', 'dash', 'ability']) expect(q(parent, `touch-editor-${id}`)).not.toBeNull();
+      });
+
+      it('Save reports the places to the game as any other change of the touch settings, and the menu comes back on the controls screen showing them', async () => {
+        await openEditor();
+        dragAttack(300, 200);
+        q(parent, 'touch-editor-save').click();
+        expect(changes).toHaveLength(1);
+        const patch = JSON.parse(changes[0]!.slice('touch:'.length)) as { buttons: { attack: { x: number; y: number; scale: number } } };
+        expect(Object.keys(patch)).toEqual(['buttons']);
+        expect(Object.keys(patch.buttons)).toEqual(['attack']);
+        expect(patch.buttons.attack.x).toBeCloseTo(300 / 844, 3);
+        expect(suspended).toEqual([true, false]);
+        expect(q(parent, 'touch-editor').dataset['open']).toBe('0');
+        expect(q(parent, 'pause-menu').dataset['aside']).toBe('0');
+        expect(menu.screen).toBe('controls');
+        // the small picture in the settings now shows the place the button was left at
+        expect(Number.parseFloat(q(parent, 'settings-touch-preview-attack').style.left)).toBeLessThan(300);
+        expect(document.activeElement).toBe(q(parent, 'settings-touch-edit'));
+      });
+
+      it('Cancel keeps nothing; and the pause key (the menu\'s "back") gives the editor up first — the menu is still there, and it takes a second press to leave it', async () => {
+        await openEditor();
+        dragAttack(300, 200);
+        expect(menu.back()).toBe(true); // what the game does with the pause key while the menu is open
+        expect(changes).toEqual([]);
+        expect(suspended).toEqual([true, false]);
+        expect(q(parent, 'touch-editor').dataset['open']).toBe('0');
+        expect(menu.screen).toBe('controls');
+        expect(menu.back()).toBe(true); // now it is the controls screen that goes back to the list
+        expect(menu.screen).toBe('main');
+        expect(menu.back()).toBe(false); // …and from the list the game closes the menu
+      });
+
+      it('closing the menu while the editor has the screen (the game asks to) gives the editor up and leaves nothing hidden', async () => {
+        await openEditor();
+        dragAttack(300, 200);
+        menu.close();
+        expect(changes).toEqual([]);
+        expect(suspended).toEqual([true, false]);
+        expect(menu.isOpen).toBe(false);
+        expect(q(parent, 'touch-editor').dataset['open']).toBe('0');
+      });
+
+      it('what was saved is what the settings hold, and the next time the editor opens it starts from it; "restore" in the settings puts the design back', async () => {
+        await openEditor();
+        dragAttack(300, 200);
+        q(parent, 'touch-editor-save').click();
+        await settings.flush();
+        expect(Object.keys(settings.value.touch.buttons)).toEqual(['attack']);
+        q(parent, 'settings-touch-edit').click();
+        expect(Number.parseFloat(q(parent, 'touch-editor-attack').style.left) + Number.parseFloat(q(parent, 'touch-editor-attack').style.width) / 2).toBeCloseTo(300, 0);
+        q(parent, 'touch-editor-cancel').click();
+        q(parent, 'settings-touch-reset').click();
+        expect(changes.at(-1)).toBe('touch:{"scale":1,"opacity":1,"buttons":{}}');
+        await settings.flush();
+        expect(settings.value.touch.buttons).toEqual({});
+      });
+
+      it('a desktop with a keyboard has no touch section, so no way into the editor', async () => {
+        await build({ touch: false, keyboard: true });
+        menu.open();
+        q(parent, 'pause-controls').click();
+        expect(q(parent, 'settings-touch').style.display).toBe('none');
+      });
     });
 
     it('Continue is the game\'s own resume', async () => {

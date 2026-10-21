@@ -9,6 +9,7 @@ import type { QualitySetting } from '@/presentation/viewport';
 import { ensureMenuStyle } from './menuStyle';
 import { ScrollHint } from './scrollHint';
 import { HUD_SCALE_LIMITS, TOUCH_LIMITS, VOLUME_LIMITS, type AccessibilitySettings, type TouchSettings } from '@/save/SettingsData';
+import { TouchPreview, type TouchPreviewData } from '../touch/TouchPreview';
 
 /** What the menu needs from the game, and nothing more: it reads values, reports a choice, and asks to close. */
 export interface SettingsMenuHost {
@@ -27,6 +28,10 @@ export interface SettingsMenuHost {
   /** The whole map of keys (the menu works out the swaps and the refusals; the game applies and saves what it is given). */
   setKeys(keys: KeyMap): void;
   setTouch(patch: Partial<TouchSettings>): void;
+  /** The layout of the touch buttons as the game has it now (for the small picture of it), `null` where there is no touch layer. */
+  touchPreview(): TouchPreviewData | null;
+  /** Opens the editor where the player puts each button where they like: the menu steps aside until it is done. */
+  editTouch(): void;
   setAccessibility(patch: Partial<AccessibilitySettings>): void;
   /** Leaves this screen: the whole menu when it is the only one, back to the list of the pause menu when it is one of its screens. */
   close(): void;
@@ -69,8 +74,8 @@ const percent = (level: number): string => String(Math.round(level * 100)) + '%'
 /** "Attack: F": the name of an action and what it is on now, for the screen reader (both parts come from the translator and the key labels). */
 const named = (name: string, value: string): string => name + ': ' + value;
 
-/** What the touch section goes back to (the design as shipped). */
-const TOUCH_DEFAULTS: Readonly<TouchSettings> = Object.freeze({ scale: 1, opacity: 1, side: 'right', offsetX: 0, offsetY: 0 });
+/** What the touch section goes back to (the design as shipped: every button where the reference has it). */
+const TOUCH_DEFAULTS: Readonly<TouchSettings> = Object.freeze({ scale: 1, opacity: 1, buttons: Object.freeze({}) });
 
 /**
  * The name of a language in ITSELF ("español", "English"), made by the platform: language names are not translations (they are the
@@ -89,7 +94,7 @@ export function languageName(code: string): string {
 /**
  * The pause / settings menu (DOM, docs/GAME-SPEC-2D.md §17 "menú de pausa mínimo"; docs/PROMPT6-LOG.md S30): the language (each in its own name), the
  * volume (prepared: there is no sound yet), the quality profile (Auto / Low / High), the keys of the main actions — where a keyboard exists — and,
- * where a touch layer exists, the size, opacity, side and position of the touch controls. It owns no text (every word is a translator key), keeps no
+ * where a touch layer exists, the size and opacity of the touch controls, a small picture of where their three buttons are, and the way into the editor where each one is placed. It owns no text (every word is a translator key), keeps no
  * state of its own (the host holds the settings; the menu reads them every time it opens) and decides nothing: it reports a choice, the game applies
  * it and saves it. It is a separate chunk: a player's first load does not carry it until the menu is asked for.
  *
@@ -104,7 +109,6 @@ export class SettingsMenu {
   private readonly labels = new Map<string, HTMLElement>();
   private readonly languageButtons = new Map<string, HTMLButtonElement>();
   private readonly qualityButtons = new Map<QualitySetting, HTMLButtonElement>();
-  private readonly sideButtons = new Map<TouchSettings['side'], HTMLButtonElement>();
   private readonly keyButtons = new Map<Remappable, HTMLButtonElement>();
   private readonly volume: HTMLInputElement;
   private readonly volumeValue: HTMLOutputElement;
@@ -113,8 +117,8 @@ export class SettingsMenu {
   private readonly touchSection: HTMLElement;
   private readonly size: HTMLInputElement;
   private readonly opacity: HTMLInputElement;
-  private readonly offsetX: HTMLInputElement;
-  private readonly offsetY: HTMLInputElement;
+  private readonly preview: TouchPreview;
+  private readonly editButton: HTMLButtonElement;
   private readonly resume: HTMLButtonElement;
   private readonly hint: ScrollHint;
   private readonly screen: SettingsScreen;
@@ -248,35 +252,29 @@ export class SettingsMenu {
     // ---- touch controls ----
     this.touchSection = el('div', 'settings-section', 'settings-touch');
     this.touchSection.appendChild(this.label(doc, 'settings.touch'));
-    this.size = this.slider(doc, el, this.touchSection, 'settings.touchSize', 'settings-touch-size', TOUCH_LIMITS.scale, (value) => host.setTouch({ scale: value })).input;
+    // a small picture of the screen with the three buttons where they are (the artist's PNGs, scaled down): what the editor changes, and what "restore" gives back
+    this.preview = new TouchPreview(doc);
+    this.touchSection.appendChild(this.preview.root);
+    // (the picture follows the size as the slider moves: the game has laid the buttons out again by the time the change is reported)
+    this.size = this.slider(doc, el, this.touchSection, 'settings.touchSize', 'settings-touch-size', TOUCH_LIMITS.scale, (value) => {
+      host.setTouch({ scale: value });
+      this.preview.update(host.touchPreview());
+    }).input;
     this.opacity = this.slider(doc, el, this.touchSection, 'settings.touchOpacity', 'settings-touch-opacity', TOUCH_LIMITS.opacity, (value) => host.setTouch({ opacity: value })).input;
-    const sideRow = el('div', 'settings-row', 'settings-touch-side');
-    sideRow.style.marginTop = '6px';
-    for (const side of ['right', 'left'] as const) {
-      const b = el('button', 'settings-button', `settings-touch-side-${side}`);
-      b.type = 'button';
-      b.dataset['side'] = side;
-      this.labels.set(side === 'right' ? 'settings.sideRight' : 'settings.sideLeft', b);
-      listen(this.store, b, 'click', () => {
-        host.setTouch({ side });
-        this.refresh();
-      });
-      this.sideButtons.set(side, b);
-      sideRow.appendChild(b);
-    }
-    const sideLabel = this.label(doc, 'settings.touchSide');
-    sideLabel.style.marginTop = '8px';
-    this.touchSection.append(sideLabel, sideRow);
-    this.offsetX = this.slider(doc, el, this.touchSection, 'settings.touchOffsetX', 'settings-touch-offset-x', TOUCH_LIMITS.offsetX, (value) => host.setTouch({ offsetX: value })).input;
-    this.offsetY = this.slider(doc, el, this.touchSection, 'settings.touchOffsetY', 'settings-touch-offset-y', TOUCH_LIMITS.offsetY, (value) => host.setTouch({ offsetY: value })).input;
-    const resetTouch = el('button', 'settings-button settings-small', 'settings-touch-reset');
+    const touchActions = el('div', 'settings-touch-actions');
+    this.editButton = el('button', 'settings-button', 'settings-touch-edit');
+    this.editButton.type = 'button';
+    this.labels.set('settings.touchEdit', this.editButton);
+    listen(this.store, this.editButton, 'click', () => host.editTouch());
+    const resetTouch = el('button', 'settings-button', 'settings-touch-reset');
     resetTouch.type = 'button';
     this.labels.set('settings.resetTouch', resetTouch);
     listen(this.store, resetTouch, 'click', () => {
       host.setTouch({ ...TOUCH_DEFAULTS });
       this.refresh();
     });
-    this.touchSection.appendChild(resetTouch);
+    touchActions.append(this.editButton, resetTouch);
+    this.touchSection.append(touchActions, this.note(doc, 'settings.touchEditNote', 'settings-touch-note'));
 
     // what each control does, as the bindings in force have it (the controls screen only: it is a list to read, not a setting)
     const list = (device: 'keyboard' | 'gamepad' | 'touch'): HTMLElement => el('div', 'settings-section settings-reference', `settings-reference-${device}`);
@@ -363,13 +361,11 @@ export class SettingsMenu {
     this.touchSection.style.display = this.host.touchAvailable() ? '' : 'none';
     this.size.value = String(cur.touch.scale);
     this.opacity.value = String(cur.touch.opacity);
-    for (const [side, b] of this.sideButtons) b.setAttribute('aria-pressed', side === cur.touch.side ? 'true' : 'false');
-    this.offsetX.value = String(cur.touch.offsetX);
-    this.offsetY.value = String(cur.touch.offsetY);
+    this.preview.update(this.host.touchPreview());
     this.setSwitch(this.flashes, cur.accessibility.reduceFlashes);
     this.setSwitch(this.shake, cur.accessibility.reduceShake);
     this.hudSize.value = String(cur.accessibility.hudScale);
-    for (const input of [this.size, this.opacity, this.offsetX, this.offsetY, this.hudSize]) {
+    for (const input of [this.size, this.opacity, this.hudSize]) {
       const out = this.outputs.get(input);
       if (out) out.textContent = percent(Number(input.value));
     }
@@ -587,5 +583,12 @@ export class SettingsMenu {
     this.root.setAttribute('aria-label', title);
     this.resume.textContent = t.t(this.screen === 'all' ? 'settings.resume' : 'settings.back');
     for (const [key, node] of this.labels) node.textContent = t.t(key);
+    this.preview.root.setAttribute('aria-label', t.t('settings.touchPreview'));
+  }
+
+  /** Reads the settings again and draws them (the editor has just closed: the sliders and the small picture follow what it kept) and puts the focus back on the button that opened it. */
+  sync(): void {
+    this.refresh();
+    this.editButton.focus({ preventScroll: true });
   }
 }

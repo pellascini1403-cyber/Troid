@@ -281,12 +281,13 @@ export const settings: Scenario = {
     await enterScreen(page, 'settings');
     assert.equal(await text(page, 'settings-volume-section').then((t) => t.includes('Volumen')), true);
     await setRange(page, 'settings-volume', 0.5);
-    const upgraded = await savedWhere(page, (f) => f['version'] === 3, 'the file is version 3 from the first change (1 → 2 → 3)');
+    const upgraded = await savedWhere(page, (f) => f['version'] === 4, 'the file is version 4 from the first change (1 → 2 → 3 → 4)');
     assert.equal(upgraded['slot'], 1, 'the game it was playing is the first, where every save made so far lives');
     assert.deepEqual(upgraded['accessibility'], { reduceFlashes: false, reduceShake: false, hudScale: 1 }, 'and no accessibility choice is on');
     assert.deepEqual(upgraded['volume'], { master: 0.5 });
     assert.equal(upgraded['language'], 'es');
     assert.deepEqual([upgraded['touch'].scale, upgraded['touch'].opacity], [1.2, 0.8], 'and what version 1 held is still in it');
+    assert.deepEqual(upgraded['touch'].buttons, {}, 'and no button was placed: each is where the design has it');
     await closeMenu(ctx, 'settings');
 
     // ================================================================================================ a damaged file is repaired, never fatal
@@ -310,9 +311,9 @@ export const settings: Scenario = {
 };
 
 /**
- * The touch controls' placement, on a touch screen with real touches: the side, how far in and up, the size and the opacity — in force at once (the
- * buttons and the movement zone are where the layout says), inside the screen and apart from each other, working (a tap on the button where it is now,
- * a drag in the zone where it is now), saved and back after a reload; and the keyboard's keys are not offered there.
+ * The touch controls in the settings, on a touch screen with real touches (docs/PROMPT15-LOG.md): the section of the controls screen — a small picture of where the three buttons are (the artist's
+ * PNGs), the size and the opacity, the way into the editor and the way back to the design — each in force at once, saved, and back after a reload; the editor reached from it (its own scenario, `touchEditor`,
+ * looks at it closely); and the keyboard's keys are not offered there.
  */
 async function settingsTouch(ctx: Ctx): Promise<void> {
   await ctx.open('touch=1', { width: 844, height: 390, dpr: 1, touch: true });
@@ -347,34 +348,42 @@ async function settingsTouch(ctx: Ctx): Promise<void> {
     'the touch controls, each a gesture or a button that exists',
   );
   assert.equal(await q(page, 'settings-reference-keyboard').locator('.settings-reference-rows').count(), 0, 'and no keyboard list: nobody here has seen a keyboard');
+  // no side and no offsets any more: the editor replaces them
+  for (const gone of ['settings-touch-side-right', 'settings-touch-side-left', 'settings-touch-offset-x', 'settings-touch-offset-y']) assert.equal(await q(page, gone).count(), 0, `${gone} is gone`);
+
+  // ================================================================================================ the small picture of the screen: the three PNGs, where the layout has them
+  await q(page, 'settings-touch').scrollIntoViewIfNeeded();
+  const preview = await box('settings-touch-preview');
+  assert.ok(preview.w > 100 && preview.h > 40, `the picture has a size (${preview.w}×${preview.h})`);
+  const previewLayout = async (): Promise<Record<string, { x: number; y: number; h: number }>> => {
+    const out: Record<string, { x: number; y: number; h: number }> = {};
+    for (const id of ['attack', 'dash', 'ability']) {
+      const b = await box(`settings-touch-preview-${id}`);
+      out[id] = { x: (b.cx - preview.x) / preview.w, y: (b.cy - preview.y) / preview.h, h: b.h / preview.h };
+    }
+    return out;
+  };
+  const picture = await previewLayout();
+  const real = (await page.evaluate('window.__troid.touch().layout')) as { attack: { cx: number; cy: number; visual: number }; dash: { cx: number; cy: number }; ability: { cx: number; cy: number } };
+  for (const id of ['attack', 'dash', 'ability'] as const) {
+    assert.ok(Math.abs(picture[id]!.x - real[id].cx / 844) < 0.01 && Math.abs(picture[id]!.y - real[id].cy / 390) < 0.01, `${id} is in the picture where it is on the screen (${JSON.stringify(picture[id])})`);
+  }
+  assert.ok(Math.abs(picture['attack']!.h - real.attack.visual / 390) < 0.01, 'at the same proportion');
+  const sources = await q(page, 'settings-touch-preview').locator('img').evaluateAll((imgs) => imgs.map((i) => (i as HTMLImageElement).currentSrc));
+  const gameSources = await page.locator('[data-testid^="touch-"] img').evaluateAll((imgs) => imgs.map((i) => (i as HTMLImageElement).currentSrc));
+  assert.deepEqual([...new Set(sources)].sort(), [...new Set(gameSources)].sort(), 'the picture shows the very files the game\'s buttons show');
   await ctx.shot('b-00-touch-controls');
-  assert.equal(await attr(page, 'settings-touch-side-right', 'aria-pressed'), 'true');
 
-  // ================================================================================================ the other hand: the buttons go left, the zone comes right
-  await q(page, 'settings-touch-side-left').click();
-  await frames(page, 2);
-  attack = await box('touch-attack');
-  assert.ok(attack.cx < 844 * 0.25, `Attack is on the left (${attack.cx})`);
-  l = await hooks();
-  assert.equal(l.side, 'left');
-  assert.ok(l.zone.x > 844 / 2 - 1 && Math.abs(l.zone.x + l.zone.w - 844) < 1, 'and the zone is on the right, to the edge');
-  assert.ok(Math.abs(attack.cy - designed.y) < 1, 'at the same height');
-  await ctx.shot('b-01-left');
-
-  // ================================================================================================ in and up, bigger and fainter
+  // ================================================================================================ bigger and fainter: in force at once
   const before = await box('touch-attack');
-  await setRange(page, 'settings-touch-offset-x', 1);
-  await setRange(page, 'settings-touch-offset-y', 1);
-  await frames(page, 2);
-  const moved = await box('touch-attack');
-  assert.ok(moved.cx > before.cx + 30, `moved in (${before.cx} → ${moved.cx})`);
-  assert.ok(moved.cy < before.cy - 20, `and up (${before.cy} → ${moved.cy})`);
   await setRange(page, 'settings-touch-size', 1.2);
   await setRange(page, 'settings-touch-opacity', 0.7);
   await frames(page, 2);
   const big = await box('touch-attack');
-  assert.ok(big.w > moved.w * 1.1, `bigger (${moved.w} → ${big.w})`);
+  assert.ok(big.w > before.w * 1.1, `bigger (${before.w} → ${big.w})`);
   assert.equal(await q(page, 'touch-layer').evaluate((e) => getComputedStyle(e).opacity), '0.7', 'fainter');
+  const bigPicture = await previewLayout();
+  assert.ok(bigPicture['attack']!.h > picture['attack']!.h * 1.1, `the small picture grows with the size slider (${picture['attack']!.h.toFixed(3)} → ${bigPicture['attack']!.h.toFixed(3)})`);
   // …and all of it inside the screen and apart
   const a = await box('touch-attack');
   const d = await box('touch-dash');
@@ -385,46 +394,59 @@ async function settingsTouch(ctx: Ctx): Promise<void> {
   const hud = await q(page, 'hud-block').boundingBox();
   assert.ok(hud, 'the HUD (its block: the card, the life, the magic and the bottles) is on screen');
   assert.ok(a.y >= hud.y + hud.height - 1 || a.x >= hud.x + hud.width, `and the buttons do not reach into the HUD (attack ${JSON.stringify(a)} · dash ${JSON.stringify(d)} · hud ${JSON.stringify(hud)})`);
-  await ctx.shot('b-02-left-in-and-up');
-  await closeMenu(ctx, 'controls');
 
-  // ================================================================================================ they work where they are now
+  // ================================================================================================ the way into the editor: a real finger on "Edit layout", a button dragged, Save
+  await q(page, 'settings-touch-edit').scrollIntoViewIfNeeded();
+  await q(page, 'settings-touch-edit').tap();
+  await page.waitForSelector('[data-testid="touch-editor"][data-open="1"]', { timeout: 15000 });
+  assert.equal(await q(page, 'pause-menu').evaluate((e) => getComputedStyle(e).display), 'none', 'the menu steps aside');
+  assert.equal(await q(page, 'touch-layer').evaluate((e) => getComputedStyle(e).visibility), 'hidden', 'and so does the touch layer of the game');
+  const editorAttack = await box('touch-editor-attack');
+  await screen.touch(1, editorAttack.cx, editorAttack.cy);
+  await screen.drag(1, -420, -90, 8, 16);
+  await screen.lift(1);
+  await frames(page, 2);
+  const moved = await box('touch-editor-attack');
+  assert.ok(moved.cx < editorAttack.cx - 300, `the finger took Attack across the screen (${editorAttack.cx} → ${moved.cx})`);
+  assert.equal(await page.evaluate('window.__troid.touch().active'), 0, 'and no finger owns a button of the game');
+  await q(page, 'touch-editor-save').tap();
+  await page.waitForSelector('[data-testid="touch-editor"][data-open="0"]', { state: 'attached', timeout: 15000 });
+  assert.equal(await q(page, 'pause-menu').getAttribute('data-aside'), '0', 'the menu is back');
+  const file = await savedWhere(page, (f) => f['version'] === 4 && f['touch']?.buttons?.attack !== undefined && f['touch']?.scale === 1.2, 'the place was saved');
+  assert.deepEqual(Object.keys(file['touch'].buttons), ['attack'], 'only the button that was moved');
+  assert.equal(file['touch'].opacity, 0.7);
+  assert.ok(Math.abs(file['touch'].buttons.attack.x * 844 - moved.cx) < 1.5, `at the place it was left (${file['touch'].buttons.attack.x * 844} ≈ ${moved.cx})`);
+  const afterSave = await previewLayout();
+  assert.ok(afterSave['attack']!.x < 0.5, `the small picture shows it (${afterSave['attack']!.x.toFixed(2)})`);
+  await ctx.shot('b-01-edited');
+  await closeMenu(ctx, 'controls');
+  const placed = await box('touch-attack');
+  assert.ok(Math.abs(placed.cx - moved.cx) < 1.5 && Math.abs(placed.cy - moved.cy) < 1.5, `the real button is where the editor left it (${moved.cx}, ${moved.cy}) → (${placed.cx}, ${placed.cy})`);
+
+  // ================================================================================================ it works where it is now
   await ctx.teleport(10, 0);
   await ctx.step(40);
-  const at = await box('touch-attack');
-  await screen.touch(1, at.cx, at.cy);
+  await screen.touch(1, placed.cx, placed.cy);
   await ctx.step(4);
   s = await ctx.state();
-  assert.ok(s.combat?.attack !== null, 'a finger on Attack, on the left now, attacks');
+  assert.ok(s.combat?.attack !== null, 'a finger on Attack, where it is now, attacks');
   await screen.lift(1);
   await ctx.step(60);
-  const z = await hooks();
-  const zx = z.zone.x + z.zone.w / 2;
-  await screen.touch(2, zx, 300);
-  await screen.drag(2, 70, 0, 4, 8); // a firm drag to the right, in the zone on the right
-  await ctx.step(40);
-  s = await ctx.state();
-  assert.ok(s.vx > 5, `a drag in the zone, now on the right, runs (${s.vx})`);
-  await screen.lift(2);
-  await ctx.step(40);
 
   // ================================================================================================ saved, and back after a reload
-  const file = await savedWhere(page, (f) => f['touch']?.side === 'left' && f['touch']?.offsetX === 1 && f['touch']?.scale === 1.2, 'the placement was saved');
-  assert.deepEqual(file['touch'], { scale: 1.2, opacity: 0.7, side: 'left', offsetX: 1, offsetY: 1 });
   await page.reload();
   await ready(page);
   const again = await box('touch-attack');
-  assert.ok(Math.abs(again.cx - big.cx) < 1 && Math.abs(again.cy - big.cy) < 1, `the buttons are where they were left (${big.cx}, ${big.cy}) → (${again.cx}, ${again.cy})`);
+  assert.ok(Math.abs(again.cx - placed.cx) < 1 && Math.abs(again.cy - placed.cy) < 1, `the buttons are where they were left (${placed.cx}, ${placed.cy}) → (${again.cx}, ${again.cy})`);
   assert.equal(await q(page, 'touch-layer').evaluate((e) => getComputedStyle(e).opacity), '0.7');
-  assert.equal((await hooks()).side, 'left');
 
   // ================================================================================================ the design again, in one click
   await openScreen(page, 'controls');
-  assert.equal(await attr(page, 'settings-touch-side-left', 'aria-pressed'), 'true', 'the menu shows the side that was saved');
+  await q(page, 'settings-touch-reset').scrollIntoViewIfNeeded();
   await q(page, 'settings-touch-reset').click();
   await frames(page, 2);
   const back = await box('touch-attack');
   assert.ok(Math.abs(back.cx - designed.x) < 1 && Math.abs(back.cy - designed.y) < 1, `back at the design (${designed.x}, ${designed.y}) → (${back.cx}, ${back.cy})`);
   assert.equal(await q(page, 'touch-layer').evaluate((e) => getComputedStyle(e).opacity), '1');
-  await savedWhere(page, (f) => f['touch']?.side === 'right' && f['touch']?.offsetX === 0 && f['touch']?.scale === 1, 'the reset was saved');
+  await savedWhere(page, (f) => Object.keys(f['touch']?.buttons ?? { x: 1 }).length === 0 && f['touch']?.scale === 1, 'the reset was saved: no button placed, the designed size');
 }

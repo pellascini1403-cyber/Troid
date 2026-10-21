@@ -72,6 +72,24 @@ describe('pause button', () => {
     }
   });
 
+  it('a tap presses it even when the browser makes no click of it — a thumb is on Attack and the other presses Pause (two fingers on the screen: no click) — and a tap with its click is one press, not two', () => {
+    const pointer = (type: string, id: number): PointerEvent => new PointerEvent(type, { pointerId: id, clientX: 0, clientY: 0, bubbles: true, cancelable: true, pointerType: 'touch' });
+    host.dispatchEvent(pointer('pointerdown', 1)); // the first finger: somewhere else on the screen
+    button.root.dispatchEvent(pointer('pointerdown', 2));
+    button.root.dispatchEvent(pointer('pointerup', 2));
+    expect(presses).toBe(1);
+    button.root.dispatchEvent(pointer('pointerdown', 3));
+    button.root.dispatchEvent(pointer('pointerup', 3));
+    button.root.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); // …the click that does come after it
+    expect(presses).toBe(2);
+    // a touch that was cancelled, or that began somewhere else, is no press
+    button.root.dispatchEvent(pointer('pointerdown', 4));
+    button.root.dispatchEvent(pointer('pointercancel', 4));
+    button.root.dispatchEvent(pointer('pointerup', 4));
+    button.root.dispatchEvent(pointer('pointerup', 5));
+    expect(presses).toBe(2);
+  });
+
   it('a click presses it; it never takes the keyboard focus (a Space that jumps must not also click it)', () => {
     expect(button.root.tabIndex).toBe(-1);
     button.root.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));

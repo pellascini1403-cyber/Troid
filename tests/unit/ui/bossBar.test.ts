@@ -200,8 +200,8 @@ describe('BossBarView', () => {
     const first = box();
     expect(first.left + first.width / 2).toBeCloseTo(window.innerWidth / 2, 6);
     expect(first.top + first.height).toBeCloseTo(window.innerHeight - 18, 6);
-    // with the buttons of a phone moved all the way in, the bar leaves their area (they are all at the right)
-    const layout = computeTouchLayout(844, 390, NO_INSETS, 1.4, undefined, { side: 'right', offsetX: 1, offsetY: 0 });
+    // with the buttons of a phone big and moved in toward the middle, the bar leaves their area (they are all at the right)
+    const layout = computeTouchLayout(844, 390, NO_INSETS, { scale: 1.4, buttons: { attack: { x: 0.8, y: 0.8, scale: 1 }, dash: { x: 0.68, y: 0.88, scale: 1 }, ability: { x: 0.74, y: 0.7, scale: 1 } } });
     view.place(844, 390, NO_INSETS, layout);
     const moved = box();
     expect(moved.left).toBeGreaterThanOrEqual(0);

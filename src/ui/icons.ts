@@ -1,6 +1,6 @@
 /**
  * The few glyphs the interface draws, as SVG path data in a 24 × 24 box centred on the origin (−12 … 12). Abstract marks —
- * a slash, a chevron pair, a spark — in the colours of the closed palette; none of them depicts the protagonist. They are
+ * a spark, a flask, two bars — in the colours of the closed palette; none of them depicts the protagonist. (The three touch buttons have none: they are the artist's pictures, `ui/touch/art.ts`.) They are
  * built with `createElementNS` (never `innerHTML`), and they hold no text.
  */
 export interface IconStroke {
@@ -12,8 +12,6 @@ export interface IconStroke {
 }
 
 export const ICONS = {
-  attack: [{ d: 'M-8 9 L9 -8', width: 2.6 }, { d: 'M-2 11 L11 -2', width: 1.6 }],
-  dash: [{ d: 'M-10 -8 L-2 0 L-10 8', width: 2.4 }, { d: 'M0 -8 L8 0 L0 8', width: 2.4 }],
   /** Spirit Bolt: a spark of energy. */
   spirit_bolt: [{ d: 'M1 -11 L-6 1 L-1 1 L-3 11 L6 -2 L1 -2 Z', fill: true }],
   /** An energy bottle (a flask). */

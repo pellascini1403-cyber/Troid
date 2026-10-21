@@ -8,12 +8,14 @@ import type { KeyMap } from '@/input/remap';
 import { QUALITY_SETTINGS, type QualitySetting } from '@/presentation/viewport';
 import { defaultSettings, HUD_SCALE_LIMITS, type AccessibilitySettings, type TouchSettings } from '@/save/SettingsData';
 import { languageName, SettingsMenu, type SettingsMenuHost, type SettingsScreen } from '@/ui/settings/SettingsMenu';
+import { TOUCH_ART } from '@/ui/touch/art';
+import { computeTouchLayout } from '@/ui/touch/layout';
 import { stubScrollLayout } from '../../helpers/layout';
 
 /**
  * The pause / settings menu (docs/GAME-SPEC-2D.md §17; docs/PROMPT6-LOG.md S30): the language, each in its own name; the volume (prepared); the quality
- * profile; the keys of the main actions, where a keyboard exists; and the size, opacity, side and position of the touch controls, where a touch layer
- * exists. It owns no text and no state: the host holds the settings, the menu reports.
+ * profile; the keys of the main actions, where a keyboard exists; and the size and opacity of the touch controls, a small picture of where their buttons are and the way into the
+ * editor, where a touch layer exists. It owns no text and no state: the host holds the settings, the menu reports.
  */
 const q = (root: ParentNode, id: string): HTMLElement => root.querySelector(`[data-testid="${id}"]`) as HTMLElement;
 
@@ -28,7 +30,7 @@ describe('languageName', () => {
   });
 });
 
-const TOUCH: TouchSettings = { scale: 1, opacity: 1, side: 'right', offsetX: 0, offsetY: 0 };
+const TOUCH: TouchSettings = { scale: 1, opacity: 1, buttons: {} };
 
 describe('settings menu', () => {
   let host: HTMLDivElement;
@@ -66,6 +68,9 @@ describe('settings menu', () => {
       calls.push(`touch:${JSON.stringify(patch)}`);
       state.touch = { ...state.touch, ...patch };
     },
+    // the layout of the design on the reference screen, or the one the test sets: what the small picture draws
+    touchPreview: () => (touchAvailable ? { width: 844, height: 390, layout: computeTouchLayout(844, 390, undefined, { scale: state.touch.scale, buttons: state.touch.buttons }) } : null),
+    editTouch: () => void calls.push('edit-touch'),
     setAccessibility: (patch) => {
       calls.push(`access:${JSON.stringify(patch)}`);
       state.accessibility = { ...state.accessibility, ...patch };
@@ -181,7 +186,7 @@ describe('settings menu', () => {
   it('reads the settings fresh every time it opens (nothing is cached in the menu)', () => {
     menu.open();
     menu.close();
-    state = { language: 'en', volume: 0.3, quality: 'high', keys: { attack: 'KeyF' }, touch: { ...TOUCH, scale: 0.9, opacity: 0.5, side: 'left' }, accessibility: { ...defaultSettings().accessibility } };
+    state = { language: 'en', volume: 0.3, quality: 'high', keys: { attack: 'KeyF' }, touch: { ...TOUCH, scale: 0.9, opacity: 0.5, buttons: { attack: { x: 0.2, y: 0.7, scale: 1 } } }, accessibility: { ...defaultSettings().accessibility } };
     tr.setLocale('en');
     menu.open();
     expect(q(host, 'settings-lang-en').getAttribute('aria-pressed')).toBe('true');
@@ -189,7 +194,7 @@ describe('settings menu', () => {
     expect((q(host, 'settings-volume') as HTMLInputElement).value).toBe('0.3');
     expect(q(host, 'settings-quality-high').getAttribute('aria-pressed')).toBe('true');
     expect(q(host, 'settings-key-attack').textContent).toBe('F');
-    expect(q(host, 'settings-touch-side-left').getAttribute('aria-pressed')).toBe('true');
+    expect(Number.parseFloat(q(host, 'settings-touch-preview-attack').style.left), 'the small picture follows the layout').toBeCloseTo(computeTouchLayout(844, 390, undefined, { scale: 0.9, buttons: state.touch.buttons }).attack.cx * Math.min(260 / 844, 150 / 390), 3);
   });
 
   it('the touch section only exists where there is a touch layer (a desktop with a keyboard never sees it)', () => {
@@ -457,46 +462,87 @@ describe('settings menu', () => {
     });
   });
 
-  describe('the touch controls: size, opacity, side and position', () => {
-    it('the side is a choice of two, the one in force pressed; choosing reports it', () => {
+  describe('the touch controls: a small picture of the buttons, size, opacity, and the editor (docs/PROMPT15-LOG.md)', () => {
+    it('shows the three buttons where the layout has them: the artist\'s PNGs scaled down, in the same arrangement as the screen', () => {
       menu.open();
-      const right = q(host, 'settings-touch-side-right');
-      const left = q(host, 'settings-touch-side-left');
-      expect([right.textContent, left.textContent]).toEqual(['Derecha', 'Izquierda']);
-      expect([right.getAttribute('aria-pressed'), left.getAttribute('aria-pressed')]).toEqual(['true', 'false']);
-      left.click();
-      expect(calls).toEqual(['touch:{"side":"left"}']);
-      expect([right.getAttribute('aria-pressed'), left.getAttribute('aria-pressed')]).toEqual(['false', 'true']);
+      const preview = q(host, 'settings-touch-preview');
+      expect(preview.hidden).toBe(false);
+      expect(preview.getAttribute('role')).toBe('img');
+      expect(preview.getAttribute('aria-label')).toBe('Dónde están los tres botones en tu pantalla');
+      const l = computeTouchLayout(844, 390);
+      const k = Math.min(260 / 844, 150 / 390);
+      expect(Number.parseFloat(preview.style.width)).toBeCloseTo(844 * k, 3);
+      expect(Number.parseFloat(preview.style.height)).toBeCloseTo(390 * k, 3);
+      for (const id of ['attack', 'dash', 'ability'] as const) {
+        const box = q(host, `settings-touch-preview-${id}`);
+        expect(Number.parseFloat(box.style.left), id).toBeCloseTo(l[id].cx * k, 3);
+        expect(Number.parseFloat(box.style.top), id).toBeCloseTo(l[id].cy * k, 3);
+        const img = box.querySelector('img');
+        expect(img, id).not.toBeNull();
+        expect(img!.getAttribute('src'), id).toBe(TOUCH_ART[id]);
+        // the plate is the layout's, scaled down in the same proportion
+        expect(Number.parseFloat((box.firstElementChild as HTMLElement).style.height), id).toBeCloseTo(l[id].visual * k, 3);
+      }
+      tr.setLocale('en');
+      expect(preview.getAttribute('aria-label')).toBe('Where the three buttons are on your screen');
     });
 
-    it('the position has two sliders, 0 to 1, that show what is saved and report what the player does', () => {
-      state.touch = { ...TOUCH, offsetX: 0.5, offsetY: 0.25 };
+    it('follows what the player does: a size or a place changed in the game changes the picture the next time it is read', () => {
       menu.open();
-      const x = q(host, 'settings-touch-offset-x') as HTMLInputElement;
-      const y = q(host, 'settings-touch-offset-y') as HTMLInputElement;
-      expect([x.min, x.max, x.value, y.min, y.max, y.value]).toEqual(['0', '1', '0.5', '0', '1', '0.25']);
-      input('settings-touch-offset-x', '0.75');
-      input('settings-touch-offset-y', '1');
-      expect(calls).toEqual(['touch:{"offsetX":0.75}', 'touch:{"offsetY":1}']);
+      const before = Number.parseFloat(q(host, 'settings-touch-preview-attack').style.left);
+      state.touch = { ...state.touch, buttons: { attack: { x: 0.2, y: 0.7, scale: 1 } } };
+      menu.sync();
+      expect(Number.parseFloat(q(host, 'settings-touch-preview-attack').style.left)).toBeLessThan(before / 2);
+      input('settings-touch-size', '1.3');
+      expect(calls).toEqual(['touch:{"scale":1.3}']);
+      // …and the picture grows with the slider, as it moves (not only the next time the menu opens)
+      const k = Math.min(260 / 844, 150 / 390);
+      expect(Number.parseFloat((q(host, 'settings-touch-preview-dash').firstElementChild as HTMLElement).style.height)).toBeCloseTo(computeTouchLayout(844, 390, undefined, { scale: 1.3, buttons: state.touch.buttons }).dash.visual * k, 3);
     });
 
-    it('Restore default layout puts size, opacity, side and position back to the design, in one change', () => {
-      state.touch = { scale: 1.3, opacity: 0.5, side: 'left', offsetX: 1, offsetY: 0.4 };
+    it('there is no preview where there is no touch layer (the whole section is hidden)', () => {
+      touchAvailable = false;
+      menu.open();
+      expect(q(host, 'settings-touch').style.display).toBe('none');
+      expect(q(host, 'settings-touch-preview').hidden).toBe(true);
+    });
+
+    it('"Edit layout" opens the editor (the menu does not edit anything itself); after it, the menu is read again and the focus returns to the button that opened it', () => {
+      menu.open();
+      const edit = q(host, 'settings-touch-edit') as HTMLButtonElement;
+      expect(edit.textContent).toBe('Editar disposición');
+      edit.click();
+      expect(calls).toEqual(['edit-touch']);
+      state.touch = { ...state.touch, buttons: { dash: { x: 0.3, y: 0.8, scale: 1 } } };
+      menu.sync();
+      expect(document.activeElement).toBe(edit);
+      expect(Number.parseFloat(q(host, 'settings-touch-preview-dash').style.left)).toBeLessThan(844 * 0.5);
+    });
+
+    it('there are no longer a side or two offset sliders: the editor replaces them', () => {
+      menu.open();
+      for (const id of ['settings-touch-side', 'settings-touch-side-right', 'settings-touch-side-left', 'settings-touch-offset-x', 'settings-touch-offset-y']) expect(q(host, id), id).toBeNull();
+    });
+
+    it('Restore default layout puts the size, the opacity and every button back to the design, in one change', () => {
+      state.touch = { scale: 1.3, opacity: 0.5, buttons: { attack: { x: 0.2, y: 0.7, scale: 1.3 }, ability: { x: 0.9, y: 0.2, scale: 0.8 } } };
       menu.open();
       q(host, 'settings-touch-reset').click();
-      expect(calls).toEqual(['touch:{"scale":1,"opacity":1,"side":"right","offsetX":0,"offsetY":0}']);
+      expect(calls).toEqual(['touch:{"scale":1,"opacity":1,"buttons":{}}']);
       expect(state.touch).toEqual(TOUCH);
       expect((q(host, 'settings-touch-size') as HTMLInputElement).value).toBe('1');
-      expect(q(host, 'settings-touch-side-right').getAttribute('aria-pressed')).toBe('true');
+      // …and the picture shows the design again
+      const l = computeTouchLayout(844, 390);
+      expect(Number.parseFloat(q(host, 'settings-touch-preview-attack').style.left)).toBeCloseTo(l.attack.cx * Math.min(260 / 844, 150 / 390), 3);
     });
 
     it('its words are in both languages', () => {
       menu.open();
       const es = q(host, 'settings-touch').textContent ?? '';
-      for (const w of ['Lado de los botones', 'Botones hacia dentro', 'Botones hacia arriba', 'Restaurar disposición']) expect(es, w).toContain(w);
+      for (const w of ['Editar disposición', 'Restaurar disposición', 'Arrastra cada botón']) expect(es, w).toContain(w);
       tr.setLocale('en');
       const en = q(host, 'settings-touch').textContent ?? '';
-      for (const w of ['Side of the buttons', 'Buttons inwards', 'Buttons up', 'Restore default layout']) expect(en, w).toContain(w);
+      for (const w of ['Edit layout', 'Restore default layout', 'Drag each button']) expect(en, w).toContain(w);
     });
   });
 

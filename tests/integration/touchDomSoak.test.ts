@@ -5,6 +5,7 @@ import { InputManager } from '@/input/InputManager';
 import type { TouchTarget } from '@/input/sources/TouchSource';
 import { TouchSource } from '@/input/sources/TouchSource';
 import { TouchControls } from '@/ui/touch/TouchControls';
+import { discsOverlap, type ButtonPlacements } from '@/ui/touch/layout';
 
 /**
  * SOAK of the touch layer as DOM (docs/PROMPT5-LOG.md S20): pointer events thrown at the real elements — down, move, up, cancel and
@@ -12,7 +13,8 @@ import { TouchControls } from '@/ui/touch/TouchControls';
  * is resized, loses focus, rotates, is hidden and shown, and the whole layer is switched off and on. After every event the DOM and
  * the input must agree: a button LOOKS pressed iff a finger owns it; a button that is not there is owned by nobody; a layer that
  * is not there holds no finger; whatever the manager reports held is a finger on its button; and when the fingers are gone,
- * nothing is left pressed.
+ * nothing is left pressed. Since docs/PROMPT15-LOG.md the buttons also change SIZE and PLACE under the fingers (the player places them), the dash comes and goes like the magic, and the whole layer
+ * steps aside while the editor has the screen: a button is always where the layout says, never overlapping another, and a layer that has stepped aside holds no finger.
  */
 const TICKS = Math.max(1000, Number(process.env['SOAK_TICKS'] ?? 4000));
 const SEEDS = Array.from({ length: Math.max(3, Number(process.env['SOAK_SEEDS'] ?? 3)) }, (_, i) => [5, 17, 999][i] ?? 7000 + i * 15485863);
@@ -36,6 +38,8 @@ function run(seed: number): { violations: string[]; downs: number; hidden: numbe
   let downs = 0;
   let hidden = 0;
   let releases = 0;
+  /** The layer is stepping aside for the editor: nothing is shown to a finger. */
+  let suspended = false;
 
   document.body.innerHTML = '';
   const host = document.createElement('div');
@@ -46,7 +50,7 @@ function run(seed: number): { violations: string[]; downs: number; hidden: numbe
   const controls = new TouchControls(host, source, tr);
   controls.place(844, 390, { top: 0, right: 0, bottom: 0, left: 0 });
   const el = (id: string): HTMLElement => host.querySelector(`[data-testid="${id}"]`) as HTMLElement;
-  const shown = (id: string): boolean => el(id).style.display !== 'none' && controls.isVisible; // a browser sends nothing to what is not displayed
+  const shown = (id: string): boolean => el(id).style.display !== 'none' && controls.isVisible && !suspended; // a browser sends nothing to what is not displayed, or to what is hidden
   const owner = (id: number): TouchTarget | undefined => source.ownerOf(id);
   const ownedBy = (t: TouchTarget): number[] => IDS.filter((i) => owner(i) === t);
   const ptr = (type: string, id: number, x = 100, y = 200): PointerEvent => new PointerEvent(type, { pointerId: id, clientX: x, clientY: y, bubbles: true, cancelable: true, pointerType: 'touch' });
@@ -71,6 +75,19 @@ function run(seed: number): { violations: string[]; downs: number; hidden: numbe
       if (!shown(id) && held) bad(`${id} is not displayed and a finger still owns it`);
     }
     if (!controls.isVisible && source.active !== 0) bad(`the layer is hidden and ${source.active} fingers still hold something`);
+    if (suspended && source.active !== 0) bad(`the layer has stepped aside and ${source.active} fingers still hold something`);
+    // every button is where the layout says (the touch area is the disc, centred), and no two touch areas overlap — however they were placed and sized
+    const l = controls.current;
+    for (const id of ['attack', 'dash', 'ability', 'chip'] as const) {
+      const box = el(`touch-${id}`);
+      const d = l[id];
+      const cx = Number.parseFloat(box.style.left) + Number.parseFloat(box.style.width) / 2;
+      const cy = Number.parseFloat(box.style.top) + Number.parseFloat(box.style.height) / 2;
+      if (Math.abs(cx - d.cx) > 1e-3 || Math.abs(cy - d.cy) > 1e-3 || Math.abs(Number.parseFloat(box.style.width) - d.hit) > 1e-3) bad(`${id} is not where the layout says`);
+    }
+    for (const [a, b] of [['attack', 'dash'], ['attack', 'ability'], ['dash', 'ability'], ['attack', 'chip'], ['dash', 'chip'], ['ability', 'chip']] as const) {
+      if (discsOverlap(l[a], l[b])) bad(`${a} and ${b} overlap`);
+    }
     const f = input.sample();
     for (const [name, got, t] of [['attackHeld', f.attackHeld, 'attack'], ['dashHeld', f.dashHeld, 'dash'], ['abilityHeld', f.abilityHeld, 'ability']] as const) {
       if (got !== ownedBy(t).length > 0) bad(`${name} is ${got} but ${ownedBy(t).length} fingers own "${t}"`);
@@ -105,10 +122,24 @@ function run(seed: number): { violations: string[]; downs: number; hidden: numbe
       const t = owner(id);
       const testid = rnd() < 0.8 ? (TESTIDS.find((x) => TARGET_OF[x] === t) ?? pick(TESTIDS)) : pick(TESTIDS);
       if (shown(testid)) el(testid).dispatchEvent(ptr(pick(['pointerup', 'pointerup', 'pointercancel', 'lostpointercapture']), id));
+    } else if (r < 0.78) {
+      controls.setAbility(rnd() < 0.5, rnd() < 0.5);
     } else if (r < 0.82) {
-      controls.setAbility(rnd() < 0.5, 'spirit_bolt', rnd() < 0.5);
-    } else if (r < 0.9) {
+      controls.setDash(rnd() < 0.8, rnd() < 0.5);
+    } else if (r < 0.86) {
       controls.setChip(rnd() < 0.5);
+    } else if (r < 0.88) {
+      controls.setScale(0.8 + rnd() * 0.6); // the player's size slider: what moved lets go
+      releasedNow = true;
+    } else if (r < 0.9) {
+      // the editor's Save (or Default): some buttons placed, the others not
+      const placed: ButtonPlacements = rnd() < 0.3 ? {} : { ...(rnd() < 0.7 ? { attack: { x: rnd(), y: rnd(), scale: 0.7 + rnd() * 0.8 } } : {}), ...(rnd() < 0.7 ? { dash: { x: rnd(), y: rnd(), scale: 0.7 + rnd() * 0.8 } } : {}), ...(rnd() < 0.7 ? { ability: { x: rnd(), y: rnd(), scale: 0.7 + rnd() * 0.8 } } : {}) };
+      controls.setButtons(placed);
+      releasedNow = true;
+    } else if (r < 0.915) {
+      suspended = rnd() < 0.5; // the editor opens or closes
+      controls.setSuspended(suspended);
+      releasedNow = suspended;
     } else if (r < 0.93) {
       controls.setVisible(rnd() < 0.6);
       releasedNow = !controls.isVisible;

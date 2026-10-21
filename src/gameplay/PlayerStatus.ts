@@ -25,6 +25,13 @@ export interface InteractionStatus {
   y: number;
 }
 
+/** The dash as the interface needs it: whether the hero has it (a touch screen draws its button only then) and how much of its recharge is left. */
+export interface DashStatus {
+  unlocked: boolean;
+  /** 1 = the dash just ended … 0 = ready again. */
+  cooldown01: number;
+}
+
 export interface BottleStatus {
   state: BottleState;
   /** 0 … 1: 1 when ready, the recharge progress while recharging. */
@@ -44,6 +51,7 @@ export interface PlayerStatus {
   life: { current: number; max: number; guard01: number };
   magic: { current: number; max: number; regenerating: boolean };
   card: CardStatus;
+  dash: DashStatus;
   bottles: BottleStatus[];
   /** The bottle being drunk right now (`slot` −1 = none) and how far through its channel the hero is, 0 … 1: that vial drains meanwhile. */
   drink: { slot: number; progress01: number };
@@ -57,6 +65,7 @@ export function createPlayerStatus(): PlayerStatus {
     life: { current: 0, max: 0, guard01: 0 },
     magic: { current: 0, max: 0, regenerating: false },
     card: { equipped: false, id: '', nameKey: '', iconId: '', state: 'ready', cooldown01: 0, cost: 0 },
+    dash: { unlocked: false, cooldown01: 0 },
     bottles: [],
     drink: { slot: -1, progress01: 0 },
     interaction: { active: false, id: '', kind: '', verbKey: '', x: 0, y: 0 },

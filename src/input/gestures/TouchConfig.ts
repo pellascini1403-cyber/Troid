@@ -51,3 +51,15 @@ const REFERENCE_WIDTH = 844;
 export function uiScale(width: number, height: number): number {
   return clamp(Math.min(width, height * 2.1) / REFERENCE_WIDTH, 0.9, 1.6);
 }
+
+/**
+ * THE THREE FIXED BUTTONS AS THE DESIGN HAS THEM (docs/PROMPT15-LOG.md), measured on the reference screen of the design (an 844 × 390 phone, `uiScale` 819/844): for each one the
+ * centre as an offset from the bottom-right corner of the SAFE area (dp, negative: up and to the left) and the diameter of its plate (dp: the height of the box of the artist's hexagon, which is
+ * what a button of that size looks like). The dash is the big one at the bottom, the attack the big one at the right, the magic the small one between them and above. They are data: a player
+ * who has not moved a button finds it here.
+ */
+export const BUTTON_DESIGN = {
+  attack: { dx: -65, dy: -100, visual: 70 },
+  dash: { dx: -166, dy: -63, visual: 70 },
+  ability: { dx: -126, dy: -109, visual: 31 },
+} as const;

@@ -303,6 +303,8 @@ export class GameSession implements SimServices {
     out.card.cooldown01 = card ? this.skills.cooldown01(card.skillId) : 0;
     out.card.cost = skill?.cost ?? 0;
     out.card.state = !card || !skill ? 'ready' : out.card.cooldown01 > 0 ? 'cooldown' : this.magic.canSpend(skill.cost) ? 'ready' : 'noMagic';
+    out.dash.unlocked = this.abilities.has('dash');
+    out.dash.cooldown01 = this.player.controller.dashCooldown01;
     const slots = this.bottles.slots;
     out.bottles.length = slots.length;
     for (let i = 0; i < slots.length; i++) {

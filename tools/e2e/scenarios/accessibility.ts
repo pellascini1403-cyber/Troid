@@ -300,8 +300,8 @@ export const accessibility: Scenario = {
     await ctx.open('new=1', { width: 1280, height: 720, dpr: 1 });
     const plain = await fight(ctx);
     const chosen = {
-      version: 3, language: 'en', quality: 'low', volume: { master: 0 }, keys: {}, slot: 1,
-      touch: { scale: 1.4, opacity: 0.3, side: 'left', offsetX: 1, offsetY: 1 },
+      version: 4, language: 'en', quality: 'low', volume: { master: 0 }, keys: {}, slot: 1,
+      touch: { scale: 1.4, opacity: 0.3, buttons: { attack: { x: 0.2, y: 0.8, scale: 1.5 }, dash: { x: 0.35, y: 0.9, scale: 0.7 } } },
       accessibility: { reduceFlashes: true, reduceShake: true, hudScale: 1.35 },
     };
     await ctx.open('new=1', {

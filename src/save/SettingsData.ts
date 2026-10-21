@@ -1,3 +1,5 @@
+import { clamp } from '@/core/math';
+import { BUTTON_DESIGN, uiScale } from '@/input/gestures/TouchConfig';
 import { sanitizeKeyMap, type KeyMap } from '@/input/remap';
 import { QUALITY_SETTINGS, type QualitySetting } from '@/presentation/viewport';
 import { DEFAULT_SLOT, sanitizeSlot } from './SaveSlots';
@@ -6,29 +8,37 @@ import { DEFAULT_SLOT, sanitizeSlot } from './SaveSlots';
  * The player's SETTINGS as data (docs/ARCHITECTURE-2D.md §11): separate from the progress, versioned, and repairable. Version 1 held the
  * language and the size and opacity of the touch controls; version 2 (docs/PROMPT6-LOG.md S30) adds the volume (prepared: there is no sound yet),
  * the quality profile, the remapped keys and the position of the touch controls; version 3 (docs/PROMPT14-LOG.md) adds the saved game being played (`slot`) and the
- * accessibility choices (fewer flashes, no camera shake, the size of the HUD). Each one came with a migration, the day it existed.
+ * accessibility choices (fewer flashes, no camera shake, the size of the HUD); version 4 (docs/PROMPT15-LOG.md) lets the player place each touch button where they like (the side and the two
+ * offsets of version 2 become the position of every button). Each one came with a migration, the day it existed.
  */
-export const SETTINGS_VERSION = 3;
+export const SETTINGS_VERSION = 4;
 
 export interface VolumeSettings {
   /** The master volume, 0 (silence) … 1. */
   master: number;
 }
 
-/** Which side of the screen the buttons are on; the movement zone is the other one. */
-export type TouchSide = 'right' | 'left';
+/** The three fixed touch buttons the player can place: the melee attack, the dash and the ranged / magic ability (the bottle chip is not one of them: it hangs from the attack). */
+export const TOUCH_BUTTONS = ['attack', 'dash', 'ability'] as const;
+export type TouchButtonId = (typeof TOUCH_BUTTONS)[number];
+
+/** Where the player put one button, and how big they made it. */
+export interface TouchButtonSetting {
+  /** The centre of the button as a fraction of the SAFE area: 0 is its left edge, 1 its right edge. */
+  x: number;
+  /** …and 0 its top edge, 1 its bottom edge. */
+  y: number;
+  /** The size of THIS button relative to the design (1 = as designed), on top of the size of all of them. */
+  scale: number;
+}
 
 export interface TouchSettings {
   /** Size of the touch controls relative to the design size (1 = as designed). */
   scale: number;
   /** How opaque the touch controls are (1 = fully). */
   opacity: number;
-  /** The side of the buttons: `right` (as designed) or `left` (mirrored, for the other hand). */
-  side: TouchSide;
-  /** How far the buttons are moved in from their edge of the screen, 0 (as designed) … 1 (the most the layout allows). */
-  offsetX: number;
-  /** How far the buttons are raised from the bottom, 0 … 1 (the layout never lifts them into the interface above). */
-  offsetY: number;
+  /** The buttons the player has placed; one that is not here is where the design has it (and follows the corner of the screen). */
+  buttons: Readonly<Partial<Record<TouchButtonId, TouchButtonSetting>>>;
 }
 
 /** What a player can ask of the picture so that it is easier on them. Each one changes something the game really does (docs/PROMPT14-LOG.md). */
@@ -56,12 +66,12 @@ export interface SettingsData {
   accessibility: AccessibilitySettings;
 }
 
-/** What the settings screen offers: the controls are never smaller than 80 % or bigger than 140 %, never fainter than 30 %; the position is a fraction. */
+/** What the settings screen offers: the controls are never smaller than 80 % or bigger than 140 %, never fainter than 30 %; the position is a fraction; one button may be 70 % … 150 % of its design on its own. */
 export const TOUCH_LIMITS = {
   scale: { min: 0.8, max: 1.4 },
   opacity: { min: 0.3, max: 1 },
-  offsetX: { min: 0, max: 1 },
-  offsetY: { min: 0, max: 1 },
+  position: { min: 0, max: 1 },
+  button: { min: 0.7, max: 1.5 },
 } as const;
 
 export const VOLUME_LIMITS = { master: { min: 0, max: 1 } } as const;
@@ -76,17 +86,39 @@ export function defaultSettings(): SettingsData {
     volume: { master: 0.8 },
     quality: 'auto',
     keys: {},
-    touch: { scale: 1, opacity: 1, side: 'right', offsetX: 0, offsetY: 0 },
+    touch: { scale: 1, opacity: 1, buttons: {} },
     slot: DEFAULT_SLOT,
     accessibility: { reduceFlashes: false, reduceShake: false, hudScale: 1 },
   };
 }
 
-const clamp = (v: number, min: number, max: number): number => Math.min(max, Math.max(min, v));
+/** A position or a size as it is kept: four decimals (a tenth of a pixel on any screen), so what is saved is tidy and what was saved is what comes back. */
+const tidy = (v: number): number => Math.round(v * 1e4) / 1e4;
+
+/** The value as an object (anything that is not one is an empty one): what was stored may be anything. */
+const record = (v: unknown): Record<string, unknown> => (typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : {});
 
 /** A finite number inside the limits, or `fallback` when the value is not a number at all. */
 function limited(value: unknown, min: number, max: number, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? clamp(value, min, max) : fallback;
+}
+
+/**
+ * The buttons the player placed, repaired: only the three known buttons, each with a finite position inside the safe area (a button whose position is not a number is simply not placed: it is
+ * where the design has it) and a size inside the limits (a wrong size is the design size). Always in the same order, so the same settings are always the same text.
+ */
+function repairButtons(raw: unknown): Partial<Record<TouchButtonId, TouchButtonSetting>> {
+  const out: Partial<Record<TouchButtonId, TouchButtonSetting>> = {};
+  const all = record(raw);
+  const { position, button } = TOUCH_LIMITS;
+  for (const id of TOUCH_BUTTONS) {
+    const b = record(all[id]);
+    const x = limited(b['x'], position.min, position.max, Number.NaN);
+    const y = limited(b['y'], position.min, position.max, Number.NaN);
+    if (Number.isNaN(x) || Number.isNaN(y)) continue;
+    out[id] = { x: tidy(x), y: tidy(y), scale: tidy(limited(b['scale'], button.min, button.max, 1)) };
+  }
+  return out;
 }
 
 /**
@@ -97,9 +129,9 @@ export function repairSettings(raw: unknown): SettingsData {
   const base = defaultSettings();
   if (typeof raw !== 'object' || raw === null) return base;
   const r = raw as Record<string, unknown>;
-  const t = typeof r['touch'] === 'object' && r['touch'] !== null ? (r['touch'] as Record<string, unknown>) : {};
-  const v = typeof r['volume'] === 'object' && r['volume'] !== null ? (r['volume'] as Record<string, unknown>) : {};
-  const a = typeof r['accessibility'] === 'object' && r['accessibility'] !== null ? (r['accessibility'] as Record<string, unknown>) : {};
+  const t = record(r['touch']);
+  const v = record(r['volume']);
+  const a = record(r['accessibility']);
   const language = typeof r['language'] === 'string' && /^[a-z]{2,3}$/i.test(r['language']) ? r['language'].toLowerCase() : null;
   const quality = (QUALITY_SETTINGS as readonly unknown[]).includes(r['quality']) ? (r['quality'] as QualitySetting) : base.quality;
   return {
@@ -111,9 +143,7 @@ export function repairSettings(raw: unknown): SettingsData {
     touch: {
       scale: limited(t['scale'], TOUCH_LIMITS.scale.min, TOUCH_LIMITS.scale.max, base.touch.scale),
       opacity: limited(t['opacity'], TOUCH_LIMITS.opacity.min, TOUCH_LIMITS.opacity.max, base.touch.opacity),
-      side: t['side'] === 'left' ? 'left' : 'right',
-      offsetX: limited(t['offsetX'], TOUCH_LIMITS.offsetX.min, TOUCH_LIMITS.offsetX.max, base.touch.offsetX),
-      offsetY: limited(t['offsetY'], TOUCH_LIMITS.offsetY.min, TOUCH_LIMITS.offsetY.max, base.touch.offsetY),
+      buttons: repairButtons(t['buttons']),
     },
     slot: sanitizeSlot(r['slot']),
     accessibility: {
@@ -133,14 +163,40 @@ export type Migration = (data: Record<string, unknown>) => Record<string, unknow
  *    (the language, the size and the opacity) is kept as it was.
  *  - 2 → 3 (docs/PROMPT14-LOG.md): the saved game being played (the first, where every save made so far lives) and the accessibility choices (all off, the HUD as designed)
  *    arrive; everything version 2 held is kept as it was.
+ *  - 3 → 4 (docs/PROMPT15-LOG.md): the side and the two offsets of the block of buttons become the position of each button. A player who never touched them (the right, no offset) keeps the
+ *    design's places; one who did gets their three buttons on the same side and as far in and up as they had them, worked out on the reference screen of the design (844 × 390).
  */
 export const SETTINGS_MIGRATIONS: Readonly<Record<number, Migration>> = {
-  1: (data) => {
-    const touch = typeof data['touch'] === 'object' && data['touch'] !== null ? (data['touch'] as Record<string, unknown>) : {};
-    return { ...data, version: 2, volume: { master: 0.8 }, quality: 'auto', keys: {}, touch: { ...touch, side: 'right', offsetX: 0, offsetY: 0 } };
-  },
+  1: (data) => ({ ...data, version: 2, volume: { master: 0.8 }, quality: 'auto', keys: {}, touch: { ...record(data['touch']), side: 'right', offsetX: 0, offsetY: 0 } }),
   2: (data) => ({ ...data, version: 3, slot: DEFAULT_SLOT, accessibility: { reduceFlashes: false, reduceShake: false, hudScale: 1 } }),
+  3: (data) => {
+    const { side, offsetX, offsetY, ...kept } = record(data['touch']);
+    return { ...data, version: 4, touch: { ...kept, buttons: placedAsBefore(side, offsetX, offsetY) } };
+  },
 };
+
+/**
+ * Version 3's block of buttons — the side it hung from and how far in and up it had been moved — as the position of each of the three buttons: the design's places (`BUTTON_DESIGN`), on the reference
+ * screen of the design (844 × 390 px), moved by those offsets. (If the design ever moves, the golden file of this migration says so.)
+ */
+function placedAsBefore(side: unknown, offsetX: unknown, offsetY: unknown): Record<string, TouchButtonSetting> {
+  const left = side === 'left';
+  const inward = limited(offsetX, 0, 1, 0) * 120;
+  const upward = limited(offsetY, 0, 1, 0) * 70;
+  const out: Record<string, TouchButtonSetting> = {};
+  if (!left && inward === 0 && upward === 0) return out;
+  const width = 844;
+  const height = 390;
+  const g = uiScale(width, height);
+  for (const id of TOUCH_BUTTONS) {
+    const { dx, dy } = BUTTON_DESIGN[id];
+    const fromRight = width + dx * g;
+    const x = left ? width - fromRight + inward * g : fromRight - inward * g;
+    const y = height + dy * g - upward * g;
+    out[id] = { x: tidy(clamp(x / width, 0, 1)), y: tidy(clamp(y / height, 0, 1)), scale: 1 };
+  }
+  return out;
+}
 
 /**
  * Reads what was stored: JSON → migrated to the current version → repaired. `null` when it cannot be trusted at all: not JSON,

@@ -16,7 +16,7 @@
 | La **lógica de los gestos** (correr, andar, zona muerta, saltar, agacharse, atravesar plataformas, varios dedos, cancelar) | `tests/unit/input/*`, `tests/integration/touchControls.test.ts` + sondeos aleatorios | que cada gesto da la acción que dice la especificación, que un dedo no cambia de dueño y que nada queda pulsado | que los **umbrales** (distancias en dp, tiempos) sean los que una mano real necesita |
 | El juego **en ventanas del tamaño de cada clase** de móvil, con capa táctil y toques del protocolo DevTools | E2E `mobile` (`npm run test:e2e -- mobile`; Chromium con `isMobile` + `hasTouch`, densidad 2 – 3, márgenes de seguridad simulados con `?safe=`) | que lo anterior **se cumple en la página real** (los rectángulos del DOM, no solo las cuentas): cada botón mide ≥ 44 px, está dentro del área segura, no pisa a otro, ni al HUD, ni a la pausa; la barra del jefe está donde dice la función pura; la página no se desplaza ni se amplía; y **mover + atacar + esquivar + lanzar la habilidad + beber con varios dedos a la vez** funciona (cada botón responde donde está en el DOM y al soltar nada queda pulsado) | el rendimiento en un móvil (Chromium dibuja aquí **por software**: las cifras sirven para comparar, no son absolutas), el comportamiento de Safari o de Chrome para Android, ni el tacto. Un toque del protocolo DevTools es **un dedo perfecto** (sin radio ni presión, sin rechazo de palma, con el reloj de los toques **virtual**: los tiempos de los gestos no se han probado contra el reloj de un dispositivo) |
 | **Densidad y resolución** (`devicePixelRatio` 1 – 3, tope de resolución por perfil) | `tests/unit/presentation/viewport.test.ts`, E2E `settings` (lienzo a 1055 / 1477 / 1688 px) y `mobile` (densidades 2, 2.625 y 3) | que el lienzo se dibuja a la resolución que dice el perfil | cuánto cuesta eso en una GPU móvil |
-| **Guardado de la disposición** | E2E `settings` y `mobile` (la disposición guardada —lado, posición, tamaño— es la que la página coloca **desde el primer fotograma**) | que lo que el jugador elige vuelve tras recargar | nada sobre un dispositivo |
+| **Guardado de la disposición** | E2E `settings` y `mobile` (la disposición guardada —el lugar y el tamaño de cada botón, el tamaño y la opacidad de todos— es la que la página coloca **desde el primer fotograma**; hasta el Prompt 14 era el lado y dos desplazamientos del bloque) | que lo que el jugador elige vuelve tras recargar | nada sobre un dispositivo |
 
 Las clases de ventana (**tamaños en píxeles CSS, no mediciones de dispositivos**; se usan como clases de tamaño y nada más — no dicen «esto es un modelo X»):
 
@@ -35,6 +35,8 @@ Las clases de ventana (**tamaños en píxeles CSS, no mediciones de dispositivos
 | vertical | 390 × 844 (y 820 × 1180 en las pruebas puras) | la imagen del juego queda pequeña con bandas; ver §6 |
 
 ### Lo que midió el E2E `mobile` en Chromium (no en dispositivos)
+
+> **Medido en el Prompt 6, con el diseño de entonces** (un bloque de cuatro botones con un lado y dos desplazamientos). **El Prompt 15 cambió ese diseño** (tres botones con los PNG del artista, la disposición de la referencia y un lugar por botón): su escena `mobile` mide las mismas ventanas con la geometría nueva, y la regla común sigue siendo ésta —lo que se ve cabe, no se pisa y respeta el HUD, la pausa y la barra del jefe—. Las dos filas «lado izquierdo / al máximo hacia dentro» de abajo corresponden al modelo anterior.
 
 Cada fila es lo que la **página** colocó (rectángulos del DOM) con el HUD en su mayor tamaño (cinco segmentos de vida, cuatro botellas, una carta equipada y el botón de botella visible):
 
@@ -57,12 +59,13 @@ Cada fila es lo que la **página** colocó (rectángulos del DOM) con el HUD en 
 
 | Regla | Dónde se hace cumplir |
 |---|---|
-| Cada zona táctil (los cuatro botones, la pausa, cada botella del HUD) mide **≥ 44 px CSS** a cualquier tamaño de ventana y de controles | `computeTouchLayout` (la escala de los botones nunca baja de **0.72**, que es el 80 % a la escala mínima de la interfaz, 0.9: el botón más pequeño, el de botella, mide entonces 46 px), `HUD_DESIGN.vial.hitH`, `PauseButton` |
+| Cada zona táctil (los tres botones, el chip de botella, la pausa, cada botella del HUD) mide **≥ 44 px CSS** a cualquier tamaño de ventana y de controles (también la Magia, cuya placa es de 31 dp: su zona táctil crece hasta un dedo) | `computeTouchLayout` (la escala de los botones nunca baja de **0.72** —`FIT_FLOOR`—, que es el 80 % a la escala mínima de la interfaz, 0.9), `HUD_DESIGN.vial.hitH`, `PauseButton` |
 | Nada táctil sale del **área segura** (*notch*, isla, indicador de inicio, esquinas) | todas |
 | Dos zonas táctiles **nunca se pisan** (un dedo = una acción) | `computeTouchLayout` |
-| Los botones **no llegan al HUD**: **el tamaño que pide el jugador cede ante lo que cabe**, nunca al revés (no se recorta lo que cabe: si cabe lo pedido, se respeta) | `computeTouchLayout` (`fits` + bisección) |
-| El borde del que cuelgan los botones conserva su margen (28 dp: el sistema se queda el borde) | `computeTouchLayout` |
-| La zona de movimiento conserva **≥ 25 %** del ancho útil y ningún botón entra en ella | `computeTouchLayout` |
+| Los botones **no llegan al HUD, al botón de pausa ni a la sala de la barra del jefe**, estén donde estén (también los que el jugador movió): **el tamaño que pide el jugador cede ante lo que cabe**, nunca al revés (no se recorta lo que cabe: si cabe lo pedido, se respeta); y si ni así cabe, ceden de uno en uno la barra del jefe, la pausa, el HUD y la separación entre botones, por ese orden | `resolveButtons` (el lugar libre más cercano, exacto, + bisección del tamaño) |
+| La placa de cada botón guarda su margen de los bordes laterales (28 dp × escala: el sistema se queda el borde) | `resolveButtons` |
+| **Un lugar elegido por el jugador es una fracción del área segura**: al girar el teléfono o cambiar de ventana se vuelve a resolver contra la ventana de ese momento, y **jamás deja un botón fuera de pantalla ni inutilizable** (lo guardado, vuelto a pedir, es donde el botón se queda) | `resolveButtons` (idempotente), `repairSettings`, `touchLayout.test`, E2E `touchEditor` |
+| La zona de movimiento conserva **≥ 30 %** del ancho útil (46 % si los botones la dejan) y ningún botón entra en ella | `computeTouchLayout` |
 | La barra del jefe está dentro del área segura, mide **≥ 160 px** y **nunca queda bajo un botón**: se centra si puede y, si no, se desliza al tramo libre más ancho cercano al centro | `computeBossBarLayout` (puro) + `BossBarView.place` |
 | El botón de pausa va **arriba al centro del área útil** (junto al HUD, no encima, si la ventana es más estrecha que él) | `PauseButton` |
 | La página **no se desplaza ni se amplía** y ningún valor es `NaN` / infinito / negativo | E2E `mobile`, `mobileGeometry.test.ts` |
@@ -81,10 +84,13 @@ Todos son **datos**, no código: calibrar es editar un objeto, no un algoritmo. 
 | `dropFlickDistance`, `dropFlickWindowMs` | 28 dp, 100 ms | ídem | atravesar una plataforma fina falla o salta sola | el gesto de bajada rápida, 20 veces |
 | `leftZoneWidth` | 46 % del ancho útil | ídem | la zona de movimiento es demasiado grande o pequeña para el pulgar | zonas en pantallas anchas y estrechas |
 | `edgeMargin` | 28 dp | ídem | los gestos del sistema (volver, cambiar de app) se disparan al pulsar un botón | tocar los botones más cercanos al borde |
-| posición y diámetros de los 4 controles | `TOUCH_CONTROLS` (Atacar 104, Esquivar 84, Habilidad 84, botella 64 dp de zona táctil) | `ui/touch/layout.ts` | un botón queda fuera del alcance natural del pulgar, o se pisa al sujetar el móvil | sujetar el móvil y tocar cada botón sin cambiar el agarre |
-| alcance de la posición ajustable | 120 dp hacia dentro, 90 hacia arriba | `PLACEMENT_RANGE` | no basta para sacar los botones del agarre de la mano | probar el lado izquierdo y las posiciones extremas |
+| posición y diámetro de los 3 botones **de la referencia** | Ataque (−65, −100) · Dash (−166, −63) · Magia (−126, −109) dp desde la esquina inferior derecha segura; placas de 70 · 70 · 31 dp | `BUTTON_DESIGN` en `input/gestures/TouchConfig.ts` | un botón queda fuera del alcance natural del pulgar, o se pisa al sujetar el móvil | sujetar el móvil y tocar cada botón sin cambiar el agarre (la disposición es la de la referencia, **no una calibrada**) |
+| el chip de botella | placa de 52 dp, cuelga a 16 dp sobre el Ataque | `TOUCH_DESIGN.chip` | se pulsa sin querer al atacar, o no se ve | pelear con una botella lista |
+| la zona táctil de cada botón | placa + 8 dp, nunca menos de 44 px; las placas vecinas se reparten el hueco | `PAD`, `MIN_TOUCH` en `ui/touch/layout.ts` | el pulgar roza el botón de al lado | pulsar Ataque y Dash en rápida sucesión |
+| la separación entre placas | 8 dp (al menos) | `BUTTON_GAP` | se pulsa el vecino | ídem |
+| el tamaño de un botón puesto por el jugador | 70 – 150 % del de diseño, sobre el de todos (80 – 140 %) | `TOUCH_LIMITS` en `save/SettingsData.ts` | el máximo no basta para la mano, o el mínimo es incómodo | editar la disposición a una mano |
+| el suelo del tamaño cuando no caben | 0.72 | `FIT_FLOOR` | los botones pequeños no se encuentran con el pulgar | el lado izquierdo con los controles grandes y arriba, en el móvil más bajo que haya |
 | `uiScale` | `min(ancho, alto × 2.1) / 844`, acotado a 0.9–1.6 | `input/gestures/TouchConfig.ts` | todo se ve pequeño en una tableta o enorme en un móvil muy ancho | mirar las tabletas y los móviles de 21:9 |
-| escala mínima de los controles cuando ceden ante el HUD | 0.72 (el 80 % a la escala mínima de la interfaz) | `SMALLEST` en `ui/touch/layout.ts` | los botones pequeños no se encuentran con el pulgar | el lado izquierdo con los controles grandes y arriba, en el móvil más bajo que haya |
 | altura de los botones de botella del HUD | **49 dp** de alto (44 px CSS a la escala mínima 0.9), paso de 36 dp | `ui/hud/layout.ts` (`HUD_DESIGN.vial`) | se pulsa la botella vecina | beber con el pulgar en el HUD |
 | tamaño del botón de pausa | 50 px (disco visible de 38) | `ui/settings/PauseButton.ts` | se pulsa sin querer, o no se encuentra | abrir y cerrar el menú en movimiento |
 | ancho de la barra del jefe | 46 % del ancho útil, entre 160 y 440 px | `ui/hud/bossBarLayout.ts` (`BOSS_BAR`) | el nombre o la barra no se leen a la distancia a la que se juega | pelear con el Custodio mirando la barra |
@@ -97,12 +103,12 @@ Para **cada** dispositivo (iPhone con Safari, iPad con Safari, Android con Chrom
 
 1. **Anotar**: modelo, versión del sistema y del navegador, tamaño de ventana (`window.innerWidth × innerHeight`), densidad, márgenes de seguridad (`env(safe-area-inset-*)`) en apaisado.
 2. **Cargar** el juego y abrir `?debug=1` (panel de depuración: fotogramas por segundo, llamadas de dibujo). Anotar los fotogramas medios y los peores durante la pelea con el Custodio (R4).
-3. **Agarre y alcance:** con las dos manos y con una, ¿se llega a Atacar, Esquivar, Habilidad y la botella sin cambiar el agarre? Probar los dos lados (menú → Controles táctiles → Lado) y la posición.
+3. **Agarre y alcance:** con las dos manos y con una, ¿se llega al Ataque, al Dash, a la Magia y a la botella sin cambiar el agarre? Probar la otra mano (menú → Controles → Botones táctiles → Editar disposición → Invertir lados) y mover cada botón.
 4. **Deriva del pulgar (R18):** correr por R1 30 s sin intención de saltar. Contar saltos accidentales.
 5. **Gestos:** correr/andar (zona muerta), saltar (arrastre hacia arriba), agacharse, atravesar plataforma (gesto rápido hacia abajo), mantener el salto, varios dedos a la vez (mover + atacar + esquivar).
 6. **Bordes:** pulsar los botones más cercanos al borde y los gestos del sistema (¿se dispara el «volver»?).
 7. **Navegador:** ¿se desplaza, se hace zoom, aparece el menú de pulsación larga o la selección de texto al jugar? ¿Qué pasa al **ocultarse la barra de direcciones** a mitad de partida (el `resize` suelta los dedos: ver `docs/PROMPT5-LOG.md` S13)? Girar el dispositivo a mitad de partida.
-8. **Menú:** abrir con el botón de pausa, cambiar el lado de los botones, el volumen y la calidad (Baja / Alta), recargar y comprobar que se conserva.
+8. **Menú:** abrir con el botón de pausa, editar la disposición de los botones y guardarla, el volumen y la calidad (Baja / Alta), recargar y comprobar que se conserva.
 9. **HUD y barra del jefe:** ¿se leen las botellas y la vida sin taparlas con la mano? ¿Se lee el nombre y la barra del Custodio mientras se pelea (¿lo tapa un pulgar?)?
 10. **Rendimiento:** con la calidad en Baja y en Alta, ¿mantiene 60 fotogramas?, ¿se calienta?
 11. **Escribir** lo observado en §5 **con lo que se vio**, no con lo que se esperaba. Si un umbral cambia, cambiar el dato y anotar el valor viejo y el nuevo.
@@ -124,7 +130,7 @@ Para **cada** dispositivo (iPhone con Safari, iPad con Safari, Android con Chrom
 
 - **Vertical.** El juego está pensado **apaisado**. En vertical el área de juego (≥ 4:3) queda pequeña con bandas y la bandera `rotateDevice` del *viewport* existe (el E2E comprueba que se activa), pero **no hay aviso de «gira el dispositivo»** todavía (queda para P7). La geometría se comprueba también en vertical (todo dentro de la ventana, nada se pisa; el botón de pausa pasa a estar junto al HUD y no encima), pero **no se ha jugado así en un móvil**.
 - **Cambios de tamaño.** Un `resize` suelta todos los dedos (decisión de seguridad): en un navegador móvil cuya barra se esconde a mitad de partida puede notarse. Pendiente de dispositivo.
-- **El tamaño pedido cede ante el HUD.** Sobre **2 880 combinaciones** (10 ventanas, 4 márgenes, 4 tamaños, 2 lados, 9 posiciones), el tamaño que pide el jugador cede en **392 (14 %)**: **39 a la derecha** —el diseño—, todas en la ventana mínima de 568 × 320, y **353 a la izquierda** (el botón de botella cuelga arriba del bloque y, al espejarse, queda bajo el HUD). A la derecha **nunca cede** en una ventana de móvil o de tableta (lo fija una prueba). El peor caso baja hasta el suelo (0.72). Es una decisión de diseño —el tamaño del menú es una preferencia y la ventana decide lo que cabe—, no un fallo; el menú **no avisa** de ello todavía.
+- **El tamaño pedido cede ante el HUD.** (Medido en el Prompt 6, con el modelo del lado y los desplazamientos.) Sobre **2 880 combinaciones** (10 ventanas, 4 márgenes, 4 tamaños, 2 lados, 9 posiciones), el tamaño que pide el jugador cede en **392 (14 %)**: **39 a la derecha** —el diseño—, todas en la ventana mínima de 568 × 320, y **353 a la izquierda** (el botón de botella cuelga arriba del bloque y, al espejarse, queda bajo el HUD). A la derecha **nunca cede** en una ventana de móvil o de tableta (lo fija una prueba). El peor caso baja hasta el suelo (0.72). Es una decisión de diseño —el tamaño del menú es una preferencia y la ventana decide lo que cabe—, no un fallo; el menú **no avisa** de ello todavía.
 - **Teclas y mando:** las teclas del teclado se pueden cambiar (S30); **el mando y el táctil no** (el táctil son gestos). Tampoco se ha probado con un mando físico.
 - **Sonido:** no hay; el volumen del menú está preparado, no suena nada.
 - **Rendimiento:** medido solo con Chromium dibujando por software (`bench:bundle` mide **bytes**, no fotogramas). Un móvil de gama baja puede necesitar el perfil Bajo; **«Auto» no mide el dispositivo** (es el perfil equilibrado).
@@ -197,3 +203,29 @@ El HUD, el botón de pausa, el menú, el aviso de guardado y el guardado en sí 
 | iPad — *sin medir* | | | | | |
 | Android — *sin medir* | | | | | |
 | Android de gama baja — *sin medir* | | | | | |
+
+---
+
+## 9. Los botones del Prompt 15 (PNG del artista y editor) — **SIN MEDIR**
+
+Los tres botones (los PNG del artista), su disposición por defecto (la de la referencia) y el editor **no se han visto ni tocado en un dispositivo real**: la geometría está auditada con funciones puras (8 ventanas × 4 márgenes × 3 tamaños × lugares al azar, más las 10 clases de `mobileGeometry`) y lo que se ve se fotografió y se midió en Chromium sin cabeza (844 × 390 a 2×, con toques de DevTools). Lo que hay que mirar:
+
+| Qué | Valor hoy | Síntoma de que está mal | Qué probar |
+|---|---|---|---|
+| la disposición de la referencia | ver §3 | un botón fuera del alcance del pulgar; la Magia (31 dp) difícil de encontrar | jugar un combate entero con una mano y con dos |
+| **la nitidez de los PNG reducidos** | 2560 × 1440 escalados a ≈ 70 dp (140 – 210 px en pantalla) por el navegador | los bordes de la placa o el glifo se ven con dientes o borrosos en una pantalla de 2 – 3× | mirar los tres botones de cerca en un iPhone, un iPad y un Android de gama alta y baja |
+| el peso de las imágenes | 40, 48 y 55 KB (sin tocar), pedidas la primera vez que la capa se muestra | el botón tarda en aparecer con mala red | cargar en 3G simulado: la capa debe seguir respondiendo (los botones están aunque la imagen no) |
+| **arrastrar en el editor a los bordes** | el botón se detiene a 28 dp × escala del borde lateral | el gesto del sistema (volver, cambiar de app) se come el arrastre o lo cancela | arrastrar un botón hacia el borde izquierdo y derecho en iOS y en Android 10+ |
+| **«Guardar» justo después de arrastrar** | actúa al **levantar el dedo** (`onPress`): Chromium no hace `click` de ese toque | iOS Safari o Firefox móvil se comportan distinto (doble acción, ninguna) | arrastrar un botón y pulsar «Guardar» sin una pausa entre medias, 20 veces |
+| el editor con la barra de direcciones que se esconde | el editor se recoloca con el `resize` | el botón salta, o la capa real vuelve antes de tiempo | abrir el editor y hacer que la barra del navegador aparezca y desaparezca |
+| la zona de movimiento tras recolocar los botones | se pone en el lado contrario al del centroide de los botones | el pulgar que corre cae sobre un botón | mover los tres botones a la izquierda y correr |
+| el botón apagado (Dash recargando, Magia sin magia) | 45 % de opacidad; sigue siendo tocable | no se entiende que no responde | pulsar el Dash dos veces seguidas; lanzar magia sin magia |
+
+### Resultados en dispositivo — **SIN MEDIR**
+
+| Dispositivo | PNG nítidos | Alcance del pulgar (referencia) | Editor (arrastre, bordes, Guardar) | Notas |
+|---|---|---|---|---|
+| iPhone — *sin medir* | | | | |
+| iPad — *sin medir* | | | | |
+| Android — *sin medir* | | | | |
+| Android de gama baja — *sin medir* | | | | |

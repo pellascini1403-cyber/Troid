@@ -1,45 +1,16 @@
 import { listen } from '@/app/dom';
+import { onPress } from '@/app/press';
 import { DisposableStore } from '@/core/lifecycle';
 import type { Translator } from '@/i18n/translator';
 import { cssHex, PALETTE } from '@/presentation/palette';
 import { createIcon } from '../icons';
-import { HUD_FOOTPRINT, NO_INSETS, type Insets } from '../touch/layout';
+import { NO_INSETS, PAUSE_FOOTPRINT, pauseOrigin, type Insets } from '../touch/layout';
+
+export { pauseBox } from '../touch/layout';
 
 const STYLE_ID = 'troid-pause-style';
-/** Size of the button, css px at scale 1 (the controls' scale is never below 0.9): a finger-sized target, 44 px at the least. The visible disc is smaller. */
-const SIZE = 50;
-const MARGIN = 8;
-
-/** Where the button is for a window `width` px wide with the given safe insets at `scale`: a box in px (the scaled square, centred in what is usable, below the top inset). */
-export function pauseBox(width: number, insets: Readonly<Insets>, scale = 1, hudScale = 1): { x0: number; y0: number; x1: number; y1: number } {
-  const cx = Math.round(pauseLeft(width, insets, scale, hudScale)) + SIZE / 2;
-  const top = pauseTop(insets, scale);
-  const half = (SIZE / 2) * scale;
-  const cy = top + SIZE / 2;
-  return { x0: cx - half, y0: cy - half, x1: cx + half, y1: cy + half };
-}
-
-/**
- * The left edge of the button (before scaling): its centre is the middle of what is usable — except in a window narrower than the HUD is wide (a phone held
- * upright, S31: the audit found the button over the fourth bottle), where it goes right next to the HUD, as long as it still fits inside the safe area.
- * The HUD counts at its widest (five life segments, four bottles), so the button does not move when a bottle is found.
- */
-function pauseLeft(width: number, insets: Readonly<Insets>, scale: number, hudScale: number): number {
-  const middle = insets.left + (width - insets.left - insets.right) / 2;
-  const half = (SIZE / 2) * scale;
-  // the HUD is drawn at the window's scale times the size the player chose for it
-  const beside = insets.left + (HUD_FOOTPRINT.margin + HUD_FOOTPRINT.width) * scale * hudScale + HUD_FOOTPRINT.gap * scale + half;
-  const centre = beside > middle && beside + half <= width - insets.right ? beside : middle;
-  return centre - SIZE / 2;
-}
-
-/**
- * The `translate` that puts the SCALED button (it scales about its centre) a margin below the top inset: scaling grows it up and down by half the difference,
- * so the box must come down by that much, or at a large `uiScale` its top edge would be off the window (S31: the geometry audit found it 1 px out at 1.5).
- */
-function pauseTop(insets: Readonly<Insets>, scale: number): number {
-  return Math.round(insets.top + MARGIN * scale + (SIZE / 2) * Math.max(0, scale - 1));
-}
+/** Size of the button, css px at scale 1 (the controls' scale is never below 0.9): a finger-sized target, 44 px at the least. The visible disc is smaller. Where it goes is `pauseOrigin`'s (`ui/touch/layout.ts`: the buttons keep out of it). */
+const SIZE = PAUSE_FOOTPRINT.size;
 
 const rgba = (hex: number, a: number): string => `rgba(${(hex >> 16) & 255},${(hex >> 8) & 255},${hex & 255},${a})`;
 
@@ -70,7 +41,7 @@ export class PauseButton {
   constructor(
     parent: HTMLElement,
     private readonly translator: Translator,
-    onPress: () => void,
+    press: () => void,
   ) {
     const doc = parent.ownerDocument;
     if (!doc.getElementById(STYLE_ID)) {
@@ -100,10 +71,8 @@ export class PauseButton {
     listen(this.store, this.root, 'pointerup', up);
     listen(this.store, this.root, 'pointercancel', up);
     listen(this.store, this.root, 'pointerleave', up);
-    listen(this.store, this.root, 'click', (e) => {
-      e.preventDefault();
-      onPress();
-    });
+    // pressed by a tap that is one of two fingers (a thumb is on Attack) as well as by a click: the browser makes no click of such a tap
+    onPress(this.store, this.root, press);
     this.refreshLabel();
     this.store.add(translator.changed.subscribe(() => this.refreshLabel()));
   }
@@ -115,7 +84,8 @@ export class PauseButton {
     this.insets = insets;
     this.scale = scale;
     this.hudScale = hudScale;
-    Object.assign(this.root.style, { transform: `translate(${Math.round(pauseLeft(width, insets, scale, hudScale))}px, ${pauseTop(insets, scale)}px) scale(${scale})` });
+    const { left, top } = pauseOrigin(width, insets, scale, hudScale);
+    Object.assign(this.root.style, { transform: `translate(${left}px, ${top}px) scale(${scale})` });
   }
 
   /** The menu is open: the button steps out of the way (it is the menu's own Resume that closes it). */
