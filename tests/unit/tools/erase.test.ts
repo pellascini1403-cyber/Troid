@@ -141,3 +141,36 @@ describe('erase.json: what it takes out, and only that', () => {
     expect(() => applyErase([frame(), frame()], names, { blow_00: entry([square(2, 32, 8, 38), square(10, 32, 18, 38)]) })).toThrow(/polygon 1, 2 enclose no visible pixel/);
   });
 });
+
+describe('erase.json: a dark speck painted on the effect (allowDark)', () => {
+  /** The arc with one dark opaque speck inside it, as a slash arc painted with a mark on it. */
+  const withSpeck = (): RgbaImage => {
+    const f = frame();
+    f.data.set(BODY, (14 * canvas.width + 48) * 4);
+    return f;
+  };
+  const arcPolygon = square(34, 10, 58, 18);
+
+  it('refuses a polygon over a dark opaque pixel as before, and takes that pixel out — and only that one — when it is listed', () => {
+    expect(() => applyErase([withSpeck(), frame()], names, { blow_00: entry([arcPolygon]) })).toThrow(/covers 1 pixel\(s\) of the body \(dark and opaque; the first at 48,14\)/);
+    const { frames, erased } = applyErase([withSpeck(), frame()], names, { blow_00: { ...entry([arcPolygon]), allowDark: [[48, 14]] } });
+    expect(px(frames[0]!, 48, 14)).toEqual([0, 0, 0, 0]);
+    expect(px(frames[0]!, 47, 14)).toEqual([0, 0, 0, 0]);
+    expect(erased[0]!.pixels).toBe(20 * 5);
+    // the body, untouched
+    expect(px(frames[0]!, 15, 15)).toEqual([...BODY]);
+  });
+
+  it('refuses an entry that does not hold: a pixel that is not dark, one no polygon covers, one that is not there — and a list that is not a few whole pixels inside the canvas', () => {
+    const polygons = [arcPolygon];
+    expect(() => applyErase([withSpeck(), frame()], names, { blow_00: { ...entry(polygons), allowDark: [[48, 14], [38, 14]] } })).toThrow(/allowDark \(38,14\) is not a dark opaque pixel inside a polygon/);
+    expect(() => applyErase([withSpeck(), frame()], names, { blow_00: { ...entry(polygons), allowDark: [[48, 14], [15, 15]] } })).toThrow(/allowDark \(15,15\)/);
+    const bad = (allowDark: unknown): void => expect(() => parseErase(JSON.stringify({ blow_00: { ...entry([arcPolygon]), allowDark } }), names, canvas)).toThrow(/allowDark must be a list of 1 to 12 whole-number pixels/);
+    bad([]);
+    bad('a');
+    bad([[1.5, 2]]);
+    bad([[61, 2]]);
+    bad(Array.from({ length: 13 }, (_, i) => [i, 1]));
+    expect(parseErase(JSON.stringify({ blow_00: { ...entry([arcPolygon]), allowDark: [[48, 14]] } }), names, canvas)['blow_00']!.allowDark).toEqual([[48, 14]]);
+  });
+});

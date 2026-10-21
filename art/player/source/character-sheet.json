@@ -1,0 +1,499 @@
+{
+  "comment": "THE PROTAGONIST'S CURRENT DESIGN, AS THE USER'S SHEET SAYS IT (docs/PROMPT16-LOG.md): `character-sheet.png` is the user's image, bit for bit, and the ONLY authority on how the protagonist looks. This file is the data that reads it — where each pose is (a rectangle of the sheet, tight around the figure, its embers and the effects painted beside it) and which poses of which panel are which clip of the game. `npm run assets:intake -- from-sheet` cuts each clip's part out of the sheet by a plain crop (no pixel changed) into its inbox; `npm run assets:intake -- <clip>` then does the rest. Nothing here is art. The panels of the sheet are NOT drawn at one scale (the head measures about 56 px in the idle, 54 walking, 51 running and jumping, 43 in the cast and the dash, 40 interacting and hurt): each clip is brought to the size of the idle's head by the tool, by one factor per clip.",
+  "sheet": "character-sheet.png",
+  "sha256": "1150f61df05fa7e7f8dae7cfc700602c88a7307e31573e349c707c9ab34d6bbd",
+  "size": [
+    1536,
+    1024
+  ],
+  "panels": {
+    "idle": {
+      "title": "IDLE / DESCANSO",
+      "poses": [
+        [
+          24,
+          65,
+          116,
+          213
+        ],
+        [
+          149,
+          65,
+          249,
+          214
+        ],
+        [
+          281,
+          65,
+          383,
+          213
+        ],
+        [
+          403,
+          65,
+          493,
+          213
+        ],
+        [
+          515,
+          66,
+          639,
+          211
+        ],
+        [
+          660,
+          64,
+          764,
+          212
+        ]
+      ]
+    },
+    "walk": {
+      "title": "CAMINANDO",
+      "poses": [
+        [
+          802,
+          67,
+          924,
+          211
+        ],
+        [
+          935,
+          67,
+          1038,
+          213
+        ],
+        [
+          1048,
+          64,
+          1155,
+          212
+        ],
+        [
+          1164,
+          66,
+          1271,
+          210
+        ],
+        [
+          1280,
+          65,
+          1390,
+          212
+        ],
+        [
+          1398,
+          64,
+          1506,
+          211
+        ]
+      ]
+    },
+    "run": {
+      "title": "CORRIENDO",
+      "poses": [
+        [
+          18,
+          300,
+          140,
+          419
+        ],
+        [
+          154,
+          301,
+          278,
+          422
+        ],
+        [
+          292,
+          302,
+          406,
+          423
+        ],
+        [
+          423,
+          301,
+          538,
+          425
+        ],
+        [
+          558,
+          303,
+          692,
+          422
+        ]
+      ]
+    },
+    "jump": {
+      "title": "SALTANDO",
+      "poses": [
+        [
+          806,
+          341,
+          943,
+          444
+        ],
+        [
+          965,
+          299,
+          1072,
+          415
+        ],
+        [
+          1105,
+          267,
+          1226,
+          392
+        ],
+        [
+          1259,
+          309,
+          1386,
+          428
+        ]
+      ]
+    },
+    "fall": {
+      "title": "CAÍDA",
+      "poses": [
+        [
+          49,
+          493,
+          131,
+          639
+        ],
+        [
+          177,
+          475,
+          257,
+          640
+        ],
+        [
+          310,
+          492,
+          383,
+          650
+        ],
+        [
+          432,
+          504,
+          512,
+          655
+        ],
+        [
+          565,
+          545,
+          700,
+          647
+        ]
+      ]
+    },
+    "attack": {
+      "title": "ATAQUE CUERPO A CUERPO",
+      "poses": [
+        [
+          772,
+          523,
+          906,
+          639
+        ],
+        [
+          935,
+          530,
+          1112,
+          640
+        ],
+        [
+          1137,
+          523,
+          1297,
+          637
+        ],
+        [
+          1370,
+          519,
+          1487,
+          640
+        ]
+      ]
+    },
+    "cast": {
+      "title": "DISPARO / MAGIA",
+      "poses": [
+        [
+          31,
+          720,
+          122,
+          831
+        ],
+        [
+          172,
+          721,
+          343,
+          831
+        ],
+        [
+          355,
+          722,
+          551,
+          831
+        ],
+        [
+          584,
+          721,
+          681,
+          831
+        ]
+      ]
+    },
+    "dash": {
+      "title": "DASH",
+      "poses": [
+        [
+          794,
+          740,
+          919,
+          827
+        ],
+        [
+          934,
+          736,
+          1122,
+          829
+        ],
+        [
+          1140,
+          748,
+          1296,
+          826
+        ],
+        [
+          1321,
+          736,
+          1475,
+          825
+        ]
+      ]
+    },
+    "interact": {
+      "title": "INTERACCIÓN",
+      "poses": [
+        [
+          31,
+          890,
+          137,
+          988
+        ],
+        [
+          142,
+          891,
+          246,
+          990
+        ],
+        [
+          260,
+          891,
+          357,
+          991
+        ],
+        [
+          371,
+          892,
+          444,
+          992
+        ]
+      ]
+    },
+    "hurt": {
+      "title": "DAÑO / GOLPE",
+      "poses": [
+        [
+          480,
+          893,
+          580,
+          991
+        ],
+        [
+          607,
+          891,
+          695,
+          992
+        ],
+        [
+          711,
+          888,
+          850,
+          991
+        ]
+      ]
+    },
+    "death": {
+      "title": "MUERTE",
+      "poses": [
+        [
+          881,
+          931,
+          997,
+          991
+        ],
+        [
+          1011,
+          926,
+          1113,
+          991
+        ],
+        [
+          1130,
+          942,
+          1228,
+          991
+        ]
+      ]
+    },
+    "back": {
+      "title": "VISTA DETRÁS",
+      "poses": [
+        [
+          1294,
+          888,
+          1374,
+          996
+        ],
+        [
+          1416,
+          887,
+          1493,
+          995
+        ]
+      ]
+    }
+  },
+  "clips": {
+    "idle": {
+      "panel": "idle",
+      "poses": [
+        5,
+        6
+      ],
+      "note": "the two side views of the IDLE panel (the sheet's other four are the character turning round: front, three-quarters, back — not a side-scroller's idle)"
+    },
+    "walk": {
+      "panel": "walk",
+      "poses": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ]
+    },
+    "run": {
+      "panel": "run",
+      "poses": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    "jump": {
+      "panel": "jump",
+      "poses": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    "fall": {
+      "panel": "fall",
+      "poses": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    "land": {
+      "panel": "fall",
+      "poses": [
+        5
+      ],
+      "note": "the fifth pose of the FALL panel is the only one that touches the ground: it is read as the landing"
+    },
+    "attack1": {
+      "panel": "attack",
+      "poses": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    "cast": {
+      "panel": "cast",
+      "poses": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    "dash": {
+      "panel": "dash",
+      "poses": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    "interact": {
+      "panel": "interact",
+      "poses": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    "hurt": {
+      "panel": "hurt",
+      "poses": [
+        1,
+        2,
+        3
+      ]
+    },
+    "death": {
+      "panel": "death",
+      "poses": [
+        1,
+        2,
+        3
+      ]
+    }
+  },
+  "unused": [
+    {
+      "panel": "idle",
+      "poses": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "why": "the character turning round (front, front turned, three-quarters facing left, back): views the game never shows (the hero is always seen from the side, facing right; the engine mirrors it to face left)"
+    },
+    {
+      "panel": "back",
+      "poses": [
+        1,
+        2
+      ],
+      "why": "the view from behind: no state of the game draws the hero from behind"
+    }
+  ]
+}

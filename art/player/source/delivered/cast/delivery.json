@@ -1,0 +1,45 @@
+{
+  "clip": "cast",
+  "level": "warn",
+  "inputs": [
+    {
+      "file": "sheet.png",
+      "sha256": "7d94c8da06b73a4c707e778bb196850d674333ae869884a0bf95228a48abf6dc"
+    }
+  ],
+  "scale": {
+    "factor": 1.237747,
+    "how": "head",
+    "proxy": "head",
+    "target": 22.81,
+    "headTarget": 56.25
+  },
+  "anchors": "5c391578029eff12b64e3fd8d11c0ae8c06bacb15f9c01cbd66be93d5db2987c",
+  "placement": null,
+  "poses": "91a1c9b058dec245634ed50c1858877d7c43c97af1277858faf06fe99cbee9a9",
+  "scaleFile": null,
+  "waivers": "a726c5da4b986fe75239a8855337b4342ace82e5b1ff9ca8e6dd7c341cebb325",
+  "erase": "d1e76148c1a0d336159d02a17c6fe8e1d806c87a371b80734b8ea7ea88bb26a5",
+  "frames": [
+    {
+      "name": "cast_00",
+      "sha256": "c2a006267198bfcede60a1df5bb9125d20f2dd154cae6b2c1e89d9515a6aef44",
+      "level": "ok"
+    },
+    {
+      "name": "cast_01",
+      "sha256": "ee3fa58652f9a41f08f32431389494360c77025f54a318fd51f76aad74495d98",
+      "level": "ok"
+    },
+    {
+      "name": "cast_02",
+      "sha256": "1e5e6410aafbc3d60543a48cf12b6da4bbeefc8d0240b2609f451111daa3d3ae",
+      "level": "warn"
+    },
+    {
+      "name": "cast_03",
+      "sha256": "7ae3f776b47200e747dda548c50f3b945b055f72859b39082c6d3ea8cf7a4f92",
+      "level": "ok"
+    }
+  ]
+}

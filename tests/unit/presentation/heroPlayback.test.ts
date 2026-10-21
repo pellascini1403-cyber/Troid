@@ -7,13 +7,14 @@ import { deriveAnimation } from '@/player/playerAnimation';
 import { SpriteAnimator, clipLength, frameForPhase, resolveClip } from '@/presentation/animation';
 import { parseArtPack, toSpriteSetDefinition } from '@/presentation/artManifest';
 import { clipFrameNames, type SpriteSetDefinition } from '@/presentation/SpriteSetDefinition';
-import { chooseSource, providesState } from '@/presentation/visualSource';
+import { chooseSource, providesState, standInFor } from '@/presentation/visualSource';
 import { ANIM_STATES, type AnimPhase, type AnimState } from '@/presentation/vocabulary';
 
 /**
- * THE PROTAGONIST'S CLIPS AS THE ENGINE PLAYS THEM (docs/ART-PIPELINE-2D.md part N): the real manifest, read by the real parser, played by the real animator at 60 ticks a second.
+ * THE PROTAGONIST'S CLIPS AS THE ENGINE PLAYS THEM (docs/ART-PIPELINE-2D.md part N; docs/PROMPT16-LOG.md): the real manifest, read by the real parser, played by the real animator at 60 ticks a second.
  * Nothing here draws: it is the CHOICE of frame — which clip a state plays, which frame a moment shows, which frame a phase of a blow shows — over the committed art, so that what the
- * game puts on the screen follows the simulation (the phases of a blow) and the clock (the gaits) the way the clips were made for.
+ * game puts on the screen follows the simulation (the phases of a blow) and the clock (the gaits) the way the clips were made for. The character sheet has no drawing for five of the fifteen states the game asks of
+ * the protagonist (`NOT_IN_THE_SHEET`): those are not declared, and the test says what draws each — the placeholder, or (the second blow) the first blow's clip, which the engine declares as its stand-in.
  */
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const raw = JSON.parse(readFileSync(join(root, 'public', 'art', 'player', 'player.pack.json'), 'utf8')) as unknown;
@@ -22,6 +23,9 @@ const pack = parsed.value!;
 const hero = pack.sprites.find((s) => s.id === PLAYER_VISUAL.art.sprite)!;
 const def: SpriteSetDefinition = toSpriteSetDefinition(pack.id, hero, { resolution: 1 });
 const TICK = 1 / 60;
+/** The states of the game the character sheet has no drawing for (the engine's names): not in the manifest. */
+const NOT_IN_THE_SHEET = ['attack2', 'attackAir', 'crouch', 'attackCrouch', 'drink'] as const;
+const IN_THE_SHEET = PLAYER_VISUAL.required.filter((state) => !(NOT_IN_THE_SHEET as readonly string[]).includes(state));
 
 /** The frame indices an animator shows, tick by tick, while `state` is asked for with `options` for `ticks` ticks. */
 function play(state: AnimState, ticks: number, options: { speed?: number; phase?: (tick: number) => { phase: AnimPhase; phaseT: number } } = {}): number[] {
@@ -43,8 +47,8 @@ describe('the protagonist\'s clips, as the engine plays them', () => {
     expect(Object.keys(atlas.frames)).toHaveLength(Object.values(def.clips).reduce((n, c) => n + c!.count, 0));
   });
 
-  it('every state the game asks of the protagonist is drawn by a clip of its own — never by a fallback — and the art provides every one, so `auto` never shows the placeholder', () => {
-    for (const state of [...PLAYER_VISUAL.required, 'land', 'run', 'crouchWalk'] as AnimState[]) {
+  it('every state the sheet has a drawing for is drawn by a clip of its own — never by a fallback — and the art provides it, so `auto` shows the art', () => {
+    for (const state of [...IN_THE_SHEET, 'land', 'run'] as AnimState[]) {
       const r = resolveClip(def, state);
       expect(r?.state, `${state} resolves to its own clip`).toBe(state);
       expect(providesState(def, state), state).toBe(true);
@@ -53,6 +57,21 @@ describe('the protagonist\'s clips, as the engine plays them', () => {
     // `attack` is the first blow's name in the simulation: the clip is `attack1`
     expect(resolveClip(def, 'attack')?.state).toBe('attack1');
     expect(chooseSource('auto', def, 'attack')).toBe('art');
+  });
+
+  it('the states the sheet has no drawing for are NOT faked: the second blow repeats the first (the engine\'s declared stand-in, the same drawing and nothing moved or bent); the air blow, the crouch blow, the crouch, the crawl and the drink are drawn by the placeholder', () => {
+    for (const state of NOT_IN_THE_SHEET) expect(def.clips[state], `${state} has no clip of its own`).toBeUndefined();
+    expect(def.clips['crouchWalk']).toBeUndefined();
+    expect(standInFor(def, 'attack2')).toBe('attack1');
+    expect(chooseSource('auto', def, 'attack2')).toBe('art');
+    for (const state of ['attackAir', 'attackCrouch', 'crouch', 'crouchWalk', 'drink'] as AnimState[]) {
+      expect(providesState(def, state), `${state}: nothing of the art can stand for it`).toBe(false);
+      expect(chooseSource('auto', def, state), `${state} is drawn by the placeholder`).toBe('placeholder');
+    }
+    // `land` and `alert` are held poses of a few ticks: the engine lets the art's own pose (the landing) or its idle stand for them, never the placeholder
+    expect(chooseSource('auto', def, 'alert')).toBe('art');
+    // the art on its own (`art` mode, to judge it) chains to the idle for what it lacks, as it always did — it never throws
+    for (const state of NOT_IN_THE_SHEET) expect(resolveClip(def, state), state).not.toBeNull();
   });
 
   it('the gaits turn over the frames in order, forever: a step a hair under a third of a second', () => {
@@ -85,8 +104,8 @@ describe('the protagonist\'s clips, as the engine plays them', () => {
     expect(gait(1.2).speed).toBe(0.5);
   });
 
-  it('the idle breathes and loops; the crouch breathes and loops; the fall flutters and loops', () => {
-    for (const state of ['idle', 'crouch', 'fall'] as const) {
+  it('the idle sways and loops; the fall flutters and loops (the crouch has no drawing yet)', () => {
+    for (const state of ['idle', 'fall'] as const) {
       const count = def.clips[state]!.count;
       const seq = play(state, 60 * 6);
       expect(new Set(seq).size, `${state}: all its frames are shown`).toBe(count);
@@ -94,8 +113,8 @@ describe('the protagonist\'s clips, as the engine plays them', () => {
     }
   });
 
-  it('the one-shot clips play once and hold their last frame: the jump, the landing, the dash, the hurt, the death, the drink, the interaction', () => {
-    for (const state of ['jump', 'land', 'dash', 'hurt', 'death', 'drink', 'interact'] as const) {
+  it('the one-shot clips play once and hold their last frame: the jump, the landing, the dash, the hurt, the death, the interaction', () => {
+    for (const state of ['jump', 'land', 'dash', 'hurt', 'death', 'interact'] as const) {
       const clip = def.clips[state]!;
       const seq = play(state, 60 * 3);
       expect(seq[0], `${state} begins at its first frame`).toBe(0);
@@ -109,15 +128,14 @@ describe('the protagonist\'s clips, as the engine plays them', () => {
   });
 
   it('a blow is drawn by the SIMULATION\'s phases: every frame is shown at least one tick, in order, and the sword is raised before it strikes', () => {
+    // (the second blow plays the first one's clip: its stand-in; the air blow and the crouch blow have no clip)
     const blows: Array<[AnimState, number, number, number]> = [
       ['attack1', 4, 3, 8],
       ['attack2', 3, 3, 11],
-      ['attackAir', 3, 4, 9],
-      ['attackCrouch', 4, 3, 9],
       ['cast', 6, 1, 8],
     ];
     for (const [state, startup, active, recovery] of blows) {
-      const clip = def.clips[state]!;
+      const clip = def.clips[standInFor(def, state)!]!;
       const phases: Array<[AnimPhase, number]> = [['startup', startup], ['active', active], ['recovery', recovery]];
       const seq: number[] = [];
       const phaseOf: AnimPhase[] = [];
@@ -142,13 +160,14 @@ describe('the protagonist\'s clips, as the engine plays them', () => {
     const length = (s: AnimState): number => clipLength(def.clips[s]!);
     expect(length('dash')).toBeCloseTo(0.1667, 3);
     expect(length('land')).toBeCloseTo(10 / 60, 3);
-    expect(length('drink')).toBeCloseTo(0.4, 3);
     expect(length('interact')).toBeCloseTo(0.2, 3);
+    expect(length('hurt')).toBeCloseTo(0.25, 3);
+    expect(length('cast')).toBeCloseTo(0.5, 3);
     expect(length('death')).toBeGreaterThan(0.6);
     expect(length('death')).toBeLessThan(1);
     // and the sprite set is the one the placeholder's contract describes
     expect(def.height).toBe(1.7);
     expect(def.artPxPerMeter).toBe(65);
-    expect(ANIM_STATES.filter((s) => def.clips[s] !== undefined)).toHaveLength(18);
+    expect(ANIM_STATES.filter((s) => def.clips[s] !== undefined), 'twelve clips: the sheet\'s').toHaveLength(12);
   });
 });

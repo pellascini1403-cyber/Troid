@@ -1,0 +1,4 @@
+{
+  "factor": 1,
+  "why": "the idle is the reference of the character: the sheet at its own size, not one pixel resampled; every other clip is brought to the size of this one's head"
+}

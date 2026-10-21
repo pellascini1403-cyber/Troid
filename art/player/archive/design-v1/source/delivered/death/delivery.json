@@ -1,0 +1,46 @@
+{
+  "clip": "death",
+  "level": "ok",
+  "inputs": [
+    {
+      "file": "sheet.png",
+      "sha256": "25776aac3ad919676cda10291b00d1ffc120f78a7f416811ec46f8b5d2897708"
+    }
+  ],
+  "scale": {
+    "factor": 0.552768,
+    "how": "head",
+    "proxy": "head",
+    "target": 21.38,
+    "headTarget": 51.76
+  },
+  "anchors": null,
+  "placement": null,
+  "frames": [
+    {
+      "name": "death_00",
+      "sha256": "3724d67421b271c478baf4fed56074c589277fe403c5e3b0809610bd78cae4ef",
+      "level": "ok"
+    },
+    {
+      "name": "death_01",
+      "sha256": "ce40a9884866f64e1ad3f943f122a6e472ebc388618953ec524886b8e14c0d02",
+      "level": "ok"
+    },
+    {
+      "name": "death_02",
+      "sha256": "40c0036124ae32bc8910e289a4fb1036a335387c202848a8a40be00bfe047717",
+      "level": "ok"
+    },
+    {
+      "name": "death_03",
+      "sha256": "c3e3ee6a7c5678a3475d9c666c8cb9107019d08b99ffd7a05473f96c7ded4059",
+      "level": "ok"
+    },
+    {
+      "name": "death_04",
+      "sha256": "e6477096071f2550c1e1ef406d37483461356c1fa6a885b0a65b17b53f80b3e7",
+      "level": "ok"
+    }
+  ]
+}

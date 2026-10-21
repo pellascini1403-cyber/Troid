@@ -1,0 +1,45 @@
+{
+  "clip": "attack1",
+  "level": "warn",
+  "inputs": [
+    {
+      "file": "sheet.png",
+      "sha256": "fde1e9f6e717f0583cfa4ac075915798b30798502ae2f58ce5aae467bb7f9d4e"
+    }
+  ],
+  "scale": {
+    "factor": 1.070622,
+    "how": "head",
+    "proxy": "head",
+    "target": 22.81,
+    "headTarget": 56.25
+  },
+  "anchors": "1af08ec27e6763fdf0abf76709264b32818fc1217ef073f94a64c2c12cbb2468",
+  "placement": null,
+  "poses": "a60db1632347c99ca919db914bdc63e10ce8bc8d4d106163aaae936519e9ddd6",
+  "scaleFile": null,
+  "waivers": null,
+  "erase": "a706a822d39108198961147de45409fe0e6c74b09635ccebe6296a771aa1fa04",
+  "frames": [
+    {
+      "name": "attack1_00",
+      "sha256": "2b128c9055a653566c6916e666d33cc312a22d5cd6ab4c1b92e40b43391aaa06",
+      "level": "ok"
+    },
+    {
+      "name": "attack1_01",
+      "sha256": "7775785e33701f90ead69af7911765efb0ca876230a8842e924e66d92d0c52c8",
+      "level": "ok"
+    },
+    {
+      "name": "attack1_02",
+      "sha256": "d6248ae795819aa3cbfe3370ebb4abea0456cab1812a2c6c2f376bcfd48f664b",
+      "level": "ok"
+    },
+    {
+      "name": "attack1_03",
+      "sha256": "6007c707ecce5a18a5d40008f7e3f7cd643067223e229c864b9b94ba1cc098b3",
+      "level": "ok"
+    }
+  ]
+}

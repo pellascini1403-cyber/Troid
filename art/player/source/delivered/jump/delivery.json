@@ -1,0 +1,45 @@
+{
+  "clip": "jump",
+  "level": "warn",
+  "inputs": [
+    {
+      "file": "sheet.png",
+      "sha256": "ef30d6cccfbeacada8fefeaa4e6271cb79149636e72ce46271487bc83c72e59c"
+    }
+  ],
+  "scale": {
+    "factor": 1.078151,
+    "how": "head",
+    "proxy": "head",
+    "target": 22.81,
+    "headTarget": 56.25
+  },
+  "anchors": null,
+  "placement": null,
+  "poses": "74d76538b2aeb0570c21dffc6bd7ac3e9d4ce644d4479152ebbd7fe6e1cb929e",
+  "scaleFile": null,
+  "waivers": null,
+  "erase": null,
+  "frames": [
+    {
+      "name": "jump_00",
+      "sha256": "84ef795fe4b6df613ae090c58155e165edbb3b1b82a965a145fcd28c0f8856c9",
+      "level": "ok"
+    },
+    {
+      "name": "jump_01",
+      "sha256": "2bd54cd1ea5c59bbe4baff10a8fcb79d1ab044de64e3854fa998a4edfcf822ac",
+      "level": "ok"
+    },
+    {
+      "name": "jump_02",
+      "sha256": "40a0f499f217f12f955df4dc9356c4780a957e840bef84634915d31c1502610e",
+      "level": "ok"
+    },
+    {
+      "name": "jump_03",
+      "sha256": "0ae13ebcc7f0fd973a316bded2aab379a745d79136705d4ed68705312f784e8e",
+      "level": "ok"
+    }
+  ]
+}

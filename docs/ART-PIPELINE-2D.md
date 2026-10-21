@@ -6,6 +6,8 @@
 
 > **Actualización (Prompts 8, 9 y 10):** el aviso de arriba es el del Prompt 7. Desde entonces el repositorio **sí** tiene el protagonista del usuario (su hoja de poses, guardada bit a bit; partes **L** y **N**: de la hoja a 114 fotogramas movidos por un rig, **sin dibujar nada**) y un escenario, un jefe, un enemigo y unos efectos **pintados por código** (parte **M**, provisionales). `npm run assets:missing` dice qué falta en cada momento. **Parte O (Prompt 10): lo que falta son 46 dibujos en 10 clips; no había generador de imágenes, así que no se dibujó nada, y lo que hay es el kit para pedirlos y la herramienta que los recibe, comprueba e integra.** **Prompts 11 y 12: el usuario generó los 46 dibujos en tres hojas y entraron por esa herramienta (O.4.1 y O.10): 10 de los 18 clips son dibujos nuevos y ninguno es un *stand-in*; las cifras que siguen de «114 fotogramas» son las de antes de las entregas (hoy 90).**
 
+> **Actualización (Prompt 16): el protagonista de las partes L, N y O ya no es el del juego.** El usuario entregó una **hoja de personaje nueva** y el protagonista se **reemplazó por completo** sin redibujar nada: la **parte P** describe cómo —la hoja bit a bit y sus datos, un recorte de fondo hecho para ella, una escala por clip medida por la cabeza, el cuerpo oscuro como ancla, un lienzo de 320 × 230— y lo que **falta** (5 de los 15 clips, que dibuja el *placeholder*). El diseño anterior está guardado entero en `art/player/archive/design-v1/` (y en la etiqueta `protagonista-v1`), con la forma de volver; **todo lo que las partes L, N y O cuentan del juego —«114 fotogramas», «90 fotogramas», «el rig», `assets:animate` como productor de los fotogramas— es de ese diseño**: la recepción de la parte O (con las adaptaciones de la parte P) y los requisitos de todo fotograma (partes B a F) siguen siendo los del juego.
+
 ---
 
 # Parte A — El pipeline REAL (auditoría de S33)
@@ -1732,3 +1734,44 @@ Las Hojas 2 y 3 del usuario trajeron **menos poses de las pedidas** (5 en vez de
 - **Y se comprueba sobre las entregas reales** (`tests/unit/tools/deliveries.test.ts`): además de que cada archivo reproduce byte a byte los fotogramas del juego, **la entrega preparada SIN `erase.json` difiere de los fotogramas del juego solo en píxeles que están dentro de un polígono y que ahora son transparentes**, y los fotogramas que no están en `erase.json` no difieren en un solo byte.
 
 Resultado: 7 fotogramas, **9 314 píxeles** de efecto quitados (attack2: 2 948 + 1 548; crouchAttack: 1 632 + 1 132 + 179; aerialAttack: 1 609 + 266); **ningún píxel de figura ni de hoja**; `attack2` deja de necesitar sus dos excepciones. Detalle, fotogramas antes y después y lo que queda: [PROMPT12-LOG §9](PROMPT12-LOG.md).
+
+---
+
+# Parte P — El protagonista nuevo: de la hoja de personaje a 44 fotogramas (Prompt 16)
+
+> Bitácora y resultados: [PROMPT16-LOG](PROMPT16-LOG.md). Aquí, el **contrato técnico**: qué es cada cosa, qué reglas sigue y con qué se comprueba.
+
+## P.1 La hoja y sus datos
+
+- `art/player/source/character-sheet.png` es **la imagen del usuario, byte a byte** (1536 × 1024, SHA-256 `1150f61d…`); `character-sheet.json` es **el único lugar donde dice quién es quién**: por panel, **un rectángulo por pose** (`[x0, y0, x1, y1]`, ajustado a la figura); por clip, qué panel y qué poses (1-based, en el orden de los fotogramas); y las poses **no usadas con su motivo**. 50 poses = 44 usadas + 6 no usadas.
+- `npm run assets:intake -- sheet` comprueba **hash, tamaño, rectángulos dentro de la hoja y que toda pose esté contada**; `-- from-sheet <clip>` escribe `art/player/inbox/<clip>/sheet.png` (un **recorte exacto**, con 8 px de aire) y `poses.json` (los rectángulos en el recorte). Nada se remuestrea.
+
+## P.2 El recorte del fondo (`tools/assets/matte.ts`)
+
+- **Una pregunta:** cuánto se aleja el píxel del blanco (`1 − canal más oscuro / 255`). **Tinta** ≥ 0.12. Nada se descarta por color, tamaño o distancia: las puntas pálidas de la capa y las brasas sueltas son figura.
+- **Lo encerrado por tinta es figura**, salvo un hueco casi todo blanco rodeado de oscuro (el bucle de una antena). **A 2 px dentro del contorno se conservan los píxeles de la hoja** (alfa 255); el **borde suave** (de 2 px dentro a 3 fuera) se resuelve con el color de la figura **más cercana** (el píxel sólido más próximo y la media de su entorno de 5 × 5): alfa = la mezcla, color = des-mezclado, **para que el sprite sobre blanco sea la hoja**.
+- **Prueba:** sobre las 50 poses, **0 de 276 019 píxeles de tinta** difieren en más de 6 niveles de la hoja puesta sobre blanco (`compositeError`; peor diferencia en toda la caja: 24 niveles, un velo bajo el 12 % que no es figura).
+- `extractPose` (parte L) sigue siendo la del diseño anterior; la recepción usa `matte` cuando la entrega trae `poses.json`.
+
+## P.3 La escala por la cabeza; la colocación por el cuerpo oscuro
+
+- **Escala** (`chooseScale`, `scale.proxy: 'head'`, `scale.only`): **un factor por clip** = cabeza de referencia (la del idle, 56.25 px) / mediana de las cabezas de sus poses; `headDiameter` es el **círculo más grande que cabe en la figura** (no cambia si la cara gira ni si el ojo se apaga). `only` deja fuera de la mediana las poses tumbadas (la muerte se mide por la primera) y de su juicio. El idle va **×1** y **se copia**: `placeFrame` a ×1 mueve la figura un número entero de píxeles **sin remuestrear** (`placePose`).
+- **Colocación** (`placement.body: 'dark'`): el cuerpo es lo **casi negro** (luminancia ≤ 70 y azul ≤ 120) **más lo que encierra** (ojos, líneas de la armadura), abierto para quitar lo fino y con **todas las piezas que no son una mota** (la bufanda parte el cuerpo en dos). Su **centro de masa** va en la columna del pivote y **la suela del pie** (`feetRow`: el píxel oscuro más bajo al alcance del cuerpo) en la fila del suelo: una espada que baja no levanta los pies (`groundGap` es 0). En el aire, el cuerpo a 1.0 m sobre el pivote.
+- **Lienzo 320 × 230, pivote (160, 192), 65 px/m, margen 4** (`requests.json: canvas`, igual al `frameSize` y `pivotPx` del manifiesto: una prueba lo exige). Un lienzo más estrecho obligaba a **desplazar** el dibujo del dash y de la muerte hacia delante para que cupiera su estela de fuego, y el cuerpo quedaba hasta 0.55 m por delante de la cápsula; con éste **no se desplaza ninguno** (`placement.json` ya no existe en ningún clip).
+
+## P.4 El juicio de la recepción
+
+`judgeFrames` ya no supone el diseño anterior: los **umbrales** se calibraron sobre el diseño anterior **y** sobre éste (`LIMITS.loose` 2 % / 6 %: la capa suelta brasas, hasta el 1.5 % de la figura); el **disparo** (`request.anchors: 'cast'`) pide la mano **sobre la figura** y la salida del proyectil a ≤ 0.8 m de ella en vez de una espada; la **hoja de la espada** se juzga por el largo que dice el encargo (`limits.bladeM`: 0.25–0.9 m en `attack1`, donde la hoja dibujada mide 0.35–0.5 m; por defecto son los 0.6–1.3 m que casan con la del juego, que mide 0.93 m); y una pose **tumbada** (`scale.only`) no cuenta para la escala.
+
+## P.5 Los efectos pintados (`erase.json`, parte O.11)
+
+Sin cambios en la regla; **`allowDark`** (máximo 12 puntos, escritos a mano) deja pasar un polígono sobre una mota **oscura** que es parte del efecto, nunca el cuerpo; y la regla de **no tocar la hoja de la espada** solo rige en los clips con espada.
+
+## P.6 Lo que falta, y cómo volver
+
+- **5 de los 15 clips no tienen dibujo** (`attack2`, `attackAir`, `crouch`, `attackCrouch`, `drink`; y `crouchWalk`, extra): **no se declaran** en el manifiesto; los dibuja el *placeholder* (`missingClips: 'placeholder'`), y el segundo golpe repite el primero (`visualSource.ts`: *stand-in* del motor). `assets:missing` y `assets:verify` lo dicen; el kit (`art/player/requests/`) los pide con la hoja nueva de referencia.
+- **Volver al diseño anterior:** `art/player/archive/design-v1/README.md` y la etiqueta `protagonista-v1`; una prueba (`characterArt.test.ts`, «the way back») lo hace en una carpeta temporal.
+
+## P.7 Probado, y con qué
+
+`characterSheet.test.ts` (12) · `matte.test.ts` (6) · `characterArt.test.ts` (15: los frames del juego: ninguno del diseño anterior, el idle bit a bit, escala uniforme, una cabeza, pies, cuerpo en el pivote, continuidad, margen, limpieza, anclas, volver) · `intakeSheet.test.ts` (14) · `deliveries.test.ts` (20: cada archivo de entrega reproduce byte a byte los fotogramas y las anclas) — más las adaptadas (`artRepo`, `heroPlayback`, `figure`, `intake`, `animate`, `heroAnimation`) y las escenas E2E `player-anim` y `player-art`. Comprobaciones por **mutación** (a mano, restauradas): un píxel cambiado, otro tamaño, un fotograma estirado o desplazado y uno del diseño anterior hacen fallar su prueba; diez cambios a la herramienta, al menos una.

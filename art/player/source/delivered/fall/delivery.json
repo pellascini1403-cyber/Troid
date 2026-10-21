@@ -1,0 +1,45 @@
+{
+  "clip": "fall",
+  "level": "warn",
+  "inputs": [
+    {
+      "file": "sheet.png",
+      "sha256": "cf7e30ea0ab3f6c4b73a6537efcefa2c6e3853aa00298015057928b83298c17e"
+    }
+  ],
+  "scale": {
+    "factor": 1.023465,
+    "how": "head",
+    "proxy": "head",
+    "target": 22.81,
+    "headTarget": 56.25
+  },
+  "anchors": null,
+  "placement": null,
+  "poses": "61510fe187221116248eca6746b43efc1d0d918c07fe13d7f4bb607747e712e2",
+  "scaleFile": null,
+  "waivers": null,
+  "erase": null,
+  "frames": [
+    {
+      "name": "fall_00",
+      "sha256": "f64bc076035520cddb477ba1e733542a6735413df5dc49494cf9a71e9fa2c782",
+      "level": "ok"
+    },
+    {
+      "name": "fall_01",
+      "sha256": "c066c244c2000c90dc29377d37a0ba3ad7eb4eec5e6ea0a6a1dc647046d6b1c7",
+      "level": "ok"
+    },
+    {
+      "name": "fall_02",
+      "sha256": "23b2bcb4a6e45091599dc2001b5179e70d7e0c51678b162982a59d4589456591",
+      "level": "ok"
+    },
+    {
+      "name": "fall_03",
+      "sha256": "6a12593a84129da068f4927ebbf3b70631082db8fd52231e5b6b229abdbc427a",
+      "level": "ok"
+    }
+  ]
+}

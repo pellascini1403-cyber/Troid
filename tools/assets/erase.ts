@@ -20,7 +20,15 @@ export type Point = [number, number];
 export interface EraseEntry {
   why: string;
   polygons: Point[][];
+  /**
+   * Dark opaque pixels the polygons may cover although the body is dark and opaque: marks PAINTED ON the effect (the speck on a slash arc) that no polygon can leave out, listed one by one and few (at most
+   * `MAX_ALLOW_DARK`). A pixel here that is not covered by a polygon, or is not dark and opaque, is a stale entry and is refused; every other dark opaque pixel a polygon covers still refuses it.
+   */
+  allowDark?: Point[];
 }
+
+/** The most dark pixels of one frame that may be taken out as part of an effect: a speck or two, not a way round the protection of the body. */
+export const MAX_ALLOW_DARK = 12;
 
 /** What was taken out of one frame, with the frame as it was handed in so the report can show the difference. */
 export interface Erased {
@@ -67,7 +75,16 @@ export function parseErase(text: string | null, names: readonly string[], canvas
       if (ps.some(([x, y]) => x < 0 || y < 0 || x > canvas.width || y > canvas.height)) throw new IntakeError(`erase.json: "${name}" polygon ${i + 1} has a vertex outside the canvas of ${canvas.width} × ${canvas.height}`);
       return ps;
     });
-    out[name] = { why: entry.why.trim(), polygons };
+    const allow = (entry as { allowDark?: unknown }).allowDark;
+    let allowDark: Point[] | undefined;
+    if (allow !== undefined) {
+      const pts = Array.isArray(allow) ? allow.map(pairOf) : [];
+      if (pts.length === 0 || pts.length > MAX_ALLOW_DARK || pts.some((p) => p === null || !Number.isInteger(p[0]) || !Number.isInteger(p[1]) || p[0] < 0 || p[1] < 0 || p[0] >= canvas.width || p[1] >= canvas.height)) {
+        throw new IntakeError(`erase.json: "${name}" allowDark must be a list of 1 to ${MAX_ALLOW_DARK} whole-number pixels [x, y] inside the canvas (the dark specks painted on the effect)`);
+      }
+      allowDark = pts as Point[];
+    }
+    out[name] = { why: entry.why.trim(), polygons, ...(allowDark ? { allowDark } : {}) };
   }
   return out;
 }
@@ -110,6 +127,8 @@ export function applyErase(frames: readonly RgbaImage[], names: readonly string[
     const mask = new Uint8Array(frame.width * frame.height);
     let pixels = 0;
     const body: string[] = [];
+    const allowed = new Set((entry.allowDark ?? []).map(([x, y]) => `${x},${y}`));
+    const allowedUsed = new Set<string>();
     const hits = entry.polygons.map(() => 0);
     for (let y = 0; y < frame.height; y++) {
       for (let x = 0; x < frame.width; x++) {
@@ -123,8 +142,11 @@ export function applyErase(frames: readonly RgbaImage[], names: readonly string[
         });
         if (!inside) continue;
         if (isBodyPixel(data[o + 2]!, data[o + 3]!)) {
-          body.push(`${x},${y}`);
-          continue;
+          if (allowed.has(`${x},${y}`)) allowedUsed.add(`${x},${y}`);
+          else {
+            body.push(`${x},${y}`);
+            continue;
+          }
         }
         data.fill(0, o, o + 4);
         mask[y * frame.width + x] = 1;
@@ -132,6 +154,8 @@ export function applyErase(frames: readonly RgbaImage[], names: readonly string[
       }
     }
     if (body.length > 0) throw new IntakeError(`erase.json: "${name}" covers ${body.length} pixel(s) of the body (dark and opaque; the first at ${body[0]}): a polygon takes out the painted effect, never the figure — draw it clear of the figure`);
+    const stale = [...allowed].filter((k) => !allowedUsed.has(k));
+    if (stale.length > 0) throw new IntakeError(`erase.json: "${name}" allowDark ${stale.map((k) => `(${k})`).join(', ')} ${stale.length === 1 ? 'is' : 'are'} not a dark opaque pixel inside a polygon — remove ${stale.length === 1 ? 'it' : 'them'}: a dark pixel may be taken out only where it is there, covered, and listed`);
     // a polygon that encloses nothing is a stale one (the drawing or its placement moved): it would silently accept whatever comes next
     const empty = hits.flatMap((n, i) => (n === 0 ? [i + 1] : []));
     if (empty.length > 0) throw new IntakeError(`erase.json: "${name}" polygon ${empty.join(', ')} ${empty.length === 1 ? 'encloses' : 'enclose'} no visible pixel of the frame — remove ${empty.length === 1 ? 'it' : 'them'} (or move ${empty.length === 1 ? 'it' : 'them'} to where the effect is now)`);

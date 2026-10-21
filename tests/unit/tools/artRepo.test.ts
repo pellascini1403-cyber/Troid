@@ -11,18 +11,23 @@ import { decodePng } from '../../../tools/assets/png';
 import { verifyArtFolder } from '../../../tools/assets/verify';
 
 /**
- * THE ART IN THE REPOSITORY (docs/ART-PIPELINE-2D.md, parts E, L and M): whatever `art/` declares must build, and whatever `public/art` ships must verify — the very check
+ * THE ART IN THE REPOSITORY (docs/ART-PIPELINE-2D.md, parts E, L and M; docs/PROMPT16-LOG.md): whatever `art/` declares must build, and whatever `public/art` ships must verify — the very check
  * `npm run build` runs before a browser is ever opened, held in the unit tests too so that a broken asset cannot be committed unnoticed. What is there today is the
- * protagonist, made from the user's own pose sheet (`art/player/source`), provisional: 114 frames in eighteen clips, every pixel one of the user's drawings moved by the rig
- * (docs/ART-PIPELINE-2D.md part N); eight of the fifteen clips the game asks of it are stand-ins (the sheet has no drawing of their action: the drawing of another one is what moves); and the scenery of the four rooms (the six `ruins-*` packs, painted by `tools/art`: every piece of the environment the world asks for is delivered). The enemies, the boss and the effects have no
- * art in the repository yet, and that is said, not hidden: `STILL_THE_BLOCKOUT` lists what the world asks for of the ENVIRONMENT and the art does not have (empty since the phase that dressed R4), and the
- * clips of the protagonist that are still stand-ins are listed below.
+ * protagonist, made from the user's character sheet (`art/player/source/character-sheet.png`), provisional: 44 frames in twelve clips, every pixel one of the user's drawings (the background taken off, one scale per clip,
+ * a translation: nothing redrawn); the sheet has no drawing for five of the fifteen clips the game asks of it (and one more the pipeline makes), and those are NOT declared, said by name below — the game draws their
+ * states with its placeholder, never with a stand-in; and the scenery of the four rooms (the six `ruins-*` packs, painted by `tools/art`: every piece of the environment the world asks for is delivered). The enemies, the boss and the effects have no
+ * art in the repository yet, and that is said, not hidden: `STILL_THE_BLOCKOUT` lists what the world asks for of the ENVIRONMENT and the art does not have (empty since the phase that dressed R4), and
+ * `NOT_IN_THE_SHEET` lists the clips of the protagonist the sheet has no drawing for.
  */
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 /** Packing the art of the repository is real work (a few seconds): the tests that do it say so. */
 const PACKING = 120_000;
 /** What the rooms of the world ask of the environment and no pack has yet: the blockout draws each of these. Empty when the world is fully dressed. */
 const STILL_THE_BLOCKOUT: string[] = [];
+/** The states the game asks of the protagonist that the character sheet has no drawing for (in the engine's names: the manifest would say `aerialAttack` and `crouchAttack`): not declared, drawn with the placeholder. */
+const NOT_IN_THE_SHEET = ['attack2', 'attackAir', 'crouch', 'attackCrouch', 'drink'] as const;
+/** What the game asks of the protagonist and the sheet has: the other ten of the fifteen. */
+const IN_THE_SHEET = PLAYER_VISUAL.required.filter((state) => !(NOT_IN_THE_SHEET as readonly string[]).includes(state));
 
 /** One dry build of the repository's art, shared by the tests that only read it. */
 let dry: ReturnType<typeof buildArt> | undefined;
@@ -35,7 +40,7 @@ describe('the art of the repository', () => {
     expect(r.ok).toBe(true);
   }, PACKING);
 
-  it('declares the protagonist\'s sprite set `player/hero` — the fifteen clips the game asks of it, the landing, the run and the crawl — as a provisional pack that ships', () => {
+  it('declares the protagonist\'s sprite set `player/hero` — the ten clips of the fifteen the sheet has a drawing for, plus the landing and the run — as a provisional pack that ships; the clips it has no drawing for are NOT declared', () => {
     const raw = JSON.parse(readFileSync(join(root, 'art', 'player', 'player.pack.json'), 'utf8')) as Record<string, unknown>;
     // read the way the packer reads a source manifest: the atlases are what the packer writes
     const sprites = (raw['sprites'] as Array<Record<string, unknown>>).map((sp) => ({ ...sp, atlases: [] }));
@@ -44,12 +49,19 @@ describe('the art of the repository', () => {
     expect(raw['status']).toBe('provisional');
     expect(value).toMatchObject({ id: PLAYER_VISUAL.art.pack, category: 'player' });
     const hero = value!.sprites.find((s) => s.id === PLAYER_VISUAL.art.sprite)!;
-    // the clips of the delivery (the manifest says `aerialAttack` and `crouchAttack`; the engine reads them as `attackAir` and `attackCrouch`), plus the landing and the run the sheet has a drawing for, and the crawl
-    expect(Object.keys(hero.clips).sort()).toEqual([...PLAYER_VISUAL.required, 'land', 'run', 'crouchWalk'].sort());
+    expect(Object.keys(hero.clips).sort()).toEqual([...IN_THE_SHEET, 'land', 'run'].sort());
+    for (const state of NOT_IN_THE_SHEET) expect(hero.clips[state], `${state} is not declared: the sheet has no drawing for it`).toBeUndefined();
+    // nothing in the manifest is a stand-in (a clip made by moving another action's drawing): what the art has is the sheet's own
+    expect(Object.values(hero.clips).filter((c) => c!.tags.includes('stand-in'))).toEqual([]);
     expect(hero.height).toBe(1.7);
-    // the six to validate first are tagged as such in the declaration, and the four blows carry the sword
+    expect(hero.missingClips, 'what the art lacks is drawn with the placeholder, not by chaining to the idle').toBe('placeholder');
+    // the six to validate first are tagged as such in the declaration, and the blow carries the sword
     expect(Object.entries(hero.clips).filter(([, c]) => c!.tags.includes('first')).map(([s]) => s).sort()).toEqual([...PLAYER_VISUAL.first].sort());
-    expect(Object.entries(hero.clips).filter(([, c]) => c!.tags.includes('sword')).map(([s]) => s).sort()).toEqual(['attack1', 'attack2', 'attackAir', 'attackCrouch']);
+    expect(Object.entries(hero.clips).filter(([, c]) => c!.tags.includes('sword')).map(([s]) => s).sort()).toEqual(['attack1']);
+    // 44 frames in all, every one of them a file of the folder, and the folder has nothing else
+    const files = readdirSync(join(root, 'art', 'player', 'hero')).filter((f) => f.endsWith('.png'));
+    expect(files).toHaveLength(44);
+    expect(Object.values(hero.clips).reduce((n, c) => n + c!.count, 0)).toBe(44);
     // the protagonist, the scenery of the four rooms, the boss, the Ink Slime and the light of the effects (shapes and flipbooks): all provisional, all shipped
     expect(dryBuild().packs.map((p) => [p.id, p.status, p.shipped])).toEqual([
       ['player', 'provisional', true],
@@ -67,18 +79,14 @@ describe('the art of the repository', () => {
     expect(existsSync(join(root, 'public', 'art', 'index.json')), 'the generated folder is committed: the game fetches it').toBe(true);
   }, PACKING);
 
-  it('says exactly what is missing: of the fifteen clips, seven have a drawing of their own (the sheet\'s poses); the other eight move another action\'s drawing; none is the placeholder', () => {
+  it('says exactly what is missing: of the fifteen clips, ten have a drawing of their own (the sheet\'s poses) and five do not — none is a stand-in, none is faked: the game draws those states with the placeholder', () => {
     const d = readDelivery(join(root, 'art'));
-    // a stand-in that a delivery replaced with drawings of its own (`delivered` in the rig) moves from the second list to the first; none has until one is accepted
-    const handed = ((JSON.parse(readFileSync(join(root, 'art', 'player', 'source', 'hero.rig.json'), 'utf8')) as { delivered?: string[] }).delivered ?? []).map((clip) => ({ aerialAttack: 'attackAir', crouchAttack: 'attackCrouch' } as Record<string, string>)[clip] ?? clip);
-    const own = ['attack1', 'cast', 'fall', 'hurt', 'idle', 'jump', 'walk'];
-    const standIns = ['attack2', 'attackAir', 'attackCrouch', 'crouch', 'dash', 'death', 'drink', 'interact'].filter((state) => !handed.includes(state));
-    expect(d).toMatchObject({ pack: 'player', sprite: 'hero', status: 'provisional', delivered: 15 - standIns.length, standIns: standIns.length, total: 15 });
-    // (`crouchWalk` is a clip the pipeline makes but not one of the fifteen the game asks for: it has no row here)
-    expect(d.rows.filter((row) => row.delivered).map((row) => row.state).sort()).toEqual([...new Set([...own, ...handed])].filter((state) => d.rows.some((row) => row.state === state)).sort());
-    expect(d.rows.filter((row) => row.standIn).map((row) => row.state).sort()).toEqual(standIns);
-    expect(d.rows.every((row) => row.prefix !== null && row.missing.length === 0)).toBe(true);
-    expect(d.rows.filter((row) => row.standIn).every((row) => (row.standInReason ?? '').length > 0), 'every stand-in says whose drawing it moves and why').toBe(true);
+    expect(d).toMatchObject({ pack: 'player', sprite: 'hero', status: 'provisional', delivered: 10, standIns: 0, total: 15 });
+    expect(d.rows.filter((row) => row.delivered).map((row) => row.state).sort()).toEqual([...IN_THE_SHEET].sort());
+    expect(d.rows.filter((row) => !row.delivered).map((row) => row.state).sort()).toEqual([...NOT_IN_THE_SHEET].sort());
+    // the ones that are not delivered are not declared at all (no stand-in, no frame): that is what `assets:missing` says, and what the placeholder is for
+    for (const row of d.rows.filter((r) => !r.delivered)) expect({ state: row.state, prefix: row.prefix, standIn: row.standIn }, 'not declared, not a stand-in').toEqual({ state: row.state, prefix: null, standIn: false });
+    for (const row of d.rows.filter((r) => r.delivered)) expect(row.missing, `${row.state}: every frame it names is there`).toEqual([]);
   });
 
   it('ships what `npm run assets:pack` writes from `art/`: nobody forgot to pack, nobody edited the generated folder', () => {
@@ -106,9 +114,10 @@ describe('the art of the repository', () => {
     }
   }, PACKING);
 
-  it('verifies: what the game fetches is a valid art folder, with no warning at all: the environment the world asks for is all there', () => {
+  it('verifies: what the game fetches is a valid art folder, with no warning but the one that says which clips of the protagonist the sheet does not have: the environment the world asks for is all there', () => {
     const v = verifyArtFolder(join(root, 'public', 'art'));
-    expect(v.issues.filter((i) => i.level !== 'info').map((i) => `${i.level} ${i.path}: ${i.message}`)).toEqual(STILL_THE_BLOCKOUT);
+    const lacking = `warn player sprites.hero: the protagonist's art lacks ${NOT_IN_THE_SHEET.length} of the 15 clips the game asks of it: ${NOT_IN_THE_SHEET.join(', ')} — the placeholder draws those states`;
+    expect(v.issues.filter((i) => i.level !== 'info').map((i) => `${i.level} ${i.path}: ${i.message}`)).toEqual([lacking, ...STILL_THE_BLOCKOUT]);
     expect(v.ok).toBe(true);
   });
 });

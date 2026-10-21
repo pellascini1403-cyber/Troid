@@ -29,6 +29,10 @@ const ROOM = 'room=movement_test&unlock=dash';
 const SIZE = { width: 844, height: 390, dpr: 1 };
 const REQUIRED = ['idle', 'walk', 'jump', 'fall', 'dash', 'attack1', 'attack2', 'attackAir', 'crouch', 'attackCrouch', 'hurt', 'death', 'cast', 'drink', 'interact'];
 const PROVIDED = ['attack1', 'idle', 'walk'];
+/** The states of the game the user's character sheet has no drawing for (the engine's names): NOT declared in the manifest — the placeholder draws them, and the second blow repeats the first's drawing (its declared stand-in). */
+const NOT_IN_THE_SHEET = ['attack2', 'attackAir', 'crouch', 'attackCrouch', 'drink'];
+/** …and the states of the simulation the placeholder draws with the art on the hero (the second blow is drawn by the art, with the first blow's clip). */
+const DRAWN_BY_THE_PLACEHOLDER = ['attackAir', 'crouch', 'crouchWalk', 'attackCrouch', 'drink'];
 
 const open = (ctx: Ctx, fixture: Fixture | null, query = ''): Promise<void> =>
   ctx.open(`${ROOM}${query ? `&${query}` : ''}&art=${fixture ? 'art-test' : ''}`, { ...SIZE, prepare: async (context: BrowserContext) => (fixture ? fixture.serve(context, 'art-test') : undefined) });
@@ -298,13 +302,14 @@ export const playerArt: Scenario = {
     }
 
     // ======================================================================================================= E · the art OF THE REPOSITORY, as a player gets it by opening the game
-    // No fixture, no `?art=`: the page reads the folder the build found in `public/art` — the protagonist made from the user's own pose sheet and moved by the rig (docs/ART-PIPELINE-2D.md parts L and N).
-    // Here the hero is judged where it is meant to be seen: drawn by the art in EVERY state (no capsule anywhere), on the ground, the sword in the hand.
+    // No fixture, no `?art=`: the page reads the folder the build found in `public/art` — the protagonist made from the user's own character sheet (docs/PROMPT16-LOG.md).
+    // Here the hero is judged where it is meant to be seen: drawn by the art in every state the sheet has a drawing for, on the ground, the sword in the hand — and by the placeholder, whole, in the five it has none for.
     await ctx.open(ROOM, SIZE);
     let s = await waitFor(ctx, 'the repository\'s art on the hero', (x) => x.visual?.art === 'player/hero');
-    assert.deepEqual(s.visual!.lacks, [], 'nothing is left to the placeholder: every clip of the delivery is declared, as art or as a stand-in');
-    for (const clip of REQUIRED) assert.ok(s.visual!.provides.includes(clip), `the set has a clip for ${clip}`);
-    assert.ok(s.visual!.provides.includes('land'), 'and the landing the sheet has a pose for');
+    assert.deepEqual([...s.visual!.lacks].sort(), [...NOT_IN_THE_SHEET].sort(), 'what is left to the placeholder is what the sheet has no drawing for: five of the fifteen states, and no more');
+    for (const clip of REQUIRED.filter((c) => !NOT_IN_THE_SHEET.includes(c))) assert.ok(s.visual!.provides.includes(clip), `the set has a clip for ${clip}`);
+    for (const clip of NOT_IN_THE_SHEET) assert.ok(!s.visual!.provides.includes(clip), `${clip} is not declared: no clip of another action is passed off as it`);
+    assert.ok(s.visual!.provides.includes('land') && s.visual!.provides.includes('run'), 'the landing and the run, which the sheet has a drawing for, are declared too');
     const lib = s.art!;
     // the library lists the packs of the index: the protagonist, and the five of the scenery of the ruins (S45–S48: they are `zone` packs, read when the hero is in their rooms), the boss and the slime, and the light of the effects (S52: two `boot` packs)
     assert.deepEqual({ state: lib.state, failures: lib.failures, packs: lib.packList.map((p) => p.id) }, { state: 'ready', failures: 0, packs: ['player', 'ruins-ground', 'ruins-back', 'ruins-light', 'ruins-roots', 'ruins-seal', 'ruins-sanctum', 'ink-warden', 'ink-slime', 'vfx-shapes', 'vfx-flipbooks'] });
@@ -315,7 +320,10 @@ export const playerArt: Scenario = {
     const frames = new Map<string, Set<string>>(); // state → the frames the art drew for it
     const sampled = new Set<string>();
     const watch = (x: GameState): void => {
-      assert.deepEqual({ shows: x.visual!.shows, set: x.sprite!.set }, { shows: 'art', set: 'player/hero' }, `tick ${x.tick}: ${x.anim} is drawn by the art, never by the placeholder`);
+      if (DRAWN_BY_THE_PLACEHOLDER.includes(x.anim)) {
+        assert.equal(x.visual!.shows, 'placeholder', `tick ${x.tick}: ${x.anim} has no drawing in the sheet: the placeholder draws it`);
+        assert.notEqual(x.sprite!.set, 'player/hero', `tick ${x.tick}: and not with a frame of the art (${x.sprite!.frame})`);
+      } else assert.deepEqual({ shows: x.visual!.shows, set: x.sprite!.set }, { shows: 'art', set: 'player/hero' }, `tick ${x.tick}: ${x.anim} is drawn by the art, never by the placeholder`);
       assert.ok(x.sprite!.visible, `tick ${x.tick}: the hero is drawn`);
       frames.set(x.anim, (frames.get(x.anim) ?? new Set()).add(x.sprite!.frame ?? 'none'));
       sampled.add(x.anim);
@@ -323,7 +331,7 @@ export const playerArt: Scenario = {
     await ctx.step(30);
     s = await ctx.state();
     watch(s);
-    assert.match(s.sprite!.frame ?? '', /^idle_0[0-7]$/, 'standing: a frame of the idle breath (eight of them)');
+    assert.match(s.sprite!.frame ?? '', /^idle_0[01]$/, 'standing: a frame of the idle breath (two of them)');
     // standing: the picture rests on the ground (the lowest pixel the art keeps is at the feet of the body), centred over it, and is wider and taller than the body — a picture is not a box
     const feet = s.boxes!.body.y0;
     assert.ok(Math.abs(s.boxes!.visual.y0 - feet) < 0.06, `the picture stands on the ground: its lowest pixel is ${(s.boxes!.visual.y0 - feet).toFixed(3)} m from the feet`);
@@ -338,7 +346,7 @@ export const playerArt: Scenario = {
       await ctx.step(4);
       watch(await ctx.state());
     }
-    assert.match((await ctx.state()).sprite!.frame ?? '', /^(walk|run)_0[0-7]$/, 'the gaits are the art\'s own: a frame of the walk or of the run (eight each)');
+    assert.match((await ctx.state()).sprite!.frame ?? '', /^(walk_0[0-5]|run_0[0-4])$/, 'the gaits are the art\'s own: a frame of the walk (six) or of the run (five)');
     await ctx.page.keyboard.down('Space');
     await ctx.step(2);
     await ctx.page.keyboard.up('Space');
@@ -350,14 +358,14 @@ export const playerArt: Scenario = {
     }
     await ctx.page.keyboard.up('KeyD');
     await ctx.step(25);
-    // each of these states shows the frames of ITS clip and no other: the drawings are the sheet's rising, falling and landing figures, moved (jump 6 frames, fall 4, land 4)
-    for (const [state, count] of [['jump', 6], ['fall', 4], ['land', 4]] as const) {
+    // each of these states shows the frames of ITS clip and no other: the drawings are the sheet's rising, falling and landing figures (jump 4 frames, fall 4, land 1)
+    for (const [state, count] of [['jump', 4], ['fall', 4], ['land', 1]] as const) {
       const shown = [...(frames.get(state) ?? [])];
       assert.ok(shown.length > 0, `${state} was seen`);
       for (const f of shown) assert.match(f, new RegExp(`^${state}_0[0-${count - 1}]$`), `${state} is drawn by the art's ${state} clip (${f})`);
     }
 
-    // the blows: the sword is in the hand in every one, pointing forward; the air and the crouch have their own stand-in, never the capsule
+    // the blow: the sword is in the hand in every frame of it, pointing forward (the air blow and the crouch blow have no drawing: the placeholder, whole)
     await ctx.page.keyboard.down('KeyJ');
     await ctx.step(1);
     await ctx.page.keyboard.up('KeyJ');
@@ -368,9 +376,9 @@ export const playerArt: Scenario = {
       watch(x);
       if (x.anim === 'attack') {
         blow = true;
-        assert.match(x.sprite!.frame ?? '', /^attack1_0[0-6]$/, 'the art\'s first blow (seven frames)');
+        assert.match(x.sprite!.frame ?? '', /^attack1_0[0-3]$/, 'the art\'s first blow (four frames)');
         assert.ok(Math.hypot(x.sprite!.grip.x - x.sprite!.hand.x, x.sprite!.grip.y - x.sprite!.hand.y) <= 0.04, 'the sword is in the hand');
-        assert.ok(x.sprite!.tip.x > x.sprite!.grip.x + 0.5, 'and points forward');
+        assert.ok(x.sprite!.tip.x > x.sprite!.grip.x + 0.15, 'and points forward (the drawn blade is short: 0.35 to 0.5 m from the hand)');
       }
     }
     assert.ok(blow, 'the hero struck');
@@ -380,10 +388,10 @@ export const playerArt: Scenario = {
     s = await ctx.state();
     watch(s);
     assert.equal(s.anim, 'crouch');
-    assert.match(s.sprite!.frame ?? '', /^crouch_0[0-5]$/, 'the art\'s crouch');
-    // lower than when standing (the head sinks), whatever the drawing's own height: the crouch the user drew keeps its antennae and its big head, so it is not a fixed fraction of the standing picture
-    const crouchedHeight = s.boxes!.visual.y1 - s.boxes!.visual.y0;
-    assert.ok(crouchedHeight < standingHeight - 0.1, `crouched, the picture is lower than standing: ${crouchedHeight.toFixed(2)} m against ${standingHeight.toFixed(2)} m`);
+    assert.equal(s.visual!.shows, 'placeholder', 'the sheet has no crouch: the placeholder draws it — not the standing figure bent, not a frame of another action');
+    // and the body is the crouched one (the placeholder's picture is its own canvas, not a measure of the pose): the simulation is what it always was
+    assert.equal(s.crouched, true);
+    assert.equal(s.bodyHeight, 1.0, 'the crouched body');
     await ctx.shot('e-02-crouch');
     await ctx.page.keyboard.down('KeyJ');
     await ctx.step(1);
@@ -392,7 +400,7 @@ export const playerArt: Scenario = {
       await ctx.step(1);
       const x = await ctx.state();
       watch(x);
-      if (x.anim === 'attackCrouch') assert.match(x.sprite!.frame ?? '', /^crouchAttack_0[0-6]$/, 'the art\'s blow from the crouch');
+      if (x.anim === 'attackCrouch') assert.equal(x.visual!.shows, 'placeholder', 'the blow from the crouch has no drawing: the placeholder');
     }
     await ctx.page.keyboard.up('KeyS');
     await ctx.step(30);
@@ -403,7 +411,7 @@ export const playerArt: Scenario = {
       await ctx.step(2);
       watch(await ctx.state());
     }
-    assert.ok([...(frames.get('hurt') ?? [])].length > 0 && [...(frames.get('hurt') ?? [])].every((f) => /^hurt_0[0-4]$/.test(f)), 'struck, the hero is the art\'s hurt clip (five frames)');
+    assert.ok([...(frames.get('hurt') ?? [])].length > 0 && [...(frames.get('hurt') ?? [])].every((f) => /^hurt_0[0-2]$/.test(f)), 'struck, the hero is the art\'s hurt clip (three frames)');
     await ctx.shot('e-03-hurt');
     for (const state of ['idle', 'run', 'jump', 'fall', 'land', 'attack', 'crouch', 'hurt']) assert.ok(sampled.has(state), `${state} was seen`);
     assert.equal(ctx.errors.length, 0);

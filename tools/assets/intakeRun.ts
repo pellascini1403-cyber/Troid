@@ -1,11 +1,10 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, sep } from 'node:path';
-import { animate } from './animate';
 import { buildArt, formatReport } from './build';
 import { applyErase, parseErase, type Erased } from './erase';
-import { clipFrameNames, clipHead, heroPaths, readClips, readDelivered, readHeroFrame } from './heroRepo';
-import { applyWaivers, chooseScale, cutLoose, cutSheet, IntakeError, judgeFrames, manifestAnchors, parseAnchors, parseWaivers, placeFrame, type Canvas, type ClipJudgement, type Cut, type Level, type Placed, type Scaling, type SwordPoints, type Waived } from './intake';
+import { clipEye, clipFrameNames, clipHead, heroPaths, readClips, readDelivered, readHeroFrame } from './heroRepo';
+import { applyWaivers, castManifestAnchors, chooseScale, cutByBoxes, cutLoose, cutSheet, IntakeError, judgeFrames, manifestAnchors, parseAnchors, parsePoseBoxes, parseScaleFile, parseWaivers, placeFrame, type Canvas, type ClipJudgement, type Cut, type Level, type Placed, type Scaling, type SwordPoints, type Waived } from './intake';
 import { anchorsGrid, contactSheet, erasedPicture, reportMarkdown, segmentationPicture, type ReportInput, type ReportMeta } from './intakeReport';
 import { buildKit, readKitSources, referenceItems, type ClipRequest, type Requests } from './kit';
 import { decodePng, encodePng, type RgbaImage } from './png';
@@ -33,7 +32,10 @@ export interface Inbox {
   ignored: string[];
 }
 
-const IGNORED = new Set(['anchors.json', 'placement.json', 'waivers.json', 'erase.json', 'anchors.template.json']);
+const IGNORED = new Set(['anchors.json', 'placement.json', 'waivers.json', 'erase.json', 'poses.json', 'scale.json', 'anchors.template.json']);
+
+/** The files besides the sheet that a delivery is made of, and that its archive keeps. */
+export const DELIVERY_FILES = ['poses.json', 'scale.json', 'anchors.json', 'placement.json', 'waivers.json', 'erase.json'] as const;
 
 /** What is in `art/player/inbox/<clip>/`: `sheet.png` (one sheet), or one PNG per pose in natural order. `null` when there is nothing. Anything that is not a PNG is refused with the way out. */
 export function readInbox(dir: string): Inbox | null {
@@ -92,6 +94,10 @@ export interface Fingerprint {
   scale: { factor: number; how: string; proxy: string; target: number | null; headTarget: number | null };
   anchors: string | null;
   placement: string | null;
+  /** The hash of `poses.json` (the boxes of the poses in the sheet), or `null` when the poses were found by the tool. */
+  poses?: string | null;
+  /** The hash of `scale.json` (the factor kept with the delivery), or `null` when the scale is the neighbour's. */
+  scaleFile?: string | null;
   /** The hash of `waivers.json` (the failures accepted on purpose), or `null` when there is none. */
   waivers?: string | null;
   /** The hash of `erase.json` (what was taken out of the drawing), or `null` when there is none. */
@@ -135,9 +141,18 @@ export function prepareClip(root: string, clip: string, options: { scale?: numbe
   const expected = request.frames.length;
   if (inbox.mode === 'poses' && images.length !== expected) throw new IntakeError(`${images.length} PNG file(s) in art/player/inbox/${clip}/, ${expected} are asked for (${clip}_00 … ${clip}_${pad2(expected - 1)}); or drop the whole sheet as sheet.png`);
 
-  const cut = inbox.mode === 'sheet' ? cutSheet(images[0]!, expected) : cutLoose(images, canvas);
+  // the poses: the rectangles a person gave (`poses.json`), or what the tool finds in the sheet, or the loose PNGs
+  const posesText = inbox.mode === 'sheet' ? readText(join(inboxDir, 'poses.json')) : null;
+  let cut: Cut;
+  if (inbox.mode === 'sheet') {
+    if (posesText !== null) {
+      const given = parsePoseBoxes(posesText, expected, images[0]!);
+      cut = cutByBoxes(images[0]!, given.boxes, given.matte);
+    } else cut = cutSheet(images[0]!, expected);
+  } else cut = cutLoose(images, canvas);
   if (inbox.ignored.length > 0) cut.notes.push(`hay más PNG en la carpeta (${inbox.ignored.join(', ')}): se lee solo sheet.png`);
-  const scaling = chooseScale(cut, src.eye(request.scaleLike), options.scale, { headTarget: clipHead(root, request.scaleLike), tolerance: requests.scale.tolerance });
+  const scaleText = readText(join(inboxDir, 'scale.json'));
+  const scaling = chooseScale(cut, clipEye(root, request.scaleLike), options.scale ?? parseScaleFile(scaleText), { headTarget: clipHead(root, request.scaleLike), tolerance: requests.scale.tolerance, ...(request.scale?.proxy ? { proxy: request.scale.proxy } : {}), ...(request.scale?.only ? { only: request.scale.only } : {}) });
   const names = request.frames.map((_, k) => `${clip}_${pad2(k)}`);
   const placementText = readText(join(inboxDir, 'placement.json'));
   const nudges = readNudges(placementText, names);
@@ -146,15 +161,16 @@ export function prepareClip(root: string, clip: string, options: { scale?: numbe
     cut.final[k] ? { image: pose, clipped: { left: 0, right: 0, top: 0, bottom: 0 }, groundGap: 0, nudge: none } : placeFrame(pose, scaling.factor, request.placement, canvas, nudges[names[k]!] ?? none),
   );
 
-  const anchorText = request.sword ? readText(join(inboxDir, 'anchors.json')) : null;
-  const parsed = request.sword ? parseAnchors(anchorText, names, canvas) : { points: new Map<string, SwordPoints>(), problems: [] };
+  const needsAnchors = request.sword || request.anchors === 'cast';
+  const anchorText = needsAnchors ? readText(join(inboxDir, 'anchors.json')) : null;
+  const parsed = needsAnchors ? parseAnchors(anchorText, names, canvas) : { points: new Map<string, SwordPoints>(), problems: [] };
   const waiversText = readText(join(inboxDir, 'waivers.json'));
   const waivers = parseWaivers(waiversText);
 
   // what a person took out of the drawing (the painted effects): after the placement and the anchors, which are read off the placed frame, so erasing never moves the figure. A frame whose sword was accepted as
   // not visible (`<frame>:sword` in waivers.json) has no blade to protect: its anchors are an estimate.
   const eraseText = readText(join(inboxDir, 'erase.json'));
-  const blades = new Map([...parsed.points].filter(([name]) => waivers[`${name}:sword`] === undefined));
+  const blades = request.sword ? new Map([...parsed.points].filter(([name]) => waivers[`${name}:sword`] === undefined)) : new Map<string, SwordPoints>();
   const { frames, erased } = applyErase(placed.map((p) => p.image), names, parseErase(eraseText, names, canvas), blades);
 
   const judged = judgeFrames({ names, frames, clipped: placed.map((p) => p.clipped), groundGap: placed.map((p) => p.groundGap), request, canvas, scaling, tolerance: requests.scale.tolerance, rawRed: cut.rawRed, anchors: parsed.points, anchorProblems: parsed.problems });
@@ -172,7 +188,7 @@ export function prepareClip(root: string, clip: string, options: { scale?: numbe
   const files = new Map<string, Buffer | string>();
   files.set('contact.png', encodePng(contactSheet(input)));
   if (erased.length > 0) files.set('erased.png', encodePng(erasedPicture(input, erased)));
-  if (request.sword) {
+  if (needsAnchors) {
     files.set('anchors-grid.png', encodePng(anchorsGrid(input)));
     if (parsed.problems.length > 0 && anchorText === null) {
       files.set('anchors.template.json', `${JSON.stringify(Object.fromEntries(names.map((n) => [n, { grip: [0, 0], tip: [0, 0] }])), null, 2)}\n`);
@@ -188,6 +204,8 @@ export function prepareClip(root: string, clip: string, options: { scale?: numbe
     scale: { factor: Math.round(scaling.factor * 1e6) / 1e6, how: scaling.how, proxy: scaling.proxy, target: scaling.target === null ? null : Math.round(scaling.target * 100) / 100, headTarget: scaling.headTarget === null ? null : Math.round(scaling.headTarget * 100) / 100 },
     anchors: anchorText === null ? null : sha(anchorText),
     placement: placementText === null ? null : sha(placementText),
+    poses: posesText === null ? null : sha(posesText),
+    scaleFile: scaleText === null ? null : sha(scaleText),
     waivers: waiversText === null ? null : sha(waiversText),
     erase: eraseText === null ? null : sha(eraseText),
     frames: names.map((name, k) => ({ name, sha256: sha(frameBytes[k]!), level: judgement.frames[k]!.level })),
@@ -273,16 +291,6 @@ class Snapshot {
   }
 }
 
-/** `"delivered": [...]` with `clip` added, the rest of the file (which is hand-formatted) left exactly as it was. */
-export function addDelivered(rigText: string, clip: string): string {
-  const m = /("delivered"\s*:\s*\[)([^\]]*)(\])/.exec(rigText);
-  if (!m) throw new IntakeError('hero.rig.json has no "delivered" list to add the clip to');
-  const items = m[2]!.split(',').map((x) => x.trim()).filter((x) => x !== '');
-  const mine = JSON.stringify(clip);
-  if (items.includes(mine)) return rigText;
-  return rigText.replace(m[0], `${m[1]}${[...items, mine].join(', ')}${m[3]}`);
-}
-
 export interface AcceptOptions {
   /** Replace a clip that was already handed over (its approved drawings are overwritten). */
   replace?: boolean;
@@ -295,7 +303,7 @@ export interface AcceptOptions {
   log?: (line: string) => void;
 }
 
-/** The manifest's entry of a clip handed over, as `npm run assets:animate` carries it over verbatim. */
+/** The manifest's entry of a clip handed over. */
 export function deliveredEntry(clip: string, request: ClipRequest, count: number, how: Scaling['how'] = 'eye'): Record<string, unknown> {
   const scaledBy = { eye: 'the big eye', head: 'the size of the head (it turns, so the eye is no fair measure of it)', given: 'a factor given by hand', final: 'nothing (the frames arrived at the size of the game)' }[how];
   const m = request.manifest;
@@ -306,13 +314,13 @@ export function deliveredEntry(clip: string, request: ClipRequest, count: number
     loop: m.loop,
     ...(m.phases ? { phases: m.phases } : {}),
     tags: [...m.tags],
-    comment: `DRAWN ANEW and handed over through \`npm run assets:intake\` (${request.title}): ${count} frames of the same character from a delivered sheet, every pixel the sheet's — scaled once by ${scaledBy}, placed by a translation, nothing redrawn`,
+    comment: `From the character sheet and handed over through \`npm run assets:intake\` (${request.title}): ${count} frame${count === 1 ? '' : 's'} of the user's own drawing, every pixel the sheet's — the background taken off, scaled once by ${scaledBy}, placed by a translation, nothing redrawn`,
   };
 }
 
 /**
- * Hands the prepared frames of `clip` over, through the mechanism the pipeline already has: the frames go to `art/player/hero/`, the clip's entry (and, for a sword, its anchors) to the manifest,
- * the clip to `delivered` in the rig; then the generator re-runs (it leaves the delivered clip alone and must find nothing to correct), the result is checked like any art, and `art/` is packed.
+ * Hands the prepared frames of `clip` over: the frames go to `art/player/hero/`, the clip's entry (and, for a sword, its anchors) to the manifest, the sheet and everything the frames were made from to
+ * `art/player/source/delivered/<clip>/`; the result is checked like any art, and `art/` is packed.
  * Refuses: a delivery with a failure; one that is not exactly what the last report showed; a clip already handed over (unless `replace`). If anything fails after the first file is written,
  * every file touched is put back.
  */
@@ -328,43 +336,37 @@ export function acceptClip(root: string, clip: string, options: AcceptOptions = 
   if (!existsSync(reportFile)) throw new IntakeError(`there is no report of "${clip}" yet: run \`npm run assets:intake -- ${clip}\` and look at its contact.png first — nothing is accepted that was not shown`);
   const shown = JSON.parse(readFileSync(reportFile, 'utf8')) as Fingerprint;
   const now = prepared.fingerprint;
-  const same = shown.frames.length === now.frames.length && shown.frames.every((f, i) => f.sha256 === now.frames[i]!.sha256) && shown.anchors === now.anchors && (shown.waivers ?? null) === (now.waivers ?? null) && (shown.erase ?? null) === (now.erase ?? null);
-  if (!same) throw new IntakeError(`the delivery changed since the report was written (the frames, the anchors, the waivers or the erased pixels are not the ones contact.png and report.md show): run \`npm run assets:intake -- ${clip}\` again, look at it, then accept`);
+  const same = shown.frames.length === now.frames.length && shown.frames.every((f, i) => f.sha256 === now.frames[i]!.sha256) && shown.anchors === now.anchors && (shown.waivers ?? null) === (now.waivers ?? null) && (shown.erase ?? null) === (now.erase ?? null) && (shown.poses ?? null) === (now.poses ?? null) && (shown.scaleFile ?? null) === (now.scaleFile ?? null);
+  if (!same) throw new IntakeError(`the delivery changed since the report was written (the frames, the poses, the anchors, the waivers or the erased pixels are not the ones contact.png and report.md show): run \`npm run assets:intake -- ${clip}\` again, look at it, then accept`);
 
   const request = prepared.request;
   const existing = readClips(root)[clip];
-  const archive = join(paths.source, 'delivered', clip);
-  const backup = new Snapshot([paths.hero, paths.manifest, paths.rig, paths.requestsDir, archive]);
+  const archive = join(paths.delivered, clip);
+  const backup = new Snapshot([paths.hero, paths.manifest, paths.requestsDir, archive]);
   try {
-    // 1 · the frames: the old files of the clip (the generator's) go, the new ones come
+    // 1 · the frames: the old files of the clip (if it is replaced) go, the new ones come
     mkdirSync(paths.hero, { recursive: true });
     const prefix = existing?.frames ?? `${clip}_`;
     for (const f of readdirSync(paths.hero)) if (f.startsWith(prefix) && /^\d+\.png$/.test(f.slice(prefix.length))) rmSync(join(paths.hero, f));
     prepared.frames.forEach((img, k) => writeFileSync(join(paths.hero, `${prepared.names[k]}.png`), encodePng(img)));
 
-    // 2 · the manifest: the clip's entry and the anchors of its frames (the generator carries both over as they are)
+    // 2 · the manifest: the clip's entry and the anchors of its frames
     const manifest = JSON.parse(readFileSync(paths.manifest, 'utf8')) as { sprites: Array<{ clips: Record<string, unknown>; frames: Record<string, unknown> }> };
     const sprite = manifest.sprites[0]!;
     sprite.clips[clip] = deliveredEntry(clip, request, prepared.frames.length, prepared.scaling.how);
     for (const key of Object.keys(sprite.frames)) if (key.startsWith(prefix) && /^\d+$/.test(key.slice(prefix.length))) delete sprite.frames[key];
     if (request.sword) for (const name of prepared.names) sprite.frames[name] = { anchors: manifestAnchors(prepared.anchors.points.get(name)!, prepared.canvas) };
+    else if (request.anchors === 'cast') for (const name of prepared.names) sprite.frames[name] = { anchors: castManifestAnchors(prepared.anchors.points.get(name)!, prepared.canvas) };
+    sprite.clips = orderedClips(sprite.clips, Object.keys(prepared.requests.clips));
     writeFileSync(paths.manifest, `${JSON.stringify(manifest, null, 2)}\n`);
 
-    // 3 · the rig: the clip is handed over
-    writeFileSync(paths.rig, addDelivered(readFileSync(paths.rig, 'utf8'), clip));
-
-    // 4 · the generator, which leaves the clip alone, and the check that it has nothing to correct
-    animate({ specPath: paths.poses, check: false, log: () => undefined });
-    const check = animate({ specPath: paths.poses, check: true, log: () => undefined, error: (l) => log(`  ${l}`) });
-    if (check.drift > 0) throw new IntakeError('assets:animate --check finds differences after the delivery (above): the delivery was not applied');
-
-    // 5 · the same checks every art file gets, before anything is packed
+    // 3 · the same checks every art file gets, before anything is packed
     if (options.verify !== false) {
       const verdict = buildArt({ srcDir: join(root, 'art'), outDir: join(root, 'public', 'art'), write: false });
       if (!verdict.ok) throw new IntakeError(`the art checks fail after the delivery:\n${formatReport(verdict, false)}`);
     }
 
-    // 6 · the clip is no longer requested: the kit loses its folder and the README its row
+    // 4 · the clip is no longer requested: the kit loses its folder and the README its row
     if (options.kit !== false) {
       const data = JSON.parse(readFileSync(paths.requests, 'utf8')) as Requests;
       data.clips[clip]!.status = 'delivered';
@@ -377,11 +379,11 @@ export function acceptClip(root: string, clip: string, options: AcceptOptions = 
       }
     }
 
-    // 7 · the sheet the frames came from stays with them (art/player/source/delivered/<clip>/): the same sheet, anchors and placement give the same frames, so what is committed is not a hand's work
+    // 5 · the sheet the frames came from stays with them (art/player/source/delivered/<clip>/): the same sheet, boxes, anchors and placement give the same frames, so what is committed is not a hand's work
     rmSync(archive, { recursive: true, force: true });
     mkdirSync(archive, { recursive: true });
     prepared.inbox.files.forEach((f, i) => writeFileSync(join(archive, f), prepared.inbox.bytes[i]!));
-    for (const extra of ['anchors.json', 'placement.json', 'waivers.json', 'erase.json']) {
+    for (const extra of DELIVERY_FILES) {
       const text = readText(join(paths.inbox, clip, extra));
       if (text !== null) writeFileSync(join(archive, extra), text);
     }
@@ -389,7 +391,7 @@ export function acceptClip(root: string, clip: string, options: AcceptOptions = 
     writeFileSync(join(archive, 'report.md'), prepared.files.get('report.md')!);
   } catch (e) {
     backup.restore();
-    log(`the delivery was NOT applied: every file touched was put back (${relative(root, paths.hero)}, the manifest, the rig, the kit)`);
+    log(`the delivery was NOT applied: every file touched was put back (${relative(root, paths.hero)}, the manifest, the kit)`);
     throw e;
   }
   if (options.pack !== false) {
@@ -398,8 +400,16 @@ export function acceptClip(root: string, clip: string, options: AcceptOptions = 
     if (!packed.ok) throw new IntakeError('packing failed after the delivery: the files of art/ are in place; fix the report above and run `npm run assets:pack`');
   }
   const warnings = prepared.judgement.frames.reduce((n, f) => n + f.checks.filter((c) => c.level === 'warn').length, 0) + prepared.judgement.checks.filter((c) => c.level === 'warn').length;
-  log(`"${clip}" handed over: ${prepared.frames.length} frames in art/player/hero/, its entry in the manifest${request.sword ? ' with the anchors of the sword' : ''}, and "${clip}" in "delivered" of hero.rig.json${warnings > 0 ? ` (${warnings} warning(s) accepted)` : ''}`);
+  log(`"${clip}" handed over: ${prepared.frames.length} frames in art/player/hero/, its entry in the manifest${request.sword ? ' with the anchors of the sword' : ''}, its sources in art/player/source/delivered/${clip}/${warnings > 0 ? ` (${warnings} warning(s) accepted)` : ''}`);
   return { frames: prepared.frames.length, warnings };
+}
+
+/** The clips of the manifest in the order of the requests (the game's own order), so that a delivery never reshuffles the file. */
+function orderedClips(clips: Record<string, unknown>, order: readonly string[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const k of order) if (k in clips) out[k] = clips[k];
+  for (const k of Object.keys(clips)) if (!(k in out)) out[k] = clips[k];
+  return out;
 }
 
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ status
@@ -407,8 +417,8 @@ export function acceptClip(root: string, clip: string, options: AcceptOptions = 
 export interface StatusRow {
   clip: string;
   frames: number;
-  /** `own`: the clip is made of a drawing the sheet has. `stand-in`: of another action's drawing. `delivered`: drawn anew and handed over. */
-  kind: 'own' | 'stand-in' | 'delivered';
+  /** `delivered`: the clip has a drawing of the sheet. `missing`: the sheet has none and the game draws the state with its placeholder. */
+  kind: 'delivered' | 'missing';
   requested: boolean;
   inbox: string;
   report: Level | null;
@@ -417,35 +427,28 @@ export interface StatusRow {
 export function statusOf(root: string): StatusRow[] {
   const paths = heroPaths(root);
   const clips = readClips(root);
-  const delivered = new Set(readDelivered(root));
   const requests = existsSync(paths.requests) ? (JSON.parse(readFileSync(paths.requests, 'utf8')) as Requests).clips : {};
-  return Object.entries(clips).map(([clip, c]) => {
-    const dir = join(paths.inbox, clip);
+  const row = (clip: string, frames: number, kind: StatusRow['kind']): StatusRow => {
     let inbox = 'empty';
     try {
-      const i = readInbox(dir);
+      const i = readInbox(join(paths.inbox, clip));
       if (i) inbox = i.mode === 'sheet' ? 'sheet.png' : `${i.files.length} PNG`;
     } catch (e) {
       inbox = e instanceof IntakeError ? 'not PNG' : 'unreadable';
     }
     const rep = readText(join(reportDir(root, clip), 'report.json'));
-    return {
-      clip,
-      frames: c.count,
-      kind: delivered.has(clip) ? 'delivered' : (c.tags ?? []).includes('stand-in') ? 'stand-in' : 'own',
-      requested: requests[clip]?.status === 'requested',
-      inbox,
-      report: rep ? (JSON.parse(rep) as Fingerprint).level : null,
-    };
-  });
+    return { clip, frames, kind, requested: requests[clip]?.status === 'requested', inbox, report: rep ? (JSON.parse(rep) as Fingerprint).level : null };
+  };
+  const have = Object.entries(clips).map(([clip, c]) => row(clip, c.count, 'delivered'));
+  const lacking = Object.keys(requests).filter((clip) => !(clip in clips)).map((clip) => row(clip, 0, 'missing'));
+  return [...have, ...lacking];
 }
 
 export function formatStatus(rows: readonly StatusRow[]): string {
   const lines = ['clip           frames  drawing      still asked for  inbox       last report'];
-  for (const r of rows) lines.push(`${r.clip.padEnd(14)} ${String(r.frames).padStart(6)}  ${r.kind.padEnd(11)}  ${(r.requested ? 'yes' : '—').padEnd(15)}  ${r.inbox.padEnd(10)}  ${r.report ?? '—'}`);
-  const stand = rows.filter((r) => r.kind === 'stand-in').length;
-  const own = rows.filter((r) => r.kind === 'own').length;
-  const hand = rows.filter((r) => r.kind === 'delivered').length;
-  lines.push('', `${rows.length} clips: ${own} made of a drawing of the sheet, ${hand} drawn anew and handed over, ${stand} still stand-ins (the motion is real, the drawing is another action's); ${rows.filter((r) => r.requested).length} are asked for in art/player/requests/`);
+  for (const r of rows) lines.push(`${r.clip.padEnd(14)} ${String(r.frames).padStart(6)}  ${(r.kind === 'delivered' ? 'delivered' : 'MISSING').padEnd(11)}  ${(r.requested ? 'yes' : '—').padEnd(15)}  ${r.inbox.padEnd(10)}  ${r.report ?? '—'}`);
+  const have = rows.filter((r) => r.kind === 'delivered').length;
+  const lacking = rows.filter((r) => r.kind === 'missing').length;
+  lines.push('', `${rows.length} clips: ${have} drawn (from the character sheet), ${lacking} missing — the sheet has no drawing for them and the game draws their states with its placeholder; ${rows.filter((r) => r.requested).length} are asked for in art/player/requests/`);
   return lines.join('\n');
 }

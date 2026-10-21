@@ -173,7 +173,7 @@ export function contactSheet(r: ReportInput): RgbaImage {
   const sections: RgbaImage[] = [];
   sections.push(board(`${head}`, legend, []));
   sections.push(board('1 - THE ORIGINALS THIS STANDS ON (THE USER\'S OWN DRAWINGS, UNTOUCHED, AND THE GAME\'S NEIGHBOURING FRAMES)', [], r.originals));
-  sections.push(board('2 - THE NEW POSES (X2, OVER A DARK GROUND SO A PALE FRINGE SHOWS)', ['THE BAND UNDER EACH IS ITS VERDICT: GREEN OK, AMBER WARN, RED FAIL.' + (r.request.sword ? ' YELLOW = GRIP, MAGENTA = TIP.' : '')], r.frames.map((_, k) => poseItem(r, k))));
+  sections.push(board('2 - THE NEW POSES (X2, OVER A DARK GROUND SO A PALE FRINGE SHOWS)', ['THE BAND UNDER EACH IS ITS VERDICT: GREEN OK, AMBER WARN, RED FAIL.' + (r.request.sword ? ' YELLOW = GRIP, MAGENTA = TIP.' : r.request.anchors === 'cast' ? ' YELLOW = THE HAND, MAGENTA = WHERE THE BOLT LEAVES.' : '')], r.frames.map((_, k) => poseItem(r, k))));
   const area = unionBounds([...r.frames, ...r.before.map((b) => b.image)], 6, r.canvas);
   const seqItems: BoardItem[] = [];
   if (r.before.length > 0) seqItems.push({ image: strip(r.before.map((b, i) => stripCell(b.image, area, r.canvas, String(i)))), scale: 1, caption: `BEFORE - THE GAME TODAY: ${r.before.length} FRAMES OF ${r.before[0]!.name.replace(/_\d+$/, '').toUpperCase()}` });
@@ -224,7 +224,8 @@ export function anchorsGrid(r: ReportInput): RgbaImage {
     }
     return { image: img, scale: 1, caption: `${name.toUpperCase()} - X ${area.x0}..${area.x1}  Y ${area.y0}..${area.y1}${p ? `  GRIP ${p.grip.join(',')}  TIP ${p.tip.join(',')}` : '  NO ANCHORS YET'}` };
   });
-  return board(`${r.clip.toUpperCase()} - ANCHORS GRID (CANVAS PIXELS)`, ['READ THE GRIP (WHERE THE RIGHT HAND HOLDS THE BLADE) AND THE TIP OF EACH FRAME OFF THE GRID, AND WRITE THEM IN art/player/inbox/' + r.clip + '/anchors.json AS "FRAME": {"grip": [X, Y], "tip": [X, Y]}.'], items);
+  const what = r.request.anchors === 'cast' ? 'THE HAND (GRIP) AND THE POINT WHERE THE BOLT LEAVES (TIP) OF EACH FRAME' : 'THE GRIP (WHERE THE RIGHT HAND HOLDS THE BLADE) AND THE TIP OF EACH FRAME';
+  return board(`${r.clip.toUpperCase()} - ANCHORS GRID (CANVAS PIXELS)`, [`READ ${what} OFF THE GRID, AND WRITE THEM IN art/player/inbox/${r.clip}/anchors.json AS "FRAME": {"grip": [X, Y], "tip": [X, Y]}.`], items);
 }
 
 /** What `erase.json` took out, frame by frame: on the left the frame as it was handed in with the pixels that go in magenta, on the right the frame as it is delivered. */

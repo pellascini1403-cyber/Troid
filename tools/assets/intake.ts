@@ -1,8 +1,9 @@
-import { boundsOf, bodyOf, cleanliness, components, eyeDiameter, headDiameter, SOLID, type Cleanliness } from './figure';
+import { boundsOf, bodyOf, cleanliness, components, eyeDiameter, headDiameter, isDark, SOLID, type Body, type Cleanliness } from './figure';
+import { extractFigure, type MatteOptions } from './matte';
 import { median } from './heroRepo';
 import type { ClipRequest } from './kit';
 import type { RgbaImage } from './png';
-import { extractPose, type Box } from './poses';
+import { dilate, extractPose, placePose, type Box } from './poses';
 import { renderFrame, toDrawing } from './warp';
 
 /**
@@ -39,12 +40,15 @@ export interface Canvas {
   margin: number;
 }
 
-/** Every threshold of the judgement in one place. Calibrated against the 114 frames of the game (see `figure.ts`): they all pass, with room. */
+/** Every threshold of the judgement in one place. Calibrated against the frames of the design the game had before the character sheet (114 made by its generator, 90 of them in the game: see `figure.ts`), which all pass, with room; and then against the new design's own (`loose`, below). */
 export const LIMITS = {
   /** Share of the soft edge that is pale grey: the fringe of the white a figure was cut from. */
   paleEdge: { warn: 0.06, fail: 0.15 },
-  /** Share of the figure outside its biggest piece. */
-  loose: { warn: 0.004, fail: 0.025 },
+  /**
+   * Share of the figure outside its biggest piece. The old design's silhouettes were clean (0.4 % warned); the new one's scarf of fire sheds embers in every pose — small detached pieces that are part of the drawing
+   * (up to 1.5 % of the figure on the sheet) — so what warns is 2 %, and a piece of another pose, an effect or a second figure (several per cent at least) still fails at 6 %.
+   */
+  loose: { warn: 0.02, fail: 0.06 },
   /** Share of solid pixels that are the red of an effect (the sword's own dark-red edge is ≤ 0.5 %). */
   red: { warn: 0.01, fail: 0.03 },
   /** Share of the figure of a hue the character has none of. */
@@ -232,6 +236,90 @@ export function cutSheet(sheet: RgbaImage, expected: number): Cut {
   return { poses, boxes, final: poses.map(() => false), rawRed, notes };
 }
 
+/** How far outside the tight box of a pose the matte looks (px): room for the soft edge of the figure (`MATTE_DEFAULTS.rim`), never more than half the gap between two poses. */
+export const BOX_PAD = 4;
+
+/**
+ * The poses of a sheet whose boxes a person gave (`poses.json`: one rectangle of the sheet per pose, tight around the figure, its embers and the effects painted next to it): no segmentation to guess — the
+ * rectangles ARE the decision of which pixels are which pose. A transparent sheet is cut by alpha; an opaque one on white by `extractFigure` (`matte.ts`): the sheet's own pixels, only the white taken off.
+ * `matte` tunes that (the defaults are the ones the protagonist's sheet was calibrated with).
+ */
+export function cutByBoxes(sheet: RgbaImage, boxes: readonly Box[], matte: MatteOptions = {}): Cut {
+  const { transparent } = figureMask(sheet);
+  const poses: RgbaImage[] = [];
+  const notes: string[] = [];
+  boxes.forEach((tight, n) => {
+    const box: Box = { x0: Math.max(0, tight.x0 - BOX_PAD), y0: Math.max(0, tight.y0 - BOX_PAD), x1: Math.min(sheet.width - 1, tight.x1 + BOX_PAD), y1: Math.min(sheet.height - 1, tight.y1 + BOX_PAD) };
+    let pose: RgbaImage | null;
+    if (transparent) pose = trimmed(crop(sheet, box));
+    else {
+      const r = extractFigure(sheet, box, matte);
+      pose = r.bounds ? crop(r.image, r.bounds) : null;
+    }
+    if (!pose) throw new IntakeError(`pose ${n + 1} of poses.json (x ${tight.x0}…${tight.x1}, y ${tight.y0}…${tight.y1}): nothing of a figure was found in the box`);
+    poses.push(pose);
+  });
+  return { poses, boxes: [...boxes], final: poses.map(() => false), rawRed: poses.map(() => 0), notes };
+}
+
+/**
+ * `scale.json` of a clip's inbox: `{ "factor": 1, "why": "…" }` — the factor a clip is scaled by when no neighbour says (the reference clip of the character, the idle: the sheet's own size), kept with the delivery so that
+ * the same sources give the same frames. A factor handed in by hand (`--scale`) is for trying; this is the one that is archived.
+ */
+export function parseScaleFile(text: string | null): number | undefined {
+  if (text === null) return undefined;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch (e) {
+    throw new IntakeError(`scale.json is not valid JSON (${e instanceof Error ? e.message : String(e)})`);
+  }
+  const o = raw as { factor?: unknown; why?: unknown } | null;
+  if (typeof o?.factor !== 'number' || !(o.factor > 0 && o.factor < 10)) throw new IntakeError('scale.json needs "factor": a number between 0 and 10 (canvas pixels per pixel of the sheet)');
+  if (typeof o.why !== 'string' || o.why.trim().length < MIN_WAIVER_REASON) throw new IntakeError(`scale.json needs a "why" of at least ${MIN_WAIVER_REASON} characters (why this clip is not scaled by its neighbour)`);
+  return o.factor;
+}
+
+/** What `poses.json` of a clip's inbox says: one rectangle of the sheet per pose, and (optionally) how the matte is tuned. */
+export interface PoseBoxes {
+  boxes: Box[];
+  matte: MatteOptions;
+}
+
+/**
+ * `poses.json`: `{ "boxes": [[x0, y0, x1, y1], …] }` — the rectangle (inclusive, in the pixels of the clip's `sheet.png`) of each pose, in the order of the frames, tight around the figure and the pieces that go with it
+ * (its embers, the effects painted beside it: those are taken out by `erase.json`, not by leaving them out of the box). Refused, with what to do: a wrong number of boxes, a box outside the sheet or one that does
+ * not enclose anything.
+ */
+export function parsePoseBoxes(text: string, expected: number, sheet: Pick<RgbaImage, 'width' | 'height'>): PoseBoxes {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch (e) {
+    throw new IntakeError(`poses.json is not valid JSON (${e instanceof Error ? e.message : String(e)})`);
+  }
+  const o = raw as { boxes?: unknown; matte?: unknown } | null;
+  if (!Array.isArray(o?.boxes) || o.boxes.length !== expected) throw new IntakeError(`poses.json needs "boxes": ${expected} rectangles [x0, y0, x1, y1] (one per pose, in the order of the frames) and has ${Array.isArray(o?.boxes) ? o.boxes.length : 'none'}`);
+  const boxes = o.boxes.map((b: unknown, k: number): Box => {
+    const v = Array.isArray(b) ? b : [];
+    if (v.length !== 4 || !v.every((n) => Number.isInteger(n))) throw new IntakeError(`poses.json: box ${k + 1} must be four whole numbers [x0, y0, x1, y1]`);
+    const [x0, y0, x1, y1] = v as [number, number, number, number];
+    if (x0 < 0 || y0 < 0 || x1 >= sheet.width || y1 >= sheet.height || x0 > x1 || y0 > y1) throw new IntakeError(`poses.json: box ${k + 1} [${v.join(', ')}] is not inside the ${sheet.width} × ${sheet.height} sheet`);
+    return { x0, y0, x1, y1 };
+  });
+  const matte: MatteOptions = {};
+  const m = (o as { matte?: Record<string, unknown> }).matte;
+  if (m !== undefined) {
+    for (const key of ['ink', 'core', 'rim'] as const) {
+      const v = m?.[key];
+      if (v === undefined) continue;
+      if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > (key === 'ink' ? 1 : 12)) throw new IntakeError(`poses.json: matte.${key} must be a number${key === 'ink' ? ' between 0 and 1' : ' of pixels (0 to 12)'}`);
+      matte[key] = v;
+    }
+  }
+  return { boxes, matte };
+}
+
 /** A handful of separate PNGs, one pose each: transparent ones are trimmed, opaque ones are cut from their background like a sheet's pose; ones already on the game's canvas are used as they are. */
 export function cutLoose(images: readonly RgbaImage[], canvas: Pick<Canvas, 'width' | 'height'>): Cut {
   const poses: RgbaImage[] = [];
@@ -282,6 +370,8 @@ export interface Scaling {
   heads: Array<number | null>;
   /** The median of the heads, in the delivered picture's pixels. */
   headMedian: number | null;
+  /** The poses (0-based) the scale was read from, when only some can be measured (a pose lying on the floor has no head to measure), or `null` for all. */
+  only: number[] | null;
   /** The head the sheet is brought to when it is scaled by the head, in canvas pixels, or `null`. */
   headTarget: number | null;
 }
@@ -311,6 +401,10 @@ export interface ScaleOptions {
   headTarget?: number | null;
   /** How far the size of a pose may stray from its sheet's median before it is told apart (`requests.json`: `scale.tolerance`). */
   tolerance?: number;
+  /** What the sheet is measured by, when it is not for the tool to choose: the head (a head that turns changes what the eye measures, and the new design's does in most of its poses). */
+  proxy?: 'eye' | 'head';
+  /** The poses (0-based) the measurement is read from: the others are not measurable (lying down) and are left out of the median — and out of the judgement of the scale. */
+  only?: readonly number[];
 }
 
 /**
@@ -318,24 +412,31 @@ export interface ScaleOptions {
  * of its poses becomes `headTarget`. A `given` factor overrides the measurement; frames that arrived on the game's canvas keep their size.
  */
 export function chooseScale(cut: Cut, target: number | null, given?: number, options: ScaleOptions = {}): Scaling {
+  const only = options.only ? [...options.only] : null;
   const eyes = cut.poses.map((p) => eyeDiameter(p)?.diameter ?? null);
-  const seen = eyes.filter((e): e is number => e !== null);
-  const med = seen.length > 0 ? median(seen) : null;
   const heads = cut.poses.map((p) => headDiameter(p));
-  const headsSeen = heads.filter((h): h is number => h !== null);
+  const measured = <T>(values: readonly T[]): T[] => (only ? only.map((k) => values[k]!) : [...values]);
+  const eyesUsed = measured(eyes);
+  const headsUsed = measured(heads);
+  const seen = eyesUsed.filter((e): e is number => e !== null);
+  const med = seen.length > 0 ? median(seen) : null;
+  const headsSeen = headsUsed.filter((h): h is number => h !== null);
   const headMedian = headsSeen.length > 0 ? median(headsSeen) : null;
   const headTarget = options.headTarget ?? null;
-  const proxy = headTarget === null ? 'eye' : scaleProxy(eyes, heads, options.tolerance ?? 0.14);
-  const known = { proxy, target, eyes, median: med, heads, headMedian, headTarget };
+  const proxy = options.proxy ?? (headTarget === null ? 'eye' : scaleProxy(eyesUsed, headsUsed, options.tolerance ?? 0.14));
+  const known = { proxy, target, eyes, median: med, heads, headMedian, headTarget, only };
   if (cut.final.length > 0 && cut.final.every((f) => f)) return { factor: 1, how: 'final', ...known };
   if (given !== undefined) {
     if (!(given > 0 && given < 10)) throw new IntakeError(`--scale ${given}: the factor is canvas pixels per pixel of the delivered picture and must be between 0 and 10`);
     return { factor: given, how: 'given', ...known };
   }
-  if (proxy === 'head' && headMedian !== null && headTarget !== null) return { factor: headTarget / headMedian, how: 'head', ...known };
+  if (proxy === 'head') {
+    if (headMedian === null || headTarget === null) throw new IntakeError('the sheet is to be scaled by the size of its head, and there is no head to measure in the poses or in the frames of the neighbouring clip: pass the factor yourself with --scale <canvas pixels per pixel of the sheet>');
+    return { factor: headTarget / headMedian, how: 'head', ...known };
+  }
   if (target === null) throw new IntakeError('the frames of the neighbouring clip have no measurable eye to scale this sheet against: pass the factor yourself with --scale <canvas pixels per pixel of the sheet>');
-  if (seen.length < Math.max(1, Math.ceil(cut.poses.length / 2))) {
-    throw new IntakeError(`the big eye could be measured in only ${seen.length} of ${cut.poses.length} poses (it needs a round, glowing eye with its white highlights in view): the scale cannot be taken from the sheet — pass it with --scale <canvas pixels per pixel of the sheet>`);
+  if (seen.length < Math.max(1, Math.ceil(eyesUsed.length / 2))) {
+    throw new IntakeError(`the big eye could be measured in only ${seen.length} of ${eyesUsed.length} poses (it needs a round, glowing eye with its white highlights in view): the scale cannot be taken from the sheet — pass it with --scale <canvas pixels per pixel of the sheet>`);
   }
   return { factor: target / med!, how: 'eye', ...known };
 }
@@ -347,6 +448,11 @@ export interface Placement {
   anchorX: 'mass';
   /** `ground`: the lowest solid pixel of the figure on the pivot row. `mass`: the centre of mass 1.0 m above the pivot (a body in the air). */
   anchorY: 'ground' | 'mass';
+  /**
+   * What the body is made of. `solid` (the default): every solid pixel, opened to drop its thin parts. `dark`: only the near-black pixels (and what they enclose), opened — for a figure whose cape is a big light flame that
+   * would drag the centre of mass toward itself, and whose sword may dip below its feet: then `ground` is the sole of the foot (the lowest dark pixel of the body), not the lowest pixel of anything.
+   */
+  body?: 'solid' | 'dark';
 }
 
 export interface Placed {
@@ -373,16 +479,21 @@ export const GROUND_GAP_WARN = 8;
  */
 export function placeFrame(pose: RgbaImage, factor: number, placement: Placement, canvas: Canvas, nudge = { dx: 0, dy: 0 }): Placed {
   const thin = Math.max(1, Math.round(3 / factor));
-  const body = bodyOf(pose, thin);
+  const dark = placement.body === 'dark';
+  const body = bodyOf(pose, thin, dark);
   if (!body) throw new IntakeError('a pose has no body to anchor (it is all thin parts or empty)');
   const pb = boundsOf(pose, 8)!;
-  const lowest = boundsOf(pose, SOLID)?.y1 ?? pb.y1;
+  const lowest = dark ? feetRow(pose, body, thin) : (boundsOf(pose, SOLID)?.y1 ?? pb.y1);
   const ax = body.cx + 0.5;
   const ay = placement.anchorY === 'ground' ? lowest + 1 : body.cy + 0.5;
   const tx = canvas.pivot[0] + 0.5 + nudge.dx;
   const ty = (placement.anchorY === 'ground' ? canvas.pivot[1] + 1 : canvas.pivot[1] - AIR_HEIGHT_M * canvas.artPxPerMeter + 0.5) + nudge.dy;
   const samples = Math.min(8, Math.max(3, Math.ceil(1.5 / factor)));
-  const image = renderFrame(toDrawing(pose), { width: canvas.width, height: canvas.height, scale: factor, origin: { x: ax - tx / factor, y: ay - ty / factor } }, { warp: null, samples });
+  // at the size of the sheet itself (factor 1) the pose is moved by WHOLE pixels and copied: not one pixel is resampled, so the frame is the sheet's own
+  const image =
+    factor === 1
+      ? placePose(pose, { x: 0, y: 0 }, canvas, { x: Math.round(tx - ax), y: Math.round(ty - ay) }).image
+      : renderFrame(toDrawing(pose), { width: canvas.width, height: canvas.height, scale: factor, origin: { x: ax - tx / factor, y: ay - ty / factor } }, { warp: null, samples });
   const left = (pb.x0 - ax) * factor + tx;
   const right = (pb.x1 + 1 - ax) * factor + tx;
   const top = (pb.y0 - ay) * factor + ty;
@@ -390,9 +501,21 @@ export function placeFrame(pose: RgbaImage, factor: number, placement: Placement
   return {
     image,
     clipped: { left: Math.max(0, Math.ceil(-left)), right: Math.max(0, Math.ceil(right - canvas.width)), top: Math.max(0, Math.ceil(-top)), bottom: Math.max(0, Math.ceil(bottom - canvas.height)) },
-    groundGap: Math.max(0, (lowest - body.bottom) * factor),
+    groundGap: dark ? 0 : Math.max(0, (lowest - body.bottom) * factor),
     nudge,
   };
+}
+
+/** The sole of the foot: the lowest solid DARK pixel within reach of the body proper (the opening that drops the thin parts also takes a pixel or two off the rounded feet; a sword that dips below them is not within it). */
+function feetRow(pose: RgbaImage, body: Body, thin: number): number {
+  const reach = dilate(body.mask, pose.width, pose.height, thin + 1);
+  for (let y = pose.height - 1; y > body.bottom; y--) {
+    for (let x = 0; x < pose.width; x++) {
+      const i = y * pose.width + x;
+      if (reach[i] && pose.data[i * 4 + 3]! >= SOLID && isDark(pose.data[i * 4]!, pose.data[i * 4 + 1]!, pose.data[i * 4 + 2]!)) return y;
+    }
+  }
+  return body.bottom;
 }
 
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ the sword
@@ -415,6 +538,15 @@ export function manifestAnchors(p: SwordPoints, canvas: Canvas): Record<string, 
     vfx_origin: m(...along(0.48)),
   };
 }
+
+/** The anchors of the manifest for a frame of the cast, in metres from the pivot (forward and up): the hand, and where the bolt leaves (`anchors.json`: `"grip"` is the hand, `"tip"` the origin of the bolt). */
+export function castManifestAnchors(p: SwordPoints, canvas: Canvas): Record<string, [number, number]> {
+  const m = (x: number, y: number): [number, number] => [Math.round(((x - canvas.pivot[0]) / canvas.artPxPerMeter) * 1000) / 1000, Math.round(((canvas.pivot[1] - y) / canvas.artPxPerMeter) * 1000) / 1000];
+  return { hand_r: m(...p.grip), projectile_origin: m(...p.tip) };
+}
+
+/** The farthest the bolt may leave from the hand, in metres (the old drawings' was 0.22). */
+export const CAST_ORIGIN_MAX = 0.8;
 
 /** What `anchors.json` says, checked: every frame has a grip and a tip inside the canvas. Problems come back as text, not exceptions, so the report can list them all. */
 export function parseAnchors(text: string | null, frames: readonly string[], canvas: Canvas): { points: Map<string, SwordPoints>; problems: string[] } {
@@ -452,7 +584,7 @@ export function parseAnchors(text: string | null, frames: readonly string[], can
 }
 
 /** The distance (px) from `p` to the nearest pixel of the figure (alpha ≥ 40) in `img`, up to `max`; `max + 1` when there is none within it. */
-function distanceToFigure(img: RgbaImage, p: [number, number], max: number): number {
+export function distanceToFigure(img: RgbaImage, p: [number, number], max: number): number {
   const cx = Math.round(p[0]);
   const cy = Math.round(p[1]);
   let best = max + 1;
@@ -531,10 +663,12 @@ export function judgeFrames(input: JudgeInput): ClipJudgement {
   const out: FrameJudgement[] = [];
   // the poses are judged against each other: the eye of each against the median of the finished clip — or, when the head turns and the sheet was scaled by the head, the head of each
   const readings = input.frames.map((f) => eyeDiameter(f)?.diameter ?? null);
-  const seen = readings.filter((e): e is number => e !== null);
+  // a clip some of whose poses cannot be measured (lying on the floor: no head to see) is judged by the ones that can (`scale.only` of its request)
+  const measurable = (k: number): boolean => !scaling.only || scaling.only.includes(k);
+  const seen = readings.filter((e, k): e is number => e !== null && measurable(k));
   const eyeMedian = seen.length > 0 ? median(seen) : null;
   const headReadings = input.frames.map((f) => headDiameter(f));
-  const headSeen = headReadings.filter((h): h is number => h !== null);
+  const headSeen = headReadings.filter((h, k): h is number => h !== null && measurable(k));
   const headMedian = headSeen.length > 0 ? median(headSeen) : null;
   let prev: { frame: RgbaImage; mass: { x: number; y: number } | null } | null = null;
   input.frames.forEach((frame, k) => {
@@ -572,7 +706,8 @@ export function judgeFrames(input: JudgeInput): ClipJudgement {
     let headDeviation: number | null = null;
     if (eye !== null && eyeMedian !== null) eyeDeviation = (eye - eyeMedian) / eyeMedian;
     if (head !== null && headMedian !== null) headDeviation = (head - headMedian) / headMedian;
-    if (scaling.proxy === 'head') {
+    if (!measurable(k)) checks.push({ id: 'scale', level: 'ok', text: 'esta pose no se mide para la escala (la cabeza no se ve entera: tumbada, caída o deshecha); la escala del clip se lee de las demás' });
+    else if (scaling.proxy === 'head') {
       // the head turns, so the eye is no fair measure of the size of the pose (it is seen narrower, smaller, or not at all): the head is
       if (head !== null && headMedian !== null && headDeviation !== null) {
         const dev = Math.abs(headDeviation);
@@ -597,7 +732,7 @@ export function judgeFrames(input: JudgeInput): ClipJudgement {
     const raw = input.rawRed[k] ?? 0;
     if (raw > LIMITS.rawRed.warn) checks.push({ id: 'sheet-red', level: 'warn', text: `${pct(raw)} de la pose en la hoja entregada es rojo: el recorte deja fuera la energía roja, así que una hoja o un miembro dibujado en rojo puede haber perdido su color — mira la hoja de contacto` });
 
-    const body = bodyOf(frame, 3);
+    const body = bodyOf(frame, 3, request.placement.body === 'dark');
     const mass = body ? { x: body.cx, y: body.cy } : null;
     let massStep: number | null = null;
     if (prev && prev.mass && mass) {
@@ -608,12 +743,22 @@ export function judgeFrames(input: JudgeInput): ClipJudgement {
     if (prev && prev.frame.data.length === frame.data.length && prev.frame.data.every((v, i) => v === frame.data[i])) checks.push({ id: 'repeat', level: 'warn', text: 'idéntico al fotograma anterior (repetir una pose no aporta nada)' });
 
     let blade: number | null = null;
+    if (request.anchors === 'cast') {
+      const p = input.anchors.get(name);
+      if (!p) checks.push({ id: 'cast', level: 'fail', text: input.anchorProblems.find((t) => t.startsWith(`${name}:`)) ?? 'sin anclas para este fotograma: el disparo necesita la mano y el punto de salida del proyectil (anchors.json: "grip" = la mano, "tip" = la salida)' });
+      else {
+        const reach = Math.hypot(p.tip[0] - p.grip[0], p.tip[1] - p.grip[1]) / canvas.artPxPerMeter;
+        if (reach > CAST_ORIGIN_MAX) checks.push({ id: 'cast', level: 'fail', text: `el proyectil sale a ${reach.toFixed(2)} m de la mano (se admite hasta ${CAST_ORIGIN_MAX} m)` });
+        if (distanceToFigure(frame, p.grip, LIMITS.anchorOnFigure + 1) > LIMITS.anchorOnFigure) checks.push({ id: 'cast', level: 'fail', text: `el ancla de la mano (${p.grip.join(', ')}) no está sobre la figura` });
+      }
+    }
     if (request.sword) {
       const p = input.anchors.get(name);
       if (!p) checks.push({ id: 'sword', level: 'fail', text: input.anchorProblems.find((t) => t.startsWith(`${name}:`)) ?? 'sin anclas para este fotograma: la espada necesita su empuñadura y su punta (anchors.json)' });
       else {
         blade = Math.hypot(p.tip[0] - p.grip[0], p.tip[1] - p.grip[1]) / canvas.artPxPerMeter;
-        if (blade < LIMITS.blade.min || blade > LIMITS.blade.max) checks.push({ id: 'sword', level: 'fail', text: `de la empuñadura a la punta hay ${blade.toFixed(2)} m; la hoja del juego mide 0.93 m (se admite ${LIMITS.blade.min}–${LIMITS.blade.max} m)` });
+        const [bladeMin, bladeMax] = request.limits.bladeM ?? [LIMITS.blade.min, LIMITS.blade.max];
+        if (blade < bladeMin || blade > bladeMax) checks.push({ id: 'sword', level: 'fail', text: `de la empuñadura a la punta hay ${blade.toFixed(2)} m; ${request.limits.bladeM ? 'la hoja de este personaje' : 'la hoja del juego mide 0.93 m'} (se admite ${bladeMin}–${bladeMax} m)` });
         const g = distanceToFigure(frame, p.grip, LIMITS.anchorOnFigure + 1);
         const t = distanceToFigure(frame, p.tip, LIMITS.anchorOnFigure + 1);
         if (g > LIMITS.anchorOnFigure) checks.push({ id: 'sword', level: 'fail', text: `el ancla de la empuñadura (${p.grip.join(', ')}) no está sobre la figura` });

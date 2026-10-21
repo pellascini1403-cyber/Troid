@@ -4,32 +4,41 @@
   "inputs": [
     {
       "file": "sheet.png",
-      "sha256": "92c1cabaab686ccbe55c55e21bf4c8262aac653bbcb73d31d88e819f8211ffc9"
+      "sha256": "debc78350235a1155b682608207570433e57da480c374d5938de6c064e746082"
     }
   ],
   "scale": {
-    "factor": 0.679365,
-    "how": "eye",
-    "proxy": "eye",
-    "target": 25.33,
-    "headTarget": 58.86
+    "factor": 1.380388,
+    "how": "head",
+    "proxy": "head",
+    "target": 22.81,
+    "headTarget": 56.25
   },
   "anchors": null,
   "placement": null,
+  "poses": "d0c422178f13e2e8c4f155fcf46044df1d5bfefa11789224fef2de7d79bf542a",
+  "scaleFile": null,
+  "waivers": null,
+  "erase": "c598f145e29805a89b0d8969202484a35de60a883d5c9c9befd1450b9c319da9",
   "frames": [
     {
       "name": "interact_00",
-      "sha256": "57bea972b07fb544f64167730ab86dc0bdaef8e2a96f6e98ff6ecfd856883ff3",
-      "level": "warn"
+      "sha256": "20e0b126e9ff766e4322b2c2d36b8a1dad661a5b660fa274e9fb8b9ace0bcaf4",
+      "level": "ok"
     },
     {
       "name": "interact_01",
-      "sha256": "f0d68b5ed4d629e6ed8dea9a2998eebf4b0e9c1c3736ab40009e4c1508f1a249",
-      "level": "warn"
+      "sha256": "f2ce70029264e71c34e05e94f5152b01806ee9b7c68392ef82c7352adbddcec8",
+      "level": "ok"
     },
     {
       "name": "interact_02",
-      "sha256": "6296a6e7132729b36ca1082c80dd4d5a2b07c8996dda6a23609c7ad85a795b9d",
+      "sha256": "667dbe7102ad676eb53286cf24ae60887baf362f99c421fa7278fcd10a48b42a",
+      "level": "ok"
+    },
+    {
+      "name": "interact_03",
+      "sha256": "da5e55f0e76beb101f3cff992fed751a111a216a79dfddb4d3a73c5c74003c6b",
       "level": "ok"
     }
   ]

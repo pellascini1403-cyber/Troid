@@ -1,0 +1,35 @@
+{
+  "clip": "idle",
+  "level": "ok",
+  "inputs": [
+    {
+      "file": "sheet.png",
+      "sha256": "10c5fb68ea92f969721c0e21731e91227ea6649a548cc3bc8572d03e490d5600"
+    }
+  ],
+  "scale": {
+    "factor": 1,
+    "how": "given",
+    "proxy": "eye",
+    "target": 22.81,
+    "headTarget": 56.25
+  },
+  "anchors": null,
+  "placement": null,
+  "poses": "b2b289fb2cfcb2e3e03bb012e53dbbff2fa26ae0db88a685c80ebaad1262c4b0",
+  "scaleFile": "a1e4c2ee47cd26d9df2d3adb8c3784bf7a9f779eacc56c65a3f6bbc0bc21e126",
+  "waivers": null,
+  "erase": null,
+  "frames": [
+    {
+      "name": "idle_00",
+      "sha256": "e623dd6eb48a0d4f5bb2aa760fca6cf5849607aca8166607f466ebab60d43ec9",
+      "level": "ok"
+    },
+    {
+      "name": "idle_01",
+      "sha256": "628439cbff0b10926fb5ba3969072badb9e571aba3fe2d8af6eee72396c0801a",
+      "level": "ok"
+    }
+  ]
+}

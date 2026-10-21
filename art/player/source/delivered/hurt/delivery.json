@@ -1,0 +1,40 @@
+{
+  "clip": "hurt",
+  "level": "warn",
+  "inputs": [
+    {
+      "file": "sheet.png",
+      "sha256": "b3091d0e262b97fa880058417184498dbde5f86082f603d5fdbc6a4a2310f0c4"
+    }
+  ],
+  "scale": {
+    "factor": 1.409903,
+    "how": "head",
+    "proxy": "head",
+    "target": 22.81,
+    "headTarget": 56.25
+  },
+  "anchors": null,
+  "placement": null,
+  "poses": "b95738115a534141712cbdcfe8cac3427425e451e3814432ca8f332451932f46",
+  "scaleFile": null,
+  "waivers": null,
+  "erase": "aac8dc9872fca39862759b2ef95b447435d49af6e7cd63e69a75e54fe495bc2d",
+  "frames": [
+    {
+      "name": "hurt_00",
+      "sha256": "e162af8181ecffb3cc6cb165e7172eba5a9678eed494da0f6c09cb023188ee6c",
+      "level": "ok"
+    },
+    {
+      "name": "hurt_01",
+      "sha256": "41bdae7f1b8d70588e99de354ec592bedcf2f7ab95a4769b31bfe7f5c0ed881a",
+      "level": "ok"
+    },
+    {
+      "name": "hurt_02",
+      "sha256": "c2b64c0c2cd6576b5d517d1cb22e3109539c981ff98bb5b83a33ef4d6d1c3905",
+      "level": "ok"
+    }
+  ]
+}

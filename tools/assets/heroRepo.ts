@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { eyeDiameter, headDiameter } from './figure';
 import { frameFile, keptFrom } from './heroAnimation';
@@ -13,9 +13,13 @@ export const heroPaths = (root: string) => ({
   hero: join(root, 'art', 'player', 'hero'),
   manifest: join(root, 'art', 'player', 'player.pack.json'),
   source: join(root, 'art', 'player', 'source'),
-  rig: join(root, 'art', 'player', 'source', 'hero.rig.json'),
-  poses: join(root, 'art', 'player', 'source', 'hero.poses.json'),
-  sheet: join(root, 'art', 'player', 'source', 'hero-sheet.png'),
+  /** The user's character sheet, bit for bit — the one authority on how the protagonist looks (docs/PROMPT16-LOG.md) — and what says which pose of it is which clip. */
+  sheet: join(root, 'art', 'player', 'source', 'character-sheet.png'),
+  sheetData: join(root, 'art', 'player', 'source', 'character-sheet.json'),
+  /** What each clip handed over came from (`<clip>/`: the part of the sheet, its poses, anchors, placement, what was taken out, the report). */
+  delivered: join(root, 'art', 'player', 'source', 'delivered'),
+  /** The designs the protagonist had before, each in the layout of `art/player/` itself (`design-v1/hero`, `design-v1/player.pack.json`, `design-v1/source` …): retired, kept, never packed. */
+  archive: join(root, 'art', 'player', 'archive'),
   requestsDir: join(root, 'art', 'player', 'requests'),
   requests: join(root, 'art', 'player', 'requests', 'requests.json'),
   inbox: join(root, 'art', 'player', 'inbox'),
@@ -39,11 +43,13 @@ export function readClips(root: string): Record<string, ManifestClip> {
   return keptFrom(JSON.parse(readFileSync(file, 'utf8'))).clips as Record<string, ManifestClip>;
 }
 
-/** The clips the rig lists as handed over by hand. */
+/** The clips handed over through the reception (`assets:intake`): the folders of `art/player/source/delivered/` that hold their `delivery.json`, in the order of the manifest's clips. */
 export function readDelivered(root: string): string[] {
-  const file = heroPaths(root).rig;
-  if (!existsSync(file)) return [];
-  return (JSON.parse(readFileSync(file, 'utf8')) as { delivered?: string[] }).delivered ?? [];
+  const dir = heroPaths(root).delivered;
+  if (!existsSync(dir)) return [];
+  const have = readdirSync(dir).filter((e) => existsSync(join(dir, e, 'delivery.json')));
+  const order = Object.keys(readClips(root));
+  return [...have].sort((a, b) => (order.indexOf(a) + 1 || 999) - (order.indexOf(b) + 1 || 999) || a.localeCompare(b));
 }
 
 export const clipFrameNames = (clip: ManifestClip): string[] => Array.from({ length: clip.count }, (_, k) => frameFile(clip.frames, k));

@@ -1,0 +1,30 @@
+{
+  "clip": "land",
+  "level": "warn",
+  "inputs": [
+    {
+      "file": "sheet.png",
+      "sha256": "4f2ec4bfbb72253d9452908ae7659e2615b2626a2e28b56a6de021a768e4a774"
+    }
+  ],
+  "scale": {
+    "factor": 1.032086,
+    "how": "head",
+    "proxy": "head",
+    "target": 22.81,
+    "headTarget": 56.25
+  },
+  "anchors": null,
+  "placement": null,
+  "poses": "694d4f861af04246ad4e7914bdfd7d8e6787b0ae93973a58397eeb447b8d71ad",
+  "scaleFile": null,
+  "waivers": null,
+  "erase": null,
+  "frames": [
+    {
+      "name": "land_00",
+      "sha256": "87ed3a0a113d25be7a690e1cbfff0bf666a1eb1dfa057de071c374cf7beffaa4",
+      "level": "ok"
+    }
+  ]
+}

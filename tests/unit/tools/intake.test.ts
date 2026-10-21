@@ -3,10 +3,8 @@ import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { animate } from '../../../tools/assets/animate';
 import { bodyOf, boundsOf, eyeDiameter, headDiameter, SOLID } from '../../../tools/assets/figure';
-import { CLIP_ORDER } from '../../../tools/assets/heroClips';
-import { clipEye, readClips, readDelivered } from '../../../tools/assets/heroRepo';
+import { readClips, readDelivered } from '../../../tools/assets/heroRepo';
 import {
   applyWaivers,
   chooseScale,
@@ -27,7 +25,7 @@ import {
   type Scaling,
   type SwordPoints,
 } from '../../../tools/assets/intake';
-import { acceptClip, addDelivered, prepareClip, readInbox, statusOf, writeReport } from '../../../tools/assets/intakeRun';
+import { acceptClip, prepareClip, readInbox, statusOf, writeReport } from '../../../tools/assets/intakeRun';
 import { buildKit, buildReadme, readKitSources, type ClipRequest, type Requests } from '../../../tools/assets/kit';
 import { decodePng, encodePng, type RgbaImage } from '../../../tools/assets/png';
 import { renderFrame, toDrawing } from '../../../tools/assets/warp';
@@ -40,7 +38,18 @@ import { renderFrame, toDrawing } from '../../../tools/assets/warp';
  */
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const canvas: Canvas = { width: 280, height: 230, pivot: [120, 192], artPxPerMeter: 65, margin: 4 };
-const frame = (name: string): RgbaImage => decodePng(readFileSync(join(root, 'art', 'player', 'hero', `${name}.png`)));
+/**
+ * The figures the tests are made of are the frames of the design the protagonist had before the character sheet of the Prompt 16 (kept, in the layout of `art/player/`, in `art/player/archive/design-v1/`): the
+ * thresholds of the tool were calibrated on them, they are committed for good, and no delivery can take them from under a test. What the tool does with the frames of the game TODAY is in `characterArt.test.ts`.
+ */
+const OLD = join(root, 'art', 'player', 'archive', 'design-v1');
+const frame = (name: string): RgbaImage => decodePng(readFileSync(join(OLD, 'hero', `${name}.png`)));
+/** The median big eye of a clip of the OLD design (its frames and manifest are in the archive), in pixels: the neighbour the tests scale their sheets against. */
+function oldEye(clip: string): number {
+  const entry = (JSON.parse(readFileSync(join(OLD, 'player.pack.json'), 'utf8')) as { sprites: Array<{ clips: Record<string, { frames: string; count: number }> }> }).sprites[0]!.clips[clip]!;
+  const eyes = Array.from({ length: entry.count }, (_, k) => eyeDiameter(frame(`${entry.frames}${String(k).padStart(2, '0')}`))?.diameter).filter((e): e is number => e !== undefined).sort((a, b) => a - b);
+  return eyes[eyes.length >> 1]!;
+}
 const SWORD_FRAMES = ['attack1_00', 'attack1_01', 'attack1_02', 'attack1_03', 'attack1_04', 'attack1_05', 'attack1_06'] as const;
 
 /**
@@ -63,7 +72,7 @@ const BLOW: ClipRequest = {
   sword: true,
   intent: { tipRises: 0.4, es: 'the tip rises at least 0.4 m between the wind-up and the active phase' },
   limits: { heightM: [1.4, 2.7], widthM: [1.5, 3.4] },
-  references: { sheet: ['pose7', 'pose8', 'pose12'], frames: ['attack1_00', 'attack1_02', 'attack1_06', 'cast_03', 'idle_00'], note: 'the sword of the drawing 7/12' },
+  references: { sheet: ['attack1', 'attack2', 'attack3'], frames: ['attack1_00', 'attack1_02', 'cast_03', 'idle_00'], note: 'the sword of the sheet' },
   frames: ['coil', 'load', 'cut', 'cut-end', 'follow-through', 'recover', 'settle'].map((role, k) => ({ role, phase: k < 2 ? ('startup' as const) : k < 4 ? ('active' as const) : ('recovery' as const), en: role, es: role })),
 };
 
@@ -194,7 +203,7 @@ function iou(a: RgbaImage, b: RgbaImage, dx: number, dy: number): number {
 
 /** The anchors a person would read off the grid: the originals' anchors, carried by the offset between the placed frame and its source, and snapped onto the figure. */
 function anchorsFor(names: readonly string[], placed: readonly RgbaImage[], sources: readonly RgbaImage[], sourceNames: readonly string[]): Map<string, SwordPoints> {
-  const manifest = (JSON.parse(readFileSync(join(root, 'art', 'player', 'player.pack.json'), 'utf8')) as { sprites: Array<{ frames: Record<string, { anchors: Record<string, [number, number]> }> }> }).sprites[0]!.frames;
+  const manifest = (JSON.parse(readFileSync(join(OLD, 'player.pack.json'), 'utf8')) as { sprites: Array<{ frames: Record<string, { anchors: Record<string, [number, number]> }> }> }).sprites[0]!.frames;
   const out = new Map<string, SwordPoints>();
   placed.forEach((mine, k) => {
     const bm = bodyOf(mine, 3)!;
@@ -229,7 +238,7 @@ let target: number;
 beforeAll(() => {
   built = composeSheet(SWORD_FRAMES, { up: 3, cols: 4, gap: 90, shadow: true });
   cut = cutSheet(built.sheet, SWORD_FRAMES.length);
-  target = clipEye(root, 'attack1')!;
+  target = oldEye('attack1');
   scaling = chooseScale(cut, target);
   placed = cut.poses.map((p) => placeFrame(p, scaling.factor, { anchorX: 'mass', anchorY: 'ground' }, canvas));
 }, 120_000);
@@ -643,7 +652,8 @@ describe('what a blow must do', () => {
   };
 
   it('the second blow is asked to come FORWARD (the drawn one is a low slash from behind the body to in front of it) and the blow in the air to come DOWN, as the end-to-end scenario has them', () => {
-    expect(requests['attack2']!.intent).toMatchObject({ tipAdvances: 1 });
+    // (the second blow of the new design is asked to advance at least 0.5 m: the first blow of the sheet advances 0.63 m, with a short sword — the old design's 1 m was for a blade of 0.93 m)
+    expect(requests['attack2']!.intent).toMatchObject({ tipAdvances: 0.5 });
     expect(requests['attack2']!.intent).not.toHaveProperty('tipRises');
     expect(requests['aerialAttack']!.intent).toMatchObject({ tipDrops: 0.4 });
     expect(requests['crouchAttack']!.intent).toBeUndefined();
@@ -767,7 +777,7 @@ describe('the anchors of the sword', () => {
   });
 });
 
-describe('what is in the inbox, the rig\'s list of clips handed over, and the state of the clips', () => {
+describe('what is in the inbox, and the state of the clips', () => {
   const tmp = mkdtempSync(join(tmpdir(), 'troid-inbox-'));
   afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 
@@ -776,7 +786,7 @@ describe('what is in the inbox, the rig\'s list of clips handed over, and the st
     const a = join(tmp, 'poses');
     mkdirSync(a);
     const png = encodePng({ width: 2, height: 2, data: new Uint8Array(16).fill(255) });
-    for (const n of ['dash_10.png', 'dash_2.png', 'dash_1.png', 'anchors.json', 'placement.json', 'waivers.json', '.DS_Store']) writeFileSync(join(a, n), n.endsWith('.png') ? png : '{}');
+    for (const n of ['dash_10.png', 'dash_2.png', 'dash_1.png', 'anchors.json', 'placement.json', 'waivers.json', 'erase.json', 'poses.json', 'scale.json', '.DS_Store']) writeFileSync(join(a, n), n.endsWith('.png') ? png : '{}');
     const poses = readInbox(a)!;
     expect(poses.mode).toBe('poses');
     expect(poses.files).toEqual(['dash_1.png', 'dash_2.png', 'dash_10.png']);
@@ -788,28 +798,17 @@ describe('what is in the inbox, the rig\'s list of clips handed over, and the st
     expect(() => readInbox(b)).toThrow(/only PNG is read: convert sheet\.webp/);
   });
 
-  it('adds a clip to `delivered` in the hand-formatted rig without touching a character of the rest of the file', () => {
-    const rig = '{\n  "comment": "…`delivered` lists…",\n  "canvas": {"width": 280},\n  "delivered": [],\n  "poses": {}\n}\n';
-    const one = addDelivered(rig, 'dash');
-    expect(one).toBe(rig.replace('"delivered": []', '"delivered": ["dash"]'));
-    const two = addDelivered(one, 'attack2');
-    expect(JSON.parse(two).delivered).toEqual(['dash', 'attack2']);
-    expect(addDelivered(two, 'dash')).toBe(two);
-    expect(two.replace('"delivered": ["dash", "attack2"]', '"delivered": []')).toBe(rig);
-    expect(() => addDelivered('{ "poses": {} }', 'dash')).toThrow(/no "delivered" list/);
-  });
-
-  it('says what each of the eighteen clips is made of: the sheet\'s drawing, a stand-in, or drawn anew — and which are still asked for', () => {
+  it('says what each of the eighteen clips is: drawn from the character sheet, or missing (the sheet has no drawing for it and the game draws its states with the placeholder) — and which are still asked for', () => {
     const rows = statusOf(root);
-    expect(rows.map((r) => r.clip)).toEqual(Object.keys(readClips(root)));
     expect(rows).toHaveLength(18);
     const requests = JSON.parse(readFileSync(join(root, 'art', 'player', 'requests', 'requests.json'), 'utf8')).clips as Record<string, { status: string }>;
+    expect(rows.map((r) => r.clip), 'the clips of the manifest first, then the ones asked for').toEqual([...Object.keys(readClips(root)), ...Object.keys(requests).filter((c) => !(c in readClips(root)))]);
     for (const r of rows) expect(r.requested, r.clip).toBe(requests[r.clip]?.status === 'requested');
-    expect(rows.find((r) => r.clip === 'idle')).toMatchObject({ kind: 'own', requested: false });
-    // a clip that is still asked for is not made of a drawing of its own — or is the walk, whose legs the sheet's one drawing only bent; the clips drawn anew are the rig's list of those handed over
-    for (const r of rows.filter((x) => x.requested && x.clip !== 'walk')) expect(r.kind, `${r.clip} is asked for, so it is a stand-in`).toBe('stand-in');
+    // a clip is delivered when it is in the manifest and its sources are archived; the others are missing — and are the ones still asked for, no more and no fewer
     expect(rows.filter((r) => r.kind === 'delivered').map((r) => r.clip).sort()).toEqual([...readDelivered(root)].sort());
-    for (const r of rows.filter((x) => x.kind === 'delivered')) expect(r.requested, `${r.clip} was handed over: it is no longer asked for`).toBe(false);
+    expect(rows.filter((r) => r.kind === 'missing').map((r) => r.clip).sort()).toEqual(rows.filter((r) => r.requested).map((r) => r.clip).sort());
+    expect(rows.find((r) => r.clip === 'idle')).toMatchObject({ kind: 'delivered', frames: 2, requested: false });
+    expect(rows.find((r) => r.clip === 'crouch')).toMatchObject({ kind: 'missing', frames: 0, requested: true });
   });
 });
 
@@ -826,17 +825,25 @@ describe('the production kit', () => {
     expect(folders).toEqual([...new Set([...files.keys()].filter((f) => f.includes('/')).map((f) => f.split('/')[0]!))].sort());
   }, 60_000);
 
-  it('says so when nothing is asked for any more — what was delivered, how each delivery differs from what was asked — and goes back to asking when a clip is requested again', () => {
+  it('asks for exactly the clips the sheet has no drawing for — a brief and a reference board each — and for none it has', () => {
+    const data = JSON.parse(readFileSync(join(root, 'art', 'player', 'requests', 'requests.json'), 'utf8')) as Requests;
+    const asked = Object.entries(data.clips).filter(([, c]) => c.status === 'requested').map(([id]) => id).sort();
+    expect(asked).toEqual(['aerialAttack', 'attack2', 'crouch', 'crouchAttack', 'crouchWalk', 'drink']);
+    const files = [...buildKit(readKitSources(root)).keys()];
+    for (const id of asked) for (const f of ['brief.md', 'reference.png']) expect(files, `${id}/${f}`).toContain(`${id}/${f}`);
+    for (const id of Object.keys(data.clips).filter((c) => !asked.includes(c))) expect(files.some((f) => f.startsWith(`${id}/`)), `${id} is drawn: nothing is asked for it`).toBe(false);
+    // none of the clips asked for is in the manifest: the game draws them with the placeholder until they are delivered, never with a stand-in
+    for (const id of asked) expect(readClips(root)[id], `${id} is not declared`).toBeUndefined();
+  });
+
+  it('says so when nothing is asked for any more — which clips there are — and goes back to asking when a clip is requested again', () => {
     const data = JSON.parse(readFileSync(join(root, 'art', 'player', 'requests', 'requests.json'), 'utf8')) as Requests;
     const all = structuredClone(data);
     for (const c of Object.values(all.clips)) c.status = 'delivered';
     const done = buildReadme(all);
     expect(done).toMatch(/no queda ningún clip por pedir/);
     expect(done).not.toMatch(/Los tres pasos/);
-    for (const [id, c] of Object.entries(all.clips)) {
-      expect(done, `${id} is in the table`).toContain(`| \`${id}\` | ${c.frames.length} | ${c.delivery?.asked?.frames ?? c.frames.length} |`);
-      if (c.delivery) expect(done, `${id}: what differs from the ask`).toContain(c.delivery.note);
-    }
+    for (const id of Object.keys(all.clips)) expect(done, `${id} is named`).toContain(`\`${id}\``);
     // one clip asked for again: the kit is the one it always was
     const again = structuredClone(all);
     again.clips['dash']!.status = 'requested';
@@ -844,16 +851,14 @@ describe('the production kit', () => {
     expect(buildReadme(again)).not.toMatch(/no queda ningún clip por pedir/);
   });
 
-  it('asks for what the pipeline can take: every clip is a clip of the generator, its frames add up to what its phases cover, and its timing keeps the length the game gives the action', () => {
+  it('asks for what the pipeline can take: every clip is a clip of the game, its frames add up to what its phases cover, and its timing keeps the length the game gives the action', () => {
     const data = JSON.parse(readFileSync(join(root, 'art', 'player', 'requests', 'requests.json'), 'utf8')) as {
-      clips: Record<string, { frames: unknown[]; manifest: { fps: number; loop: boolean; phases: { startup: [number, number]; active: [number, number]; recovery: [number, number] } | null }; scaleLike: string; placement: { anchorY: string }; sword: boolean }>;
+      clips: Record<string, { frames: unknown[]; manifest: { fps: number; loop: boolean; tags: string[]; phases: { startup: [number, number]; active: [number, number]; recovery: [number, number] } | null }; scaleLike: string; placement: { anchorY: string }; sword: boolean }>;
     };
     const order = ['idle', 'walk', 'run', 'jump', 'fall', 'land', 'crouch', 'crouchWalk', 'dash', 'attack1', 'attack2', 'aerialAttack', 'crouchAttack', 'hurt', 'death', 'cast', 'drink', 'interact'];
-    let total = 0;
     for (const [id, c] of Object.entries(data.clips)) {
       expect(order, `${id} is a clip the pipeline knows (CLIP_ORDER)`).toContain(id);
       expect(order, `${id}: the clip its size is matched to`).toContain(c.scaleLike);
-      total += c.frames.length;
       const p = c.manifest.phases;
       if (p) {
         expect(p.startup[0], `${id}: the phases begin at frame 0`).toBe(0);
@@ -861,10 +866,11 @@ describe('the production kit', () => {
         expect(p.recovery[0], `${id}: recovery follows active`).toBe(p.active[1] + 1);
         expect(p.recovery[1] + 1, `${id}: the phases cover every frame`).toBe(c.frames.length);
       }
-      expect(c.sword, `${id}: only the blows carry the sword`).toBe(Boolean(p));
+      // the sword is carried by the blows (which have phases); the cast has phases and no sword
+      expect(c.sword, `${id}: only the blows carry the sword`).toBe(c.manifest.tags.includes('sword'));
+      if (c.sword) expect(p, `${id}: a blow has its phases`).not.toBeNull();
     }
-    expect(total).toBe(Object.values(data.clips).reduce((n, c) => n + c.frames.length, 0));
-    // the clips that last what the game's action lasts (heroAnimation.test.ts checks the same on the committed art)
+    // the clips that last what the game's action lasts (characterArt.test.ts checks the same on the committed art)
     const seconds = (id: string): number => data.clips[id]!.frames.length / data.clips[id]!.manifest.fps;
     expect(Math.abs(seconds('dash') - 10 / 60)).toBeLessThan(0.02);
     expect(Math.abs(seconds('drink') - 0.4)).toBeLessThan(0.02);
@@ -876,35 +882,35 @@ describe('the production kit', () => {
 
 describe('handing a clip over, in a copy of the repository', () => {
   let tmp = '';
-  // Every blow of the game has been handed over by now, so a delivery REPLACES one (`replace`): in the copy, `attack2` is made to ask for what the test's sheet holds — the seven frames of the first blow, which the generator
-  // draws clean and whose anchors the manifest has — so what is exercised is the tool and not the drawings of a delivery (which carry their own baked effects, their anchors and their waivers)
+  // The clip handed over in the copy is `attack2`, which the sheet has no drawing for: the copy is made to ask for what the test's sheet holds — the seven frames of the FIRST blow of the old design (kept in the
+  // archive), which are clean and whose anchors the old manifest has — so what is exercised is the tool and not the drawings of a delivery (which carry their own baked effects, their anchors and their waivers).
+  // After the first acceptance the clip IS handed over, and what follows replaces it (`replace`), as a person does.
   const clip = 'attack2';
   const replace = true;
   const spec = BLOW;
   const N = spec.frames.length;
   const source: string[] = [...SWORD_FRAMES];
-  const delivered0 = readDelivered(root);
   const names = source.map((_, k) => `${clip}_0${k}`);
   const inbox = (): string => join(tmp, 'art', 'player', 'inbox', clip);
   const hash = (dirPath: string): string => readdirSync(dirPath).sort().map((f) => `${f}:${readFileSync(join(dirPath, f)).length}:${readFileSync(join(dirPath, f)).subarray(0, 64).toString('hex')}`).join('|');
   const archiveDir = (): string => join(tmp, 'art', 'player', 'source', 'delivered', clip);
-  const state = (): { hero: string; manifest: string; rig: string; requests: string; archive: string } => ({
+  const state = (): { hero: string; manifest: string; requests: string; archive: string } => ({
     hero: hash(join(tmp, 'art', 'player', 'hero')),
     archive: existsSync(archiveDir()) ? hash(archiveDir()) : '',
     manifest: readFileSync(join(tmp, 'art', 'player', 'player.pack.json'), 'utf8'),
-    rig: readFileSync(join(tmp, 'art', 'player', 'source', 'hero.rig.json'), 'utf8'),
     requests: readFileSync(join(tmp, 'art', 'player', 'requests', 'requests.json'), 'utf8'),
   });
 
   beforeAll(() => {
     tmp = mkdtempSync(join(tmpdir(), 'troid-intake-'));
-    // the copy starts with an EMPTY inbox: what a person has dropped in the real one (sheets, reports) is theirs, and must not change what this test asserts
+    // the copy starts with an EMPTY inbox: what a person has dropped in the real one (sheets, reports) is theirs, and must not change what this test asserts; the archive of the old design is not part of it
     const realInbox = join(root, 'art', 'player', 'inbox');
-    cpSync(join(root, 'art'), join(tmp, 'art'), { recursive: true, filter: (src) => src !== realInbox && !src.startsWith(`${realInbox}${sep}`) });
-    // in the copy the clip asks for the test's blow (the data of the real one is what its own delivery needed, not what the tool is tested on); no clip of the copy is asked for, as in the repository
+    const archive = join(root, 'art', 'player', 'archive');
+    cpSync(join(root, 'art'), join(tmp, 'art'), { recursive: true, filter: (src) => src !== realInbox && !src.startsWith(`${realInbox}${sep}`) && src !== archive && !src.startsWith(`${archive}${sep}`) });
+    // in the copy the clip asks for the test's blow (the data of the real one is what its own delivery will need, not what the tool is tested on)
     const requestsFile = join(tmp, 'art', 'player', 'requests', 'requests.json');
     const data = JSON.parse(readFileSync(requestsFile, 'utf8')) as { clips: Record<string, unknown> };
-    data.clips[clip] = { ...(data.clips[clip] as object), ...BLOW, intent: undefined, delivery: undefined, status: 'delivered' };
+    data.clips[clip] = { ...(data.clips[clip] as object), ...BLOW, intent: undefined, delivery: undefined, status: 'requested' };
     writeFileSync(requestsFile, `${JSON.stringify(data, null, 2)}\n`);
     mkdirSync(inbox(), { recursive: true });
     writeFileSync(join(inbox(), 'sheet.png'), encodePng(composeSheet(source, { up: 3, cols: 4, gap: 90, shadow: true }).sheet));
@@ -927,8 +933,8 @@ describe('handing a clip over, in a copy of the repository', () => {
     const before = state();
     expect(() => acceptClip(tmp, clip, { replace, pack: false, verify: false })).toThrow(/has failures/);
     expect(state(), 'a refused delivery changes nothing').toEqual(before);
-    // the user's originals and the repository's frames are untouched by the preparation
-    expect(readFileSync(join(tmp, 'art', 'player', 'source', 'hero-sheet.png')).equals(readFileSync(join(root, 'art', 'player', 'source', 'hero-sheet.png')))).toBe(true);
+    // the user's character sheet and the repository's frames are untouched by the preparation
+    expect(readFileSync(join(tmp, 'art', 'player', 'source', 'character-sheet.png')).equals(readFileSync(join(root, 'art', 'player', 'source', 'character-sheet.png')))).toBe(true);
   }, 120_000);
 
   it('does not accept what it has not shown: with the anchors in place but no report of THEM, it asks to look first; when the delivery changes after the report, it asks again', () => {
@@ -944,28 +950,23 @@ describe('handing a clip over, in a copy of the repository', () => {
     expect(() => prepareClip(tmp, 'drink')).toThrow(/nothing in art\/player\/inbox\/drink/);
   }, 120_000);
 
-  it('hands the clip over through `delivered`: the frames, the manifest entry with the anchors, the rig, the kit — and the generator and the art checks find nothing to correct', () => {
+  it('hands the clip over: the frames, the manifest entry with the anchors, the kit — and the art checks find nothing to correct — and the sheet it came from is archived with it', () => {
     const logs: string[] = [];
+    const clipsBefore = Object.keys(readClips(tmp));
+    expect(clipsBefore).not.toContain(clip);
     const result = acceptClip(tmp, clip, { replace, pack: false, verify: true, log: (l) => logs.push(l) });
     expect(result.frames).toBe(N);
     const hero = join(tmp, 'art', 'player', 'hero');
-    // the stand-in's own frames are gone, the new ones are there
     expect(readdirSync(hero).filter((f) => f.startsWith(`${clip}_`)).sort()).toEqual(names.map((n) => `${n}.png`));
     const manifest = JSON.parse(readFileSync(join(tmp, 'art', 'player', 'player.pack.json'), 'utf8')) as { sprites: Array<{ clips: Record<string, { count: number; tags: string[]; fps: number; phases: unknown; frames: string }>; frames: Record<string, { anchors: Record<string, number[]> }> }> };
     const sprite = manifest.sprites[0]!;
     expect(sprite.clips[clip]).toMatchObject({ frames: `${clip}_`, count: N, fps: spec.manifest.fps, tags: spec.manifest.tags, phases: spec.manifest.phases });
-    expect(sprite.clips[clip]!.tags).not.toContain('stand-in');
     expect(Object.keys(sprite.frames).filter((k) => k.startsWith(`${clip}_`))).toEqual(names);
     for (const n of names) expect(Object.keys(sprite.frames[n]!.anchors).sort()).toEqual(['hand_r', 'hit_origin', 'vfx_origin', 'weapon_grip', 'weapon_tip']);
-    // the other clips are as they were, and the manifest says one clip was drawn anew
+    // the other clips are as they were, and the manifest keeps its clips in the order of the requests (the game's own), the new one among them
     expect(sprite.clips['attack1']).toEqual(readClips(root)['attack1']);
-    if (!replace) expect(readClips(root)[clip]!.tags).toContain('stand-in');
-    const handed = [...new Set([...delivered0, clip])];
-    expect(JSON.parse(readFileSync(join(tmp, 'art', 'player', 'source', 'hero.rig.json'), 'utf8')).delivered).toEqual(handed);
-    // (the manifest names them in the generator's order)
-    expect((manifest as unknown as { comment: string }).comment).toContain(`${handed.length} more clip(s) were drawn by hand and handed over (${CLIP_ORDER.filter((c) => handed.includes(c)).join(', ')})`);
-    // the generator, run again, finds nothing to correct; the committed frames of the OTHER clips are the ones the rig makes
-    expect(animate({ specPath: join(tmp, 'art', 'player', 'source', 'hero.poses.json'), check: true, log: () => undefined }).drift).toBe(0);
+    const order = Object.keys(JSON.parse(readFileSync(join(tmp, 'art', 'player', 'requests', 'requests.json'), 'utf8')).clips as Record<string, unknown>);
+    expect(Object.keys(sprite.clips)).toEqual(order.filter((c) => c in sprite.clips));
     // the status, the kit and the requests know it is delivered
     expect(statusOf(tmp).find((r) => r.clip === clip)).toMatchObject({ kind: 'delivered', frames: N, requested: false });
     expect(existsSync(join(tmp, 'art', 'player', 'requests', clip))).toBe(false);
@@ -977,28 +978,29 @@ describe('handing a clip over, in a copy of the repository', () => {
     expect(readFileSync(join(archiveDir(), 'sheet.png')).equals(readFileSync(join(inbox(), 'sheet.png')))).toBe(true);
     expect(readFileSync(join(archiveDir(), 'anchors.json'), 'utf8')).toBe(readFileSync(join(inbox(), 'anchors.json'), 'utf8'));
     expect(JSON.parse(readFileSync(join(archiveDir(), 'delivery.json'), 'utf8'))).toMatchObject({ clip, level: expect.stringMatching(/ok|warn/) });
+    expect(readDelivered(tmp)).toContain(clip);
   }, 240_000);
 
   it('does not overwrite approved drawings: a clip already handed over is refused unless the replacement is asked for by name', () => {
     expect(() => acceptClip(tmp, clip, { pack: false, verify: false })).toThrow(/already handed over: its drawings are approved/);
   });
 
-  it('puts every file back when the delivery fails half way (here the generator refuses: the spec\'s sheet hash is wrong)', () => {
-    const poses = join(tmp, 'art', 'player', 'source', 'hero.poses.json');
-    const original = readFileSync(poses, 'utf8');
+  it('puts every file back when the delivery fails half way (here the art checks refuse: another pack of art/ has been broken)', () => {
+    const broken = join(tmp, 'art', 'ruins-ground', 'ruins-ground.pack.json');
+    const original = readFileSync(broken, 'utf8');
     // a different delivery of the same clip (the same blow, at another size), to be accepted over the first with --replace — and sabotaged
     const second = composeSheet(source, { up: 3.2, cols: 4, gap: 90, shadow: true });
     writeFileSync(join(inbox(), 'sheet.png'), encodePng(second.sheet));
     const p = prepareClip(tmp, clip);
     writeFileSync(join(inbox(), 'anchors.json'), JSON.stringify(Object.fromEntries(anchorsFor(names, p.frames, second.frames, source)), null, 2));
     writeReport(tmp, prepareClip(tmp, clip));
-    writeFileSync(poses, original.replace(/"sheetSha256": "[0-9a-f]+"/, '"sheetSha256": "0000"'));
+    writeFileSync(broken, '{ this is not json');
     const before = state();
     const logs: string[] = [];
-    expect(() => acceptClip(tmp, clip, { replace: true, pack: false, verify: false, log: (l) => logs.push(l) })).toThrow(/not the one the spec was made for/);
+    expect(() => acceptClip(tmp, clip, { replace: true, pack: false, verify: true, log: (l) => logs.push(l) })).toThrow(/the art checks fail after the delivery/);
     expect(state(), 'every file touched was put back').toEqual(before);
     expect(logs.join('\n')).toMatch(/was NOT applied/);
-    writeFileSync(poses, original);
+    writeFileSync(broken, original);
   }, 240_000);
 
   it('accepts a failure on purpose, and only that one: waivers.json makes the named failure a warning with its reason in the report, the file goes into the archive, and a changed waiver asks to look again', () => {

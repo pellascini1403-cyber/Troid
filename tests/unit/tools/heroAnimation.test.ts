@@ -18,10 +18,12 @@ import { decodePng, type RgbaImage } from '../../../tools/assets/png';
  * lasts what the action it draws lasts in the game. The frames that are committed are the ones the rig produces — nobody's hand is in them.
  */
 const root = fileURLToPath(new URL('../../../', import.meta.url));
+/** The generator belongs to the design the protagonist had before the character sheet of the Prompt 16: its sources, frames and manifest are kept, in the layout of `art/player/`, in `art/player/archive/design-v1/` (docs/PROMPT16-LOG.md). */
+const ARCHIVE = ['art', 'player', 'archive', 'design-v1'] as const;
 const read = (...p: string[]): Buffer => readFileSync(join(root, ...p));
-const spec = JSON.parse(read('art', 'player', 'source', 'hero.poses.json').toString('utf8')) as SheetSpec;
-const rig = JSON.parse(read('art', 'player', 'source', 'hero.rig.json').toString('utf8')) as RigFile;
-const sheetBytes = read('art', 'player', 'source', 'hero-sheet.png');
+const spec = JSON.parse(read(...ARCHIVE, 'source', 'hero.poses.json').toString('utf8')) as SheetSpec;
+const rig = JSON.parse(read(...ARCHIVE, 'source', 'hero.rig.json').toString('utf8')) as RigFile;
+const sheetBytes = read(...ARCHIVE, 'source', 'hero-sheet.png');
 const sha = (b: Uint8Array): string => createHash('sha256').update(b).digest('hex');
 const pad2 = (n: number): string => String(n).padStart(2, '0');
 
@@ -70,7 +72,7 @@ const SWORD_CLIPS: readonly ClipId[] = ['attack1', 'attack2', 'aerialAttack', 'c
 let built: HeroAnimation;
 beforeAll(() => {
   // the clips an artist drew by hand and handed over (`delivered` in the rig; none today) are carried over from the committed manifest, as `assets:animate` does
-  built = buildHeroAnimation(spec, rig, decodePng(sheetBytes), keptFrom(JSON.parse(read('art', 'player', 'player.pack.json').toString('utf8'))));
+  built = buildHeroAnimation(spec, rig, decodePng(sheetBytes), keptFrom(JSON.parse(read(...ARCHIVE, 'player.pack.json').toString('utf8'))));
 }, 180_000);
 
 const frameOf = (clip: string, k: number): RgbaImage => built.frames.get(`${clip}_${pad2(k)}`)!;
@@ -142,7 +144,7 @@ describe('the protagonist\'s animation, made from the user\'s sheet', () => {
   it('the user\'s originals are untouched: the sheet and the portrait are what they were when they were handed over', () => {
     expect(sha(sheetBytes)).toBe(spec.sheetSha256);
     expect(sha(sheetBytes)).toBe(ORIGINALS['hero-sheet.png']);
-    expect(sha(read('art', 'player', 'source', 'hero-portrait.jpg'))).toBe(ORIGINALS['hero-portrait.jpg']);
+    expect(sha(read(...ARCHIVE, 'source', 'hero-portrait.jpg'))).toBe(ORIGINALS['hero-portrait.jpg']);
   });
 
   it('the drawings are the sheet\'s pixels: wherever a drawing is solid it is the sheet\'s colour, to the bit — nothing is painted, recoloured or smoothed', () => {
@@ -187,7 +189,7 @@ describe('the protagonist\'s animation, made from the user\'s sheet', () => {
       const m = sprite.clips[id]!;
       expect(m, `${id} was handed over: the manifest has its entry`).toBeDefined();
       expect(m.tags.includes('stand-in'), `${id}: a clip drawn anew is no stand-in`).toBe(false);
-      const files = readdirSync(join(root, 'art', 'player', 'hero')).filter((f) => f.startsWith(m.frames) && /^\d+\.png$/.test(f.slice(m.frames.length)));
+      const files = readdirSync(join(root, ...ARCHIVE, 'hero')).filter((f) => f.startsWith(m.frames) && /^\d+\.png$/.test(f.slice(m.frames.length)));
       expect(files.sort(), `${id}: its frames are the ones its entry counts`).toEqual(Array.from({ length: m.count }, (_, k) => `${m.frames}${pad2(k)}.png`));
     }
   });
@@ -339,7 +341,7 @@ describe('the protagonist\'s animation, made from the user\'s sheet', () => {
   });
 
   it('the committed frames and manifest are what the sheet, the rig and the clips produce: nobody\'s hand is in them', () => {
-    const outDir = join(root, 'art', 'player', 'hero');
+    const outDir = join(root, ...ARCHIVE, 'hero');
     for (const [name, image] of built.frames) {
       const file = join(outDir, `${name}.png`);
       expect(existsSync(file), `${name}.png is committed`).toBe(true);
@@ -350,6 +352,6 @@ describe('the protagonist\'s animation, made from the user\'s sheet', () => {
       // floating point, run by a different engine, may round a pixel the other way: a step or two, never more
       expect(worst, `${name}.png differs from what the rig produces`).toBeLessThanOrEqual(3);
     }
-    expect(read('art', 'player', 'player.pack.json').toString('utf8')).toBe(`${JSON.stringify(built.manifest, null, 2)}\n`);
+    expect(read(...ARCHIVE, 'player.pack.json').toString('utf8')).toBe(`${JSON.stringify(built.manifest, null, 2)}\n`);
   });
 });

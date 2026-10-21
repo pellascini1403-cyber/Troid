@@ -1,0 +1,50 @@
+{
+  "clip": "run",
+  "level": "warn",
+  "inputs": [
+    {
+      "file": "sheet.png",
+      "sha256": "31b32df1107bddf551fad725d6380bc1e8e30aa71c9d016387d42a22d9824c2d"
+    }
+  ],
+  "scale": {
+    "factor": 1.092416,
+    "how": "head",
+    "proxy": "head",
+    "target": 22.81,
+    "headTarget": 56.25
+  },
+  "anchors": null,
+  "placement": null,
+  "poses": "68a168688fa267c61a855010d4f056ce66df8a10eeaf0081cf697165985f6cd1",
+  "scaleFile": null,
+  "waivers": null,
+  "erase": null,
+  "frames": [
+    {
+      "name": "run_00",
+      "sha256": "f7e25f22070c9ede363eef02a9309a2c20e75548d52c8196af99164e45e0795f",
+      "level": "ok"
+    },
+    {
+      "name": "run_01",
+      "sha256": "7cffa48e43c42f410f5e988b9ed4c4442f045c93c48159983021b3f18ac46c84",
+      "level": "ok"
+    },
+    {
+      "name": "run_02",
+      "sha256": "2eb066b84e4be8fb7cf10ca7d01f286c6edf5b3ed4f1befcba534c42841a0357",
+      "level": "ok"
+    },
+    {
+      "name": "run_03",
+      "sha256": "0804914501bb90c1e56dc0f6319f8dd1f0e8b959acbddfa6618464f91dd42dd5",
+      "level": "ok"
+    },
+    {
+      "name": "run_04",
+      "sha256": "f6b53594a62126224076ba06e43cbd9ff56ee5425f0e341356119464df1173e7",
+      "level": "ok"
+    }
+  ]
+}

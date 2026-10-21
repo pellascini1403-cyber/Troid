@@ -5,8 +5,9 @@ import { dilate, erode, type Box } from './poses';
  * WHAT CAN BE MEASURED OF A FIGURE (docs/PROMPT10-LOG.md): the pure analysis the reception of new drawings (`intake.ts`) stands on — where the eye is and how big, where the feet and the body's
  * centre of mass are, and the handful of numbers that tell a clean cut-out from a dirty one (a pale fringe at the edge, loose bits, red where the character has none).
  *
- * Nothing here changes a pixel and nothing here is art: it only LOOKS at an image. Every threshold was calibrated against the 114 frames the game already has (`tests/unit/tools/figure.test.ts`
- * pins them), so "clean" means "as clean as the frames the user already accepted".
+ * Nothing here changes a pixel and nothing here is art: it only LOOKS at an image. Every threshold was calibrated against the frames the game had when this was written — the design before the character sheet of
+ * the Prompt 16, kept in `art/player/archive/design-v1/` (114 made by its generator, 90 of them in the game; `tests/unit/tools/figure.test.ts` pins them), so "clean" means "as clean as the frames the user already
+ * accepted" — and the new design's frames are measured by the same functions (`tests/unit/tools/characterArt.test.ts`).
  */
 
 /** Pixels with at least this alpha are the figure (below it is a soft edge). */
@@ -282,13 +283,49 @@ export interface Body {
   feetX: number;
 }
 
+/** Near-black: the body of the protagonist's new design (head, torso, limbs, the sword, the antennae). Its cape is light blue fire, its eyes and the lines of its suit glow cyan: none of them is dark. */
+export const isDark = (r: number, g: number, b: number): boolean => 0.299 * r + 0.587 * g + 0.114 * b <= 70 && b <= 120;
+
 /**
- * The body without its thin parts: the figure's solid pixels eroded by `thin` pixels and grown back (an opening), keeping the largest piece. The centre of mass of that — and not of the
+ * The solid dark pixels of the figure with what they enclose (the eyes, the glowing lines of the suit): the body of a figure whose cape is a big light flame that would drag the centre of mass of the figure
+ * as a whole toward itself (`bodyOf` with `dark`).
+ */
+export function darkBodyMask(img: RgbaImage): Uint8Array {
+  const { width: w, height: h, data } = img;
+  const dark = new Uint8Array(w * h);
+  for (let i = 0; i < dark.length; i++) if (data[i * 4 + 3]! >= SOLID && isDark(data[i * 4]!, data[i * 4 + 1]!, data[i * 4 + 2]!)) dark[i] = 1;
+  const outside = new Uint8Array(w * h);
+  const stack: number[] = [];
+  const open = (x: number, y: number): void => {
+    const i = y * w + x;
+    if (!dark[i] && !outside[i]) {
+      outside[i] = 1;
+      stack.push(i);
+    }
+  };
+  for (let x = 0; x < w; x++) (open(x, 0), open(x, h - 1));
+  for (let y = 0; y < h; y++) (open(0, y), open(w - 1, y));
+  while (stack.length > 0) {
+    const p = stack.pop()!;
+    const x = p % w;
+    const y = (p / w) | 0;
+    if (x > 0) open(x - 1, y);
+    if (x < w - 1) open(x + 1, y);
+    if (y > 0) open(x, y - 1);
+    if (y < h - 1) open(x, y + 1);
+  }
+  const mask = new Uint8Array(w * h);
+  for (let i = 0; i < mask.length; i++) mask[i] = outside[i] ? 0 : 1;
+  return mask;
+}
+
+/**
+ * The body without its thin parts: the figure's solid pixels eroded by `thin` pixels and grown back (an opening), keeping the largest piece (with `dark`, every piece that is not a speck). The centre of mass of that — and not of the
  * whole figure, whose long sword would drag it — is what stays put from one pose to the next.
  */
-export function bodyOf(img: RgbaImage, thin: number): Body | null {
+export function bodyOf(img: RgbaImage, thin: number, dark = false): Body | null {
   const { width: w, height: h } = img;
-  const solid = solidMask(img);
+  const solid = dark ? darkBodyMask(img) : solidMask(img);
   const opened = dilate(erode(solid, w, h, thin), w, h, thin);
   for (let i = 0; i < opened.length; i++) if (!solid[i]) opened[i] = 0;
   const lab = components(opened, w, h);
@@ -302,7 +339,12 @@ export function bodyOf(img: RgbaImage, thin: number): Body | null {
   });
   // a figure all of thin parts: fall back to every solid pixel
   const mask = new Uint8Array(w * h);
-  if (id >= 0) for (let i = 0; i < mask.length; i++) mask[i] = opened[i] && lab.label[i] === id ? 1 : 0;
+  if (dark) {
+    // the body of the new design is cut in pieces by its scarf (the head above it, the torso and legs below): every piece that is not a speck is the body
+    const total = lab.areas.reduce((n, a) => n + a, 0);
+    const keep = lab.areas.map((a) => a >= Math.max(30, total * 0.04));
+    for (let i = 0; i < mask.length; i++) mask[i] = opened[i] && lab.label[i]! >= 0 && keep[lab.label[i]!] ? 1 : 0;
+  } else if (id >= 0) for (let i = 0; i < mask.length; i++) mask[i] = opened[i] && lab.label[i] === id ? 1 : 0;
   else mask.set(solid);
   let area = 0;
   let sx = 0;

@@ -3,21 +3,22 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { bodyOf, boundsOf, cleanliness, components, eyeDiameter, headDiameter } from '../../../tools/assets/figure';
-import { readDelivered } from '../../../tools/assets/heroRepo';
 import { LIMITS } from '../../../tools/assets/intake';
 import { decodePng, type RgbaImage } from '../../../tools/assets/png';
 
 /**
- * WHAT CAN BE MEASURED OF A FIGURE (tools/assets/figure.ts), pinned against the frames the game already has: the thresholds of the reception of new drawings were calibrated on them, so the 114
- * frames the user accepted must sit FAR inside every limit — and the measurements must keep saying what they said the day they were calibrated.
+ * WHAT CAN BE MEASURED OF A FIGURE (tools/assets/figure.ts), pinned against the frames the protagonist had before the character sheet of the Prompt 16 — the frames of the design that is kept in
+ * `art/player/archive/design-v1/` (the 90 that were in the game, from the 114 its generator made): the thresholds of the reception of new drawings were calibrated on them, so those frames must sit FAR inside every limit, and the measurements must keep saying what they said
+ * the day they were calibrated. What the measurements say of the frames of the game TODAY is in `characterArt.test.ts`.
  */
 const root = fileURLToPath(new URL('../../../', import.meta.url));
-const dir = join(root, 'art', 'player', 'hero');
+const OLD = join(root, 'art', 'player', 'archive', 'design-v1');
+const dir = join(OLD, 'hero');
 const frames = new Map<string, RgbaImage>();
 for (const f of readdirSync(dir).filter((x) => x.endsWith('.png')).sort()) frames.set(f.slice(0, -4), decodePng(readFileSync(join(dir, f))));
 const frame = (name: string): RgbaImage => frames.get(name)!;
-/** The frames the generator made from the user's pixels: the ones of the clips drawn anew and handed over (`delivered` in the rig; none until a delivery is accepted) are not what these numbers were calibrated on. */
-const handed = new Set(readDelivered(root));
+/** The frames the generator made from the user's pixels: the ones of the clips drawn anew and handed over (`delivered` in the old rig) are not what these numbers were calibrated on. */
+const handed = new Set((JSON.parse(readFileSync(join(OLD, 'source', 'hero.rig.json'), 'utf8')) as { delivered?: string[] }).delivered ?? []);
 const made = [...frames].filter(([name]) => !handed.has(name.replace(/_\d+$/, '')));
 
 describe('the measurements of a figure', () => {

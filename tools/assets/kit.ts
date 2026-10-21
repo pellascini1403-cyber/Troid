@@ -1,17 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { drawText, FONT_H, textWidth, type Rgba } from './bitmapFont';
-import { clipEye, heroPaths } from './heroRepo';
+import { clipHead, heroPaths } from './heroRepo';
 import { decodePng, encodePng, type RgbaImage } from './png';
 
 /**
  * THE PRODUCTION KIT OF THE PROTAGONIST'S MISSING DRAWINGS (docs/PROMPT10-LOG.md): everything a person (or an image generator) needs to draw the poses the sheet does not have, built from DATA
  * (`art/player/requests/requests.json`) and from the user's own pixels — and nothing of it is art:
  *
- *   • a reference board per clip: the user's own poses that matter for it (cut out of `hero-sheet.png` with no change, background and all) and the game's current frames of the neighbouring
+ *   • a reference board per clip: the user's own poses that matter for it (cut out of `character-sheet.png` with no change, background and all) and the game's current frames of the neighbouring
  *     clips, side by side and labelled — what to attach to the generator;
  *   • a board of the character (the poses that define the design);
- *   • the canvas template (280 × 230 at 4×: the ground line, the pivot, the height of the standing and of the crouched body, the margin) with and without a faint ghost of the idle;
+ *   • the canvas template (the sprite set's canvas at 4×: the ground line, the pivot, the height of the standing and of the crouched body, the margin) with and without a faint ghost of the idle;
  *   • one brief per clip: why it is needed, the frames it asks for, the ready-to-paste prompt (English: what the generators read) and its Spanish twin, the negative prompt, the technical requirements.
  *
  * PURE: the same data and the same pixels give the same bytes, so the committed kit is checked against what this produces (`npm run assets:intake -- kit --check`).
@@ -35,14 +35,21 @@ export interface ClipRequest {
   why: string;
   gameplay: { seconds: number | null; ticks: number | null; note: string };
   manifest: { fps: number; loop: boolean; tags: string[]; phases: { startup: [number, number]; active: [number, number]; recovery: [number, number] } | null };
-  placement: { anchorX: 'mass'; anchorY: 'ground' | 'mass' };
+  placement: { anchorX: 'mass'; anchorY: 'ground' | 'mass'; body?: 'solid' | 'dark' };
+  /** What the clip is scaled by when the tool should not choose: `proxy` (the head, since the design's head turns and the eye says little) and `only` (the 0-based poses whose head can be measured: the ones lying on the floor have none to see). */
+  scale?: { proxy?: 'eye' | 'head'; only?: number[] };
   /** The clip of the game whose frames say how big the eye of this one must be (its neighbour in play), and why. */
   scaleLike: string;
   scaleWhy: string;
   sword: boolean;
+  /**
+   * `cast`: the frames carry `hand_r` and `projectile_origin` (where the bolt leaves), read from `anchors.json` as `"grip"` = the hand and `"tip"` = the origin of the bolt, in canvas pixels.
+   * Without it, a clip that is not a sword blow has no anchors of its own (the engine derives them from the height of the figure).
+   */
+  anchors?: 'cast';
   /** What the blow must DO, which the tool checks on the anchors: its tip rises (an ascending cut) or drops (the blow in the air) by at least this many metres from the wind-up to the active phase — or ADVANCES (a blow that swings from behind the body to in front of it) by at least this many metres. */
   intent?: { tipRises?: number; tipDrops?: number; tipAdvances?: number; es: string };
-  limits: { heightM: [number, number]; widthM: [number, number] };
+  limits: { heightM: [number, number]; widthM: [number, number]; /** The blade, grip to tip, in metres, when it is not the game's (the new design's is a short rod: about 0.4–0.5 m of it shows). */ bladeM?: [number, number] };
   references: { sheet: string[]; frames: string[]; extra?: string[]; note: string };
   frames: ClipFrameRequest[];
   /** Set when what came back is not exactly what was asked: the request is then rewritten to what the drawings ARE (so the tool can judge them) and this keeps what was asked and how they differ. */
@@ -63,20 +70,22 @@ export interface Requests {
     negativeEn: string;
     layoutEn: string[];
     layoutEs: string[];
+    /** The poses of `sheetPoses` that define the design: what the character board shows. */
+    boardPoses: string[];
   };
   clips: Record<string, ClipRequest>;
 }
 
 export interface KitSources {
   requests: Requests;
-  /** `art/player/source/hero-sheet.png`, decoded: the user's drawing. */
+  /** `art/player/source/character-sheet.png`, decoded: the user's drawing. */
   sheet: RgbaImage;
   /** Reads a frame of the game's protagonist (`idle_00`) or any PNG of the repository (a path relative to `art/`). */
   frame(name: string): RgbaImage;
   /** A PNG of the repository outside the protagonist's folder (the vial), by its path from the repository's root. */
   art(path: string): RgbaImage;
-  /** The diameter in pixels of the big eye of the frames of a clip of the game (their median), or `null` when none can be measured. */
-  eye(clip: string): number | null;
+  /** The head (the biggest circle that fits in the figure) in pixels of the frames of a clip of the game (their median), or `null` when none can be measured. */
+  head(clip: string): number | null;
 }
 
 const WHITE: Rgba = [255, 255, 255, 255];
@@ -202,7 +211,7 @@ export function trim(img: RgbaImage, pad: number): RgbaImage {
   return crop(img, [Math.max(0, x0 - pad), Math.max(0, y0 - pad), Math.min(img.width - 1, x1 + pad), Math.min(img.height - 1, y1 + pad)]);
 }
 
-export const frameItem = (s: KitSources, name: string): BoardItem => ({ image: trim(s.frame(name), 6), scale: 2, caption: `${name} (the game's current frame, x2: the same figure at half the drawing's size)` });
+export const frameItem = (s: KitSources, name: string): BoardItem => ({ image: trim(s.frame(name), 6), scale: 2, caption: `${name} (the game's current frame, x2)` });
 
 /** The items of the reference board of one clip: the user's own poses that matter for it and the game's current frames of the neighbouring clips. */
 export function referenceItems(s: KitSources, clip: string): BoardItem[] {
@@ -227,14 +236,13 @@ export function referenceBoard(s: KitSources, clip: string): RgbaImage {
 
 /** The poses that define the character: what to attach to every request. */
 export function characterBoard(s: KitSources): RgbaImage {
-  const ids = ['pose1', 'pose2', 'pose7', 'pose12'];
   return board(
     'THE CHARACTER - ATTACH THIS TO EVERY REQUEST',
     [
-      'THE EYES (THREE WHITE HIGHLIGHTS), THE ANTENNAE, THE DARK DOME HEAD WITH ITS CREST, THE ARMOUR WITH CYAN LINES AND THE SWORD ARE THE DESIGN: DO NOT CHANGE ANY OF IT.',
-      'ALSO ATTACH art/player/source/hero-portrait.jpg (THE USER\'S PORTRAIT) DIRECTLY.',
+      'THE EYES (THREE WHITE HIGHLIGHTS), THE EARS, THE ANTENNAE, THE ROUND DARK HEAD, THE BLACK BODY, THE SCARF OF BLUE FIRE AND THE THIN SWORD ARE THE DESIGN: DO NOT CHANGE ANY OF IT.',
+      'ALSO ATTACH art/player/source/character-sheet.png (THE USER\'S WHOLE SHEET) DIRECTLY.',
     ],
-    ids.map((id) => sheetItem(s, id)),
+    s.requests.character.boardPoses.map((id) => sheetItem(s, id)),
   );
 }
 
@@ -274,10 +282,10 @@ export function canvasTemplate(s: KitSources, ghost: boolean): RgbaImage {
   line(0, pivot[1] * Z, width * Z - 1, pivot[1] * Z + 2, [40, 60, 90, 255]);
   line(pivot[0] * Z - 14, pivot[1] * Z - 1, pivot[0] * Z + 14, pivot[1] * Z + 1, [200, 40, 40, 255]);
   line(pivot[0] * Z - 1, pivot[1] * Z - 14, pivot[0] * Z + 1, pivot[1] * Z + 14, [200, 40, 40, 255]);
-  drawText(img, 'GROUND / FEET ROW 192', 6, pivot[1] * Z + 8, [40, 60, 90, 255], 2);
+  drawText(img, `GROUND / FEET ROW ${pivot[1]}`, 6, pivot[1] * Z + 8, [40, 60, 90, 255], 2);
   drawText(img, 'STANDING BODY 1.7 M', 6, pivot[1] * Z - px(1.7) - 18, [60, 100, 180, 255], 2);
   drawText(img, 'CROUCHED BODY 1.0 M', 6, pivot[1] * Z - px(1.0) - 18, [40, 140, 100, 255], 2);
-  drawText(img, 'PIVOT (120,192)', pivot[0] * Z + 20, pivot[1] * Z - 40, [200, 40, 40, 255], 2);
+  drawText(img, `PIVOT (${pivot[0]},${pivot[1]})`, pivot[0] * Z + 20, pivot[1] * Z - 40, [200, 40, 40, 255], 2);
   drawText(img, `${width} X ${height} PX, ${artPxPerMeter} PX PER METRE, 4X. GRID 0.5 M. LAYOUT GUIDES, NOT ART.`, 6, height * Z + 12, MUTED, 2);
   return img;
 }
@@ -329,15 +337,15 @@ export function buildPrompt(r: Requests, clip: string, lang: 'en' | 'es'): strin
 
 const pad2 = (n: number): string => String(n).padStart(2, '0');
 
-/** What the brief says about the size of the figure: one factor per sheet, set by the big eye, against the frames of the clip the new one sits next to in play. */
-export function scaleLine(r: Requests, clip: string, eye: number | null): string {
+/** What the brief says about the size of the figure: one factor per sheet, set by the head, against the frames of the clip the new one sits next to in play. */
+export function scaleLine(r: Requests, clip: string, head: number | null): string {
   const c = r.clips[clip]!;
-  const target = eye === null ? 'el del clip vecino' : `${(Math.round(eye * 10) / 10).toFixed(1)} px de diámetro`;
-  return `la herramienta mide el ojo grande de la figura en cada pose de la hoja y lleva la hoja ENTERA, con un único factor (las poses conservan los tamaños relativos que les dio quien las dibujó), a que su mediana mida ${target} —lo que miden los fotogramas del clip \`${c.scaleLike}\` del juego, ${c.scaleWhy}—. ${r.scale.note} Por eso no importa el tamaño en píxeles de lo que devuelva el generador, pero SÍ que todas las poses de la hoja estén a la misma escala entre sí: la herramienta avisa cuando el ojo de una pose se aparta más de ±${Math.round(r.scale.tolerance * 100)} % de la mediana de la hoja y la rechaza cuando se aparta más del doble. Una excepción, para las poses en las que la cabeza se gira o cae (el ojo se ve más pequeño o desaparece): si los ojos de la hoja discrepan pero sus CABEZAS (el círculo más grande que cabe en la figura) coinciden entre sí dentro de esa misma tolerancia, la hoja se escala y se juzga por el tamaño de la cabeza y no por el ojo; si las cabezas también discrepan, es una diferencia de escala real y se rechaza como siempre.`;
+  const target = head === null ? 'la del clip vecino' : `${(Math.round(head * 10) / 10).toFixed(1)} px de diámetro`;
+  return `la herramienta mide la CABEZA de la figura (el círculo más grande que cabe en ella) en cada pose de la hoja y lleva la hoja ENTERA, con un único factor (las poses conservan los tamaños relativos que les dio quien las dibujó), a que su mediana mida ${target} —lo que miden los fotogramas del clip \`${c.scaleLike}\` del juego, ${c.scaleWhy}—. ${r.scale.note} Por eso no importa el tamaño en píxeles de lo que devuelva el generador, pero SÍ que todas las poses de la hoja estén a la misma escala entre sí: la herramienta avisa cuando la cabeza de una pose se aparta más de ±${Math.round(r.scale.tolerance * 100)} % de la mediana de la hoja y la rechaza cuando se aparta más del doble.`;
 }
 
 /** The brief of a clip (Spanish, with the English prompt the generators read). `eye`: the big eye of the clip it must match, in pixels (see `scaleLine`). */
-export function buildBrief(r: Requests, clip: string, eye: number | null = null): string {
+export function buildBrief(r: Requests, clip: string, head: number | null = null): string {
   const c = r.clips[clip]!;
   const n = c.frames.length;
   const ph = c.manifest.phases;
@@ -369,10 +377,10 @@ export function buildBrief(r: Requests, clip: string, eye: number | null = null)
     '',
     '## Cómo producirlo',
     '',
-    `1. Adjunta al generador de imágenes **\`art/player/requests/${clip}/reference.png\`**, **\`art/player/requests/character-reference.png\`** y **\`art/player/source/hero-portrait.jpg\`** (el retrato del usuario). El generador tiene que ver los dibujos del usuario: sin ellos inventa otro personaje.`,
+    `1. Adjunta al generador de imágenes **\`art/player/requests/${clip}/reference.png\`**, **\`art/player/requests/character-reference.png\`** y **\`art/player/source/character-sheet.png\`** (la hoja entera del usuario). El generador tiene que ver los dibujos del usuario: sin ellos inventa otro personaje.`,
     '2. Pega el **prompt en inglés** de abajo (los generadores lo leen mejor; el gemelo en español está debajo). **Una hoja por clip**: todas las poses en una fila sobre fondo blanco.',
     `3. Guarda lo que salga en **\`art/player/inbox/${clip}/\`**: la hoja entera como \`sheet.png\`, o un PNG por pose (\`${clip}_00.png\` …, en orden). Solo PNG: si el generador devuelve JPEG o WebP, conviértelo (\`magick in.webp out.png\`). Si la hoja trae fondo transparente, se usa tal cual; si trae fondo blanco liso, la herramienta lo quita (solo operaciones técnicas, no se pinta nada).`,
-    `4. \`npm run assets:intake -- ${clip}\` recorta las ${n} poses, las escala, las coloca y las **comprueba** (transparencia, halos, piezas sueltas, escala, centro de masa, paleta${c.sword ? ', la espada' : ''}) y escribe la **hoja de contacto comparativa** en \`art/player/inbox/_reports/${clip}/contact.png\`${c.sword ? ' y la cuadrícula para leer las anclas (`anchors-grid.png`)' : ''}. **Nada se integra solo**: \`npm run assets:intake -- ${clip} --accept\`, y solo si no hay ningún fallo y lo aceptado es exactamente lo que enseña la hoja de contacto, lo integra por el mecanismo \`delivered\` de \`hero.rig.json\`.`,
+    `4. \`npm run assets:intake -- ${clip}\` recorta las ${n} poses, las escala, las coloca y las **comprueba** (transparencia, halos, piezas sueltas, escala, centro de masa, paleta${c.sword ? ', la espada' : ''}) y escribe la **hoja de contacto comparativa** en \`art/player/inbox/_reports/${clip}/contact.png\`${c.sword ? ' y la cuadrícula para leer las anclas (`anchors-grid.png`)' : ''}. **Nada se integra solo**: \`npm run assets:intake -- ${clip} --accept\`, y solo si no hay ningún fallo y lo aceptado es exactamente lo que enseña la hoja de contacto, lo integra y archiva sus fuentes en \`art/player/source/delivered/${clip}/\`.`,
     '',
     '## Prompt (copiar y pegar)',
     '',
@@ -395,55 +403,33 @@ export function buildBrief(r: Requests, clip: string, eye: number | null = null)
     '## Requisitos técnicos de integración',
     '',
     `- **Lienzo final:** ${r.canvas.width} × ${r.canvas.height} px, PNG RGBA de 8 bits, fondo **transparente**, pivote (${r.canvas.pivot[0]}, ${r.canvas.pivot[1]}), ${r.canvas.artPxPerMeter} px de arte por metro, margen ≥ ${r.canvas.margin} px por todos los lados. La herramienta de recepción lo consigue desde una hoja sobre fondo blanco con **solo operaciones técnicas** (fondo transparente, un único factor de escala por hoja, una traslación): no se pinta nada.`,
-    `- **Escala:** ${scaleLine(r, clip, eye)}`,
+    `- **Escala:** ${scaleLine(r, clip, head)}`,
     '- **Nombres:** `<clip>_NN.png` con dos dígitos, desde `00`, sin huecos.',
-    '- **Sin efectos, sin sombra, sin suelo, sin rojo**: el juego pinta sus propios efectos (cian) sobre la figura.',
+    '- **Sin efectos, sin sombra, sin suelo**: el juego pinta sus propios efectos sobre la figura (los arcos de los tajos, los proyectiles, los destellos).',
     '- **Mirando a la derecha**: el motor la espeja al mirar a la izquierda.',
-    `- **Entrada en el manifiesto** (la escribe la herramienta): \`{ "frames": "${clip}_", "count": ${n}, "fps": ${c.manifest.fps}, "loop": ${c.manifest.loop}, "tags": ${JSON.stringify(c.manifest.tags)}${ph ? `, "phases": ${JSON.stringify(ph)}` : ''} }\` y se añade \`"${clip}"\` a \`delivered\` de \`art/player/source/hero.rig.json\`. Sin la etiqueta \`stand-in\`: \`npm run assets:missing\` deja de contarlo como pendiente.`,
+    `- **Entrada en el manifiesto** (la escribe la herramienta): \`{ "frames": "${clip}_", "count": ${n}, "fps": ${c.manifest.fps}, "loop": ${c.manifest.loop}, "tags": ${JSON.stringify(c.manifest.tags)}${ph ? `, "phases": ${JSON.stringify(ph)}` : ''} }\` y las fuentes de la entrega se archivan en \`art/player/source/delivered/${clip}/\`. Con el clip declarado, \`npm run assets:missing\` deja de contarlo como pendiente y el juego deja de dibujar sus estados con el marcador.`,
     '',
     '## Antes de darla por buena (lo que comprueba la herramienta y lo que no puede)',
     '',
     '- [ ] Transparencia correcta, sin halo claro en el borde ni píxeles sueltos (la herramienta lo mide).',
     '- [ ] Tamaño y centro de masa coherentes con los clips vecinos (la herramienta lo mide).',
-    '- [ ] Paleta del personaje: casi negro, azul marino, cian y blanco en los ojos; **ningún rojo de efecto** (la herramienta lo mide).',
-    '- [ ] **Mirando la hoja de contacto**: es el MISMO personaje (los ojos con sus tres reflejos, las antenas finas, la cresta, la armadura), sin partes duplicadas ni extremidades imposibles, y la acción se lee a tamaño de juego (lo mira una persona: no se automatiza).',
-    c.sword ? '- [ ] **La espada, en la mano derecha, en todos los fotogramas**, con la misma hoja que la referencia (se comprueba con las anclas dibujadas sobre cada fotograma).' : '- [ ] Si lleva la espada, es la misma de la referencia y está en la mano derecha.',
+    '- [ ] Paleta del personaje: casi negro, azul cielo a cian pálido en la bufanda, cian y blanco en los ojos; ningún otro color (la herramienta lo mide).',
+    '- [ ] **Mirando la hoja de contacto**: es el MISMO personaje (los ojos con sus tres reflejos, las orejas, las antenas finas, la cabeza redonda, la bufanda de fuego), sin partes duplicadas ni extremidades imposibles, y la acción se lee a tamaño de juego (lo mira una persona: no se automatiza).',
+    c.sword ? '- [ ] **La espada, en la mano derecha, en todos los fotogramas**, la misma varilla fina de la referencia (se comprueba con las anclas dibujadas sobre cada fotograma).' : '- [ ] Si lleva la espada, es la misma de la referencia y está en la mano derecha.',
     '',
   ].join('\n');
 }
 
 /** The README when nothing is asked for any more: what was delivered, how it differs from what was asked, and how to ask for something again. */
 function allDelivered(done: ReadonlyArray<[string, ClipRequest]>): string {
-  const differs = done.filter(([, c]) => c.delivery);
   return [
     '# Los dibujos del protagonista — kit de producción (todo entregado)',
     '',
-    `> **Estado: no queda ningún clip por pedir.** Los ${done.length} clips que pedía este kit se han entregado y aceptado con \`npm run assets:intake\` y hoy son **dibujos del usuario** en \`art/player/hero/\`: ${done.map(([k]) => `\`${k}\``).join(', ')}. De cada uno se archivó la hoja de la que salió, sus anclas, su colocación, los fallos que se aceptaron a propósito y el informe en \`art/player/source/delivered/<clip>/\`: la misma hoja con los mismos archivos da los mismos fotogramas. Este archivo lo escribe \`npm run assets:intake -- kit\` desde \`requests.json\`.`,
+    `> **Estado: no queda ningún clip por pedir.** Los ${done.length} clips del juego tienen su dibujo en \`art/player/hero/\`: ${done.map(([k]) => `\`${k}\``).join(', ')}. De cada uno se archivó de qué parte de la hoja salió, sus cajas, su escala, sus anclas, lo que se quitó (\`erase.json\`) y el informe en \`art/player/source/delivered/<clip>/\`. Este archivo lo escribe \`npm run assets:intake -- kit\` desde \`requests.json\`.`,
     '',
-    '## Lo entregado',
-    '',
-    '| Grupo | Clip | Fotogramas | Se pedían | Archivo de la entrega |',
-    '|---|---|---|---|---|',
-    ...done.map(([k, c]) => `| ${c.group} | \`${k}\` | ${c.frames.length} | ${c.delivery?.asked?.frames ?? c.frames.length} | [\`${k}/\`](../source/delivered/${k}/) |`),
-    '',
-    ...(differs.length > 0
-      ? [
-          '## Lo que llegó distinto de lo pedido',
-          '',
-          'El encargo se reescribió a lo que son los dibujos para que la herramienta los pudiera juzgar (el número de fotogramas, las fases, los límites de tamaño), y cada entrega dice en qué se aparta:',
-          '',
-          ...differs.map(([k, c]) => `- **\`${k}\`**${c.delivery!.asked ? ` (se pedían ${c.delivery!.asked.frames} dibujos a ${c.delivery!.asked.fps} fps)` : ''}: ${c.delivery!.note}`),
-          '',
-        ]
-      : []),
     '## Si hay que pedir algo otra vez',
     '',
-    'Poner `"status": "requested"` al clip en `requests.json` y `npm run assets:intake -- kit`: el kit vuelve a escribir su *brief* y su tablero de referencias. La entrega nueva se suelta en `art/player/inbox/<clip>/` y se acepta con `npm run assets:intake -- <clip> --accept --replace` (lo ya aprobado no se sobrescribe sin pedirlo por su nombre). Guía: [`docs/guides/deliver-protagonist-art.md`](../../../docs/guides/deliver-protagonist-art.md).',
-    '',
-    '## Guías',
-    '',
-    '- `canvas-template.png` y `canvas-template-idle.png`: el lienzo a 4× con el suelo, el pivote, las alturas del cuerpo de pie (1.7 m) y agachado (1.0 m) y el margen: **guías de composición, no arte**.',
-    '- `character-reference.png`: las poses que definen el diseño, de la hoja del usuario.',
+    'Poner `"status": "requested"` al clip en `requests.json` y `npm run assets:intake -- kit`: el kit vuelve a escribir su *brief* y su tablero de referencias. La entrega nueva se suelta en `art/player/inbox/<clip>/` y se acepta con `npm run assets:intake -- <clip> --accept --replace`. Guía: [`docs/guides/deliver-protagonist-art.md`](../../../docs/guides/deliver-protagonist-art.md).',
     '',
   ].join('\n');
 }
@@ -457,33 +443,33 @@ export function buildReadme(r: Requests): string {
   return [
     '# Los dibujos que faltan del protagonista — kit de producción',
     '',
-    '> **Lo que es esto.** El Prompt 9 animó al protagonista moviendo los dibujos de tu hoja; **los clips de esta lista siguen siendo *stand-ins*** (o, en el caso de `walk`, un único dibujo deformado): el movimiento es real, pero el dibujo es el de otra acción, porque la hoja no tiene uno para ella. Un dibujo solo se puede deformar, **no mirar desde otro lado**: esos clips necesitan DIBUJOS NUEVOS del mismo personaje. En el Prompt 10 **no había ninguna herramienta de generación de imágenes** en el entorno (ni de edición que pudiera hacerlo sin inventar), así que **no se ha dibujado nada**: este kit es lo que hace falta para que alguien (tú, un artista o un generador de imágenes) los dibuje sin ambigüedad, y la herramienta que los recibe, comprueba e integra.',
+    '> **Lo que es esto.** El protagonista es el de la hoja del usuario (`../source/character-sheet.png`, intacta): sus poses son los fotogramas del juego, sin redibujar nada. La hoja trae el movimiento, el salto, la caída, un tajo, el disparo, el dash, la interacción, el daño y la muerte; **no trae** los clips de esta lista, y mientras no existan **el juego dibuja sus estados con el marcador del motor** (la cápsula): no se ha inventado, deformado ni reutilizado ningún dibujo para taparlos. Este kit es lo que hace falta para que alguien (tú, un artista o un generador de imágenes) los dibuje sin ambigüedad con el mismo personaje, y la herramienta que los recibe, comprueba e integra.',
     '>',
-    `> **Cuánto es:** ${clips.length} clips y **${total} dibujos** en total (sin contar los clips que ya tienen dibujo propio). Cada clip es **una hoja** (todas sus poses en una fila, sobre fondo blanco, como tu hoja de poses): ${clips.length} generaciones. Este archivo y los \`brief.md\` los escribe \`npm run assets:intake -- kit\` desde \`requests.json\`.${done.length > 0 ? ` Ya entregados y aceptados (ya no se piden): ${done.map(([k]) => `\`${k}\``).join(', ')}.` : ''}`,
+    `> **Cuánto es:** ${clips.length} clips y **${total} dibujos** en total. Cada clip es **una hoja** (todas sus poses en una fila, sobre fondo blanco, como la hoja del usuario): ${clips.length} generaciones. Este archivo y los \`brief.md\` los escribe \`npm run assets:intake -- kit\` desde \`requests.json\`. Ya tienen dibujo y ya no se piden: ${done.map(([k]) => `\`${k}\``).join(', ')}.`,
     '',
     '## Los tres pasos',
     '',
-    '1. **Genera** una hoja por clip (en este orden: A, B, C, luego D–G, luego H–J). De cada clip: `<clip>/brief.md` tiene el *prompt* listo para pegar; `<clip>/reference.png` y `character-reference.png` (y `../source/hero-portrait.jpg`) son lo que se adjunta al generador.',
+    '1. **Genera** una hoja por clip (en este orden: B, C, luego D–G, luego I). De cada clip: `<clip>/brief.md` tiene el *prompt* listo para pegar; `<clip>/reference.png`, `character-reference.png` y `../source/character-sheet.png` son lo que se adjunta al generador.',
     '2. **Suelta** el resultado en `art/player/inbox/<clip>/` (la hoja entera como `sheet.png`, o un PNG por pose `<clip>_00.png` …).',
-    '3. **`npm run assets:intake -- <clip>`**: recorta, escala, coloca y comprueba, y escribe la hoja de contacto comparativa (el dibujo original · la pose nueva · la secuencia · el tamaño real de juego) en `art/player/inbox/_reports/<clip>/`. Cuando la hoja se vea bien: **`npm run assets:intake -- <clip> --accept`** la integra por el mecanismo `delivered`. **`npm run assets:intake -- status`** dice, clip por clip, qué tiene dibujo propio, qué es *stand-in* y qué hay en la bandeja.',
+    '3. **`npm run assets:intake -- <clip>`**: recorta, escala (por la cabeza, al tamaño del idle), coloca y comprueba, y escribe la hoja de contacto comparativa en `art/player/inbox/_reports/<clip>/`. Cuando la hoja se vea bien: **`npm run assets:intake -- <clip> --accept`** la integra. **`npm run assets:intake -- status`** dice, clip por clip, qué tiene dibujo y qué falta.',
     '',
-    '## Los clips, por orden de producción',
+    '## Los clips que faltan, por orden de producción',
     '',
-    '| Grupo | Clip | Dibujos | Qué sustituye | Brief |',
+    '| Grupo | Clip | Dibujos | Por qué falta | Brief |',
     '|---|---|---|---|---|',
     ...clips.map(([k, c]) => `| ${c.group} | \`${k}\` | ${c.frames.length} | ${c.why.split('. ')[0]}. | [\`${k}/brief.md\`](${k}/brief.md) |`),
     '',
     '## Lo que NO se hace (reglas del encargo)',
     '',
-    '- No se rediseña al protagonista: nada humano, ni pelo, ni máscara nueva, ni ropa inventada; la cabeza, la silueta, las proporciones y la paleta son las de tus dibujos.',
-    '- No se pinta rojo: los efectos (el arco del tajo, la estela del *dash*) los pone el juego, en cian. Los dibujos 8, 9 y 10 de tu hoja (con el rojo fundido) **no se usan**: solo se enseñan como actitud.',
-    '- `hero-sheet.png` y `hero-portrait.jpg` no se tocan jamás.',
-    '- La espada, en la mano derecha, es **la misma hoja de tus dibujos**.',
+    '- No se rediseña al protagonista: nada humano, ni pelo, ni máscara, ni ropa inventada; la cabeza, las orejas, los ojos, las antenas, el cuerpo, la bufanda de fuego, la espada, la silueta, las proporciones y la paleta son los de la hoja.',
+    '- No se pintan efectos: los arcos de los tajos, los proyectiles y los destellos los pone el juego. Lo que la hoja del usuario trae pintado alrededor de las poses (el arco, la bola, los rombos, las gotas) se quita en cada clip con `erase.json`, sin tocar la figura.',
+    '- `character-sheet.png` no se toca jamás.',
+    '- La espada, en la mano derecha, es **la misma varilla de la hoja**.',
     '',
     '## Guías',
     '',
     '- `canvas-template.png` y `canvas-template-idle.png`: el lienzo a 4× con el suelo, el pivote, las alturas del cuerpo de pie (1.7 m) y agachado (1.0 m) y el margen: **guías de composición, no arte**.',
-    '- Cómo se entrega y por qué no se sobrescribe lo ya aprobado: [`docs/guides/deliver-protagonist-art.md`](../../../docs/guides/deliver-protagonist-art.md) §4.',
+    '- Cómo se entrega y por qué no se sobrescribe lo ya aprobado: [`docs/guides/deliver-protagonist-art.md`](../../../docs/guides/deliver-protagonist-art.md).',
     '',
   ].join('\n');
 }
@@ -499,7 +485,7 @@ export function buildKit(s: KitSources): Map<string, string | Buffer> {
   out.set('canvas-template-idle.png', encodePng(canvasTemplate(s, true)));
   for (const [clip, c] of Object.entries(s.requests.clips)) {
     if (c.status !== 'requested') continue;
-    out.set(`${clip}/brief.md`, buildBrief(s.requests, clip, s.eye(c.scaleLike)));
+    out.set(`${clip}/brief.md`, buildBrief(s.requests, clip, s.head(c.scaleLike)));
     out.set(`${clip}/reference.png`, encodePng(referenceBoard(s, clip)));
   }
   return out;
@@ -510,15 +496,15 @@ export function readKitSources(root: string): KitSources {
   const paths = heroPaths(root);
   const requests = JSON.parse(readFileSync(paths.requests, 'utf8')) as Requests;
   const sheet = decodePng(readFileSync(paths.sheet));
-  const eyes = new Map<string, number | null>();
+  const heads = new Map<string, number | null>();
   return {
     requests,
     sheet,
     frame: (name) => decodePng(readFileSync(join(paths.hero, `${name}.png`))),
     art: (path) => decodePng(readFileSync(join(root, path))),
-    eye: (clip) => {
-      if (!eyes.has(clip)) eyes.set(clip, clipEye(root, clip));
-      return eyes.get(clip)!;
+    head: (clip) => {
+      if (!heads.has(clip)) heads.set(clip, clipHead(root, clip));
+      return heads.get(clip)!;
     },
   };
 }

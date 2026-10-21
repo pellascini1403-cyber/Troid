@@ -1,45 +1,39 @@
 {
   "clip": "death",
-  "level": "ok",
+  "level": "warn",
   "inputs": [
     {
       "file": "sheet.png",
-      "sha256": "25776aac3ad919676cda10291b00d1ffc120f78a7f416811ec46f8b5d2897708"
+      "sha256": "f2451092c27fd15176ce88ca0a20c535fccabda11599631ec08911b94a388f6a"
     }
   ],
   "scale": {
-    "factor": 0.552768,
+    "factor": 1.354197,
     "how": "head",
     "proxy": "head",
-    "target": 21.38,
-    "headTarget": 51.76
+    "target": 22.81,
+    "headTarget": 56.25
   },
   "anchors": null,
   "placement": null,
+  "poses": "c7a0300fefad93c9312dadfff3cf71bb0d5deeb960741f012c855349bcf4490d",
+  "scaleFile": null,
+  "waivers": null,
+  "erase": "5355f30c1ec74d9caffa7ac74b1b18962805c7f1de40ef585886193d73958c4d",
   "frames": [
     {
       "name": "death_00",
-      "sha256": "3724d67421b271c478baf4fed56074c589277fe403c5e3b0809610bd78cae4ef",
+      "sha256": "6e20d61c9b23897566224ec48372d189525d451372eafdaa8811c7a766fd06fa",
       "level": "ok"
     },
     {
       "name": "death_01",
-      "sha256": "ce40a9884866f64e1ad3f943f122a6e472ebc388618953ec524886b8e14c0d02",
-      "level": "ok"
+      "sha256": "9bd8d754950eb751af7898a1ce87220be3514f048e1f7d697fcff36925d6ce93",
+      "level": "warn"
     },
     {
       "name": "death_02",
-      "sha256": "40c0036124ae32bc8910e289a4fb1036a335387c202848a8a40be00bfe047717",
-      "level": "ok"
-    },
-    {
-      "name": "death_03",
-      "sha256": "c3e3ee6a7c5678a3475d9c666c8cb9107019d08b99ffd7a05473f96c7ded4059",
-      "level": "ok"
-    },
-    {
-      "name": "death_04",
-      "sha256": "e6477096071f2550c1e1ef406d37483461356c1fa6a885b0a65b17b53f80b3e7",
+      "sha256": "243918d400168aa017c70babc0b2e2a7553ac0868f515b63deb960304bdf2a0a",
       "level": "ok"
     }
   ]

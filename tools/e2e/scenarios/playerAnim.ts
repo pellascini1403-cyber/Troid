@@ -4,11 +4,14 @@ import { PLAYER_VISUAL } from '@/content/visuals';
 import type { Ctx, GameState, Scenario } from '../scenario';
 
 /**
- * THE PROTAGONIST ANIMATED, IN THE REAL GAME with the REAL art (docs/ART-PIPELINE-2D.md part N): what `npm run assets:animate` made of the user's sheet, played by the simulation in a
- * browser — the repository's own art, no fixture. What is proved is that each state of the hero is drawn by the clip made for it and that the frames FOLLOW: the gaits turn over
- * their frames in order, a jump is a jump then a fall then a landing, a blow is drawn by the phases of the simulation with the sword in the hand, a dash, a cast, a hit, a death,
- * a drink and an interaction play their frames once and in order; the way back to the placeholder works in the middle of any of them; and the simulation is the same whichever look
- * draws it.
+ * THE PROTAGONIST ANIMATED, IN THE REAL GAME with the REAL art (docs/PROMPT16-LOG.md): the frames made from the user's character sheet (`art/player/hero/`), played by the simulation in a browser —
+ * the repository's own art, no fixture. What is proved is that each state of the hero is drawn by the clip made for it and that the frames FOLLOW: the gaits turn over their frames in order, a jump
+ * is a jump then a fall then a landing, a blow is drawn by the phases of the simulation with the sword in the hand, a dash, a cast, a hit, a death and an interaction play their frames once and in
+ * order; the way back to the placeholder works in the middle of any of them; and the simulation is the same whichever look draws it.
+ *
+ * The sheet has no drawing for five of the fifteen states of the game (the second blow, the blow in the air, the crouch and the crawl, the blow from the crouch, the drink): those are NOT declared, and
+ * what the scenario asserts of them is the other half of the rule — the placeholder draws them (never a frame of another action moved to look like them), and the second blow, which the engine declares
+ * as the first one's stand-in, repeats the first blow's drawing. The expectations follow the manifest (a clip that is delivered later is asserted from then on, with no change here).
  *
  *   A · standing, walking, running and turning round
  *   B · a jump: rise, fall, land; a dash
@@ -54,6 +57,17 @@ const CLIPS = manifest.sprites[0]!.clips;
 /** The manifest says `aerialAttack` and `crouchAttack`; the simulation says `attackAir` and `attackCrouch`. */
 const CLIP_OF: Record<string, string> = { attack: 'attack1', attackAir: 'aerialAttack', attackCrouch: 'crouchAttack' };
 const clipOf = (anim: string): string => CLIP_OF[anim] ?? anim;
+/** What the engine declares as the stand-in of a state the art has no clip for (`STAND_INS` of `visualSource.ts`): the second blow repeats the first, a held pose is the idle. Nothing else is stood in for. */
+const STAND_IN: Record<string, string> = { attack2: 'attack1', land: 'idle', alert: 'idle' };
+/** The clip of the manifest that draws a state of the simulation, or `null` when the art has none for it and the placeholder draws it. */
+const drawnWith = (anim: string): string | null => {
+  const own = clipOf(anim);
+  if (CLIPS[own]) return own;
+  const stand = STAND_IN[anim];
+  return stand && CLIPS[stand] ? stand : null;
+};
+/** The states of the simulation the art has no clip of its own for: the ones the placeholder draws (the engine's names, as `visual.lacks` says them). */
+const NOT_DRAWN = PLAYER_VISUAL.required.filter((state) => !CLIPS[clipOf(state)]);
 const index = (frame: string): number => Number(frame.slice(frame.lastIndexOf('_') + 1));
 const prefix = (frame: string): string => frame.slice(0, frame.lastIndexOf('_'));
 
@@ -92,10 +106,18 @@ const waitFor = async (ctx: Ctx, what: string, test: (s: GameState) => boolean, 
 };
 const hooks = (ctx: Ctx, code: string): Promise<unknown> => ctx.page.evaluate(`window.__troid.${code}`);
 
-/** Every sample of `seq` is drawn by the art with the clip of its state, and the frame is a frame of that clip. */
+/**
+ * Every sample of `seq` is drawn as it must be: by the art with the clip of its state (the frame is a frame of that clip), or by the placeholder where the art has no drawing for the state — never by the art with
+ * a frame of another action.
+ */
 function drawnByItsClip(seq: Sample[], what: string): void {
   for (const s of seq) {
-    const clip = clipOf(s.anim);
+    const clip = drawnWith(s.anim);
+    if (clip === null) {
+      assert.equal(s.shows, 'placeholder', `${what}, tick ${s.tick}: ${s.anim} has no drawing: the placeholder draws it, not "${s.frame}" of the art`);
+      assert.notEqual(s.set, 'player/hero', `${what}, tick ${s.tick}: the placeholder's own set (${s.anim})`);
+      continue;
+    }
     assert.equal(s.set, 'player/hero', `${what}, tick ${s.tick}: the art draws the hero (${s.anim})`);
     assert.equal(s.shows, 'art', `${what}, tick ${s.tick}: the look on screen`);
     assert.equal(prefix(s.frame), clip, `${what}, tick ${s.tick}: ${s.anim} is drawn by the clip "${clip}", not "${s.frame}"`);
@@ -113,7 +135,7 @@ export const playerAnim: Scenario = {
   async run(ctx) {
     await ctx.open('room=movement_test&unlock=dash', SIZE);
     let s = await waitFor(ctx, 'the art on the hero', (x) => x.visual?.art === `${PLAYER_VISUAL.art.pack}/${PLAYER_VISUAL.art.sprite}`);
-    assert.deepEqual(s.visual!.lacks, [], 'the art draws every state of the hero: nothing is left to the placeholder');
+    assert.deepEqual([...s.visual!.lacks].sort(), [...NOT_DRAWN].sort(), 'the art lacks exactly the states the sheet has no drawing for: the placeholder draws those, and only those');
     assert.equal(s.visual!.mode, 'auto');
     await hooks(ctx, 'teleport(4, 0)');
     await ctx.step(40);
@@ -121,7 +143,7 @@ export const playerAnim: Scenario = {
     // ===================================================================================================== A · standing, walking, running, turning
     let seq = await run(ctx, 70);
     drawnByItsClip(seq, 'idle');
-    assert.ok(new Set(seq.map((x) => x.frame)).size >= 6, `standing breathes: ${[...new Set(seq.map((x) => x.frame))].join(' ')}`);
+    assert.equal(new Set(seq.map((x) => x.frame)).size, CLIPS['idle']!.count, `standing breathes, with every frame of the idle: ${[...new Set(seq.map((x) => x.frame))].join(' ')}`);
     assert.ok(cyclesInOrder(framesIn(seq, 'idle'), CLIPS['idle']!.count), 'the idle turns over its frames in order');
     await ctx.shot('a-01-idle');
 
@@ -138,7 +160,7 @@ export const playerAnim: Scenario = {
     const running = seq.filter((x) => x.anim === 'run');
     assert.ok(running.length >= 20, `a full push runs (${running.length} of 30 ticks)`);
     drawnByItsClip(running, 'run');
-    assert.ok(framesIn(running, 'run').length >= 6 && cyclesInOrder(framesIn(running, 'run'), CLIPS['run']!.count), `the run turns over its frames in order: ${framesIn(running, 'run').join(' ')}`);
+    assert.ok(framesIn(running, 'run').length >= Math.min(4, CLIPS['run']!.count) && cyclesInOrder(framesIn(running, 'run'), CLIPS['run']!.count), `the run turns over its frames in order: ${framesIn(running, 'run').join(' ')}`);
     assert.ok(running.every((x) => x.facing === 1), 'running right looks right');
     await ctx.shot('a-03-run');
 
@@ -168,7 +190,7 @@ export const playerAnim: Scenario = {
     const fall = framesIn(seq, 'fall');
     assert.ok(fall.length >= 3 && cyclesInOrder(fall, CLIPS['fall']!.count), `the fall flutters: ${fall.join(' ')}`);
     const land = framesIn(seq, 'land');
-    assert.deepEqual(land, [0, 1, 2, 3], 'the landing plays its four frames, once');
+    assert.deepEqual(land, [...Array(CLIPS['land']!.count).keys()], 'the landing plays its frames, once');
     assert.equal(seq.filter((x) => x.anim === 'land').length, 10, 'and lasts the ten ticks of a hard landing');
     await ctx.shot('b-01-landed');
 
@@ -195,7 +217,10 @@ export const playerAnim: Scenario = {
     combo.push(...(await run(ctx, 9)));
     combo.push(...(await tap(ctx, 'KeyJ'))); // inside the cancel window of the first: the second blow
     combo.push(...(await run(ctx, 40)));
-    for (const [state, clip, from] of [['attack', 'attack1', seq], ['attack2', 'attack2', combo]] as const) {
+    // the second blow has no drawing of its own: the engine repeats the first blow's (its declared stand-in), so both are asserted against the same clip
+    for (const [state, from] of [['attack', seq], ['attack2', combo]] as const) {
+      const clip = drawnWith(state)!;
+      assert.equal(clip, 'attack1', `${state} is drawn by the first blow's clip`);
       const blow = from.filter((x) => x.anim === state);
       assert.ok(blow.length > 0, `the ${state} happened (${collapse(from.map((x) => x.anim)).join(' → ')})`);
       drawnByItsClip(blow, state);
@@ -205,18 +230,12 @@ export const playerAnim: Scenario = {
         assert.ok(index(x.frame) >= lo && index(x.frame) <= hi, `${state}, tick ${x.tick}: the ${x.phase} is drawn by frame ${index(x.frame)}, not one of [${lo}, ${hi}]`);
       }
       assert.deepEqual(framesIn(blow, clip), [...Array(CLIPS[clip]!.count).keys()], `${state}: every frame of the blow is shown, in order`);
-      // the sword is in the hand in every tick of it, and it is raised before it strikes
+      // the sword is in the hand in every tick of it, and it goes FORWARD: in the drawing the blade comes from beside the body in the wind-up to well ahead of it in the cut, measured along the way the hero faces
       for (const x of blow) assert.ok(Math.hypot(x.grip.x - x.hand.x, x.grip.y - x.hand.y) <= 0.04, `${state}, tick ${x.tick}: the grip is in the hand`);
-      const rel = (x: Sample): number => x.tip.y - x.y;
-      const startupTip = Math.max(...blow.filter((x) => x.phase === 'startup').map(rel));
-      const activeTip = Math.min(...blow.filter((x) => x.phase === 'active').map(rel));
-      if (state === 'attack') assert.ok(startupTip - activeTip > 0.5, `the first blow comes DOWN: tip ${startupTip.toFixed(2)} m high in the wind-up, ${activeTip.toFixed(2)} m in the cut`);
-      else {
-        // the second blow SWINGS FORWARD: in the drawings it is a low slash that goes from behind the body (the wind-up) to in front of it (the cut), measured along the way the hero faces
-        const along = (x: Sample): number => (x.tip.x - x.x) * x.facing;
-        const advance = Math.max(...blow.filter((x) => x.phase === 'active').map(along)) - Math.min(...blow.filter((x) => x.phase === 'startup').map(along));
-        assert.ok(advance > 1.0, `the second blow comes FORWARD: the tip travels ${advance.toFixed(2)} m from behind the body in the wind-up to in front of it in the cut`);
-      }
+      const along = (x: Sample): number => (x.tip.x - x.x) * x.facing;
+      const advance = Math.max(...blow.filter((x) => x.phase === 'active').map(along)) - Math.min(...blow.filter((x) => x.phase === 'startup').map(along));
+      assert.ok(advance > 0.5, `${state} comes FORWARD: the tip travels ${advance.toFixed(2)} m from the wind-up to the cut`);
+      assert.ok(Math.max(...blow.filter((x) => x.phase === 'active').map(along)) > 1.0, `${state}: in the cut the blade reaches more than a metre ahead of the hero`);
     }
     // the first blow of the chain is drawn by the same clip, up to where the second takes over
     const chained = combo.filter((x) => x.anim === 'attack');
@@ -236,8 +255,10 @@ export const playerAnim: Scenario = {
     assert.ok(air.length > 0, `a blow in the air (${collapse(seq.map((x) => x.anim)).join(' → ')})`);
     drawnByItsClip(air, 'air blow');
     assert.ok(air.every((x) => !x.grounded || x.y < 0.3), 'in the air');
-    assert.deepEqual(framesIn(air, 'aerialAttack'), [...Array(CLIPS['aerialAttack']!.count).keys()], 'every frame of the blow in the air is shown, in order');
-    for (const x of air) assert.ok(Math.hypot(x.grip.x - x.hand.x, x.grip.y - x.hand.y) <= 0.04, `air blow, tick ${x.tick}: the grip is in the hand`);
+    if (CLIPS['aerialAttack']) {
+      assert.deepEqual(framesIn(air, 'aerialAttack'), [...Array(CLIPS['aerialAttack']!.count).keys()], 'every frame of the blow in the air is shown, in order');
+      for (const x of air) assert.ok(Math.hypot(x.grip.x - x.hand.x, x.grip.y - x.hand.y) <= 0.04, `air blow, tick ${x.tick}: the grip is in the hand`);
+    } else assert.ok(air.every((x) => x.shows === 'placeholder'), 'the sheet has no blow in the air: the placeholder draws it, whole, and not a frame of the other blow');
     await ctx.step(60);
 
     // ===================================================================================================== D · the crouch
@@ -248,13 +269,15 @@ export const playerAnim: Scenario = {
     const crouched = seq.filter((x) => x.anim === 'crouch');
     assert.ok(crouched.length >= 30, 'down is a crouch');
     drawnByItsClip(crouched, 'crouch');
-    assert.ok(framesIn(crouched, 'crouch').length >= Math.min(3, CLIPS['crouch']!.count), 'the crouch breathes');
+    if (CLIPS['crouch']) assert.ok(framesIn(crouched, 'crouch').length >= Math.min(2, CLIPS['crouch']!.count), 'the crouch breathes');
+    else assert.ok(crouched.every((x) => x.shows === 'placeholder'), 'the sheet has no crouch: the placeholder draws it, at the height of the crouched body');
     await hold(ctx, 'KeyD');
     seq = await run(ctx, 36);
     const crawling = seq.filter((x) => x.anim === 'crouchWalk');
     assert.ok(crawling.length >= 28, `down and forward is a crawl (${crawling.length})`);
     drawnByItsClip(crawling, 'crawl');
-    assert.ok(cyclesInOrder(framesIn(crawling, 'crouchWalk'), CLIPS['crouchWalk']!.count) && framesIn(crawling, 'crouchWalk').length >= Math.min(5, CLIPS['crouchWalk']!.count), `the crawl turns over its frames: ${framesIn(crawling, 'crouchWalk').join(' ')}`);
+    if (CLIPS['crouchWalk']) assert.ok(cyclesInOrder(framesIn(crawling, 'crouchWalk'), CLIPS['crouchWalk']!.count) && framesIn(crawling, 'crouchWalk').length >= Math.min(5, CLIPS['crouchWalk']!.count), `the crawl turns over its frames: ${framesIn(crawling, 'crouchWalk').join(' ')}`);
+    else assert.ok(crawling.every((x) => x.shows === 'placeholder'), 'the sheet has no crawl: the placeholder draws it');
     await release(ctx, 'KeyD');
     await run(ctx, 20);
     seq = await tap(ctx, 'KeyJ');
@@ -262,8 +285,10 @@ export const playerAnim: Scenario = {
     const low = seq.filter((x) => x.anim === 'attackCrouch');
     assert.ok(low.length > 0, `a blow from the crouch (${collapse(seq.map((x) => x.anim)).join(' → ')})`);
     drawnByItsClip(low, 'crouch blow');
-    assert.deepEqual(framesIn(low, 'crouchAttack'), [...Array(CLIPS['crouchAttack']!.count).keys()], 'every frame of the blow from the crouch is shown, in order');
-    for (const x of low) assert.ok(Math.hypot(x.grip.x - x.hand.x, x.grip.y - x.hand.y) <= 0.04, `crouch blow, tick ${x.tick}: the grip is in the hand`);
+    if (CLIPS['crouchAttack']) {
+      assert.deepEqual(framesIn(low, 'crouchAttack'), [...Array(CLIPS['crouchAttack']!.count).keys()], 'every frame of the blow from the crouch is shown, in order');
+      for (const x of low) assert.ok(Math.hypot(x.grip.x - x.hand.x, x.grip.y - x.hand.y) <= 0.04, `crouch blow, tick ${x.tick}: the grip is in the hand`);
+    } else assert.ok(low.every((x) => x.shows === 'placeholder'), 'the sheet has no blow from the crouch: the placeholder draws it');
     await ctx.shot('d-01-crouch-blow');
     await release(ctx, 'KeyS');
     await ctx.step(40);
@@ -279,7 +304,8 @@ export const playerAnim: Scenario = {
     assert.ok(cast.length >= 14 && cast.length <= 15, `a cast is 6 ticks of gathering, 1 of release and 8 of recovery (${cast.length})`);
     drawnByItsClip(cast, 'cast');
     assert.deepEqual(framesIn(cast, 'cast'), [...Array(CLIPS['cast']!.count).keys()], 'every frame of the cast is shown, in order');
-    assert.deepEqual(cast.filter((x) => x.phase === 'active').map((x) => index(x.frame)), [3], 'the release is the frame of the release');
+    const [releaseFrom, releaseTo] = CLIPS['cast']!.phases!.active;
+    assert.ok(cast.filter((x) => x.phase === 'active').every((x) => index(x.frame) >= releaseFrom && index(x.frame) <= releaseTo), `the release is drawn by the frame of the release ([${releaseFrom}, ${releaseTo}])`);
     await ctx.shot('e-01-cast');
     await ctx.step(60);
 
@@ -290,7 +316,7 @@ export const playerAnim: Scenario = {
     const hurt = seq.filter((x) => x.anim === 'hurt');
     assert.ok(hurt.length >= 12 && hurt.length <= 20, `a hit stuns the hero for a dozen ticks and more (${hurt.length})`);
     drawnByItsClip(hurt, 'hurt');
-    assert.deepEqual(framesIn(hurt, 'hurt'), [0, 1, 2, 3, 4], 'being hurt plays its five frames, once, in order');
+    assert.deepEqual(framesIn(hurt, 'hurt'), [...Array(CLIPS['hurt']!.count).keys()], 'being hurt plays its frames, once, in order');
     await ctx.step(120);
 
     await ctx.page.evaluate('window.__troid.session.player.health.damage(3)');
@@ -300,7 +326,8 @@ export const playerAnim: Scenario = {
     const drink = seq.filter((x) => x.anim === 'drink');
     assert.equal(drink.length, 24, 'a drink is the 24 ticks of its channel');
     drawnByItsClip(drink, 'drink');
-    assert.deepEqual(framesIn(drink, 'drink'), [...Array(CLIPS['drink']!.count).keys()], 'every frame of the drink is shown, in order');
+    if (CLIPS['drink']) assert.deepEqual(framesIn(drink, 'drink'), [...Array(CLIPS['drink']!.count).keys()], 'every frame of the drink is shown, in order');
+    else assert.ok(drink.every((x) => x.shows === 'placeholder'), 'the sheet has no drink: the placeholder draws it');
     await ctx.step(60);
 
     await hooks(ctx, 'revive()');

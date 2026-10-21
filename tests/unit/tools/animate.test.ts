@@ -12,7 +12,8 @@ import { decodePng, encodePng } from '../../../tools/assets/png';
  * there, and — the day a stand-in gets a drawing of its own — a clip the rig lists as `delivered` is the artist's: not made, not deleted, its entry of the manifest carried over as written.
  */
 const root = fileURLToPath(new URL('../../../', import.meta.url));
-const source = join(root, 'art', 'player', 'source');
+/** The generator belongs to the design the protagonist had before the character sheet of the Prompt 16: its sources, frames and manifest are kept, in the layout of `art/player/`, in `art/player/archive/design-v1/` (docs/PROMPT16-LOG.md). */
+const source = join(root, 'art', 'player', 'archive', 'design-v1', 'source');
 let dir = '';
 let specPath = '';
 const out = (...p: string[]): string => join(dir, 'hero', ...p);

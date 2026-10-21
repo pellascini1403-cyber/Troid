@@ -11,8 +11,8 @@ import { prepareClip } from '../../../tools/assets/intakeRun';
 import { decodePng, encodePng } from '../../../tools/assets/png';
 
 /**
- * THE DELIVERIES REPRODUCE (docs/PROMPT12-LOG.md): every clip the user's drawings entered through `npm run assets:intake` has its sources archived in `art/player/source/delivered/<clip>/` (the sheet or the
- * poses it was cut from, its anchors, its placement, what was accepted on purpose, what was taken out of the drawing, the report). What is committed in `art/player/hero/` and in the manifest is therefore the PRODUCT of those sources and not of a
+ * THE DELIVERIES REPRODUCE (docs/PROMPT12-LOG.md, docs/PROMPT16-LOG.md): every clip the user's drawings entered through `npm run assets:intake` has its sources archived in `art/player/source/delivered/<clip>/` (the part of the
+ * character sheet it was cut from and where its poses are, the scale it was given, its anchors, its placement, what was accepted on purpose, what was taken out of the drawing, the report). What is committed in `art/player/hero/` and in the manifest is therefore the PRODUCT of those sources and not of a
  * hand: preparing the archive again, in a copy of the repository whose inbox holds nothing else, must give — byte for byte — the frames of the game and the anchors of the manifest. If a clip's neighbour (the
  * clip its size is matched to) or the tool changes so that it no longer does, this fails and says which clip has to be delivered again.
  */
@@ -35,8 +35,8 @@ describe('the archived deliveries give back the frames of the game', () => {
   });
   afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 
-  it('has an archive for every clip the rig lists as handed over', () => {
-    expect(delivered.length).toBeGreaterThan(0);
+  it('has an archive for every clip of the manifest: the twelve the character sheet has a drawing for — and for no other', () => {
+    expect(delivered).toEqual(['idle', 'walk', 'run', 'jump', 'fall', 'land', 'attack1', 'cast', 'dash', 'interact', 'hurt', 'death']);
     for (const clip of delivered) expect(existsSync(archiveOf(clip)), `${clip}: art/player/source/delivered/${clip}/`).toBe(true);
   });
 
@@ -62,8 +62,8 @@ describe('the archived deliveries give back the frames of the game', () => {
     }
   }, 120_000);
 
-  it('has taken something out of the drawing in the clips whose archive says so (the painted effects of the attacks)', () => {
-    expect(withErase).toEqual(expect.arrayContaining(['attack2', 'crouchAttack', 'aerialAttack']));
+  it('has taken something out of the drawing in the clips whose archive says so (the painted effects of the sheet: the slash arcs, the bolt, the sparkles, the droplets)', () => {
+    expect(withErase.sort()).toEqual(['attack1', 'cast', 'dash', 'death', 'hurt', 'interact']);
   });
 
   it.each(withErase)('%s: what erase.json took out is only what its polygons enclose — the drawing prepared WITHOUT it differs from the frames of the game in no other pixel, and every pixel that differs is now transparent', (clip) => {

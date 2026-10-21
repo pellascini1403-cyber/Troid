@@ -5,10 +5,13 @@ import { heroPaths } from './heroRepo';
 import { IntakeError } from './intake';
 import { acceptClip, formatStatus, prepareClip, statusOf, summary, writeCutFailure, writeReport } from './intakeRun';
 import { buildKit, readKitSources, type Requests } from './kit';
+import { readSheetData, sheetProblems, writeClipInbox } from './sheetData';
 
 /**
  * `npm run assets:intake` — the protagonist's missing drawings: the production kit, and the reception of what comes back (docs/PROMPT10-LOG.md).
  *
+ *   -- from-sheet [<clip>…]         write `art/player/inbox/<clip>/sheet.png` and `poses.json` from the character sheet (`art/player/source/character-sheet.png`, read by `character-sheet.json`): a plain crop, no pixel changed
+ *   -- sheet                        check that the character sheet is the one its data was made for and that every pose of it is accounted for
  *   -- status                       what each clip is made of (a drawing of the sheet, a stand-in, drawn anew), what is asked for, what is in the inbox
  *   -- kit [--check]                write the production kit (`art/player/requests/`: reference boards, briefs with their prompts, canvas templates) from `requests.json`; --check writes nothing
  *   -- <clip> [--scale <k>]         cut, scale, place and judge what is in `art/player/inbox/<clip>/`, and write the report (contact sheet included) to `art/player/inbox/_reports/<clip>/`
@@ -64,6 +67,30 @@ function kit(): number {
   return 0;
 }
 
+function sheet(): number {
+  const problems = sheetProblems(root);
+  for (const p of problems) console.error(`sheet: ${p}`);
+  if (problems.length === 0) {
+    const d = readSheetData(root);
+    console.log(`sheet: character-sheet.png is the sheet its data was made for (${d.size[0]} × ${d.size[1]}, ${Object.keys(d.panels).length} panels, ${Object.keys(d.clips).length} clips)`);
+  }
+  return problems.length === 0 ? 0 : 1;
+}
+
+function fromSheet(clips: string[]): number {
+  try {
+    const wanted = clips.length > 0 ? clips : Object.keys(readSheetData(root).clips);
+    for (const clip of wanted) console.log(`from-sheet: ${clip} → ${relative(root, writeClipInbox(root, clip))}/ (sheet.png, poses.json)`);
+    return 0;
+  } catch (e) {
+    if (e instanceof IntakeError) {
+      console.error(`intake: ${e.message}`);
+      return 1;
+    }
+    throw e;
+  }
+}
+
 function status(): number {
   console.log(formatStatus(statusOf(root)));
   const requests = JSON.parse(readFileSync(paths.requests, 'utf8')) as Requests;
@@ -78,8 +105,9 @@ function prepare(clip: string): number {
     const prepared = prepareClip(root, clip, scale !== undefined ? { scale: Number(scale) } : {});
     const dir = writeReport(root, prepared);
     for (const line of summary(prepared)) console.log(line);
-    console.log(`\nreport: ${relative(root, dir)}/ (contact.png, report.md${prepared.request.sword ? ', anchors-grid.png' : ''}, frames/)`);
-    if (prepared.request.sword && prepared.anchors.problems.length > 0) {
+    const anchored = prepared.request.sword || prepared.request.anchors === 'cast';
+    console.log(`\nreport: ${relative(root, dir)}/ (contact.png, report.md${anchored ? ', anchors-grid.png' : ''}, frames/)`);
+    if (anchored && prepared.anchors.problems.length > 0) {
       console.log(`anchors: ${prepared.anchors.problems.length} problem(s) — read the grip and the tip of each frame off anchors-grid.png and write them in art/player/inbox/${clip}/anchors.json (template: ${relative(root, join(dir, 'anchors.template.json'))})`);
     }
     if (prepared.judgement.level === 'fail') console.log('\nNOT acceptable yet: fix the failures above (or ask for the sheet again).');
@@ -114,8 +142,10 @@ try {
   const first = args[0];
   if (first === 'kit') process.exit(kit());
   if (first === 'status') process.exit(status());
+  if (first === 'sheet') process.exit(sheet());
+  if (first === 'from-sheet') process.exit(fromSheet(args.slice(1).filter((a) => !a.startsWith('-'))));
   if (first && !first.startsWith('-')) process.exit(has('--accept') ? accept(first) : prepare(first));
-  console.error('usage: npm run assets:intake -- status | kit [--check] | <clip> [--scale <k>] | <clip> --accept [--replace]');
+  console.error('usage: npm run assets:intake -- status | sheet | from-sheet [<clip>…] | kit [--check] | <clip> [--scale <k>] | <clip> --accept [--replace]');
   process.exit(2);
 } catch (e) {
   console.error(e instanceof Error ? (e.stack ?? e.message) : String(e));

@@ -1,22 +1,24 @@
 # Informe de recepción — `walk`
 
-> Lo escribe `npm run assets:intake -- walk`. **Veredicto: correcto.** Sin avisos: aun así, mira la hoja de contacto antes de aceptar (lo que no se puede medir —que es el MISMO personaje, que la espada está en la mano derecha, que la acción se lee— lo juzga una persona).
+> Lo escribe `npm run assets:intake -- walk`. **Veredicto: aviso.** Se puede aceptar, pero mira primero los avisos en la hoja de contacto.
 
 - **Entrada:** una hoja — `sheet.png`.
-- **Escala:** ×0.6245 (por el ojo grande). Ojo de las poses de la hoja: 40.2 · 39.7 · 40.9 · 41.1 px; mediana 40.6 px → 25.3 px en el lienzo. Cabeza de las poses de la hoja (el círculo más grande que cabe en la figura): 102.1 · 101.4 · 104.2 · 102.3 px; mediana 102.2 px.
-- **Fotogramas:** 4 de 4 pedidos, 280 × 230, pivote (120, 192).
-- **Lo entregado frente a lo pedido:** se pedían 6 dibujos a 12 fps; la hoja trae 4 poses de marcha (no 6), así que el ciclo es de 4 dibujos a 8 fps: dura 0.5 s, lo mismo que las 6 poses a 12 fps que se pedían. La espada va baja y atrás, como se pedía, y los límites de tamaño no cambian.
+- **Escala:** ×1.0283 (por el tamaño de la cabeza: la cabeza gira y el ojo se ve más pequeño o desaparece, así que no mide el tamaño de la pose). Ojo de las poses de la hoja: 22.2 · 22.2 · 22.3 · 22.1 · 22.0 · 21.9 px; mediana 22.1 px. Cabeza de las poses de la hoja (el círculo más grande que cabe en la figura): 54.4 · 54.9 · 55.5 · 54.9 · 54.4 · 54.5 px; mediana 54.7 px → 56.2 px en el lienzo.
+- **Fotogramas:** 6 de 6 pedidos, 320 × 230, pivote (160, 192).
+- **Lo entregado frente a lo pedido:** las seis poses del panel, en su orden; el ciclo dura 0.5 s como el anterior.
 
 | Fotograma | Papel | Fase | Veredicto | Ojo (px) | Cabeza (px) | Halo | Sueltos | Rojo | Salto de masa (m) | Alto × ancho (m) |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `walk_00` | passing | — | **correcto** | 25.4 | 64.3 | 0.5 % | 0.00 % | 0.00 % | — | 2.38 × 2.03 |
-| `walk_01` | stride-A | — | **correcto** | 24.9 | 64.3 | 1.2 % | 0.00 % | 0.00 % | 0.06 | 2.31 × 2.00 |
-| `walk_02` | stride-B | — | **correcto** | 25.5 | 65.6 | 0.5 % | 0.00 % | 0.00 % | 0.05 | 2.37 × 2.11 |
-| `walk_03` | stride-C | — | **correcto** | 25.8 | 64.2 | 0.9 % | 0.00 % | 0.00 % | 0.01 | 2.32 × 2.05 |
+| `walk_00` | step-1 | — | **correcto** | 22.8 | 56.3 | 0.0 % | 0.00 % | 0.00 % | — | 2.32 × 1.98 |
+| `walk_01` | step-2 | — | **correcto** | 22.9 | 56.2 | 0.0 % | 0.00 % | 0.00 % | 0.00 | 2.35 × 1.72 |
+| `walk_02` | step-3 | — | **correcto** | 23.1 | 57.1 | 0.0 % | 0.00 % | 0.00 % | 0.00 | 2.38 × 1.77 |
+| `walk_03` | step-4 | — | **correcto** | 22.7 | 56.8 | 0.0 % | 0.00 % | 0.00 % | 0.02 | 2.32 × 1.72 |
+| `walk_04` | step-5 | — | **correcto** | 22.6 | 55.8 | 1.3 % | 0.00 % | 0.00 % | 0.04 | 2.37 × 1.80 |
+| `walk_05` | step-6 | — | **correcto** | 22.6 | 56.8 | 0.1 % | 0.00 % | 0.00 % | 0.03 | 2.37 × 1.78 |
 
 ## Avisos y fallos
 
-Ninguno.
+- **aviso** · resolution: la imagen entregada es MÁS PEQUEÑA que los fotogramas (la escala es ×1.03): sus píxeles se agrandan y el dibujo se ve borroso — pide una hoja de al menos el doble de tamaño que los fotogramas
 
 ## Qué mirar en `contact.png`
 
