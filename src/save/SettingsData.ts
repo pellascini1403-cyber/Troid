@@ -47,7 +47,7 @@ export interface AccessibilitySettings {
   reduceFlashes: boolean;
   /** The camera does not shake when something lands. */
   reduceShake: boolean;
-  /** The size of the HUD (life, magic, power, bottles) relative to its design: 1 = as designed. */
+  /** The size of the HUD (the portrait, the life, the magic and the bottles) relative to its design: 1 = as designed. */
   hudScale: number;
 }
 

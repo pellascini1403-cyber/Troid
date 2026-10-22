@@ -108,6 +108,9 @@ async function world(browser: Browser, origin: string, query: string, size: { wi
   const opened = await openPage(browser, `${origin}/?hooks=1&${query}`, {
     ...size,
     prepare: async (context) => {
+      // the page keeps a record of every file it fetched (Resource Timing) in a buffer of 250 entries and drops the rest: the development server sends each source file on its own — more than 200 of them, and the pictures
+      // of the HUD — so the buffer is full before the first room is up and the files of a pack that is fetched later (what section C counts) would never be written down
+      await context.addInitScript('performance.setResourceTimingBufferSize(5000)');
       await context.route('**/art/**', async (route) => {
         const url = route.request().url();
         if (state.abort?.test(url)) return route.abort();

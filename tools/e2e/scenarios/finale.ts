@@ -5,6 +5,7 @@ import type { TouchLayout } from '@/ui/touch/layout';
 import { freshWorld, playWorld } from '../../../tests/helpers/journey';
 import { PROGRESS_KEY, reload, stored, type Saved } from '../bossKit';
 import { frames } from '../frames';
+import { cardState } from '../hud';
 import { record, replay, type Device } from '../replay';
 import type { GameState, Scenario } from '../scenario';
 import { TouchScreen } from '../touch';
@@ -91,7 +92,7 @@ export const finale: Scenario = {
     assert.ok((s.health ?? 0) > 0, 'alive');
     assert.equal(s.device, 'gamepad', 'the last device is the gamepad');
     assert.equal(await page.evaluate('window.__troid.touch().active'), 0, 'and no finger ever touched the screen');
-    assert.equal(await page.locator('[data-testid="hud-card"]').getAttribute('data-state'), 'ready', 'the card slot of the HUD is ready');
+    assert.equal(await cardState(page), 'ready', 'the card is ready (the status the Ability button reads)');
     assert.notEqual(await page.locator('[data-testid="touch-ability"]').evaluate((e) => getComputedStyle(e).display), 'none', 'and the Ability button is on the touch layer');
     await frames(page, 40); // the camera follows in real time while the replay runs ahead of it: let it catch up before looking
     await ctx.shot('a-the-end');

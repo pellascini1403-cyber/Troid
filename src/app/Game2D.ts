@@ -30,7 +30,7 @@ import { MasterVolume } from '@/audio/volume';
 import { DEFAULT_BINDINGS, type Bindings } from '@/input/bindings';
 import { InputManager } from '@/input/InputManager';
 import { applyKeyMap, effectiveKeys, type KeyMap } from '@/input/remap';
-import { actionGlyph, interactGlyph } from '@/input/glyphs';
+import { interactGlyph } from '@/input/glyphs';
 import { attachGamepad, browserPads } from '@/input/sources/GamepadSource';
 import { attachKeyboardMouse } from '@/input/sources/KeyboardMouseSource';
 import { TouchSource } from '@/input/sources/TouchSource';
@@ -320,11 +320,6 @@ export class Game2D {
     });
     this.lifecycle.add(() => this.touchControls.dispose());
 
-    this.lifecycle.add(
-      this.session.bus.on('bottle:changed', (e) => {
-        if (e.type === 'used') this.hudModel.bottleUsed(e.slot);
-      }),
-    );
     // the boss's bar (S29): it appears when the guardian wakes, follows its health, burns in the second phase, empties when it falls, and is gone
     // with the room (a defeat, a reload, a transition)
     this.lifecycle.add(() => this.bossBar?.dispose());
@@ -355,7 +350,7 @@ export class Game2D {
       this.bossId = null;
       this.bossBarModel.hide();
     });
-    // a refused cast (not enough magic): the bar and the card shake; a refused drink (no bottle, or full life): the bottles do
+    // a refused cast (not enough magic): the bar shakes; a refused drink (no bottle, or full life): the bottles do
     this.lifecycle.add(this.session.bus.on('skill:denied', () => this.hudModel.magicDenied()));
     this.lifecycle.add(this.session.bus.on('bottle:denied', () => this.hudModel.bottlesDenied()));
     // a desktop with a mouse and a keyboard never sees the touch layer; a touch screen (or ?touch=1) does, and so does the first touch
@@ -663,11 +658,8 @@ export class Game2D {
   /** The HUD and the contextual touch controls follow the simulation's status (read through one snapshot; nothing else is touched). */
   private updateHud(dt: number): void {
     const st = this.session.status(this.hudStatus);
-    // the key (or the button) of the power, for the device in use: a remap changes it, a touch screen shows none
-    const hud = this.overlays?.hud;
-    hud?.setGlyphs({ ability: actionGlyph(this.input.device, this.bindings, 'ability') });
     const shown = this.hudModel.update(st, dt); // the numbers are made every frame, whether or not the view has arrived: it shows the state of the moment it does
-    hud?.update(shown);
+    this.overlays?.hud.update(shown);
     const bar = this.bossBarModel.update(dt);
     this.bossBar?.update(bar);
     this.touchControls.setChip(st.bottleUseful);

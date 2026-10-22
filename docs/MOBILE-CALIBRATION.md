@@ -53,6 +53,8 @@ Cada fila es lo que la **página** colocó (rectángulos del DOM) con el HUD en 
 | 667 × 375, derecha, al máximo hacia dentro y arriba, ×1.4 | ×1.26 | 185 × 69 | 264 |
 | 390 × 844 vertical (3) | ×0.90 | 185 × 69 | 168 |
 
+> **El HUD de esas filas es el anterior.** Desde el Prompt 17 el HUD es **el del artista**: un bloque de **218.3 × 78.9 dp** a `uiScale` (y al tamaño que elija el jugador), con 25.7 dp de margen a la zona segura (`ui/hud/layout.ts`). El E2E `mobile` lo mide, en esas mismas ventanas, en **196 × 71 px** (667 × 375 y 390 × 844), **212 × 77** (844 × 390), **234 × 84** (932 × 430), **224 × 81** (915 × 412), **293 × 106** (1260 × 540 y 1133 × 744) y **265 × 96** (1024 × 768): sigue arriba a la izquierda, dentro del área segura, sin tocar los botones, el botón de pausa ni la barra del jefe, y las reglas de abajo siguen valiendo. (El E2E `hud` lo comprueba además en 1024 × 768, 1280 × 720, 844 × 390, 1260 × 540 y 667 × 375, y con una muesca.)
+
 ---
 
 ## 2. Las reglas de la disposición (lo que las pruebas exigen en **todas** las combinaciones)
@@ -91,7 +93,7 @@ Todos son **datos**, no código: calibrar es editar un objeto, no un algoritmo. 
 | el tamaño de un botón puesto por el jugador | 70 – 150 % del de diseño, sobre el de todos (80 – 140 %) | `TOUCH_LIMITS` en `save/SettingsData.ts` | el máximo no basta para la mano, o el mínimo es incómodo | editar la disposición a una mano |
 | el suelo del tamaño cuando no caben | 0.72 | `FIT_FLOOR` | los botones pequeños no se encuentran con el pulgar | el lado izquierdo con los controles grandes y arriba, en el móvil más bajo que haya |
 | `uiScale` | `min(ancho, alto × 2.1) / 844`, acotado a 0.9–1.6 | `input/gestures/TouchConfig.ts` | todo se ve pequeño en una tableta o enorme en un móvil muy ancho | mirar las tabletas y los móviles de 21:9 |
-| altura de los botones de botella del HUD | **49 dp** de alto (44 px CSS a la escala mínima 0.9), paso de 36 dp | `ui/hud/layout.ts` (`HUD_DESIGN.vial`) | se pulsa la botella vecina | beber con el pulgar en el HUD |
+| altura de los botones de botella del HUD | **49 dp** de alto (44 px CSS a la escala mínima 0.9), paso de **19.8 dp** (el de la fila de botellas del artista; los cuadros táctiles no se pisan) | `ui/hud/layout.ts` (`HUD_DESIGN.vial`) | se pulsa la botella vecina | beber con el pulgar en el HUD |
 | tamaño del botón de pausa | 50 px (disco visible de 38) | `ui/settings/PauseButton.ts` | se pulsa sin querer, o no se encuentra | abrir y cerrar el menú en movimiento |
 | ancho de la barra del jefe | 46 % del ancho útil, entre 160 y 440 px | `ui/hud/bossBarLayout.ts` (`BOSS_BAR`) | el nombre o la barra no se leen a la distancia a la que se juega | pelear con el Custodio mirando la barra |
 
@@ -180,13 +182,14 @@ Lo anterior es la geometría de los controles. El Prompt 8 añadió arte, luz y 
 | Android — *sin medir* | | | | | | | |
 | Android de gama baja — *sin medir* | | | | | | | |
 
-## 8. La interfaz del Prompt 14 (HUD, pausa, partidas) — **SIN MEDIR**
+## 8. La interfaz del Prompt 14 (HUD, pausa, partidas) — **SIN MEDIR** (el HUD es, desde el Prompt 17, el del artista)
 
 El HUD, el botón de pausa, el menú, el aviso de guardado y el guardado en sí **no se han visto ni tocado en un dispositivo real**: la geometría está auditada con funciones puras (10 clases de ventana × 4 márgenes seguros × tamaños × lados × posiciones, **también con la interfaz al 85–135 %**) y lo que se ve se fotografió en Chromium sin cabeza (844 × 390 a 2×, 390 × 844 a 2×, 1280 × 720). Lo que sigue son los datos que mandan y qué mirar:
 
 | Dato | Valor hoy | Dónde | Síntoma de que está mal | Qué probar |
 |---|---|---|---|---|
-| tamaño del HUD | diseño a 1×, escala con la ventana (`uiScale`, tope 1.6) y con el ajuste (0.85–1.35) | `ui/hud/layout.ts` (`computeHudLayout`, `HUD_DESIGN`), `SettingsData.accessibility.hudScale` | las cifras (coste, segundos de recarga, tecla) no se leen; el HUD tapa algo o lo tapa un dedo | un teléfono pequeño en horizontal con el ajuste en 100 % y en 135 % |
+| tamaño del HUD | el bloque del artista (218.3 × 78.9 dp) a 1×, escala con la ventana (`uiScale`, tope 1.6) y con el ajuste (0.85–1.35) | `ui/hud/layout.ts` (`computeHudLayout`, `HUD_DESIGN`), `ui/hud/artGeometry.ts`, `SettingsData.accessibility.hudScale` | los dos números de las barras no se leen; el HUD tapa algo o lo tapa un dedo | un teléfono pequeño en horizontal con el ajuste en 100 % y en 135 % |
+| nitidez y dígitos del HUD del artista | los PNG del artista (2560 × 1440) reducidos unas 12 veces por el navegador; los dos números los escribe el navegador con la tipografía ligera del sistema | `ui/hud/png/`, `ui/hud/HudView.ts` (`NUMBER_FONT`) | las barras o el retrato se ven granulosos; los dígitos se ven finos o desalineados sobre la barra, o cambian de forma de un teléfono a otro | mirar el HUD a 2× y 3× (iOS y Android) con la partida nueva y con 5 de 100 de vida |
 | objetivos táctiles | ≥ 44 px (frascos del HUD, botón de pausa, botones del menú) | `ui/hud`, `ui/settings/PauseButton.ts`, `menuStyle.ts` | se pulsa el frasco de al lado; el botón de pausa se pulsa sin querer | beber con el pulgar mientras se mueve con el otro; abrir la pausa a una mano |
 | el botón de pausa | arriba al centro, fuera del lado de los tres botones | `PauseButton.pauseBox` | choca con una muesca o con la barra del navegador | un teléfono con *notch* y con la barra del navegador visible |
 | el menú en horizontal bajo | un teléfono en horizontal mide ≈ 390 px de alto: el centro de cada pantalla **se desplaza** y sus últimas líneas se desvanecen mientras hay más abajo | `ui/settings/menuStyle.ts`, `scrollHint.ts` | no se ve que hay más abajo, o el desvanecido tapa un control | Ajustes y Partidas en horizontal; Controles en inglés (textos más largos) |

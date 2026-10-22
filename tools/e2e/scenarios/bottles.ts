@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import type { Page } from 'playwright-core';
 import type { Scenario } from '../scenario';
 import { frames } from '../frames';
+import { numberOf, vialsAre } from '../hud';
 import { centreOf, TouchScreen } from '../touch';
 
 /**
@@ -75,11 +76,10 @@ export const bottles: Scenario = {
     assert.equal(s.anim, 'drink', 'drinking has its own animation state');
     await ctx.step(12); // half way
     await page.waitForTimeout(120); // the HUD draws in real time
-    assert.equal(await attr(page, 'hud-bottle-0', 'data-drinking'), '1', 'the vial being drunk glows');
-    const drained = await page.locator('[data-testid="hud-bottle-0"] .hud-liquid').evaluate((e) => (e as HTMLElement).style.transform);
-    const level = Number(/scaleY\(([\d.]+)\)/.exec(drained)?.[1]);
-    assert.ok(level > 0.35 && level < 0.65, `half way through the channel the vial is half drained (${drained})`);
+    assert.equal(await attr(page, 'hud-bottle-0', 'data-drinking'), '1', 'the bottle being drunk says so');
+    assert.equal(await attr(page, 'hud-bottle-0', 'data-dark'), '0', 'and it is still the bright one: a bottle is spent when the channel ENDS, not before');
     assert.equal(await attr(page, 'hud-life', 'aria-valuenow'), '3', 'the life has not come back yet');
+    assert.equal(await numberOf(page, 'life'), '60', 'and the number says so: 3 of 5');
     await ctx.shot('01-drinking');
     await ctx.step(11); // 23 ticks after the press
     s = await ctx.state();
@@ -100,6 +100,8 @@ export const bottles: Scenario = {
       'the HUD shows used / recharging, ready, ready',
     );
     assert.equal(await attr(page, 'hud-life', 'aria-valuenow'), '5');
+    assert.equal(await numberOf(page, 'life'), '100', 'the number is back to 100');
+    await vialsAre(page, ['1', '0', '0']);
     await ctx.shot('02-healed');
 
     // ================================================================== a hit in the middle costs nothing

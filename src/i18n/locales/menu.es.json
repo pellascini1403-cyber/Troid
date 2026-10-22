@@ -76,7 +76,7 @@
   "controls.touchButtons": "Atacar, esquivar y habilidad",
   "controls.touchButtonsHow": "Tres botones que puedes colocar donde quieras en «Editar disposición». El de la habilidad aparece al equipar una carta.",
   "controls.touchBottle": "Beber una botella",
-  "controls.touchBottleHow": "Toca un frasco de la interfaz, o la ficha que aparece cuando estás herido y te queda una lista.",
+  "controls.touchBottleHow": "Toca una de las botellas de la interfaz, o la ficha que aparece cuando estás herido y te queda una lista.",
   "controls.touchInteract": "Interactuar",
   "controls.touchInteractHow": "Toca el icono que aparece sobre el objeto cuando estás a su alcance.",
   "controls.touchPause": "Pausa",

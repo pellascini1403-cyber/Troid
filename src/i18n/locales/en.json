@@ -16,8 +16,6 @@
   "card.spiritBolt.name": "Spirit Bolt",
   "hud.life": "Life",
   "hud.magic": "Magic",
-  "hud.card": "Equipped ability",
-  "hud.cardEmpty": "No ability equipped",
   "hud.bottleReady": "Bottle {number}: ready",
   "hud.bottleRecharging": "Bottle {number}: recharging",
   "hud.bottleEmpty": "Bottle {number}: empty",

@@ -16,8 +16,6 @@
   "card.spiritBolt.name": "Proyectil espiritual",
   "hud.life": "Vida",
   "hud.magic": "Magia",
-  "hud.card": "Habilidad equipada",
-  "hud.cardEmpty": "Sin habilidad equipada",
   "hud.bottleReady": "Botella {number}: lista",
   "hud.bottleRecharging": "Botella {number}: recargando",
   "hud.bottleEmpty": "Botella {number}: vacía",

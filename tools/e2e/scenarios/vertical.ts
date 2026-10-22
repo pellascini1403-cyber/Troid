@@ -3,6 +3,7 @@ import type { Page } from 'playwright-core';
 import type { Driver } from '../../../tests/helpers/sim';
 import { freshR1WithBolt, GIVE_THE_BOLT, playDefeat, playWin } from '../../../tests/helpers/vertical';
 import { frames } from '../frames';
+import { barAt, cardState, numberOf } from '../hud';
 import { record, replay, type Recording } from '../replay';
 import type { GameState, Scenario } from '../scenario';
 import { centreOf, TouchScreen } from '../touch';
@@ -52,13 +53,13 @@ export const vertical: Scenario = {
     let s = await ctx.state();
     assert.equal(s.now, 0, 'not one tick has run: the replay starts from tick 0');
     assert.equal(s.card, null, 'a new game has NO card (no initial ability)');
-    assert.equal(await dom(page, 'hud-card', 'data-state'), 'empty', 'the card slot is the empty one');
+    assert.equal(await cardState(page), 'empty', 'no card equipped (the status the Ability button reads says so)');
     assert.deepEqual(s.bottles, ['ready', 'ready', 'ready']);
     // the hero of the run is the one that comes back to R1 with the Spirit Bolt of R3 (the recorded run has it too)
     await ctx.page.evaluate(`(() => { const s = window.__troid.session; ${GIVE_THE_BOLT} })()`);
     await frames(page, 6);
     assert.equal((await ctx.state()).card, 'card_spirit_bolt');
-    assert.equal(await dom(page, 'hud-card', 'data-state'), 'ready', 'the HUD shows the card');
+    assert.equal(await cardState(page), 'ready', 'the card is ready');
     assert.equal((await ctx.state()).now, 0, 'giving it ran no tick');
 
     const seen = new Set<string>();
@@ -86,11 +87,12 @@ export const vertical: Scenario = {
         });
         await look('c-03-bolt', st.state === 'cast' && st.magic === 70, async () => {
           await frames(page, 4);
-          assert.equal(await page.locator('[data-testid="hud-magic-fill"]').evaluate((e) => (e as HTMLElement).style.transform), 'scaleX(0.7)', 'the bar shows 70');
+          assert.equal(await numberOf(page, 'magic'), '70', 'the bar says 70');
+          await barAt(page, 'magic', 0.7);
         });
         await look('c-04-drink', st.state === 'drink', async () => {
           await frames(page, 4);
-          assert.equal(await dom(page, 'hud-bottle-0', 'data-drinking'), '1', 'the vial being drunk glows');
+          assert.equal(await dom(page, 'hud-bottle-0', 'data-drinking'), '1', 'the bottle being drunk says so');
         });
       },
     });
@@ -139,7 +141,7 @@ export const vertical: Scenario = {
     assert.equal(s.enemies?.length, 1, 'the slime is back');
     assert.equal(s.gates?.exit_door?.open, false, 'the door is shut');
     await frames(page, 6);
-    assert.equal(await dom(page, 'hud-card', 'data-state'), 'ready', 'the HUD still shows the card');
+    assert.equal(await cardState(page), 'ready', 'the card is still equipped');
     await ctx.teleport(73.4, 0);
     await ctx.step(3);
     await frames(page, 6);
@@ -154,7 +156,7 @@ export const vertical: Scenario = {
     await ctx.step(10);
     s = await ctx.state();
     assert.equal(s.room, 'r1_gate');
-    assert.equal(await dom(page, 'hud-card', 'data-state'), 'empty');
+    assert.equal(await cardState(page), 'empty');
     assert.equal(await display(page, 'touch-ability'), 'none', 'no card: no Ability button');
     assert.equal(await display(page, 'touch-chip'), 'none', 'full life: no bottle chip');
     assert.equal(await dom(page, 'prompt-hit', 'data-active'), '0');
@@ -162,7 +164,7 @@ export const vertical: Scenario = {
     await ctx.page.evaluate(`(() => { const s = window.__troid.session; ${GIVE_THE_BOLT} })()`);
     await frames(page, 6);
     assert.notEqual(await display(page, 'touch-ability'), 'none', 'with a card the Ability button is drawn');
-    assert.equal(await dom(page, 'hud-card', 'data-state'), 'ready');
+    assert.equal(await cardState(page), 'ready');
 
     // ---- crawl through the tunnel with ONE finger: right and down at once
     await screen.touch(1, 100, 250);

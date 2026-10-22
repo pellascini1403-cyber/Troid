@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import type { Page } from 'playwright-core';
 import type { Scenario } from '../scenario';
 import { frames } from '../frames';
+import { cardState } from '../hud';
 import { centreOf, TouchScreen } from '../touch';
 
 /**
@@ -108,7 +109,7 @@ export const interaction: Scenario = {
     assert.equal((await ctx.state()).state, 'free', '12 ticks, then he is free');
     i = await icon(page);
     assert.equal(i.active, false, 'taken: the icon is gone');
-    assert.equal(await page.locator('[data-testid="hud-card"]').getAttribute('data-state'), 'ready', 'the HUD shows the card');
+    assert.equal(await cardState(page), 'ready', 'the card is ready: the Ability button would show it');
     await ctx.shot('02-taken');
 
     // ================================================================== a lever opens the door of its room

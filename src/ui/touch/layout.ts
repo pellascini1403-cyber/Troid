@@ -69,10 +69,11 @@ export const TOUCH_DESIGN = {
 } as const;
 
 /**
- * What the HUD takes at the top left, in dp: its margin from the safe area, its height and the widest it gets in this game (five life segments and four bottles). The numbers belong to
- * `ui/hud/layout.ts`; they are repeated here so that this module does not import it (a test holds the two together).
+ * What the HUD takes at the top left, in dp: its margin from the safe area, its height and its width (the artist's picture of the HUD: the portrait, the two bars and the row of bottles, which holds a fourth bottle
+ * without growing). The numbers belong to `ui/hud/layout.ts`; they are repeated here, rounded UP to a tenth of a dp (so that the HUD is never a hair bigger than what is kept clear), so that this module does not import
+ * it (a test holds the two together).
  */
-export const HUD_FOOTPRINT = { margin: 16, height: 77, width: 206, gap: 8 } as const;
+export const HUD_FOOTPRINT = { margin: 25.7, height: 78.9, width: 218.4, gap: 8 } as const;
 /**
  * What the boss's bar always has at the bottom of the window, in px: its least width, its height, its distance from the bottom and the gap it keeps from a button. The numbers belong to `ui/hud/bossBarLayout.ts`
  * (`BOSS_BAR`); they are repeated here so that this module does not import it, and the start of the game does not carry the function that slides the bar (a test holds the two together).
@@ -101,7 +102,7 @@ const SLACK = 1e-4;
 /**
  * Where the pause button's box (its `PAUSE_FOOTPRINT.size` square, before it is scaled) starts for a window `width` px wide with the given safe insets at `scale`: centred in what is usable, below the top
  * inset. In a window narrower than the HUD is wide (a phone held upright, S31: the audit found the button over the fourth bottle) it goes right next to the HUD, as long as it still fits inside the safe area.
- * The HUD counts at its widest (five life segments, four bottles), so the button does not move when a bottle is found.
+ * The HUD counts at its widest (its box does not change when a fourth bottle is found), so the button does not move when a bottle is found.
  */
 export function pauseOrigin(width: number, insets: Readonly<Insets>, scale = 1, hudScale = 1): { left: number; top: number } {
   const { size, margin } = PAUSE_FOOTPRINT;

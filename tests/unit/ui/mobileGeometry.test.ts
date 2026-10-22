@@ -68,7 +68,7 @@ function discHitsRect(d: Disc, r: Rect): boolean {
 const inside = (r: Rect, safe: Rect, slack = 1e-6): boolean => r.x0 >= safe.x0 - slack && r.y0 >= safe.y0 - slack && r.x1 <= safe.x1 + slack && r.y1 <= safe.y1 + slack;
 const safeRect = (w: number, h: number, i: Insets): Rect => ({ x0: i.left, y0: i.top, x1: w - i.right, y1: h - i.bottom });
 const hudRect = (w: number, h: number, i: Insets, size = 1): Rect => {
-  const l = computeHudLayout(w, h, i, size, 5, 4); // the most it ever holds in this game: five life segments and four bottles
+  const l = computeHudLayout(w, h, i, size); // its box does not change with the fourth bottle: the row of the artist's bottles holds it
   return { x0: l.x, y0: l.y, x1: l.x + l.width * l.scale, y1: l.y + l.height * l.scale };
 };
 const barRect = (w: number, h: number, i: Insets, touch: TouchLayout | null): Rect => {
@@ -272,15 +272,18 @@ describe('the HUD, the prompt and the window itself', () => {
       expect(inside(hud, safeRect(w, h, insets)), `${name}: the HUD`).toBe(true);
       expect(hud.x0 - insets.left, `${name}: margin`).toBeGreaterThan(0);
       const l = computeHudLayout(w, h, insets);
-      expect(HUD_DESIGN.vial.hitH * l.scale, `${name}: a bottle icon is at least 44 css px tall`).toBeGreaterThanOrEqual(44 - 1e-9);
+      expect(HUD_DESIGN.vial.hitH * l.scale, `${name}: a bottle is at least 44 css px tall to a finger`).toBeGreaterThanOrEqual(44 - 1e-9);
     });
   });
 
   it('the numbers the touch layout keeps clear of the HUD and of the boss\'s bar are the ones those two really take (a change to either must come here)', () => {
-    const block = hudBlockSize(5, 4);
+    const block = hudBlockSize();
     expect(HUD_FOOTPRINT.margin).toBe(HUD_DESIGN.margin);
-    expect(HUD_FOOTPRINT.height).toBe(block.height);
-    expect(HUD_FOOTPRINT.width).toBe(block.width);
+    // repeated, rounded up to a tenth of a dp, so that the touch layout does not import the HUD and never keeps clear of less than the HUD takes
+    expect(HUD_FOOTPRINT.height).toBeGreaterThanOrEqual(block.height);
+    expect(HUD_FOOTPRINT.height - block.height).toBeLessThan(0.1);
+    expect(HUD_FOOTPRINT.width).toBeGreaterThanOrEqual(block.width);
+    expect(HUD_FOOTPRINT.width - block.width).toBeLessThan(0.1);
     // the room the layout leaves the bar at the bottom, wherever the player puts the buttons, is the least width of the bar plus its gap on each side: nothing is in the middle of the bottom of the window
     for (const [name, w, h] of LANDSCAPE) {
       for (const p of SCENARIOS) {
@@ -332,8 +335,10 @@ describe('the size of the interface the player chose (accessibility: 85 % to 135
       for (const size of SIZES_OF_HUD) {
         const hud = hudRect(w, h, NO_INSETS, size);
         const scale = computeHudLayout(w, h, NO_INSETS, size).scale;
-        expect(hud.x1 - hud.x0, `${name} ×${size}: the width`).toBeCloseTo((HUD_FOOTPRINT.width) * scale, 6);
-        expect(hud.y1 - hud.y0, `${name} ×${size}: the height`).toBeCloseTo(HUD_FOOTPRINT.height * scale, 6);
+        expect(HUD_FOOTPRINT.width * scale - (hud.x1 - hud.x0), `${name} ×${size}: the width (kept clear of: the HUD's, to a tenth of a dp more)`).toBeGreaterThanOrEqual(-1e-9);
+        expect(HUD_FOOTPRINT.width * scale - (hud.x1 - hud.x0), `${name} ×${size}: the width`).toBeLessThan(0.1 * scale);
+        expect(HUD_FOOTPRINT.height * scale - (hud.y1 - hud.y0), `${name} ×${size}: the height (kept clear of: the HUD's, to a tenth of a dp more)`).toBeGreaterThanOrEqual(-1e-9);
+        expect(HUD_FOOTPRINT.height * scale - (hud.y1 - hud.y0), `${name} ×${size}: the height`).toBeLessThan(0.1 * scale);
         expect(hud.x0, `${name} ×${size}: the margin`).toBeCloseTo(HUD_FOOTPRINT.margin * scale, 6);
       }
     }

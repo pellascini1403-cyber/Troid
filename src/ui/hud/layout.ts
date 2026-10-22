@@ -1,68 +1,50 @@
 import { uiScale } from '@/input/gestures/TouchConfig';
 import type { Insets } from '../touch/layout';
 import { NO_INSETS } from '../touch/layout';
+import { HUD_BLOCK_DP, HUD_DP_PER_PX, HUD_PX } from './artGeometry';
 
 /**
- * The design numbers of the HUD (docs/GAME-SPEC-2D.md §17), in dp: a card on the left and, to its right, the life segments,
- * the magic bar and the bottles. Everything is authored in dp and scaled as one block, so the proportions never change.
+ * The design numbers of the HUD (docs/PROMPT17-LOG.md), in dp: the artist's composition — the portrait, the two bars and the bottles — as one block at the top left. Everything inside the block is where the artist drew it
+ * (`artGeometry.ts`); here is how big the block is and where it sits. It is scaled as one piece, so the proportions never change.
  */
 export const HUD_DESIGN = {
-  /** Distance from the safe area to the HUD, dp. */
-  margin: 16,
-  card: { w: 52, h: 68 },
-  /** Space between the card and the stack beside it. */
-  cardGap: 10,
-  life: { segW: 22, segH: 10, gap: 3 },
-  magic: { w: 140, h: 8 },
   /**
-   * A bottle icon: the vial drawn is 22 × 30; its touch area is as TALL as a finger needs and as WIDE as its pitch (36):
-   * neighbours must never share pixels (a finger means one bottle), so the width follows the spacing, not the 44 px ideal. The height is 49 dp so that
-   * at the smallest `uiScale` (0.9: a small phone) it is still 44 css px (S31: the geometry audit found 39.6 px with 44 dp). To drink, a touch screen
-   * has a second way: the chip, which is 64 dp across.
+   * Distance from the safe area to the HUD, dp. Measured on the artist's picture of the HUD in the game (an 844 × 390 phone, `uiScale` 819/844): the hexagon starts 25.0 px from the left of the screen and 24.8 px from the
+   * top, which is 25.8 and 25.6 dp.
    */
-  vial: { w: 22, h: 30, pitch: 36, hitH: 49 },
-  /** Vertical gaps inside the stack: life → magic, magic → bottles. */
-  rowGap: { lifeMagic: 8, magicBottles: 10 },
-  /** The touch area of the bottle icons is taller than the vial drawn: it reaches up this far over the gap above them. */
-  bottlesOverlap: 8,
+  margin: 25.7,
+  /** The block, dp: 218.3 × 78.9. */
+  block: HUD_BLOCK_DP,
+  /**
+   * A bottle: the one drawn is 16.9 × 11.7 dp; its touch area is as TALL as a finger needs and as WIDE as its pitch (19.8): neighbours must never share pixels (a finger means one bottle), so the width follows the spacing.
+   * The height is 49 dp so that at the smallest `uiScale` (0.9: a small phone) it is still 44 css px (S31). To drink, a touch screen has a second way: the chip, which is 64 dp across.
+   */
+  vial: { w: HUD_PX.bottle.w * HUD_DP_PER_PX, h: HUD_PX.bottle.h * HUD_DP_PER_PX, pitch: HUD_PX.bottle.pitch * HUD_DP_PER_PX, hitH: 49 },
 } as const;
 
 export interface HudLayout {
-  /** `uiScale` of the window: the HUD is drawn at `HUD_DESIGN` × this. */
+  /** `uiScale` of the window times the size the player chose: the HUD is drawn at `HUD_DESIGN` × this. */
   scale: number;
   /** Top-left corner of the HUD in px (the safe area plus the margin). */
   x: number;
   y: number;
-  /** Size of the block in dp (before scaling), for a given number of life segments and bottles. */
+  /** Size of the block in dp (before scaling). */
   width: number;
   height: number;
 }
 
-/** Width and height of the whole HUD block in dp for `lifeMax` segments and `bottles` vials. */
-export function hudBlockSize(lifeMax: number, bottles: number): { width: number; height: number } {
-  const d = HUD_DESIGN;
-  const lifeW = lifeMax * d.life.segW + Math.max(0, lifeMax - 1) * d.life.gap;
-  const bottlesW = bottles > 0 ? bottles * d.vial.pitch : 0;
-  const stackW = Math.max(lifeW, d.magic.w, bottlesW);
-  const stackH = d.life.segH + d.rowGap.lifeMagic + d.magic.h + d.rowGap.magicBottles - d.bottlesOverlap + d.vial.hitH;
-  return { width: d.card.w + d.cardGap + stackW, height: Math.max(d.card.h, stackH) };
+/** Width and height of the whole HUD block in dp. The artist's row of bottles has three; a fourth (the reward) goes on in the same row, inside the block. */
+export function hudBlockSize(): { width: number; height: number } {
+  return { width: HUD_DESIGN.block.w, height: HUD_DESIGN.block.h };
 }
 
 /**
- * Where the HUD goes: the top-left corner, inside the safe area (a notch, the Dynamic Island, rounded corners) plus the margin,
- * at the `uiScale` of the window times the player's size preference. Nothing is positioned in absolute px: the same function
- * serves a 4:3 tablet, a 16:9 monitor, a 19.5:9 phone and a 21:9 ultra-wide.
+ * Where the HUD goes: the top-left corner, inside the safe area (a notch, the Dynamic Island, rounded corners) plus the margin, at the `uiScale` of the window times the player's size preference. Nothing is positioned
+ * in absolute px: the same function serves a 4:3 tablet, a 16:9 monitor, a 19.5:9 phone and a 21:9 ultra-wide.
  */
-export function computeHudLayout(
-  width: number,
-  height: number,
-  insets: Readonly<Insets> = NO_INSETS,
-  sizePreference = 1,
-  lifeMax = 5,
-  bottles = 3,
-): HudLayout {
+export function computeHudLayout(width: number, height: number, insets: Readonly<Insets> = NO_INSETS, sizePreference = 1): HudLayout {
   const scale = uiScale(width, height) * sizePreference;
-  const block = hudBlockSize(lifeMax, bottles);
+  const block = hudBlockSize();
   return {
     scale,
     x: insets.left + HUD_DESIGN.margin * scale,

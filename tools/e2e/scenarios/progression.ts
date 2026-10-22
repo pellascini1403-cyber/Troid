@@ -4,6 +4,7 @@ import { ROOMS } from '@/content';
 import { breakTheSeal } from '../../../tests/helpers/journey';
 import { driver } from '../../../tests/helpers/sim';
 import { frames } from '../frames';
+import { cardState } from '../hud';
 import { record, replay } from '../replay';
 import type { GameState, Scenario } from '../scenario';
 import { centreOf, TouchScreen } from '../touch';
@@ -14,7 +15,7 @@ import { centreOf, TouchScreen } from '../touch';
  *  A · A new game has no card: Ability does nothing, the slot is the empty one.
  *  B · From a game saved at R3's entrance, the climb, the card, the walk back down and ONE bolt at the seal are RECORDED in Node and REPLAYED
  *      through the real keyboard, tick by tick, comparing a digest of the whole simulation (card, ability, flags, interaction…) every 50
- *      ticks. The card is taken by Interact on the ledge and its slot arrives glowing; the bolt costs 30; the ward falls and its door dissolves.
+ *      ticks. The card is taken by Interact on the ledge; the bolt costs 30; the ward falls and its door dissolves.
  *  C · It is saved: after a reload the card is equipped, the ability works, the seal is gone and the way on is open.
  *  D · A defeat keeps it all.
  *  E · On touch: the icon is the button, taking the card draws the Ability button, the SWORD (a tap on Attack) is turned away by the seal —
@@ -89,7 +90,7 @@ export const progression: Scenario = {
     let s = await state();
     assert.equal(s.room, 'r1_gate');
     assert.equal(s.card, null, 'no card');
-    assert.equal(await dom(ctx.page, 'hud-card', 'data-state'), 'empty', 'the slot is the empty one');
+    assert.equal(await cardState(ctx.page), 'empty', 'no card equipped (the status the Ability button reads says so)');
     assert.equal(await sess('return s.abilities.has("magic_attack")'), false, 'and no ability');
     await press('KeyK', 2); // Ability
     await ctx.step(40);
@@ -105,7 +106,7 @@ export const progression: Scenario = {
     assert.equal(s.room, 'r3_chamber');
     assert.equal(s.now, 0, 'not one tick has run: the replay starts from tick 0');
     assert.equal(s.card, null, 'a hero who arrives in R3 has no card yet');
-    assert.equal(await dom(ctx.page, 'hud-card', 'data-state'), 'empty');
+    assert.equal(await cardState(ctx.page), 'empty');
     assert.equal(s.gates?.seal_gate?.open, false, 'the door of the seal is shut');
     const d = driver({ room: ROOMS.r3_chamber!, entry: 'west', unlocked: ['dash'], seed: 1, extra: { rooms: ROOMS, flags: [...SEED.flags], checkpoint: { ...SEED.checkpoint } } });
     const journey = record(d, () => breakTheSeal(d));
@@ -113,11 +114,6 @@ export const progression: Scenario = {
     console.log(`  recorded in Node: ${journey.total} ticks (${journey.runs.length} key changes) from R3's door to the broken seal`);
 
     await listen();
-    await ctx.page.evaluate(`(() => {
-      window.__gain = false;
-      const card = document.querySelector('[data-testid="hud-card"]');
-      new MutationObserver(() => { if (card.dataset.gain === '1') window.__gain = true; }).observe(card, { attributes: true, attributeFilter: ['data-gain'] });
-    })()`);
     const seen = new Set<string>();
     const spawnedBefore = (await state()).vfx!.spawned;
     await replay(ctx, journey, {
@@ -129,7 +125,7 @@ export const progression: Scenario = {
         if (st.card === CARD && !seen.has('card')) {
           seen.add('card');
           await frames(ctx.page, 8);
-          assert.equal(await dom(ctx.page, 'hud-card', 'data-state'), 'ready', 'the HUD shows the card the moment it is taken');
+          assert.equal(await cardState(ctx.page), 'ready', 'the card is ready the moment it is taken');
           await ctx.shot('b-01-the-card');
         }
       },
@@ -150,10 +146,8 @@ export const progression: Scenario = {
     );
     assert.ok(heard.includes('card acquired') && heard.includes('ability') && heard.includes('card equipped'), 'the card, its ability and its equipping');
     assert.ok(!heard.includes('rejected'), 'the journey never swung at the seal');
-    assert.equal(await ctx.page.evaluate('window.__gain'), true, 'the card slot arrived glowing');
     assert.ok((await state()).vfx!.spawned > spawnedBefore, 'the effects played (the pickup, the bolt, the fall of the ward)');
     await frames(ctx.page, 90);
-    assert.equal(await dom(ctx.page, 'hud-card', 'data-gain'), '0', 'the glow settles');
     assert.equal((await state()).gates?.seal_gate?.alpha, 0, 'and the door has dissolved');
     await ctx.shot('b-02-the-seal-is-broken');
 
@@ -167,8 +161,7 @@ export const progression: Scenario = {
     await reload();
     s = await state();
     assert.equal(s.card, CARD, 'the loaded game has the card equipped');
-    assert.equal(await dom(ctx.page, 'hud-card', 'data-state'), 'ready');
-    assert.equal(await dom(ctx.page, 'hud-card', 'data-gain'), '0', 'a game that LOADS with the card does not announce it');
+    assert.equal(await cardState(ctx.page), 'ready');
     assert.equal(s.gates?.seal_gate?.open, true, 'the seal stays broken');
     assert.equal(s.gates?.seal_gate?.alpha, 0);
     assert.equal(await sess('return s.entities.filter((e) => e.kind === "seal").length'), 0, 'and is not built again');
@@ -192,7 +185,7 @@ export const progression: Scenario = {
     assert.equal(s.card, CARD, 'the hero comes back with the card');
     assert.ok(s.flags!.includes(TAKEN) && s.flags!.includes(BROKEN), 'and the world remembers');
     assert.equal(s.health, s.maxHealth);
-    assert.equal(await dom(ctx.page, 'hud-card', 'data-state'), 'ready');
+    assert.equal(await cardState(ctx.page), 'ready');
 
     // ================================================================================================ E · on touch: the icon is the button, the sword is turned away, the bolt breaks the seal
     await ctx.open('paused=1&touch=1', { width: 844, height: 390, dpr: 1, touch: true });
@@ -215,7 +208,7 @@ export const progression: Scenario = {
     s = await state();
     assert.equal(s.card, CARD);
     assert.notEqual(await display(ctx.page, 'touch-ability'), 'none', 'with the card the Ability button is drawn');
-    assert.equal(await dom(ctx.page, 'hud-card', 'data-state'), 'ready');
+    assert.equal(await cardState(ctx.page), 'ready');
 
     // the seal, up close: the sword is turned away
     await ctx.teleport(60.2, 0);

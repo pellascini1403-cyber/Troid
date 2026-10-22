@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Page } from 'playwright-core';
+import { cardState, numberOf } from '../hud';
 import type { GameState, Scenario } from '../scenario';
 
 /**
@@ -36,7 +37,6 @@ export const save: Scenario = {
       await ctx.page.evaluate('window.__troid.pause()');
       await ctx.page.waitForTimeout(150);
     };
-    const dom = (id: string, attr: string): Promise<string | null> => ctx.page.locator(`[data-testid="${id}"]`).getAttribute(attr);
     const through = async (x: number): Promise<void> => {
       await ctx.teleport(x, 0);
       await ctx.step(40);
@@ -103,7 +103,9 @@ export const save: Scenario = {
     assert.ok(Math.abs(s.x - 4) < 0.1, `at the entry they came in by (x = ${s.x})`);
     assert.deepEqual(s.flags, ['defeated:r1_slime', 'defeated:r2_slime'], 'what was won');
     assert.equal(s.card, 'card_spirit_bolt', 'the card, equipped');
-    assert.equal(await dom('hud-card', 'data-state'), 'ready', 'the HUD shows it');
+    assert.equal(await cardState(ctx.page), 'ready', 'the status the Ability button reads shows it');
+    assert.equal(await numberOf(ctx.page, 'life'), '100', 'and the HUD of a loaded game writes what the game has, here the whole life');
+    assert.equal(await numberOf(ctx.page, 'magic'), '100', 'and the whole magic');
     assert.equal(await sess('return s.abilities.has("magic_attack") && s.abilities.has("dash")'), true, 'and the abilities');
     assert.deepEqual(s.bottles, ['ready', 'ready', 'ready']);
     assert.deepEqual(s.respawnPoint, { room: 'r2_hall', entry: 'rest' }, 'and the checkpoint a defeat uses');

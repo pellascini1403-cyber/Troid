@@ -12,7 +12,7 @@ import { centreOf, TouchScreen } from '../touch';
  * THE FOURTH BOTTLE in a real browser (docs/PROMPT6-LOG.md S27): it lies on the ledge of R2's high road. The way there — the hops of the
  * road, a jump from under the ledge, Interact — is RECORDED in Node on the pure simulation and REPLAYED through the real keyboard, tick by
  * tick, comparing a digest of the whole simulation (bottles and flags included): the browser plays the same game as the simulation. Then:
- * the pickup is felt (the new vial arrives glowing on the HUD, a light opens where it floated, the object is gone), it is SAVED with the
+ * the pickup is felt (the HUD grows to four bottles, a light opens where it floated, the object is gone), it is SAVED with the
  * flag that hides it, and it stays taken through a reload, a transition and a defeat — and cannot be taken twice. On touch the icon is the
  * button, and four vials fit with the controls. A new game starts with three again.
  */
@@ -32,8 +32,8 @@ const FLAG = 'taken:bottle_fourth';
 const stored = (page: Page): Promise<{ at: { room: string; entry: string }; checkpoint: { room: string; entry: string }; flags: string[]; bottleSlots: number } | null> =>
   page.evaluate(`(() => { const t = localStorage.getItem(${JSON.stringify(KEY)}); return t === null ? null : JSON.parse(t); })()`) as never;
 
-const vials = (page: Page): Promise<Array<{ state: string | undefined; gain: string | undefined }>> =>
-  page.locator('[data-testid^="hud-bottle-"]').evaluateAll((els) => els.map((e) => ({ state: (e as HTMLElement).dataset['state'], gain: (e as HTMLElement).dataset['gain'] })));
+const vials = (page: Page): Promise<Array<{ state: string | undefined; dark: string | undefined }>> =>
+  page.locator('[data-testid^="hud-bottle-"]').evaluateAll((els) => els.map((e) => ({ state: (e as HTMLElement).dataset['state'], dark: (e as HTMLElement).dataset['dark'] })));
 
 /** The interaction icon is DOM and follows the camera frame by frame: wait for frames, then read what it shows. */
 async function icon(page: Page): Promise<{ active: boolean; object: string | null; kind: string | null; label: string | null }> {
@@ -90,13 +90,9 @@ export const bottle4: Scenario = {
     console.log(`  recorded in Node: ${journey.total} ticks (${journey.runs.length} key changes) to the ledge and the bottle`);
 
     await ctx.page.evaluate(`(() => {
-      window.__gain = { seen: false, vials: 0 };
+      window.__gain = { vials: 0 };
       const row = document.querySelector('[data-testid="hud-bottles"]');
-      const check = () => {
-        const v = document.querySelector('[data-testid="hud-bottle-3"]');
-        if (v && v.dataset.gain === '1') window.__gain.seen = true;
-        window.__gain.vials = Math.max(window.__gain.vials, document.querySelectorAll('[data-testid^="hud-bottle-"]').length);
-      };
+      const check = () => { window.__gain.vials = Math.max(window.__gain.vials, document.querySelectorAll('[data-testid^="hud-bottle-"]').length); };
       new MutationObserver(check).observe(row, { attributes: true, childList: true, subtree: true });
     })()`);
     const spawnedBefore = (await state()).vfx!.spawned;
@@ -118,14 +114,13 @@ export const bottle4: Scenario = {
     assert.deepEqual(s.bottles, ['ready', 'ready', 'ready', 'ready'], 'four bottles, all full');
     assert.ok(s.flags!.includes(FLAG), 'the flag that hides the pickup');
     await frames(ctx.page, 6);
-    const gain = (await ctx.page.evaluate('window.__gain')) as { seen: boolean; vials: number };
-    assert.equal(gain.vials, 4, 'the HUD grew to four vials');
-    assert.ok(gain.seen, 'the new vial arrived glowing');
+    const gain = (await ctx.page.evaluate('window.__gain')) as { vials: number };
+    assert.equal(gain.vials, 4, 'the HUD grew to four bottles');
     assert.ok((await state()).vfx!.spawned > spawnedBefore, 'a light opened where the bottle floated');
     assert.deepEqual((await vials(ctx.page)).map((v) => v.state), ['ready', 'ready', 'ready', 'ready']);
     await ctx.shot('a-01-the-ledge-with-four-vials');
     await frames(ctx.page, 90);
-    assert.deepEqual((await vials(ctx.page)).map((v) => v.gain), ['0', '0', '0', '0'], 'the glow settles');
+    assert.deepEqual((await vials(ctx.page)).map((v) => v.dark), ['0', '0', '0', '0'], 'all four are the bright bottle of the artist: the new one is a bottle like the others');
     let i = await icon(ctx.page);
     assert.equal(i.active, false, 'the icon went with the object: there is nothing left to take');
     await press('KeyE', 14); // …and pressing Interact again does nothing
@@ -146,7 +141,7 @@ export const bottle4: Scenario = {
     assert.deepEqual(s.bottles, ['ready', 'ready', 'ready', 'ready'], 'the loaded game has four bottles');
     assert.ok(s.flags!.includes(FLAG));
     assert.equal((await vials(ctx.page)).length, 4);
-    assert.deepEqual((await vials(ctx.page)).map((v) => v.gain), ['0', '0', '0', '0'], 'a game that LOADS with four does not announce the fourth');
+    assert.deepEqual((await vials(ctx.page)).map((v) => v.dark), ['0', '0', '0', '0'], 'a game that LOADS with four shows four bright bottles');
     await toTheLedge();
     i = await icon(ctx.page);
     assert.equal(i.active, false, 'nothing lies on the ledge any more');

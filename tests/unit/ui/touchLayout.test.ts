@@ -405,7 +405,7 @@ describe('where the player put the buttons', () => {
 
 describe('the keep-outs are the real ones', () => {
   it('the HUD footprint, the pause button and the room of the boss\'s bar the buttons keep clear of are the numbers those pieces use (a change to any of them must come here)', () => {
-    expect(HUD_FOOTPRINT).toEqual({ margin: 16, height: 77, width: 206, gap: 8 });
+    expect(HUD_FOOTPRINT).toEqual({ margin: 25.7, height: 78.9, width: 218.4, gap: 8 });
     const f = touchFrame(844, 390, NO_INSETS);
     expect(f.boss.x1 - f.boss.x0).toBe(BOSS_BAR.minWidth + 2 * BOSS_BAR.gap);
     expect((f.boss.x0 + f.boss.x1) / 2).toBe(422);

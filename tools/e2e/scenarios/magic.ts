@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import type { Page } from 'playwright-core';
 import type { Scenario } from '../scenario';
 import { frames } from '../frames';
+import { barAt, cardState, numberOf } from '../hud';
 
 /**
  * The magic bar in the browser (docs/PROMPT5-LOG.md S15, GAME-SPEC-2D §10.1), with REAL keyboard: it is 0–100, it starts full and it is
  * on screen before any card; a cast takes exactly 30; it comes back GRADUALLY — 6 per second after one second without spending — and
  * never while casting (nor in the second that follows); it never goes past its two ends; a cast below 30 is refused: nothing is spent
- * and the bar and the card shake. (What the bolt itself does — flight, damage, devices — is the `bolt` scenario.)
+ * and the bar shakes. (What the bolt itself does — flight, damage, devices — is the `bolt` scenario.)
  */
 const sess = (page: Page, code: string): Promise<unknown> => page.evaluate(`(() => { const s = window.__troid.session; ${code} })()`);
 const style = (page: Page, id: string, prop: string): Promise<string> => page.locator(`[data-testid="${id}"]`).evaluate((el, p) => (el as HTMLElement).style.getPropertyValue(p), prop);
@@ -32,8 +33,8 @@ export const magic: Scenario = {
     assert.equal(s.card, null);
     await frames(page, 4);
     assert.equal(await attr(page, 'hud-magic', 'aria-valuenow'), '100');
-    assert.equal(await style(page, 'hud-magic-fill', 'transform'), 'scaleX(1)', 'a full bar');
-    assert.equal(await attr(page, 'hud-magic', 'data-regen'), '0', 'and nothing is coming back');
+    assert.equal(await numberOf(page, 'magic'), '100', 'a full bar: the number the artist\'s bar writes');
+    assert.equal(await attr(page, 'hud-magic', 'data-edge'), '1', 'and its bright picture reaches the tip');
     await cast(); // no card: the Ability is not an action, and the bar is not touched
     await ctx.step(40);
     assert.equal((await ctx.state()).magic, 100);
@@ -49,8 +50,9 @@ export const magic: Scenario = {
     assert.equal(s.magic, 70, 'exactly 30');
     await frames(page, 4);
     assert.equal(await attr(page, 'hud-magic', 'aria-valuenow'), '70');
-    assert.equal(await style(page, 'hud-magic-fill', 'transform'), 'scaleX(0.7)', 'the bar shows 70');
-    assert.equal(await attr(page, 'hud-magic', 'data-regen'), '0', 'and it is not coming back yet: the second of delay');
+    assert.equal(await numberOf(page, 'magic'), '70', 'the number says 70');
+    await barAt(page, 'magic', 0.7);
+    assert.equal(await numberOf(page, 'magic'), '70', 'and it is not coming back yet: the second of delay');
     await ctx.shot('01-spent');
 
     // ================================================================== it comes back GRADUALLY: 1 s of delay (counted from the end of the cast), then 6 per second
@@ -58,7 +60,7 @@ export const magic: Scenario = {
     s = await ctx.state();
     assert.ok(s.magic! > 70 && s.magic! < 72.5, `78 ticks after the release the delay has just run out (${s.magic})`);
     await frames(page, 4);
-    assert.equal(await attr(page, 'hud-magic', 'data-regen'), '1', 'now it is coming back');
+    assert.equal(await numberOf(page, 'magic'), String(Math.floor(s.magic!)), 'now it is coming back, and the number is the simulation\'s whole units');
     const m0 = s.magic!;
     await ctx.step(60);
     const m1 = (await ctx.state()).magic!;
@@ -82,21 +84,20 @@ export const magic: Scenario = {
     s = await ctx.state();
     assert.equal(s.magic, 10, 'three casts from a full bar leave 10');
     await cast();
-    // the refusal shakes the bar and the card (real time: the page keeps rendering while the simulation is paused)
+    // the refusal shakes the bar (real time: the page keeps rendering while the simulation is paused)
     let shook = false;
     for (let i = 0; i < 12 && !shook; i++) {
       await page.waitForTimeout(25);
-      const t1 = await style(page, 'hud-magic', 'transform');
-      const t2 = await style(page, 'hud-card', 'transform');
-      shook = t1.includes('translateX') || t2.includes('translateX');
+      shook = (await style(page, 'hud-magic', 'transform')).includes('translateX');
     }
-    assert.ok(shook, 'a refused cast shakes the magic bar and the card');
+    assert.ok(shook, 'a refused cast shakes the magic bar');
     await ctx.step(30);
     s = await ctx.state();
     assert.equal(s.projectiles?.length, 0, 'no bolt was cast');
     assert.ok(s.magic! < 12, `and no magic was spent (${s.magic})`);
     await frames(page, 4);
-    assert.equal(await attr(page, 'hud-card', 'data-state'), 'noMagic', 'the card is dimmed');
+    assert.equal(await numberOf(page, 'magic'), String(Math.floor(s.magic!)), 'the bar says what is left: not enough');
+    assert.equal(await cardState(page), 'noMagic', 'and the status the Ability button reads says the card has not the magic for it');
     await ctx.shot('03-refused');
 
     // ================================================================== the ends: never below 0, never above 100
@@ -105,7 +106,9 @@ export const magic: Scenario = {
     await frames(page, 4);
     assert.equal((await ctx.state()).magic, 0);
     assert.equal(await attr(page, 'hud-magic', 'aria-valuenow'), '0');
-    assert.equal(await style(page, 'hud-magic-fill', 'transform'), 'scaleX(0)', 'an empty bar');
+    assert.equal(await numberOf(page, 'magic'), '0');
+    await barAt(page, 'magic', 0);
+    assert.equal(await attr(page, 'hud-magic', 'data-edge'), '0', 'an empty bar');
     await sess(page, 's.magic.set(99.7);'); // the delay is over: it comes back at once, and stops at the end of the bar
     await ctx.step(40);
     assert.equal((await ctx.state()).magic, 100, 'it fills up to exactly 100 and no further');
@@ -114,6 +117,7 @@ export const magic: Scenario = {
     assert.equal((await ctx.state()).magic, 100);
     await frames(page, 4);
     assert.equal(await attr(page, 'hud-magic', 'aria-valuenow'), '100');
-    assert.equal(await attr(page, 'hud-magic', 'data-regen'), '0', 'a full bar is not "regenerating"');
+    assert.equal(await numberOf(page, 'magic'), '100', 'never more than 100');
+    await barAt(page, 'magic', 1);
   },
 };

@@ -709,6 +709,29 @@ Los campos 3D de `CameraConfig` (`projection`, `fovDeg`, `pitchDeg`, `swayDeg`, 
 
 ## 17. HUD (DC-18)
 
+> **Reemplazado en el Prompt 17** ([PROMPT17-LOG](PROMPT17-LOG.md)). El HUD de arriba a la izquierda es ahora **el del artista**: el retrato del protagonista, la barra roja de vida, la barra cian de magia y tres botellas, **los dos PNG que entregó el usuario** (`src/ui/hud/png/original/`, byte a byte) mostrados tal cual, sin redibujar nada. **Lo que sigue en esta sección desde «Minimalista…» hasta el último «Implementado en el Prompt 5» describe el HUD anterior** (la carta, los segmentos de vida, la barra de magia con degradado y los viales dibujados con código), que **ya no existe**: se conserva como historia. Sigue vigente lo que no es de su aspecto: la arquitectura (simulación → `status()` → `HudModel` → `HudView`), las capas, los objetivos táctiles de ≥ 44 px, escribir en el DOM solo lo que cambió y que el HUD no tiene palabras.
+
+### 17.1 El HUD de hoy (Prompt 17)
+
+```
+ 25.7 dp ┌──────────┐ ♥  ▐████████████▶ 100     vida: barra roja; el número es el % de la vida real
+         │ retrato  │ ⚡  ▐████████████▶ 100     magia: barra cian; el número son las unidades reales
+         │ (hexág.) │     ▢  ▢  ▢                botellas: 3 (4 con la recompensa), una por casilla
+         └──────────┘
+          218.3 × 78.9 dp, a `uiScale` × el tamaño que eligió el jugador, dentro del área segura
+```
+
+| Componente | Lo que se ve | Valor real | Estados |
+|---|---|---|---|
+| **Retrato** | el hexágono del protagonista | — | fijo |
+| **Vida** | la imagen roja hasta donde llega la vida, la oscura desde ahí y **el rectángulo blanco** entre las dos; el número dentro | `life.current ÷ life.max` (5 puntos): **100** llena, 80, 60, 40, 20, 0 | al perder, la imagen retrocede con suavidad y el rectángulo la sigue un instante más largo; al recuperar, avanza sin rectángulo |
+| **Magia** | lo mismo en cian | `magic.current ÷ magic.max` (100 unidades) | gastar, recuperar (6 por segundo tras 1 s); sacudida si no alcanza |
+| **Botellas** | cada una **su** imagen clara (lista) o oscura (recargando o vacía) | `bottles[i].state` | se oscurece la que se bebe; las demás no se tocan; vuelve a la clara cuando el juego la recarga (60 s, de una en una) |
+
+Los números **nunca se animan**: son los del juego en ese fotograma; solo se anima la imagen. No hay tarjeta del poder en el HUD (queda el botón táctil de Habilidad), ni teclas, ni segundos de recarga. Cada barra es un `progressbar` accesible (con los puntos reales) y cada botella un botón (un dedo sobre ella la bebe). Con «menos destellos» el rectángulo no se estira. La pausa detiene las imágenes con el mundo. Medidas, piezas y comportamiento: [PROMPT17-LOG](PROMPT17-LOG.md) y [los PNG](../src/ui/hud/png/README.md).
+
+### 17.2 El HUD anterior (Prompts 5 y 14) — reemplazado
+
 Minimalista, **oscuro, moderno y legible**, con acentos cian/azul. Diseño **propio**: no copia los HUD de Hollow Knight ni de Solo Leveling. Es DOM (ARCHITECTURE-2D §8), por encima del *canvas*.
 
 ```

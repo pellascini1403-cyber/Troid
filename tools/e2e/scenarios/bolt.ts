@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Page } from 'playwright-core';
+import { barAt, cardState, numberOf } from '../hud';
 import type { Scenario } from '../scenario';
 import { countPixels, decodePng, isCyanLight } from '../png';
 import { centreOf, TouchScreen } from '../touch';
@@ -12,7 +13,6 @@ import { centreOf, TouchScreen } from '../touch';
  * `magic` scenario.)
  */
 const sess = (page: Page, code: string): Promise<unknown> => page.evaluate(`(() => { const s = window.__troid.session; ${code} })()`);
-const style = (page: Page, id: string, prop: string): Promise<string> => page.locator(`[data-testid="${id}"]`).evaluate((el, p) => (el as HTMLElement).style.getPropertyValue(p), prop);
 const cyan = async (page: Page): Promise<number> => countPixels(decodePng(await page.screenshot()), isCyanLight, { x0: 250, y0: 100, x1: 840, y1: 330 });
 
 export const bolt: Scenario = {
@@ -40,7 +40,7 @@ export const bolt: Scenario = {
     await sess(page, 's.loadout.acquire("card_spirit_bolt");');
     await ctx.step(2);
     assert.equal((await ctx.state()).card, 'card_spirit_bolt');
-    assert.equal(await page.locator('[data-testid="hud-card"]').getAttribute('data-state'), 'ready');
+    assert.equal(await cardState(page), 'ready');
     assert.equal(await page.evaluate('window.__troid.session.abilities.has("magic_attack")'), true, 'the card taught the ability');
     const before = await cyan(page);
 
@@ -60,8 +60,9 @@ export const bolt: Scenario = {
     await ctx.step(3);
     s = await ctx.state();
     assert.equal(s.projectiles?.length, 1, 'the bolt is in flight');
-    assert.equal(await style(page, 'hud-magic-fill', 'transform'), 'scaleX(0.7)', 'the bar shows 70');
-    assert.equal(await page.locator('[data-testid="hud-card"]').getAttribute('data-state'), 'cooldown', 'the card sweeps its 0.3 s cooldown');
+    assert.equal(await numberOf(page, 'magic'), '70', 'the bar says 70');
+    await barAt(page, 'magic', 0.7);
+    assert.equal(await cardState(page), 'cooldown', 'the card is in its 0.3 s cooldown (the status the Ability button reads)');
     const flying = await cyan(page);
     assert.ok(flying > before + 60, `the bolt is cyan light on screen (${before} → ${flying} px)`);
     await ctx.shot('01-bolt');

@@ -1,16 +1,14 @@
 import assert from 'node:assert/strict';
 import type { Page } from 'playwright-core';
-import { PALETTE } from '@/presentation/palette';
+import { barAt, watchRectangle } from '../hud';
 import type { Ctx, Scenario } from '../scenario';
 
 /**
  * THE ACCESSIBILITY CHOICES in a real browser (docs/PROMPT14-LOG.md): fewer flashes, no camera shake and the size of the interface. Each is offered only because it changes something the game really does,
- * so each is checked at the thing it changes — the HUD that stops blinking, the pulses at the edge of the screen that soften, the camera that no longer shakes (and the shake it had stops with the choice),
+ * so each is checked at the thing it changes — the HUD whose white rectangle stops stretching, the pulses at the edge of the screen that soften, the camera that no longer shakes (and the shake it had stops with the choice),
  * the HUD that grows and the buttons and the pause button that make way for it — and then that it was SAVED, that it SURVIVES a reload, and that going back gives the game as it was.
  */
 const KEY = 'troid.settings';
-/** The white of the HUD's flashes (`PALETTE.whiteHot`) as a browser writes a colour. */
-const WHITE_HOT = `rgba(${(PALETTE.whiteHot >> 16) & 255}, ${(PALETTE.whiteHot >> 8) & 255}, ${PALETTE.whiteHot & 255}`;
 const q = (page: Page, id: string): ReturnType<Page['locator']> => page.locator(`[data-testid="${id}"]`);
 const attr = (page: Page, id: string, name: string): Promise<string | null> => q(page, id).getAttribute(name);
 const hooks = <T>(page: Page, expr: string): Promise<T> => page.evaluate(`window.__troid.${expr}`) as Promise<T>;
@@ -72,40 +70,23 @@ async function closeMenu(page: Page): Promise<void> {
 }
 
 /**
- * A real drink — the key held for a tick and the 24-tick channel — and what the HUD draws of it: the glass of the vial being drunk against that of a vial that only waits, and the strongest the wave of
- * light that crosses the life that comes back ever gets (watched from before the heal lands, on every write the HUD makes).
+ * A real blow — and what the HUD draws of it: how far the white rectangle of the life stretches (a factor of the width the artist drew it), watched on every write the HUD makes to it, from before the blow lands to a
+ * moment after it has been over. The life is brought back to full afterwards, so that the next look starts from the same place.
  */
-async function drink(ctx: Ctx): Promise<{ drinking: string; idle: string; peak: number; after: string }> {
+async function lose(ctx: Ctx): Promise<{ peak: number; after: string }> {
   const { page } = ctx;
   await ctx.step(60); // on their feet: not in the middle of a blow, with nothing else going on
-  await page.evaluate('window.__troid.session.player.health.damage(2)');
+  await page.evaluate('window.__troid.session.player.health.restore()');
   await ctx.step(1);
-  await page.keyboard.down('KeyL');
+  await barAt(page, 'life', 1);
+  const watched = watchRectangle(page, 'life', 1100);
+  await page.evaluate('window.__troid.strikePlayer(1)');
   await ctx.step(1);
-  await page.keyboard.up('KeyL');
-  await ctx.step(12);
-  await page.waitForTimeout(200); // the HUD draws in real time
-  const glass = (await page.evaluate(`(() => {
-    const vials = [...document.querySelectorAll('[data-testid^="hud-bottle-"]')];
-    const drinking = vials.find((v) => v.dataset.drinking === '1');
-    const idle = vials.find((v) => v.dataset.drinking === '0' && v.dataset.state === 'ready');
-    const look = (v) => { const g = v.querySelector('.hud-glass'); const r = v.querySelector('.hud-glass-rim'); return getComputedStyle(g).filter + ' | ' + getComputedStyle(r).backgroundImage + ' | ' + getComputedStyle(r).backgroundColor; };
-    return { drinking: drinking ? look(drinking) : 'nobody is drinking', idle: idle ? look(idle) : 'no vial waits' };
-  })()`)) as { drinking: string; idle: string };
-  assert.notEqual(glass.drinking, 'nobody is drinking', 'the HUD shows the vial being drunk half way through the channel');
-  assert.notEqual(glass.idle, 'no vial waits', 'and the vials that wait');
-  await ctx.step(11);
-  // watched on every WRITE to the HUD, not on every frame: a step made by the test brings the HUD up to date at once, and a slow frame afterwards (software drawing) can finish the wave before one is looked at
-  const watched = page.evaluate(`new Promise((resolve) => {
-    let peak = 0;
-    const read = () => { for (const e of document.querySelectorAll('.hud-seg-heal')) peak = Math.max(peak, Number(e.style.opacity || 0)); };
-    const writes = new MutationObserver(read);
-    writes.observe(document.querySelector('[data-testid="hud"]'), { attributes: true, subtree: true, attributeFilter: ['style'] });
-    setTimeout(() => { read(); writes.disconnect(); resolve(peak); }, 1100);
-  })`) as Promise<number>;
-  await ctx.step(1); // the effect lands on the last tick
-  const after = (await page.evaluate(`(() => { const s = window.__troid.state(); return JSON.stringify({ health: s.health, state: s.state, bottles: s.bottles, hurt: s.invulnerable, near: s.enemies.filter((e) => Math.abs(e.x - s.x) < 14).map((e) => [e.id, e.def, e.state, Math.round(e.x - s.x)]) }); })()`)) as string;
-  return { ...glass, peak: await watched, after };
+  const after = (await page.evaluate(`(() => { const s = window.__troid.state(); return JSON.stringify({ health: s.health, state: s.state, hurt: s.invulnerable }); })()`)) as string;
+  const peak = await watched;
+  await page.evaluate('window.__troid.session.player.health.restore()');
+  await ctx.step(80);
+  return { peak, after };
 }
 
 /**
@@ -159,10 +140,9 @@ export const accessibility: Scenario = {
     assert.equal(s.screen?.calm, false, 'the pulses of the screen are at their strength');
     assert.equal(await attr(page, 'hud', 'data-calm'), '0', 'the HUD is as designed');
     const hud1 = await box(page, 'hud-block');
-    // a real drink as designed: the glass of the vial being drunk glows white, and the life that comes back is crossed by a wave of light at full strength
-    const bright = await drink(ctx);
-    assert.notEqual(bright.drinking, bright.idle, `the vial being drunk is drawn with its white glow (${bright.drinking} / ${bright.idle})`);
-    assert.ok(bright.peak > 0.9, `and the wave of light on the life that came back is at full strength (${bright.peak}; after the drink: ${bright.after})`);
+    // a real blow as designed: the white rectangle of the life trails the picture of the bar and stretches behind it (it becomes about three times as wide as the artist drew it) before it comes back
+    const bright = await lose(ctx);
+    assert.ok(bright.peak > 1.5, `the white rectangle of what was just lost stretches (${bright.peak.toFixed(2)} times the artist's width; after the blow: ${bright.after})`);
     await hooks(page, 'shake(0.8)');
     assert.ok((await ctx.state()).trauma! > 0.7, 'a blow jolts the camera');
     await hooks(page, 'settleCamera(3)');
@@ -203,10 +183,10 @@ export const accessibility: Scenario = {
     await openSettings(page);
     await q(page, 'settings-flashes').click();
     assert.equal(await attr(page, 'settings-flashes', 'aria-checked'), 'true');
-    assert.equal(await attr(page, 'hud', 'data-calm'), '1', 'the HUD is calm: its last segment does not blink and nothing shines by itself');
+    assert.equal(await attr(page, 'hud', 'data-calm'), '1', 'the HUD is calm: the white rectangle does not stretch, and nothing blinks or shines by itself');
     assert.equal((await ctx.state()).screen?.calm, true, 'the pulses at the edge of the screen are softened');
-    const blinking = await q(page, 'hud-life-seg-0').evaluate((e) => getComputedStyle(e).animationName);
-    assert.equal(blinking, 'none');
+    const animated = await page.evaluate(`[...document.querySelectorAll('[data-testid="hud"], [data-testid="hud"] *')].filter((e) => getComputedStyle(e).animationName !== 'none').length`);
+    assert.equal(animated, 0, 'nothing of the HUD blinks or shines by itself');
     await savedAccessibility(page, (a) => a['reduceShake'] === true && a['reduceFlashes'] === true, 'both were saved');
     await ctx.shot('a-02-both-on');
 
@@ -219,12 +199,9 @@ export const accessibility: Scenario = {
     assert.ok(Math.abs(hud2.h / hud1.h - 1.35) < 0.03, 'and taller');
     assert.ok(Math.abs(hud2.x - hud1.x * 1.35) < 2 && hud2.x > 0, 'from its corner, inside the screen');
     await closeMenu(page);
-    // the same real drink with the choice on: the glass is NOT drawn white (it looks like any vial that waits) and the wave of light is still there, but a third as bright
-    const soft = await drink(ctx);
-    assert.notEqual(soft.drinking, soft.idle, `with fewer flashes the vial being drunk is still told apart from one that waits (${soft.drinking} / ${soft.idle})`);
-    assert.ok(/drop-shadow/.test(soft.drinking) && !soft.drinking.includes(WHITE_HOT), `…by a steady glow that is not white (${soft.drinking})`);
-    assert.ok(bright.drinking.includes(WHITE_HOT), `while as designed it is the white one (${bright.drinking})`);
-    assert.ok(soft.peak > 0 && soft.peak <= 0.3 + 1e-6, `and the wave of light on the life that came back is softened, not removed (${soft.peak} against ${bright.peak}; after the drink: ${soft.after})`);
+    // the same real blow with the choice on: the white rectangle keeps the size the artist drew it (nothing flashes), and the number and the bar still say what was lost
+    const soft = await lose(ctx);
+    assert.equal(soft.peak, 1, `with fewer flashes the white rectangle does not stretch (${soft.peak} against ${bright.peak.toFixed(2)}; after the blow: ${soft.after})`);
     const pb = await box(page, 'pause-button');
     assert.ok(!overlap(pb, hud2), `the pause button does not touch the bigger HUD (${JSON.stringify(pb)} / ${JSON.stringify(hud2)})`);
     assert.ok(pb.x >= 0 && pb.x + pb.w <= 1280 && pb.y >= 0, 'and is inside the screen');
@@ -276,7 +253,8 @@ export const accessibility: Scenario = {
     assert.deepEqual([sideways.more, sideways.masked], ['1', true], `…and it says so: more below, the fade is drawn (${JSON.stringify(sideways)})`);
     await q(page, 'settings-hud-size').scrollIntoViewIfNeeded();
     await page.evaluate(`document.querySelector('[data-testid="settings-screen"] .settings-body').scrollTop = 1e6`);
-    await page.waitForTimeout(150);
+    // (the page takes note of a scroll on its next frame, which on a machine without a GPU is more than a fixed 150 ms away: wait for the page to have noticed, and then say what it says)
+    await waitFor(page, `document.querySelector('[data-testid="settings-screen"] .settings-body').dataset.more === '0'`, 'the page to notice that it was scrolled to the end');
     const atTheEnd = await scrollArea(page);
     assert.deepEqual([atTheEnd.more, atTheEnd.masked], ['0', false], `at the end of the scroll the last line is shown plainly (${JSON.stringify(atTheEnd)})`);
     await setRange(page, 'settings-hud-size', 1.35);
@@ -316,6 +294,6 @@ export const accessibility: Scenario = {
     const withChoices = await fight(ctx);
     assert.deepEqual(withChoices, plain, 'the same inputs gave the same fight: position, life, magic, bottles, the dummy, the slime and the clock are identical');
     assert.ok(((plain as { dummies: unknown[][] }).dummies[0]?.[4] as number) > 0, `and it was a fight: the dummy was hit (${JSON.stringify(plain)})`);
-    console.log('  accessibility: no camera shake (and the shake it had stops) · fewer flashes (HUD blinking, the glow of a vial drunk and the wave of light of a real heal softened, the pulses of the screen, kept across a rebuild of the effects) · interface size (the HUD, the pause button and the touch buttons make way) · saved, kept after a reload, reversible');
+    console.log('  accessibility: no camera shake (and the shake it had stops) · fewer flashes (the white rectangle of the HUD does not stretch and nothing of it blinks, the glow of a vial drunk and the wave of light of a real heal softened, the pulses of the screen, kept across a rebuild of the effects) · interface size (the HUD, the pause button and the touch buttons make way) · saved, kept after a reload, reversible');
   },
 };
