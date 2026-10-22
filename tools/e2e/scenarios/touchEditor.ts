@@ -467,7 +467,7 @@ export const touchEditor: Scenario = {
     const saveAt = await centreOf(page, 'touch-editor-save');
     await screen.tap(1, saveAt.x, saveAt.y); // a tap right after a drag: the first press is not lost
     await page.waitForSelector('[data-testid="touch-editor"][data-open="0"]', { state: 'attached', timeout: 15000 });
-    const file = await savedWhere(page, (f) => f['version'] === 4 && Object.keys(f['touch']?.buttons ?? {}).length === 3, 'the places were saved');
+    const file = await savedWhere(page, (f) => f['version'] === 5 && Object.keys(f['touch']?.buttons ?? {}).length === 3, 'the places were saved');
     assert.deepEqual(Object.keys(file['touch'].buttons), ['attack', 'dash', 'ability'], 'the three buttons the player placed');
     assert.equal(file['touch'].buttons.ability.scale, 1.3, 'with the size of the one they resized');
     assert.equal(file['touch'].buttons.attack.scale, 1);
