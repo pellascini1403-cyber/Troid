@@ -78,6 +78,19 @@ describe('AudioEngine: the browser\'s rules', () => {
     expect(rig.engine.state).toBe('running');
     expect(states).toEqual(['suspended', 'running']);
   });
+
+  it('starts nothing while the context is frozen — a sound asked for in the background is let go, not queued for when the page returns', async () => {
+    const rig = await running();
+    rig.engine.setHidden(true);
+    await rig.settle();
+    expect(rig.engine.play({ id: 'hero.slash' })).toBe(false);
+    expect(rig.engine.stats().dropped.locked).toBe(1);
+    expect(sourcesOf(rig)).toHaveLength(0);
+    rig.engine.setHidden(false);
+    await rig.settle();
+    expect(sourcesOf(rig)).toHaveLength(0); // thawing does not play what was asked for while it was frozen
+    expect(rig.engine.play({ id: 'hero.slash' })).toBe(true);
+  });
 });
 
 describe('AudioEngine: playing a sound', () => {

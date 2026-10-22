@@ -48,6 +48,9 @@ describe('which sound is for which moment', () => {
 
   it('sorts a landing by how hard it was, and says nothing for the step down of a ledge', () => {
     expect(ids(cue('land', '', LAND_SILENCE - 0.01))).toEqual([]);
+    // (the threshold itself is a design number, not only a name: a twentieth of a landing is silence, a sixth of one is heard)
+    expect(ids(cue('land', '', 0.05))).toEqual([]);
+    expect(ids(cue('land', '', 0.15))).toEqual(['hero.land.light']);
     expect(ids(cue('land', '', 0.2))).toEqual(['hero.land.light']);
     expect(ids(cue('land', '', 0.5))).toEqual(['hero.land.medium']);
     expect(ids(cue('land', '', 0.9))).toEqual(['hero.land.heavy']);
