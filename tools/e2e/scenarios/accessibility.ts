@@ -149,8 +149,22 @@ export const accessibility: Scenario = {
 
     // ================================================================================================ the screen offers three choices, each saying what it does
     await openSettings(page);
+    // the screen has the four sliders of the sound now (Prompt 18), so it asks for about 800 px of panel — the panel is at most 90 % of the window: a 720 px desktop window scrolls it, and says so with the same fade as the
+    // phone; a taller window shows it whole and shows no fade. Whichever the window, the fade must be the truth: drawn when there is something below and only then
+    const fadeIsTrue = (a: { more: string | undefined; masked: boolean; room: number }, where: string): void =>
+      assert.deepEqual([a.more, a.masked], a.room > 1 ? ['1', true] : ['0', false], `${where}: the fade is drawn when there is something to scroll to, and only then (${JSON.stringify(a)})`);
+    // (the page takes note of the size of the window on its next frame: wait for what it says to agree with what the geometry is, and then judge it)
+    const hintAgrees = `(() => { const b = document.querySelector('[data-testid="settings-screen"] .settings-body'); return b.dataset.more === (b.scrollHeight - b.clientHeight - b.scrollTop > 1 ? '1' : '0'); })()`;
+    await waitFor(page, hintAgrees, 'the page to take note of the size of the window');
+    fadeIsTrue(await scrollArea(page), 'on the desktop window of 1280 × 720');
+    await page.setViewportSize({ width: 1280, height: 960 });
+    await waitFor(page, `window.innerHeight === 960 && document.querySelector('[data-testid="settings-screen"] .settings-body').dataset.more === '0'`, 'the page to notice that the window grew');
     const roomy = await scrollArea(page);
-    assert.deepEqual([roomy.more, roomy.masked], ['0', false], `on a desktop window the whole screen fits: nothing to scroll to, no fade (${JSON.stringify(roomy)})`);
+    assert.deepEqual([roomy.more, roomy.masked, roomy.room], ['0', false, 0], `on a tall desktop window the whole screen fits: nothing to scroll to, no fade (${JSON.stringify(roomy)})`);
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await waitFor(page, `window.innerHeight === 720`, 'the window to be back to 1280 × 720');
+    await waitFor(page, hintAgrees, 'the page to take note that the window shrank again');
+    fadeIsTrue(await scrollArea(page), 'back on the 1280 × 720 window');
     for (const id of ['settings-flashes', 'settings-shake']) {
       assert.equal(await attr(page, id, 'role'), 'switch');
       assert.equal(await attr(page, id, 'aria-checked'), 'false');
