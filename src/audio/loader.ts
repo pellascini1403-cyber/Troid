@@ -1,4 +1,5 @@
 import { sourcesOf, type AudioFormat, type AudioIndex } from './manifest';
+import { healBuffer, type SeamReport } from './seam';
 
 /**
  * THE LOADER OF THE SOUNDS (docs/PROMPT18-LOG.md): fetches the files of a GROUP — `core`, `boss`, `music.ruins`… — decodes them, keeps them while somebody needs the group and lets them go a little after nobody does. A game never
@@ -31,6 +32,11 @@ export interface LoaderOptions {
   timeoutMs?: number;
   /** After a failure the file is not asked for again until this long has passed (ms, default 15 000). */
   retryAfterMs?: number;
+  /**
+   * What closes the seam of a loop once it is decoded (`seam.ts`): the default measures it, mends it and answers what it found. `null`: loops are left as the codec made them (the tests that look at the graph and not at
+   * the samples).
+   */
+  heal?: ((buffer: AudioBuffer) => SeamReport) | null;
   now?: () => number;
   /** Timers, injected so that a test does not wait. */
   timers?: { set(fn: () => void, ms: number): unknown; clear(handle: unknown): void };
@@ -63,6 +69,8 @@ export class SoundLoader {
   private readonly buffers = new Map<string, AudioBuffer[]>();
   /** The last failure of each file (path → time), so that a dead link is not hammered. */
   private readonly failedAt = new Map<string, number>();
+  /** The seam of each loop as it was the last time it was decoded: what the codec left, and what it came to once mended. */
+  private readonly seams = new Map<string, SeamReport>();
   private readonly opts: Required<Pick<LoaderOptions, 'concurrency' | 'graceMs' | 'timeoutMs' | 'retryAfterMs'>> & LoaderOptions;
   private inFlight = 0;
   private readonly queue: Array<() => void> = [];
@@ -135,10 +143,10 @@ export class SoundLoader {
     return total;
   }
 
-  stats(): { bytes: number; fetched: number; groups: Record<string, { state: string; refs: number; loaded: number; failed: number; bytes: number }> } {
+  stats(): { bytes: number; fetched: number; groups: Record<string, { state: string; refs: number; loaded: number; failed: number; bytes: number }>; seams: Record<string, SeamReport> } {
     const groups: Record<string, { state: string; refs: number; loaded: number; failed: number; bytes: number }> = {};
     for (const g of this.groups.values()) groups[g.name] = { state: g.state, refs: g.refs, loaded: g.report?.loaded ?? 0, failed: g.report?.failed.length ?? 0, bytes: g.bytes };
-    return { bytes: this.bytes, fetched: this.fetched, groups };
+    return { bytes: this.bytes, fetched: this.fetched, groups, seams: Object.fromEntries(this.seams) };
   }
 
   dispose(): void {
@@ -215,7 +223,9 @@ export class SoundLoader {
               const since = this.failedAt.get(path);
               if (since !== undefined && this.now() - since < this.opts.retryAfterMs) continue;
               try {
-                slots[k] = await this.fetchAndDecode(path);
+                const decoded = await this.fetchAndDecode(path);
+                if (def.loop) this.closeSeam(id, decoded);
+                slots[k] = decoded;
                 this.failedAt.delete(path);
                 return;
               } catch (err) {
@@ -234,6 +244,17 @@ export class SoundLoader {
       }),
     );
     return { group: g.name, sounds: g.ids.length, loaded, failed };
+  }
+
+  /** A loop's seam is closed again once the file is decoded: whatever the codec left at its two ends. It never fails the load — a loop whose seam could not be mended still plays. */
+  private closeSeam(id: string, buffer: AudioBuffer): void {
+    const heal = this.opts.heal === undefined ? healBuffer : this.opts.heal;
+    if (!heal) return;
+    try {
+      this.seams.set(id, heal(buffer));
+    } catch (err) {
+      this.opts.warn?.(`audio: the seam of ${id} could not be closed (${err instanceof Error ? err.message : String(err)})`);
+    }
   }
 
   private async fetchAndDecode(path: string): Promise<AudioBuffer> {

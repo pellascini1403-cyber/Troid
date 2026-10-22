@@ -1,15 +1,16 @@
 import { AmbientScatter } from '@/audio/ambience';
-import { AudioDirector, type CueLog } from '@/audio/AudioDirector';
-import { Conductor, type AudioFrame } from '@/audio/conductor';
+import { AudioDirector, CueLog } from '@/audio/AudioDirector';
+import { Conductor } from '@/audio/conductor';
 import { AudioEngine, type EngineStats, type PlayRequest } from '@/audio/engine';
-import type { Levels } from '@/audio/levels';
+import { Levels } from '@/audio/levels';
 import { decodeWith, fetchBytes, SoundLoader } from '@/audio/loader';
 import { LoopChannel, type ChannelStats } from '@/audio/loops';
 import { parseIndex, playableFormats, type AudioFormat } from '@/audio/manifest';
 import type { UiSoundKind } from '@/audio/soundMap';
-import type { EventBus } from '@/core/events';
-import type { GameEvents } from '@/gameplay/events';
+import type { GameSession } from '@/gameplay/GameSession';
+import type { GameOptions } from './options';
 import type { AudioCueEvent, AudioSink } from '@/presentation/audioCues';
+import type { AudioCategory, AudioLevels } from '@/presentation/audioMix';
 
 /**
  * THE SOUND OF THE GAME, as ONE module that is loaded after the first frame (docs/PROMPT18-LOG.md, the bundle budget): the engine, the music, the ambience and the conductor are code the first minute of play does not
@@ -21,21 +22,40 @@ import type { AudioCueEvent, AudioSink } from '@/presentation/audioCues';
  */
 export interface AudioSystem {
   readonly director: AudioDirector;
+  /** Where the cues are written down (a development build, `?hooks=1`): what the sound was told. `null` in a player's build. */
+  readonly cueLog: CueLog | null;
   /** `false`: no sound is made (switched off, or nothing to play). */
   readonly sounding: boolean;
-  /** One frame: `dt` is the seconds the GAME ran (0 while it is paused or held), `frame` where the hero is and how they are. */
-  update(dt: number, frame: AudioFrame): void;
+  /**
+   * One frame: the simulation's clock in seconds (the sound keeps GAME time, so it hears no time at all while the world is stopped — a menu, the curtain, the black of a change of zone — and as much as the ticks that
+   * ran since the last frame) and the hero, whom it follows.
+   */
+  update(seconds: number, hero: AudioHero): void;
   setPaused(paused: boolean): void;
-  /** The page went to the background (or came back). */
-  setHidden(hidden: boolean): void;
+  /** The menu opens or closes: the game waits (or goes on) and the menu is heard doing it. */
+  menu(open: boolean): void;
   /** A sound of the interface. */
   ui(kind: UiSoundKind): void;
+  /** What is going out of the speakers right now (rms and peak, linear), when the page has a meter (a development build, `?hooks=1`). */
+  meter(): { rms: number; peak: number } | null;
+  /** A volume slider moved: the level of a category (heard at once). */
+  setLevel(category: AudioCategory, level: number): void;
+  /** The four levels in force. */
+  levels(): AudioLevels;
   /** Lets the browser make sound (call it from a gesture of the person). */
   unlock(): void;
   /** Plays a sound of the manifest by id (the tests and the development tools). */
   play(request: PlayRequest): boolean;
+  /** Fetches and decodes groups of sounds ahead of need, and lets go of them again (they stay in memory for the grace period): a loading screen could use it; the tests do. Never rejects. */
+  warm(groups: readonly string[]): Promise<void>;
   snapshot(): AudioSnapshot | null;
   dispose(): void;
+}
+
+/** What the sound needs to know of the hero: where they are and how they are. */
+export interface AudioHero {
+  body: { x: number; y: number };
+  health: { current: number; max: number; dead: boolean };
 }
 
 export interface AudioSnapshot {
@@ -53,53 +73,61 @@ export interface AudioSnapshot {
 }
 
 export interface AudioOptions {
-  bus: EventBus<GameEvents>;
-  levels: Levels;
-  /** The simulation's clock, stamped on every cue. */
-  now: () => number;
+  /** The simulation: its bus of events, its clock (stamped on every cue) and the room the game starts in. */
+  session: Pick<GameSession, 'bus' | 'now' | 'room'>;
+  /** The skills whose casts are projectiles (the cue director tells their impacts from a blow's). */
   projectileSkills: ReadonlySet<string>;
-  /** Where the cues are written down (a development build, `?hooks=1`). */
-  cueLog: CueLog | null;
-  /** Make sound. */
-  enabled: boolean;
-  /** The absolute URL of `index.json`, or null when the page has none. */
-  indexUrl: string | null;
-  /** The room the game starts in. */
-  room: string;
-  /** Adds the meter on the output. */
-  meter: boolean;
+  /** The four volumes the person chose, as the page has them now: the sound makes its `Levels` of them (the code of the first frame holds only the numbers). */
+  volume: AudioLevels;
+  /** What the page was asked for: whether it makes sound, and whether it is a test page (it then has a meter on the output). */
+  options: Pick<GameOptions, 'audio' | 'hooks'>;
   warn: (message: string) => void;
+}
+
+/**
+ * Where the audio index is: the one the build found in `public/audio`, or NOWHERE — `null`, and a page that has none asks for no file and can fail on none. `base` is the page's URL.
+ */
+export function audioIndexUrl(built: string, base: string): string | null {
+  return built === '' ? null : new URL(built, base).href;
 }
 
 /** Any of these in the page lets the browser make sound (a key, a click, a tap; a gamepad button is not one — browsers do not count it). */
 const GESTURES = ['pointerdown', 'pointerup', 'touchend', 'mousedown', 'keydown', 'click'] as const;
 
 export async function createAudio(o: AudioOptions): Promise<AudioSystem> {
+  const levels = new Levels(o.volume);
+  const cueLog = o.options.hooks || import.meta.env.DEV ? new CueLog() : null;
   let conductor: Conductor | null = null;
   const sink: AudioSink = {
     cue(event: Readonly<AudioCueEvent>) {
-      o.cueLog?.cue(event);
+      cueLog?.cue(event);
       conductor?.cue(event);
     },
   };
-  const director = new AudioDirector(o.bus, sink, { now: o.now, projectileSkills: o.projectileSkills });
+  const director = new AudioDirector(o.session.bus, sink, { now: () => o.session.now, projectileSkills: o.projectileSkills });
   const silent: AudioSystem = {
     director,
+    cueLog,
     sounding: false,
     update: () => undefined,
     setPaused: () => undefined,
-    setHidden: () => undefined,
+    menu: () => undefined,
     ui: () => undefined,
+    meter: () => null,
+    setLevel: (category, level) => void levels.set(category, level),
+    levels: () => levels.snapshot(),
     unlock: () => undefined,
     play: () => false,
+    warm: () => Promise.resolve(),
     snapshot: () => null,
     dispose: () => director.dispose(),
   };
-  if (!o.enabled || o.indexUrl === null) return silent;
+  const indexUrl = audioIndexUrl(__TROID_AUDIO_INDEX__, document.baseURI);
+  if (o.options.audio !== 'on' || indexUrl === null) return silent;
 
   let index;
   try {
-    const response = await fetch(o.indexUrl);
+    const response = await fetch(indexUrl);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     index = parseIndex(await response.json());
   } catch (err) {
@@ -128,7 +156,7 @@ export async function createAudio(o: AudioOptions): Promise<AudioSystem> {
   let engine: AudioEngine | null = null;
   const loader = new SoundLoader({
     index,
-    baseUrl: o.indexUrl,
+    baseUrl: indexUrl,
     formats,
     warn: o.warn,
     // a decoded piece of music or bed is many MiB: it is let go a few seconds after the hero has left it (the crossfade is over by then), the small sounds of a place and the boss's are kept longer
@@ -141,11 +169,11 @@ export async function createAudio(o: AudioOptions): Promise<AudioSystem> {
       },
     },
   });
-  engine = new AudioEngine({ levels: o.levels, index, loader, meter: o.meter, warn: o.warn });
-  const music = new LoopChannel({ engine, loader, index, levels: o.levels, bus: 'music', warn: o.warn });
-  const ambience = new LoopChannel({ engine, loader, index, levels: o.levels, bus: 'ambience', warn: o.warn });
+  engine = new AudioEngine({ levels, index, loader, meter: o.options.hooks || import.meta.env.DEV, warn: o.warn });
+  const music = new LoopChannel({ engine, loader, index, levels, bus: 'music', warn: o.warn });
+  const ambience = new LoopChannel({ engine, loader, index, levels, bus: 'ambience', warn: o.warn });
   const scatter = new AmbientScatter(engine);
-  const made = new Conductor({ engine, music, ambience, scatter, bus: o.bus, room: o.room, hasTrack: (id) => Boolean(index.tracks[id]), loader });
+  const made = new Conductor({ engine, music, ambience, scatter, bus: o.session.bus, room: o.session.room.id, hasTrack: (id) => Boolean(index.tracks[id]), loader });
   conductor = made;
 
   // the sounds of the hero, the enemies and the interface are fetched now, at idle: they are what the first minute of play needs
@@ -153,19 +181,41 @@ export async function createAudio(o: AudioOptions): Promise<AudioSystem> {
 
   const unlock = (): void => engine.unlock();
   for (const g of GESTURES) window.addEventListener(g, unlock, { capture: true, passive: true });
+  // a page in the background freezes the sound, and wakes it when it returns
+  const hide = (): void => engine.setHidden(document.hidden);
+  document.addEventListener('visibilitychange', hide);
+  let last = -1;
 
   return {
     director,
+    cueLog,
     sounding: true,
-    update: (dt, frame) => made.update(dt, frame),
+    update: (seconds, hero) => {
+      made.update(last < 0 ? 0 : Math.max(0, seconds - last), {
+        x: hero.body.x,
+        y: hero.body.y,
+        life: hero.health.max > 0 ? hero.health.current / hero.health.max : undefined,
+        dead: hero.health.dead,
+      });
+      last = seconds;
+    },
     setPaused: (paused) => made.setPaused(paused),
-    setHidden: (hidden) => engine.setHidden(hidden),
+    menu: (open) => {
+      made.setPaused(open);
+      made.ui(open ? 'open' : 'close');
+    },
     ui: (kind) => made.ui(kind),
+    meter: () => engine.meter(),
+    setLevel: (category, level) => void levels.set(category, level),
+    levels: () => levels.snapshot(),
     unlock,
     play: (request) => engine.play(request),
+    warm: async (groups) => {
+      await Promise.all(groups.map(async (g) => (await loader.retain(g), loader.release(g))));
+    },
     snapshot: () => ({
       engine: engine.stats(),
-      levels: o.levels.snapshot(),
+      levels: levels.snapshot(),
       music: music.stats(),
       ambience: ambience.stats(),
       conductor: made.state(),
@@ -177,6 +227,7 @@ export async function createAudio(o: AudioOptions): Promise<AudioSystem> {
     }),
     dispose() {
       for (const g of GESTURES) window.removeEventListener(g, unlock, { capture: true });
+      document.removeEventListener('visibilitychange', hide);
       made.dispose();
       music.dispose();
       ambience.dispose();

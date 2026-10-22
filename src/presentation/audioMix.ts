@@ -15,8 +15,3 @@ export type AudioLevels = Record<AudioCategory, number>;
 export const DEFAULT_AUDIO_LEVELS: Readonly<AudioLevels> = { master: 0.8, music: 0.7, sfx: 0.9, ambience: 0.8 };
 
 export const AUDIO_LEVEL_LIMITS = { min: 0, max: 1 } as const;
-
-/** The category a bus of sound answers to: the interface follows the effects' volume. */
-export function categoryOfBus(bus: 'sfx' | 'ambience' | 'music' | 'ui'): Exclude<AudioCategory, 'master'> {
-  return bus === 'ui' ? 'sfx' : bus;
-}

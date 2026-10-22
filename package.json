@@ -31,6 +31,7 @@
     "audio:spec": "tsx tools/audio/cli.ts spec",
     "audio:balance": "tsx tools/audio/cli.ts balance",
     "audio:check": "tsx tools/audio/cli.ts check",
+    "audio:verify": "tsx tools/audio/cli.ts verify",
     "check": "npm run typecheck && npm test"
   },
   "dependencies": {

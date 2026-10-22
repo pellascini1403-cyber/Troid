@@ -76,7 +76,20 @@ export interface GameState {
   projectiles?: Array<{ id: string; x: number; y: number; facing: number }>;
   respawnPoint?: { room: string; entry: string };
   /** 2D view only (S30): the master volume (level 0–1 and the gain of it), the quality profile in force and what it costs, the main key of each action, whether the menu is open. */
-  volume?: { level: number; gain: number };
+  volume?: { level: number; gain: number; levels: { master: number; music: number; sfx: number; ambience: number }; gains: { master: number; music: number; sfx: number; ambience: number } };
+  /** The sound itself (docs/PROMPT18-LOG.md): the engine, the music, the ambience, the conductor, the loader — `null` while its chunk has not arrived or the page makes no sound (`?audio=off`, the default under `?hooks=1`). */
+  audio?: {
+    engine: { state: string; paused: boolean; voices: number; peakVoices: number; peakSources: number; played: number; stolen: number; dropped: Record<string, number>; active: Record<string, number>; recent: string[] };
+    levels: { master: number; music: number; sfx: number; ambience: number };
+    music: { current: string | null; leaving: string[]; wanted: string | null; layers: Record<string, number>; sources: number; loading: boolean; loaded: string[] };
+    ambience: { current: string | null; leaving: string[]; wanted: string | null; layers: Record<string, number>; sources: number; loading: boolean; loaded: string[] };
+    conductor: { room: string; boss: string; threat: number; dead: boolean; paused: boolean; drive: number; life: number };
+    loader: { bytes: number; fetched: number; groups: Record<string, { state: string; refs: number; loaded: number; failed: number; bytes: number }>; seams: Record<string, { before: { step: number; jumpDb: number }; after: { step: number; jumpDb: number } }> };
+    meter: { rms: number; peak: number } | null;
+    formats: string[];
+    sounds: number;
+    tracks: number;
+  } | null;
   quality?: { setting: string; tier: string; resolution: number; particleBudget: number | null; spriteBudget: number | null };
   keys?: Record<string, string>;
   menuOpen?: boolean;

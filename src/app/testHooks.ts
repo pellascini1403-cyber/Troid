@@ -10,8 +10,7 @@ import type { GameSession } from '@/gameplay/GameSession';
 import type { PlayStats } from '@/gameplay/PlayStats';
 import type { Projectile } from '@/gameplay/Projectile';
 import type { Translator } from '@/i18n';
-import type { CueLog } from '@/audio/AudioDirector';
-import type { Levels } from '@/audio/levels';
+import { gainOf } from '@/audio/volume';
 import type { AudioSystem } from './audio';
 import type { InputManager } from '@/input/InputManager';
 import { VirtualPad } from '@/input/sources/VirtualPad';
@@ -83,7 +82,6 @@ export interface HookHost {
   hud(): HudView | null;
   readonly translator: Translator;
   readonly settings: SettingsStore;
-  readonly levels: Levels;
   /** The sound, once its chunk has arrived (`null` before). */
   audio(): AudioSystem | null;
   readonly fps: FpsMeter;
@@ -92,7 +90,6 @@ export interface HookHost {
   /** The effects, once their chunk has arrived. */
   effects(): Effects | null;
   /** What the sound was told, once the sound's chunk has arrived (`null` before). */
-  cueLog(): CueLog | null;
   /** Every cosmetic chunk (the effects, the looks of the boss) has arrived. */
   cosmeticsReady(): boolean;
   /** The art library, once its chunk has arrived (`null` for a page with no art, which never fetches it). */
@@ -175,7 +172,16 @@ export function createTestHooks(h: HookHost) {
       settings: h.settings.value.touch,
     }),
     /** Test hook (S41): forgets the cues written down so far (a test looks at what ONE thing raises). */
-    clearCues: () => void h.cueLog()?.clear(),
+    clearCues: () => void h.audio()?.cueLog?.clear(),
+    /**
+     * Test hooks of the sound (docs/PROMPT18-LOG.md): what it is doing (`audio()` is the engine's, the channels', the conductor's and the loader's numbers, `null` while the sound is not on), what is going out of the speakers
+     * right now (`audioMeter()`: rms and peak, linear), a sound of the manifest played by its id (`playSound`: whether it started), and a volume set as a slider would set it (`setLevel`).
+     */
+    audio: () => h.audio()?.snapshot() ?? null,
+    audioMeter: () => h.audio()?.meter() ?? null,
+    playSound: (id: string, request: { at?: { x: number; y: number }; gainDb?: number; variant?: number } = {}) => h.audio()?.play({ id, ...request }) ?? false,
+    audioWarm: (groups: string[]) => h.audio()?.warm(groups) ?? Promise.resolve(),
+    setLevel: (category: 'master' | 'music' | 'sfx' | 'ambience', level: number) => void h.audio()?.setLevel(category, level),
     /**
      * Test hook (S35): asks the art library for a sprite set by name and keeps it until `artRelease` — what a lab or a lazy pack does. Answers with a summary of what
      * came (`null` when it cannot be had): the set itself never leaves the page.
@@ -248,6 +254,7 @@ export function createTestHooks(h: HookHost) {
       const anchor = (id: AnchorId): { x: number; y: number } => ps.anchorWorld(id);
       const effects = h.effects();
       const rig: CameraRig = h.camera.rig;
+      const levels = h.audio()?.levels() ?? h.settings.value.volume; // (the sound's, or the settings' while it has not arrived)
       return {
         x: b.x, y: b.y, vx: b.vx, vy: b.vy, grounded: b.grounded,
         anim: session.player.view.anim, state: session.player.controller.state,
@@ -335,10 +342,10 @@ export function createTestHooks(h: HookHost) {
         respawnPoint: { ...session.respawnPoint },
         // the settings in force (S30): the volumes the sound plays at (the general one is `level`, `gain`; the four with their gains are `levels`, `gains`), the profile and what it costs, the main key of each action
         volume: {
-          level: h.levels.level('master'),
-          gain: h.levels.gain('master'),
-          levels: h.levels.snapshot(),
-          gains: { master: h.levels.gain('master'), music: h.levels.gain('music'), sfx: h.levels.gain('sfx'), ambience: h.levels.gain('ambience') },
+          level: levels.master,
+          gain: gainOf(levels.master),
+          levels: { ...levels },
+          gains: { master: gainOf(levels.master), music: gainOf(levels.music), sfx: gainOf(levels.sfx), ambience: gainOf(levels.ambience) },
         },
         quality: {
           setting: h.settings.value.quality,
@@ -354,7 +361,7 @@ export function createTestHooks(h: HookHost) {
         stats: h.stats.snapshot(session.now),
         notice: h.notice(),
         // the cues of the sound (S41): how many of each, and the last ones — what the audio engine was told
-        cues: h.cueLog()?.snapshot() ?? null,
+        cues: h.audio()?.cueLog?.snapshot() ?? null,
         // the sound itself (docs/PROMPT18-LOG.md): the engine, the music, the ambience, the conductor, the loader (`null` while it has not arrived or the page makes no sound)
         audio: h.audio()?.snapshot() ?? null,
         art: h.art()?.snapshot() ?? null,

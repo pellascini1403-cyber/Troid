@@ -164,6 +164,8 @@ export function makeRig(o: RigOptions = {}): Rig {
     baseUrl: 'https://t.test/audio/index.json',
     io,
     formats: ['opus', 'mp3'],
+    // (the buffers of the fake context hold no samples unless a test gives them: the seam of a loop is looked at by the tests of `seam.ts` and of the loader)
+    heal: null,
     timers: { set: (fn, ms) => { const handle = ++handles; timers.pending.push({ fn, ms, handle }); return handle; }, clear: (h) => { const i = timers.pending.findIndex((t) => t.handle === h); if (i >= 0) timers.pending.splice(i, 1); } },
     ...o.loader,
   });

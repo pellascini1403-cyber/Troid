@@ -652,22 +652,25 @@ Actualizado al terminar el Prompt 4: lo que era intención de diseño ahora est�
 
 ## 10. Audio (arquitectura)
 
-No se produce audio definitivo en los Prompts 3 ni 4. La arquitectura prevé:
+**Construido en el Prompt 18** ([bitácora](PROMPT18-LOG.md): qué hay, cómo se mide, qué falta). El sonido es **vista**: la simulación no sabe que existe; solo levanta sus eventos de siempre y un director los traduce a *señales*. Nada del motor entra en el arranque en frío: viaja en un *chunk* (`app/audio.ts`) que `Game2D` pide cuando la página está ociosa.
 
 | Pieza | Papel |
 |---|---|
-| `AudioEngine` (`audio/`) | `AudioContext`; **desbloqueo en el primer gesto**; suspende/reanuda con `visibilitychange`; buses `master → music · sfx · ambient · ui` con volumen desde `SettingsData` |
-| `AudioDirector` | escucha el bus y reproduce por **id lógico** (`sfx.hero.slash`, `sfx.hit`, `sfx.dash`, `sfx.cast`, `sfx.hurt`, `sfx.die`, `sfx.interact`, `sfx.bottle.drink`, `ui.tap`) |
-| `AudioManifest` (datos) | id → archivo(s), variaciones (selección con azar de la vista), ganancia, variación de tono, **enfriamiento anti-spam**, máximo de voces, bus, prioridad |
-| `MusicDirector` | música por sala/región (`musicId`), fundido cruzado de 1.5 s, capas explorar/combate por eventos de combate |
-| Formatos | Ogg Vorbis/Opus + AAC (m4a) según `canPlayType`; SFX cortos decodificados a `AudioBuffer`; música en *streaming* |
-| Móvil | desbloqueo por gesto; el interruptor de silencio de iOS puede silenciar WebAudio (R6, plugin nativo en el Prompt 7); háptica opcional por evento |
+| `presentation/audioCues.ts` (puro) + `audio/AudioDirector.ts` | las **36 señales** del juego (`attack`, `step`, `hurt`, `bossWake`…), cada una atada al evento de la simulación que la levanta, con lugar, intensidad y variante. Deterministas |
+| `audio/soundMap.ts` (puro) | señal + variante + intensidad → sonidos del manifiesto (golpe ligero o pesado, paso según el suelo, un aterrizaje de menos de 0.1 no suena) |
+| `audio/zoneAudio.ts` (datos) | sala → pieza de música, cama de ambiente, suelo, eco, sonidos sueltos y grupos de archivos que necesita |
+| `audio/conductor.ts` | **el director de orquesta**: sigue al héroe y a lo que le pasa; decide música (estado, no evento: pedir la que ya suena no cambia nada), cama, eco, latido, capa de peligro (`drive`, en tiempo de **juego**), *stingers* (solo el mayor de un mismo momento) y la pausa |
+| `audio/engine.ts` | **el** `AudioContext` (uno, a 48 kHz, creado en el primer gesto); buses efectos · ambiente · música · interfaz · *stingers*, puerta del mundo (la pausa la cierra), atenuación y color de la música, eco por sala (respuesta al impulso fabricada en el navegador), limitador; voces con enfriamiento, tope por sonido y tope global (24 + 12 que se apagan), variación controlada, panorama y distancia. Los niveles se mueven con **rampas** (`glide`) |
+| `audio/loader.ts` | carga por **grupos** (`core`, `boss`, `amb`, `amb.<cama>`, `music.<pieza>`, `music.<pieza>.drive`), decodificados con un contexto sin conexión (no necesitan gesto), retenidos mientras el héroe los usa y soltados con gracia; **nunca falla el juego**: formato alternativo, reintento diferido, tiempo máximo |
+| `audio/loops.ts` | lo que suena sin parar: una pieza a la vez, fundido cruzado, capas que giran juntas (`drive` perezosa), jamás dos copias |
+| `audio/seam.ts` (puro) | vuelve a cerrar la costura de un bucle ya decodificado (un códec con pérdida la reabre) |
+| `audio/levels.ts` + `presentation/audioMix.ts` | los cuatro volúmenes (general, música, efectos, ambiente), su curva (cuadrado) y qué es «silencio» (un nivel 0: no se arranca, no se carga, no se mantiene) |
+| `app/audio.ts` | el *chunk* diferido: manifiesto, formatos, cargador, motor, canales, director de orquesta, desbloqueo por gesto, congelación con la página en segundo plano |
+| `public/audio/index.json` (datos) + `tools/audio/` | el manifiesto (id → archivos Opus y MP3, bus, grupo, recorte, enfriamiento, voces, prioridad, eco, variación) y **la herramienta que produce los archivos** desde código (`audio:build`, `:balance`, `:check`, `:verify`) |
 
-Cada sonido debe poder reemplazarse cambiando el manifiesto, sin tocar quien lo dispara.
+**Reglas de dependencia**: `audio/` no importa de `save/` (ni de `Settings*`): los niveles llegan como números desde `app/`. Cada sonido se reemplaza cambiando el manifiesto, sin tocar quien lo dispara.
 
-> **Estado tras el Prompt 14:** sin cambios de fondo: **sigue sin haber motor de audio** (el volumen general está «preparado»; los controles de música y efectos por separado **no se ofrecen** hasta que haya algo que controlar; vibración, tampoco: el juego no tiene háptica).
->
-> **Estado tras el Prompt 7 (S41).** Hay **la costura, no el motor:** `presentation/audioCues.ts` fija las **17 señales** (`attack`, `hit`, `dash`, `hurt`, `death`, `boltCast`, `boltImpact`, `bottleStart`, `bottleDrunk`, `interact`, `bossAttack`, `bossDeath`, `roomTransition`, `jump`, `land`, `enemyTelegraph`, `enemyDeath`) con su evento, lugar, intensidad y variante; `audio/AudioDirector.ts` escucha el bus y las entrega a un `AudioSink` (en desarrollo, un `CueLog` que `state().cues` muestra; en una compilación de jugador, **nada**). El `AudioDirector` de arriba (id lógico → archivo) será **lo que convierta una señal en un sonido** con el manifiesto. Detalle y pruebas: [ART-PIPELINE-2D](ART-PIPELINE-2D.md) parte H.
+> **Historia.** Tras el Prompt 14 solo había la costura (17 señales, sin motor: el volumen general estaba «preparado»). La tabla de planificación de los Prompts 3 y 4 (`AudioEngine`, `AudioDirector`, `AudioManifest`, `MusicDirector`) se cumplió con otros nombres: el `MusicDirector` es el `Conductor` con los `LoopChannel`; el formato final es Ogg Opus + MP3 (no AAC); y la música no se emite en *streaming* sino que se decodifica entera **por pieza y con liberación** (una pieza de 43 s son ~16 MiB decodificados; ver el [§3.3 de la bitácora](PROMPT18-LOG.md#33-los-bucles-y-la-memoria)). Las 17 señales del Prompt 7 (S41) son las primeras 17 de las 36.
 
 ---
 

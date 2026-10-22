@@ -34,6 +34,12 @@ export interface Measure {
   seamLevelDb?: number;
   /** The step at the seam in dBFS: a step that is large against its neighbourhood is harmless when it is this low. */
   seamJumpDb?: number;
+  /**
+   * What the files that ship are, once a decoder has made them back into samples: their loudness measured as `lufs` is (the mean of the two formats'), and their peak (the higher of the two), before any trim. A lossy
+   * codec takes the top of a bright sound off — a sword's swish comes out two LU quieter in Opus — so the trims are set from these (`audio:balance` writes them).
+   */
+  playedLufs?: number;
+  playedPeakDb?: number;
 }
 export type Measures = Record<string, Measure>;
 

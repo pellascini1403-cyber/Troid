@@ -8,7 +8,7 @@ import type { AudioCategory } from '@/presentation/audioMix';
 import type { QualitySetting } from '@/presentation/viewport';
 import type { AccessibilitySettings, TouchSettings } from '@/save/SettingsData';
 import type { SettingsStore } from '@/save/SettingsStore';
-import { PauseMenu } from '@/ui/settings/PauseMenu';
+import { PauseMenu, type MenuSound } from '@/ui/settings/PauseMenu';
 import type { SavesHost } from '@/ui/settings/SavesScreen';
 import type { Insets } from '@/ui/touch/layout';
 import { TouchEditor } from '@/ui/touch/TouchEditor';
@@ -52,13 +52,21 @@ export interface MenuDeps {
   };
   /** Closes the menu and lets the game go on. */
   resume(): void;
+  /** Makes a sound of the menu heard (a press, a slider, a switch, a game saved). Absent where the page makes no sound. */
+  sound?(kind: MenuSound): void;
 }
 
 /** What the saved-games screen asks of the page: the actions are the saves' own (a chunk fetched on the first ask), the file in and out is the browser's. */
-function savesHost(saves: GameSaves): Omit<SavesHost, 'back'> {
+function savesHost(saves: GameSaves, sound: MenuDeps['sound']): Omit<SavesHost, 'back'> {
   return {
     cards: async () => (await saves.actions()).cards(),
-    saveNow: async () => ((await saves.saveNow()) ? 'saved' : saves.conflicted ? 'conflict' : 'failed'),
+    saveNow: async () => {
+      if (await saves.saveNow()) {
+        sound?.('save');
+        return 'saved';
+      }
+      return saves.conflicted ? 'conflict' : 'failed';
+    },
     conflicted: () => saves.conflicted,
     switchTo: async (slot) => (await saves.actions()).switchTo(slot),
     startOver: async (slot) => (await saves.actions()).startOver(slot),
@@ -107,9 +115,10 @@ export function createPauseMenu(d: MenuDeps): PauseMenu {
       setAccessibility: d.change.accessibility,
     },
     // a playground (`?room=`) saves nothing: it has no saved games to show and no profile to keep
-    saves: saves ? savesHost(saves) : null,
+    saves: saves ? savesHost(saves, d.sound) : null,
     profile: () => buildProfile(d.session, d.stats.snapshot(d.session.now), saves ? saves.slot : null),
     resume: d.resume,
+    sound: d.sound,
     interrupt: () => {
       if (!editor?.active) return false;
       editor.cancel();

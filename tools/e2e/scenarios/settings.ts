@@ -5,7 +5,7 @@ import type { Ctx, GameState, Scenario } from '../scenario';
 import { TouchScreen } from '../touch';
 
 /**
- * THE SETTINGS in a real browser (docs/PROMPT6-LOG.md S30, docs/PROMPT14-LOG.md): the volume (prepared: there is no sound yet), the quality profile (Auto / Low / High — which
+ * THE SETTINGS in a real browser (docs/PROMPT6-LOG.md S30, docs/PROMPT14-LOG.md, docs/PROMPT18-LOG.md): the four volumes (the general one and the music's, the effects' and the ambience's), the quality profile (Auto / Low / High — which
  * measures nothing), the keys of the main actions and the side and position of the touch controls. Each one is changed through the pause menu the way a person
  * does — the pause button, the entry of the list, a slider, a click, a real key — and then three things are looked at: it is IN FORCE at once (the game answers to it), it is
  * SAVED (the file the game writes), and it SURVIVES a reload (the first frame after it is already right). Also: a game saved by the first version of
@@ -130,7 +130,8 @@ export const settings: Scenario = {
     await enterScreen(page, 'settings');
     for (const id of ['settings-volume-section', 'settings-quality', 'settings-accessibility']) assert.equal(await q(page, id).isVisible(), true, `${id} is there`);
     assert.equal(await q(page, 'settings-controls').count(), 0, 'the keys are on the controls screen, not on this one');
-    assert.equal(await text(page, 'settings-volume-note'), 'Sound arrives in a later version. Your choice is saved.', 'it says there is no sound yet');
+    assert.equal(await text(page, 'settings-volume-note'), 'A volume at zero mutes its category. Your choice is saved.', 'it says what zero means');
+    for (const id of ['settings-volume', 'settings-volume-music', 'settings-volume-sfx', 'settings-volume-ambience']) assert.equal(await q(page, id).isVisible(), true, `${id} is a slider of the sound`);
     assert.match(await text(page, 'settings-quality-note'), /does not measure your device yet/, 'and that Auto measures nothing');
     assert.equal(await attr(page, 'settings-quality-auto', 'aria-pressed'), 'true');
 
@@ -148,6 +149,25 @@ export const settings: Scenario = {
     assert.equal((await state()).volume?.level, 1, 'End is full');
     await setRange(page, 'settings-volume', 0.35);
     assert.equal((await state()).volume?.level, 0.35);
+    // the other three move their own category, each at once and saved, and the general one is not touched
+    for (const [id, category, level, said] of [['settings-volume-music', 'music', 0.25, '25%'], ['settings-volume-sfx', 'sfx', 0.6, '60%'], ['settings-volume-ambience', 'ambience', 0.4, '40%']] as const) {
+      await setRange(page, id, level);
+      const t = await state();
+      assert.equal(t.volume?.levels[category], level, `${category}: the level in force`);
+      assert.ok(Math.abs((t.volume?.gains[category] ?? 9) - level * level) < 1e-12, `${category}: the gain is the curve of the level`);
+      assert.equal(t.volume?.levels.master, 0.35, `${category}: the general volume stays where it was`);
+      assert.match(await text(page, 'settings-volume-section'), new RegExp(said), `${category} says what it is at`);
+      await savedWhere(page, (f) => f['volume']?.[category] === level && f['volume']?.master === 0.35, `${category} was saved`);
+    }
+    // zero is MUTED, not a very low volume
+    await setRange(page, 'settings-volume-music', 0);
+    assert.equal(await attr(page, 'settings-volume-music', 'aria-valuetext'), 'Muted', 'a category at zero says it is muted');
+    assert.equal((await state()).volume?.gains.music, 0);
+    await setRange(page, 'settings-volume', 0);
+    assert.equal(await q(page, 'settings-volume-status').isVisible(), true, 'the general volume at zero says nothing is heard');
+    await setRange(page, 'settings-volume', 0.35);
+    assert.equal(await q(page, 'settings-volume-status').isVisible(), false);
+    await setRange(page, 'settings-volume-music', 0.25);
 
     // ================================================================================================ the quality: the picture and the effects follow, and nothing is measured
     const profile = async (name: 'low' | 'high' | 'auto', want: { tier: string; resolution: number; particles: number; sprites: number }): Promise<void> => {
@@ -240,6 +260,7 @@ export const settings: Scenario = {
     // ================================================================================================ a reload: all of it is as it was from the first frame
     s = await reload(ctx);
     assertVolume(s.volume, 0.35, 'after the reload');
+    assert.deepEqual(s.volume?.levels, { master: 0.35, music: 0.25, sfx: 0.6, ambience: 0.4 }, 'the four volumes after the reload: all of them as they were');
     assert.deepEqual([s.quality?.setting, s.quality?.tier, s.quality?.resolution], ['low', 'low', 1.25], 'the quality: the renderer was built with it');
     assert.equal(s.canvas?.width, Math.round(844 * 1.25), 'the very first picture is already at that resolution');
     assert.deepEqual(s.keys, { jump: 'KeyH', attack: 'Space', dash: 'ShiftLeft', ability: 'KeyK', bottle: 'KeyL', interact: 'KeyE', down: 'KeyS' }, 'the keys');
@@ -249,6 +270,7 @@ export const settings: Scenario = {
     assert.ok(s.combat?.attack !== null, 'and Space attacks');
     await openScreen(page, 'settings');
     assert.equal((await q(page, 'settings-volume').inputValue()), '0.35', 'the menu shows what was saved');
+    assert.deepEqual(await Promise.all(['settings-volume-music', 'settings-volume-sfx', 'settings-volume-ambience'].map((id) => q(page, id).inputValue())), ['0.25', '0.6', '0.4'], 'and the other three');
     assert.equal(await attr(page, 'settings-quality-low', 'aria-pressed'), 'true');
     await changeScreen(page, 'settings', 'controls');
     assert.deepEqual([await text(page, 'settings-key-jump'), await text(page, 'settings-key-attack')], ['H', 'Space']);
@@ -281,10 +303,10 @@ export const settings: Scenario = {
     await enterScreen(page, 'settings');
     assert.equal(await text(page, 'settings-volume-section').then((t) => t.includes('Volumen')), true);
     await setRange(page, 'settings-volume', 0.5);
-    const upgraded = await savedWhere(page, (f) => f['version'] === 4, 'the file is version 4 from the first change (1 → 2 → 3 → 4)');
+    const upgraded = await savedWhere(page, (f) => f['version'] === 5, 'the file is version 5 from the first change (1 → 2 → 3 → 4 → 5)');
     assert.equal(upgraded['slot'], 1, 'the game it was playing is the first, where every save made so far lives');
     assert.deepEqual(upgraded['accessibility'], { reduceFlashes: false, reduceShake: false, hudScale: 1 }, 'and no accessibility choice is on');
-    assert.deepEqual(upgraded['volume'], { master: 0.5 });
+    assert.deepEqual(upgraded['volume'], { master: 0.5, music: 0.7, sfx: 0.9, ambience: 0.8 }, 'the general volume the player chose, the other three at their defaults');
     assert.equal(upgraded['language'], 'es');
     assert.deepEqual([upgraded['touch'].scale, upgraded['touch'].opacity], [1.2, 0.8], 'and what version 1 held is still in it');
     assert.deepEqual(upgraded['touch'].buttons, {}, 'and no button was placed: each is where the design has it');
@@ -412,7 +434,7 @@ async function settingsTouch(ctx: Ctx): Promise<void> {
   await q(page, 'touch-editor-save').tap();
   await page.waitForSelector('[data-testid="touch-editor"][data-open="0"]', { state: 'attached', timeout: 15000 });
   assert.equal(await q(page, 'pause-menu').getAttribute('data-aside'), '0', 'the menu is back');
-  const file = await savedWhere(page, (f) => f['version'] === 4 && f['touch']?.buttons?.attack !== undefined && f['touch']?.scale === 1.2, 'the place was saved');
+  const file = await savedWhere(page, (f) => f['version'] === 5 && f['touch']?.buttons?.attack !== undefined && f['touch']?.scale === 1.2, 'the place was saved');
   assert.deepEqual(Object.keys(file['touch'].buttons), ['attack'], 'only the button that was moved');
   assert.equal(file['touch'].opacity, 0.7);
   assert.ok(Math.abs(file['touch'].buttons.attack.x * 844 - moved.cx) < 1.5, `at the place it was left (${file['touch'].buttons.attack.x * 844} ≈ ${moved.cx})`);

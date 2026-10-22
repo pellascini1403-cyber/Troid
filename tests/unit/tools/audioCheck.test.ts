@@ -1,6 +1,9 @@
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import type { AudioIndex } from '@/audio/manifest';
 import { checkAudio, LONGEST_SFX_SECONDS, SEAM, SIZE_BUDGET_BYTES } from '../../../tools/audio/check';
-import { LEVEL_TARGETS, PEAK_CEILING, targetOf, TRIM_LIMITS, trimFor } from '../../../tools/audio/levels';
+import { INDEX_PATH, MEASURES_PATH, type Measure } from '../../../tools/audio/build';
+import { LEVEL_TARGETS, measureName, PEAK_CEILING, targetOf, TRIM_LIMITS, trimFor } from '../../../tools/audio/levels';
 import { SOUNDS, TRACKS } from '../../../tools/audio/sounds';
 
 /**
@@ -52,6 +55,53 @@ describe('the audio of the game, as it is in the repository', () => {
     expect(SEAM.step).toBeLessThanOrEqual(5);
     expect(SEAM.jumpDb).toBeLessThan(-40);
     expect(PEAK_CEILING).toBeLessThan(0);
+  });
+});
+
+describe('what ships is what the mix was made from', () => {
+  const index = JSON.parse(readFileSync(INDEX_PATH, 'utf8')) as AudioIndex;
+  const measures = existsSync(MEASURES_PATH) ? (JSON.parse(readFileSync(MEASURES_PATH, 'utf8')) as Record<string, Measure>) : {};
+
+  it('has no two sounds that are the same file: every sound, every variation, is a sound of its own', () => {
+    const owner = new Map<string, string>();
+    for (const [id, s] of Object.entries(index.sounds)) {
+      s.variants.forEach((v, k) => {
+        for (const path of [v.opus, v.mp3]) {
+          if (!path) continue;
+          const who = `${id} (variation ${k + 1})`;
+          expect(owner.get(path), `${path} is ${who}, and also ${owner.get(path)}`).toBeUndefined();
+          owner.set(path, who);
+        }
+      });
+    }
+    expect(owner.size).toBeGreaterThanOrEqual(160);
+  });
+
+  it('has its trims made from the files as a decoder gives them back, not from the samples they were made from: a codec takes the top of a bright sound off', () => {
+    for (const [id, s] of Object.entries(index.sounds)) {
+      s.variants.forEach((_, k) => {
+        const m = measures[measureName(id, k, s.variants.length)];
+        expect(m?.playedLufs, `${id} (variation ${k + 1}) was measured decoded: run \`npm run audio:balance\``).toBeTypeOf('number');
+        expect(m?.playedPeakDb).toBeTypeOf('number');
+      });
+    }
+  });
+
+  it('keeps every sound\'s decoded peak, with its trim, under full scale: the limiter is a safety net, not part of the sound', () => {
+    for (const [id, s] of Object.entries(index.sounds)) {
+      let peak = -Infinity;
+      s.variants.forEach((_, k) => (peak = Math.max(peak, measures[measureName(id, k, s.variants.length)]?.playedPeakDb ?? -Infinity)));
+      expect(peak + Math.max(0, s.gainDb), `${id} peaks at ${(peak + Math.max(0, s.gainDb)).toFixed(1)} dBFS`).toBeLessThan(-0.3);
+    }
+  });
+
+  it('closes every loop the same way in the studio and in the browser: one rule', () => {
+    for (const [id, s] of Object.entries(index.sounds)) {
+      if (!s.loop) continue;
+      const m = measures[measureName(id, 0, 1)];
+      expect(m?.seamStep, `${id} has a measured seam`).toBeTypeOf('number');
+      expect(m!.seamStep! <= SEAM.step || m!.seamJumpDb! <= SEAM.jumpDb, `${id} closes`).toBe(true);
+    }
   });
 });
 

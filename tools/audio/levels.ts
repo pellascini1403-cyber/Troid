@@ -90,24 +90,45 @@ export const targetOf = (id: string): LevelTarget | undefined => LEVEL_TARGETS.f
 /** The measurement name of a sound's file (the build writes `measures.json` by it): dots become underscores, and a sound with variations is numbered. */
 export const measureName = (id: string, variant: number, variants: number): string => `${id.replace(/\./g, '_')}${variants > 1 ? `_${variant + 1}` : ''}`;
 
-/** The loudness of a sound as measured: for variations, the loudest of them is the one the trim is made for (the quieter ones are within a decibel or two). */
+/**
+ * The loudness of a sound as measured — of the file as a decoder gives it back when that was measured (`playedLufs`), of the samples it was made from if not: for variations, the loudest of them is the one the trim is made
+ * for (the quieter ones are a little under it, as a light blow is under a heavy one).
+ */
 export function measuredLufs(id: string, variants: number, measures: Record<string, Measure>): number | null {
   let loudest: number | null = null;
   for (let v = 0; v < variants; v++) {
     const m = measures[measureName(id, v, variants)];
-    if (m && (loudest === null || m.lufs > loudest)) loudest = m.lufs;
+    const lufs = m?.playedLufs ?? m?.lufs;
+    if (lufs !== undefined && (loudest === null || lufs > loudest)) loudest = lufs;
   }
   return loudest;
 }
 
-/** The loudest peak of a sound's files. */
+/** The loudest peak of a sound's files (as decoded, when that was measured). */
 export function measuredPeak(id: string, variants: number, measures: Record<string, Measure>): number | null {
   let loudest: number | null = null;
   for (let v = 0; v < variants; v++) {
     const m = measures[measureName(id, v, variants)];
-    if (m && (loudest === null || m.peakDb > loudest)) loudest = m.peakDb;
+    const peak = m?.playedPeakDb ?? m?.peakDb;
+    if (peak !== undefined && (loudest === null || peak > loudest)) loudest = peak;
   }
   return loudest;
+}
+
+/** Writes what the decoder gives back for each file (see `Measure.playedLufs`) into `measures.json`. */
+export function writePlayed(played: Record<string, { lufs: number; peakDb: number }>): number {
+  if (!existsSync(MEASURES_PATH)) return 0;
+  const measures = JSON.parse(readFileSync(MEASURES_PATH, 'utf8')) as Record<string, Measure>;
+  let n = 0;
+  for (const [name, p] of Object.entries(played)) {
+    const m = measures[name];
+    if (!m) continue;
+    m.playedLufs = p.lufs;
+    m.playedPeakDb = p.peakDb;
+    n++;
+  }
+  writeFileSync(MEASURES_PATH, `${JSON.stringify(measures, null, 1)}\n`);
+  return n;
 }
 
 /** The trim (dB) that puts a sound at its target: the target minus how loud it is, held to the limits and to the peak ceiling. */

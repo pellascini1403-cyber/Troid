@@ -232,3 +232,29 @@ Los tres botones (los PNG del artista), su disposición por defecto (la de la re
 | iPad — *sin medir* | | | | |
 | Android — *sin medir* | | | | |
 | Android de gama baja — *sin medir* | | | | |
+
+## 10. El audio del Prompt 18 — **SIN MEDIR**
+
+El audio se ha verificado **solo en un Chromium 141 sin cabeza** (escena E2E `audio`): allí el contexto arranca solo, la regla de *autoplay* **no se aplica** (medido: un contexto de una página que nadie ha tocado arranca `running`) y no hay altavoces. **Nada de lo que sigue se ha visto, ni oído, en un dispositivo real** ([PROMPT18-LOG §9](PROMPT18-LOG.md#9--lo-que-sigue-sin-existir)).
+
+| Qué | Por qué importa | Qué probar | Síntoma de que está mal |
+|---|---|---|---|
+| el **desbloqueo** con el primer toque | los navegadores no dejan sonar a una página que nadie ha tocado; Safari exige `resume()` dentro del gesto (`touchend`, `pointerup`, `click`, `keydown`) | abrir la página y tocar la pantalla (o una tecla) una vez | no suena nada tras el primer toque, o suena solo tras el segundo |
+| el **interruptor de silencio** del iPhone | en iOS silencia WebAudio salvo que la página diga que es «reproducción» (`navigator.audioSession.type = 'playback'`, Safari 16.4+) | con el interruptor en silencio, jugar | no suena nada con el interruptor puesto (en iOS anteriores a 16.4 es lo esperado: el juego no puede evitarlo) |
+| **Ogg Opus y MP3** | el navegador elige con `canPlayType`; Safari reciente toma Opus, el anterior cae al MP3 | mirar `__troid.audio().formats` con `?hooks=1&audio=on` | el juego en silencio con «this browser plays none of the formats» en la consola |
+| **bucles sin hueco en MP3** | un decodificador que no lea el relleno del MP3 (~23 ms) añadiría un silencio al principio de cada vuelta de la música y de las camas | oír una cama 30 s (12 s de bucle) y una pieza dos vueltas (43 s) | un «tic» o un vacío cada vuelta |
+| la **memoria** del fundido entre dos piezas | ~66 – 70 MiB decodificados con las dos sonando | pasar R2 → R3 en un teléfono modesto, varias veces seguidas | la pestaña se recarga o el sonido se corta |
+| el **segundo plano** y las llamadas | el contexto se congela al ocultarse la página; en iOS aparece el estado `interrupted` | recibir una llamada, cambiar de app y volver | el sonido no vuelve, o vuelve duplicado |
+| los **auriculares Bluetooth** | añaden 100 – 200 ms de latencia que ninguna página puede quitar | pegar con la espada y oír el golpe | el golpe llega tarde (solo es un límite del medio) |
+| el **mando** | un botón de mando **no** cuenta como gesto: quien juegue solo con mando no oirá hasta tocar una tecla, el ratón o la pantalla | jugar solo con mando | no suena nada |
+| los **cuatro deslizadores** con el pulgar | el menú de Ajustes los pone en horizontal bajo | moverlos y oír el cambio al instante | un deslizador que no responde, o cuyo valor no se oye |
+
+### Resultados en dispositivo — **SIN MEDIR**
+
+| Dispositivo | Desbloqueo | Silencio de iOS | Formato | Bucles | Memoria | Segundo plano | Notas |
+|---|---|---|---|---|---|---|---|
+| iPhone — *sin medir* | | | | | | | |
+| iPad — *sin medir* | | | | | | | |
+| Android — *sin medir* | | | | | | | |
+| Android de gama baja — *sin medir* | | | | | | | |
+| Escritorio (Chrome, Firefox, Safari) — *sin medir* | | | | | | | |

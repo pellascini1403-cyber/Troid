@@ -1,4 +1,3 @@
-import { Observable } from '@/core/observable';
 import { AUDIO_CATEGORIES, AUDIO_LEVEL_LIMITS, DEFAULT_AUDIO_LEVELS, type AudioCategory, type AudioLevels } from '@/presentation/audioMix';
 import { gainOf } from './volume';
 
@@ -9,19 +8,23 @@ import { gainOf } from './volume';
  * `gain(category)` is the amplitude the engine puts on that category's bus (the general volume is a bus of its own, so a category's gain does not include it); `audible(category)` is whether anything of it should be
  * played at all — a category at zero, or a general volume at zero, is SILENT, and silent means nothing is started, nothing is loaded for it and nothing is kept going behind.
  */
+/** The category a bus of sound answers to: the interface follows the effects' volume. */
+export function categoryOfBus(bus: 'sfx' | 'ambience' | 'music' | 'ui'): Exclude<AudioCategory, 'master'> {
+  return bus === 'ui' ? 'sfx' : bus;
+}
+
 export class Levels {
-  private readonly values: Record<AudioCategory, Observable<number>>;
+  private readonly values: AudioLevels;
   /** A level moved: which one and to what (the engine's one subscription). */
   private readonly listeners = new Set<(category: AudioCategory, level: number) => void>();
 
   constructor(initial: Partial<AudioLevels> = {}) {
     const start = { ...DEFAULT_AUDIO_LEVELS, ...initial };
-    this.values = Object.fromEntries(AUDIO_CATEGORIES.map((c) => [c, new Observable<number>(clampLevel(start[c], DEFAULT_AUDIO_LEVELS[c]))])) as Record<AudioCategory, Observable<number>>;
-    for (const c of AUDIO_CATEGORIES) this.values[c].subscribe((level) => this.listeners.forEach((l) => l(c, level)));
+    this.values = Object.fromEntries(AUDIO_CATEGORIES.map((c) => [c, clampLevel(start[c], DEFAULT_AUDIO_LEVELS[c])])) as AudioLevels;
   }
 
   level(category: AudioCategory): number {
-    return this.values[category].get();
+    return this.values[category];
   }
 
   /** The amplitude of the category's bus (0 … 1): the square of the level. */
@@ -42,7 +45,11 @@ export class Levels {
   /** The level is clamped to 0 … 1; returns whether it changed. */
   set(category: AudioCategory, level: number): boolean {
     if (!Number.isFinite(level)) return false;
-    return this.values[category].set(clampLevel(level, this.level(category)));
+    const next = clampLevel(level, this.values[category]);
+    if (next === this.values[category]) return false;
+    this.values[category] = next;
+    for (const listener of [...this.listeners]) listener(category, next);
+    return true;
   }
 
   /** Sets several at once (the settings as they were loaded); announces each one that changed. */

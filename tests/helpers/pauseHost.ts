@@ -118,6 +118,8 @@ export interface PauseProbe {
   calls: string[];
   saves: SavesProbe;
   profile: { data: ProfileData };
+  /** The sounds the menu asked for, in order. */
+  sounds: string[];
 }
 
 /** A whole host for the pause menu: settings, saved games, profile and resume, recording what it is asked. */
@@ -126,15 +128,18 @@ export function pauseProbe(over: { playground?: boolean } = {}): PauseProbe {
   const saves = savesProbe();
   const profile = { data: profileData(over.playground ? { slot: null } : {}) };
   const calls = settings.calls;
+  const sounds: string[] = [];
   return {
     host: {
       settings: settings.host,
       saves: over.playground ? null : saves.host,
       profile: () => profile.data,
       resume: () => void calls.push('resume'),
+      sound: (kind) => void sounds.push(kind),
     },
     calls,
     saves,
     profile,
+    sounds,
   };
 }

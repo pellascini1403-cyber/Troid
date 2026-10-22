@@ -41,7 +41,7 @@ const laterList = loaded.filter((f) => (startOf.get(f.url) ?? 0) >= timing.mark!
 const sum = (list: typeof loaded): { raw: number; gz: number } => list.reduce((n, f) => ({ raw: n.raw + f.raw, gz: n.gz + f.gz }), { raw: 0, gz: 0 });
 const cold = sum(coldList);
 for (const f of [...coldList].sort((a, b) => b.gz - a.gz)) console.log(`${(f.gz / 1024).toFixed(1).padStart(7)} KB gz  ${(f.raw / 1024).toFixed(1).padStart(7)} KB raw  ${f.url}`);
-console.log(`\nloaded by a cold start of R1 (the code of its first frame): ${coldList.length} scripts, ${(cold.gz / 1024).toFixed(1)} KB gz (${(cold.raw / 1024).toFixed(1)} KB raw)`);
+console.log(`\nloaded by a cold start of R1 (the code of its first frame): ${coldList.length} scripts, ${(cold.gz / 1024).toFixed(1)} KB gz = ${cold.gz} bytes of the ${200 * 1024} the budget allows (${(cold.raw / 1024).toFixed(1)} KB raw)`);
 
 // then what the game fetches by itself once its first frame is up (the effects, the art, the views of the boss): behind the boot curtain, at once
 const rest = sum(laterList);

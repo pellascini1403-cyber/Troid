@@ -1,7 +1,7 @@
-import type { Levels } from './levels';
+import { categoryOfBus, type Levels } from './levels';
 import type { SoundLoader } from './loader';
 import type { AudioBus, AudioIndex, SoundDef } from './manifest';
-import { categoryOfBus, type AudioCategory } from '@/presentation/audioMix';
+import type { AudioCategory } from '@/presentation/audioMix';
 import { renderImpulse, type RoomSpec } from './reverb';
 import { centsToRate, dbToGain, spatialOf } from './spatial';
 import { gainOf } from './volume';
@@ -45,7 +45,10 @@ export interface EngineStats {
   state: EngineState;
   paused: boolean;
   voices: number;
+  /** The most voices that were sounding at once (the limit is the manifest's and the engine's `maxVoices`). */
   peakVoices: number;
+  /** The most sources there were on the graph at once, a voice that is being taken over and fades for a few milliseconds included. */
+  peakSources: number;
   played: number;
   stolen: number;
   dropped: Record<DropReason, number>;
@@ -94,10 +97,31 @@ interface Nodes {
   stinger: GainNode;
   duck: GainNode;
   colour: BiquadFilterNode;
+  /** What the sounds of each category send to the room's echo goes through that category's level first: an echo is part of the sound, and the slider of the effects (or of the ambience) turns it down with the rest. */
+  reverbSfx: GainNode;
+  reverbAmbience: GainNode;
   reverbIn: GainNode;
   reverbOut: GainNode;
   analyser: AnalyserNode | null;
 }
+
+/**
+ * Moves a gain to `target` over `seconds`, from wherever it is: a straight ramp from its present value. Not `setTargetAtTime`, which is what a level would be moved with — in Chromium the FIRST such change to a parameter
+ * whose node has been idle (nothing has been playing through it) is not applied until sound reaches the node, so the first sound after the slider of the effects was moved played at the old level for a moment, and the
+ * first sounds after the menu closed started muffled (measured: a sound that should have peaked at −29 dB came out at −24 dB). A ramp has no such delay.
+ */
+export function glide(param: AudioParam, target: number, now: number, seconds: number): void {
+  const from = param.value; // (before what is scheduled is taken away)
+  param.cancelScheduledValues(now);
+  param.setValueAtTime(from, now);
+  param.linearRampToValueAtTime(target, now + seconds);
+}
+
+/** How long a level takes to go to its new value (s): fast enough to be answered at once, slow enough not to be heard as a click. */
+const LEVEL_GLIDE = 0.04;
+
+/** How many sources, over the limit of voices, may be on the graph while the ones that were taken over fade out. */
+const FADING_ROOM = 12;
 
 const DROP_REASONS: readonly DropReason[] = ['locked', 'unknown', 'silent', 'paused', 'notLoaded', 'cooldown', 'full'];
 const RECENT = 24;
@@ -136,13 +160,13 @@ export class AudioEngine {
   private readonly stateListeners = new Set<(state: EngineState) => void>();
   private readonly tickListeners = new Set<() => void>();
   private readonly offLevels: () => void;
-  private readonly stats_: { played: number; stolen: number; peak: number; dropped: Record<DropReason, number>; recent: string[] };
+  private readonly stats_: { played: number; stolen: number; peak: number; peakSources: number; dropped: Record<DropReason, number>; recent: string[] };
   private meterBuffer: Float32Array<ArrayBuffer> | null = null;
 
   constructor(private readonly opts: EngineOptions) {
     this.random = opts.random ?? Math.random;
     this.maxVoices = opts.maxVoices ?? 24;
-    this.stats_ = { played: 0, stolen: 0, peak: 0, dropped: Object.fromEntries(DROP_REASONS.map((r) => [r, 0])) as Record<DropReason, number>, recent: [] };
+    this.stats_ = { played: 0, stolen: 0, peak: 0, peakSources: 0, dropped: Object.fromEntries(DROP_REASONS.map((r) => [r, 0])) as Record<DropReason, number>, recent: [] };
     this.offLevels = opts.levels.onChange((category) => this.applyLevel(category));
   }
 
@@ -281,6 +305,8 @@ export class AudioEngine {
     colour.type = 'lowpass';
     colour.frequency.value = 22050;
     colour.Q.value = 0.5;
+    const reverbSfx = gain(lv.gain('sfx'));
+    const reverbAmbience = gain(lv.gain('ambience'));
     const reverbIn = gain(1);
     const reverbOut = gain(1);
     const analyser = this.opts.meter ? ctx.createAnalyser() : null;
@@ -288,6 +314,8 @@ export class AudioEngine {
 
     sfx.connect(worldGate);
     ambience.connect(worldGate);
+    reverbSfx.connect(reverbIn);
+    reverbAmbience.connect(reverbIn);
     reverbIn.connect(reverbOut);
     reverbOut.connect(worldGate);
     worldGate.connect(master);
@@ -300,7 +328,7 @@ export class AudioEngine {
     limiter.connect(makeup);
     makeup.connect(ctx.destination);
     if (analyser) makeup.connect(analyser);
-    return { master, limiter, makeup, worldGate, sfx, ui, ambience, music, stinger, duck, colour, reverbIn, reverbOut, analyser };
+    return { master, limiter, makeup, worldGate, sfx, ui, ambience, music, stinger, duck, colour, reverbSfx, reverbAmbience, reverbIn, reverbOut, analyser };
   }
 
   /** Mirrors the context's own state into the engine's, and tells those who wait for it to run. */
@@ -329,15 +357,17 @@ export class AudioEngine {
     if (!n || !ctx) return;
     const t = ctx.currentTime;
     const lv = this.opts.levels;
-    const set = (node: GainNode, level: number): void => {
-      node.gain.setTargetAtTime(gainOf(level), t, 0.02);
-    };
-    if (category === 'master') n.master.gain.setTargetAtTime(lv.gain('master'), t, 0.02);
+    const set = (node: GainNode, level: number): void => glide(node.gain, gainOf(level), t, LEVEL_GLIDE);
+    if (category === 'master') glide(n.master.gain, lv.gain('master'), t, LEVEL_GLIDE);
     if (category === 'sfx') {
       set(n.sfx, lv.level('sfx'));
       set(n.ui, lv.level('sfx'));
+      set(n.reverbSfx, lv.level('sfx'));
     }
-    if (category === 'ambience') set(n.ambience, lv.level('ambience'));
+    if (category === 'ambience') {
+      set(n.ambience, lv.level('ambience'));
+      set(n.reverbAmbience, lv.level('ambience'));
+    }
     if (category === 'music') {
       set(n.music, lv.level('music'));
       set(n.stinger, lv.level('music'));
@@ -366,7 +396,7 @@ export class AudioEngine {
     const ctx = this.ctx;
     if (!n || !ctx) return;
     const t = ctx.currentTime;
-    n.worldGate.gain.setTargetAtTime(paused ? 0 : 1, t, paused ? 0.02 : 0.15);
+    glide(n.worldGate.gain, paused ? 0 : 1, t, paused ? 0.06 : 0.25);
     if (paused) for (const v of [...this.voices]) if (v.bus !== 'ui') this.stopVoice(v, 0.05);
     this.setMusicMood('pause', paused);
   }
@@ -477,7 +507,7 @@ export class AudioEngine {
       send = ctx.createGain();
       send.gain.value = def.reverb;
       tail.connect(send);
-      send.connect(n.reverbIn);
+      send.connect(def.bus === 'ambience' ? n.reverbAmbience : n.reverbSfx);
     }
     const when = ctx.currentTime + Math.max(0, req.delay ?? 0);
     const voice: Voice = { id: req.id, bus: def.bus, priority: def.priority, startedAt: when, source, gain: g, panner, send, stopping: false };
@@ -488,7 +518,9 @@ export class AudioEngine {
     this.stats_.played++;
     this.stats_.recent.push(req.id);
     if (this.stats_.recent.length > RECENT) this.stats_.recent.shift();
-    if (this.voices.length > this.stats_.peak) this.stats_.peak = this.voices.length;
+    const sounding = this.voices.reduce((n, v) => n + (v.stopping ? 0 : 1), 0);
+    if (sounding > this.stats_.peak) this.stats_.peak = sounding;
+    if (this.voices.length > this.stats_.peakSources) this.stats_.peakSources = this.voices.length;
     if (def.duck) this.duckMusic(def.duck.db, def.duck.ms);
     return true;
   }
@@ -506,6 +538,8 @@ export class AudioEngine {
       this.stopVoice(oldest, 0.025);
       this.stats_.stolen++;
     }
+    // a voice that was taken over is still on the graph for the few milliseconds of its fade: a burst of requests in one frame would pile them up, so the sources there may be only so many more than the voices
+    if (this.voices.length >= this.maxVoices + FADING_ROOM) return false;
     const live = this.voices.filter((v) => !v.stopping);
     if (live.length < this.maxVoices) return true;
     // the least important voice (the oldest of them) goes, if it is not more important than the newcomer
@@ -593,6 +627,7 @@ export class AudioEngine {
       paused: this.paused,
       voices: this.voices.filter((v) => !v.stopping).length,
       peakVoices: this.stats_.peak,
+      peakSources: this.stats_.peakSources,
       played: this.stats_.played,
       stolen: this.stats_.stolen,
       dropped: { ...this.stats_.dropped },
@@ -645,8 +680,12 @@ export class AudioEngine {
   }
 }
 
-/** The make-up gain that undoes what a browser's compressor adds by itself when it is set as the limiter is (measured in Chromium, see docs/PROMPT18-LOG.md). */
-export const LIMITER_MAKEUP = 1;
+/**
+ * The make-up gain that undoes what a browser's compressor adds by itself when it is set as the limiter is. The Web Audio spec has the compressor add a make-up of its own, `(1 / the gain of its curve at full scale) ^ 0.6`,
+ * which for a threshold of −2.5 dB and a ratio of 20 is ×1.178 (+1.42 dB) at every level below the threshold: measured in Chromium 141, a burst at −20 dBFS that went in with a peak of 0.0630 came out at 0.0742. Taken back
+ * here, the chain is unity under the threshold, and the ceiling is the −2.4 dBFS the curve gives at full scale. (The spec fixes the formula, so a browser that follows it does the same.)
+ */
+export const LIMITER_MAKEUP = 0.849;
 
 /** 48 kHz if the browser lets the page ask for it (so that the files need no resampling and a loop stays exact), the device's rate if not. */
 function defaultContext(): AudioContext {

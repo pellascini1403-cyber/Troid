@@ -13,6 +13,9 @@ import { SettingsMenu, type SettingsMenuHost } from './SettingsMenu';
 /** The screens of the pause menu: its list, and the four it opens. */
 export type PauseScreen = 'main' | 'settings' | 'controls' | 'saves' | 'profile';
 
+/** What the menu can ask the page to make heard: a press, a slider moving, a switch turned on or off, a game saved. Which sound each one is, is the page's. */
+export type MenuSound = 'tap' | 'slider' | 'on' | 'off' | 'save';
+
 /**
  * What the pause menu needs from the game. The screens it opens each have a host of their own (what they read and what they ask for); the menu adds the way back to its list, so none of them has to
  * know it exists.
@@ -27,6 +30,8 @@ export interface PauseHost {
   resume(): void;
   /** Something has the screen over the menu (the editor of the touch buttons): asks it to give up. Answers whether there was one to give up. */
   interrupt?(): boolean;
+  /** The menu is heard: a press of a button, a slider that moves, a switch that turns. Not given where the page makes no sound. */
+  sound?(kind: MenuSound): void;
 }
 
 interface Entry {
@@ -124,6 +129,11 @@ export class PauseMenu {
     this.root.appendChild(frame);
     parent.appendChild(this.root);
     listen(this.store, main, 'keydown', (e) => this.onListKey(e));
+    // the sound of the whole menu, from its root: every screen is a child of it, so none of them has to know there is sound (the handlers of the controls run first — they bubble up to this — so a switch is read as it was left)
+    listen(this.store, this.root, 'click', (e) => this.pressed(e));
+    listen(this.store, this.root, 'input', (e) => {
+      if (e.target instanceof HTMLInputElement && e.target.type === 'range') this.host.sound?.('slider');
+    });
     this.refreshTexts();
     this.store.add(translator.changed.subscribe(() => this.refreshTexts()));
   }
@@ -179,6 +189,13 @@ export class PauseMenu {
   }
 
   // ----------------------------------------------------------------------------------------------- internals
+
+  /** A press somewhere in the menu: a switch says which way it went, any other button taps. The way back into the game has the sound of the menu closing, which the page makes: it is not tapped as well. */
+  private pressed(e: Event): void {
+    const button = e.target instanceof Element ? e.target.closest('button') : null;
+    if (!button || button.disabled || button.dataset['id'] === 'resume') return;
+    this.host.sound?.(button.getAttribute('role') === 'switch' ? (button.getAttribute('aria-checked') === 'true' ? 'on' : 'off') : 'tap');
+  }
 
   private choose(id: Entry['id']): void {
     if (id === 'resume') {

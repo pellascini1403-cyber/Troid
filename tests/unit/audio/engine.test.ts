@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { makeRig, type Rig } from '../../helpers/audioRig';
-import { FakeGain, type FakeBiquad, type FakeConvolver, type FakePanner, type FakeSource } from '../../helpers/fakeAudio';
+import { glide, LIMITER_MAKEUP } from '@/audio/engine';
+import { makeIndex, makeRig, type Rig } from '../../helpers/audioRig';
+import { FakeGain, FakeParam, type FakeBiquad, type FakeConvolver, type FakePanner, type FakeSource } from '../../helpers/fakeAudio';
 
 /** A rig whose engine runs and whose `core` sounds are in. */
 async function running(options: Parameters<typeof makeRig>[0] = {}): Promise<Rig> {
@@ -159,6 +160,26 @@ describe('AudioEngine: playing a sound', () => {
     expect(rig.engine.stats().voices).toBe(2);
   });
 
+  it('holds a burst of requests in one frame to the limit: the voices that sound, and the sources that are on the graph while the ones taken over fade — and every request is accounted for', async () => {
+    const rig = await running({ engine: { maxVoices: 6 } });
+    const ids = ['hero.slash', 'hit.heavy', 'hero.step', 'hero.jump', 'hit.light', 'hero.hurt.heavy', 'slime.death', 'magic.cast.release'];
+    let started = 0;
+    // the clock does not move: nothing that is taken over has finished fading, as in a page that asks for sounds in one task
+    for (let i = 0; i < 400; i++) if (rig.engine.play({ id: ids[i % ids.length] as string, variant: i % 2 })) started++;
+    const stats = rig.engine.stats();
+    const dropped = Object.values(stats.dropped).reduce((a, b) => a + b, 0);
+    expect(started + dropped, 'every request started or was dropped, and counted').toBe(400);
+    expect(stats.voices).toBeLessThanOrEqual(6);
+    expect(stats.peakVoices).toBeLessThanOrEqual(6);
+    expect(stats.peakSources).toBeLessThanOrEqual(6 + 12);
+    expect(sourcesOf(rig).filter((src) => !src.ended).length, 'and the graph holds no more than that').toBeLessThanOrEqual(6 + 12);
+    expect(stats.dropped.full + stats.dropped.cooldown).toBeGreaterThan(0);
+    // the fading ones go, and the engine takes sounds again
+    rig.ctx.advance(0.5);
+    rig.engine.tick();
+    expect(rig.engine.play({ id: 'hero.slash', variant: 0 })).toBe(true);
+  });
+
   it('never picks the same variation twice in a row, and honours a variation that is asked for', async () => {
     const rig = await running();
     let previous: unknown = null;
@@ -274,14 +295,14 @@ describe('AudioEngine: the player\'s volumes', () => {
     await rig.loader.retain('solo');
     rig.engine.play({ id: 'boss.roar' }); // two seconds long: still there when we look
     const src = sourcesOf(rig).at(-1) as FakeSource;
-    // source → voice gain → effects bus → world gate → general → limiter → make-up → destination
-    expect(rig.ctx.audibleGain(src)).toBeCloseTo(0.25 /* general */ * 1 /* effects */, 3);
+    // source → voice gain → effects bus → world gate → general → limiter → make-up (which takes back what the browser's compressor adds) → destination
+    expect(rig.ctx.audibleGain(src)).toBeCloseTo(0.25 /* general */ * 1 /* effects */ * LIMITER_MAKEUP, 3);
     rig.levels.set('sfx', 0.5);
     rig.ctx.advance(0.15);
-    expect(rig.ctx.audibleGain(src)).toBeCloseTo(0.25 * 0.25, 3);
+    expect(rig.ctx.audibleGain(src)).toBeCloseTo(0.25 * 0.25 * LIMITER_MAKEUP, 3);
     rig.levels.set('master', 1);
     rig.ctx.advance(0.15);
-    expect(rig.ctx.audibleGain(src)).toBeCloseTo(1 * 0.25, 3);
+    expect(rig.ctx.audibleGain(src)).toBeCloseTo(1 * 0.25 * LIMITER_MAKEUP, 3);
   });
 
   it('lets go of the voices of a category the moment its volume goes to zero, and of no other', async () => {
@@ -302,6 +323,89 @@ describe('AudioEngine: the player\'s volumes', () => {
     rig.engine.play({ id: 'hero.slash' });
     rig.levels.set('music', 0);
     expect(rig.engine.stats().voices).toBe(1);
+  });
+});
+
+describe('glide: a level that is moved', () => {
+  const param = (value: number, clock: { t: number }): FakeParam => new FakeParam(value, () => clock.t);
+  const as = (p: FakeParam): AudioParam => p as unknown as AudioParam;
+
+  it('goes from where it is to where it is told in a straight line, and is exactly there when it ends', () => {
+    const clock = { t: 10 };
+    const p = param(0.81, clock);
+    glide(as(p), 0.36, clock.t, 0.04);
+    expect(p.valueAt(10)).toBeCloseTo(0.81, 9);
+    expect(p.valueAt(10.02)).toBeCloseTo(0.585, 9);
+    expect(p.valueAt(10.04)).toBe(0.36);
+    expect(p.valueAt(99)).toBe(0.36);
+    glide(as(p), 0, 20, 0.04);
+    expect(p.valueAt(20.04)).toBe(0); // zero is zero, not a very low volume
+  });
+
+  it('starts a second move from where the first has got to, not from where it began or where it was going', () => {
+    const clock = { t: 10 };
+    const p = param(1, clock);
+    glide(as(p), 0, clock.t, 0.04);
+    clock.t = 10.02; // half way down
+    glide(as(p), 1, clock.t, 0.04);
+    expect(p.valueAt(10.02)).toBeCloseTo(0.5, 9);
+    expect(p.valueAt(10.04)).toBeCloseTo(0.75, 9);
+    expect(p.valueAt(10.06)).toBe(1);
+  });
+
+  it('leaves nothing of what was scheduled for later: the level is what the last move says', () => {
+    const clock = { t: 10 };
+    const p = param(0.5, clock);
+    p.setTargetAtTime(0.9, 11, 0.1);
+    glide(as(p), 0.2, clock.t, 0.04);
+    expect(p.valueAt(12)).toBe(0.2);
+  });
+});
+
+describe('AudioEngine: a level is moved by a glide, so that nothing waits for sound to reach its node', () => {
+  it('moves the amplitude of a bus in 40 ms without a step, from where it was', async () => {
+    const rig = await running({ levels: { sfx: 0.9 } });
+    rig.engine.play({ id: 'hero.slash' });
+    const bus = ((sourcesOf(rig).at(-1) as FakeSource).outputs[0] as FakeGain).outputs[0] as FakeGain;
+    const t0 = rig.ctx.currentTime;
+    expect(bus.gain.valueAt(t0)).toBeCloseTo(0.81, 6);
+    rig.levels.set('sfx', 0.3);
+    expect(bus.gain.valueAt(t0)).toBeCloseTo(0.81, 6); // the instant of the move: no jump
+    expect(bus.gain.valueAt(t0 + 0.02)).toBeCloseTo((0.81 + 0.09) / 2, 6);
+    expect(bus.gain.valueAt(t0 + 0.04)).toBeCloseTo(0.09, 9); // 40 ms: there
+    rig.levels.set('sfx', 0);
+    expect(bus.gain.valueAt(t0 + 0.1)).toBe(0);
+  });
+
+  it('does the same for the general volume, the ambience, the music and the echo', async () => {
+    const rig = await running();
+    await rig.loader.retain('amb');
+    const t0 = rig.ctx.currentTime;
+    rig.levels.set('master', 0.3);
+    rig.levels.set('ambience', 0.3);
+    rig.levels.set('music', 0.3);
+    const gains = rig.ctx.nodes.filter((n): n is FakeGain => n instanceof FakeGain);
+    const moved = gains.filter((g) => Math.abs(g.gain.valueAt(t0 + 0.05) - 0.09) < 1e-9);
+    // the general volume, the ambience and its echo, the music and the stingers: all on the squared level
+    expect(moved.length).toBeGreaterThanOrEqual(5);
+    for (const g of moved) expect(Math.abs(g.gain.valueAt(t0 + 0.01) - 0.09), 'and on its way, not there yet').toBeGreaterThan(0);
+  });
+
+  it('opens and closes the gate of the world with a ramp: shut in 60 ms for a menu, open in a quarter of a second on the way back', async () => {
+    const rig = await running();
+    const gates = (): FakeGain[] => rig.ctx.nodes.filter((n): n is FakeGain => n instanceof FakeGain);
+    const t0 = rig.ctx.currentTime;
+    const before = new Set(gates().filter((g) => g.gain.valueAt(t0 + 1) === 1).map((g) => g));
+    rig.engine.setPaused(true);
+    const shut = gates().filter((g) => before.has(g) && g.gain.valueAt(t0 + 0.06) === 0);
+    expect(shut.length, 'a gate that was open is shut in 60 ms').toBeGreaterThanOrEqual(1);
+    const gate = shut[0] as FakeGain;
+    rig.ctx.advance(1);
+    const t1 = rig.ctx.currentTime;
+    rig.engine.setPaused(false);
+    expect(gate.gain.valueAt(t1)).toBe(0);
+    expect(gate.gain.valueAt(t1 + 0.125)).toBeCloseTo(0.5, 6);
+    expect(gate.gain.valueAt(t1 + 0.25)).toBe(1);
   });
 });
 
@@ -412,6 +516,36 @@ describe('AudioEngine: the echo of the room', () => {
     // the room's own level is on the convolver's output
     const out = conv.outputs[0] as FakeGain;
     expect(out.gain.valueAt(rig.ctx.currentTime + 3)).toBeCloseTo(0.4, 2);
+  });
+
+  it('turns the echo of a sound down with the level of its category: the slider of the effects, or of the ambience, is not left with an echo at full', async () => {
+    const index = makeIndex();
+    (index.sounds['amb.drip'] as { reverb: number }).reverb = 0.3;
+    const rig = await running({ index });
+    await rig.loader.retain('amb');
+    rig.engine.setRoom(hall);
+    const sendOf = (id: string): FakeGain => {
+      rig.engine.play({ id });
+      const voiceGain = (sourcesOf(rig).at(-1) as FakeSource).outputs[0] as FakeGain;
+      return (voiceGain.outputs[1] as FakeGain).outputs[0] as FakeGain; // voice → its send → the category's send bus
+    };
+    const effects = sendOf('hero.step');
+    const ambience = sendOf('amb.drip');
+    expect(effects).not.toBe(ambience);
+    const t = rig.ctx.currentTime + 1;
+    expect(effects.gain.valueAt(t)).toBeCloseTo(0.81, 2); // (0.9 squared: the defaults)
+    expect(ambience.gain.valueAt(t)).toBeCloseTo(0.64, 2);
+    rig.levels.set('sfx', 0.5);
+    expect(effects.gain.valueAt(rig.ctx.currentTime + 1)).toBeCloseTo(0.25, 2);
+    expect(ambience.gain.valueAt(rig.ctx.currentTime + 1)).toBeCloseTo(0.64, 2); // the other category is where it was
+    rig.levels.set('ambience', 0.25);
+    expect(ambience.gain.valueAt(rig.ctx.currentTime + 1)).toBeCloseTo(0.0625, 3);
+    expect(effects.gain.valueAt(rig.ctx.currentTime + 1)).toBeCloseTo(0.25, 2);
+    // both end in the one echo
+    expect(effects.outputs[0]).toBe(ambience.outputs[0]);
+    // and the music and the interface send none
+    rig.levels.set('music', 0.1);
+    expect(effects.outputs).toHaveLength(1);
   });
 
   it('sends nothing to a place with no echo, nor the interface, nor the music', async () => {

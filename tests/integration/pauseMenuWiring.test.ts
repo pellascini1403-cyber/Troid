@@ -46,6 +46,8 @@ describe('the pause menu over the real game', () => {
   let stats: PlayStats;
   let settings: SettingsStore;
   let changes: string[];
+  /** The sounds the menu asked the page for. */
+  let sounds: string[];
   let resumed: number;
   let notices: SaveNotice[];
   let platform: ReturnType<typeof fakePlatform>;
@@ -67,6 +69,7 @@ describe('the pause menu over the real game', () => {
     saves = over.playground ? null : new GameSaves({ slots, settings, slot: 1, stats, durable: true, platform, notify: (n) => void notices.push(n) });
     saves?.attach(d.session);
     changes = [];
+    sounds = [];
     suspended = [];
     resumed = 0;
     const deps: MenuDeps = {
@@ -94,6 +97,7 @@ describe('the pause menu over the real game', () => {
         accessibility: (p) => void changes.push(`access:${JSON.stringify(p)}`),
       },
       resume: () => void resumed++,
+      sound: (kind) => void sounds.push(kind),
     };
     menu = createPauseMenu(deps);
   }
@@ -220,6 +224,9 @@ describe('the pause menu over the real game', () => {
       expect(written?.at.room).toBe('r2_hall');
       expect(written?.stats.ticks).toBe(60 * 20);
       expect(notices).toEqual([{ kind: 'saved', slot: 1 }]);
+      // the press taps, and the game that was saved is heard — once, and only because it was saved
+      expect(sounds.slice(-2)).toEqual(['tap', 'save']);
+      expect(sounds.filter((k) => k === 'save')).toHaveLength(1);
     });
 
     it('another slot holds what is stored under its own key, and playing it saves this game first and opens the page on it', async () => {
@@ -302,6 +309,7 @@ describe('the pause menu over the real game', () => {
       expect(q(parent, 'saves-conflict')).toBeTruthy();
       expect(q(parent, 'saves-save-now')).toBeNull();
       expect(notices.at(-1)).toEqual({ kind: 'conflict', slot: 1 });
+      expect(sounds, 'a save that did not happen is not heard as one').not.toContain('save');
       other.dispose();
     });
 

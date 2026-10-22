@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import type { Ctx, GameState, Scenario } from '../scenario';
 
 /**
- * THE CUES OF THE SOUND TO COME in a real browser (docs/ART-PIPELINE-2D.md, part H). The game has no sound; what is proved here is the SEAM: that in the real game, with
- * the real keyboard, every moment a sound will be made for raises its cue — from the simulation's own event, on the tick it happens, with where it happened and which
- * kind — into the sink a sound engine will take over (`state().cues` shows what it would have been told).
+ * THE CUES OF THE SOUND in a real browser (docs/ART-PIPELINE-2D.md, part H; docs/PROMPT18-LOG.md). What is proved here is the SEAM: that in the real game, with
+ * the real keyboard, every moment a sound is made for raises its cue — from the simulation's own event, on the tick it happens, with where it happened and which
+ * kind — into the sink the audio engine reads (`state().cues` shows what it was told; the sound itself is proved by the `audio` scenario).
  *
  *   A · R1, a new game: a dash, a jump and its landing, a blow and the hit it lands (on the tick the hitbox appears and the tick the damage lands), being hurt, dying,
  *       the Spirit Bolt and its impact, a bottle, an enemy's wind-up and its death, a change of room
@@ -151,13 +151,20 @@ export const audioCues: Scenario = {
     await godMode(true); // this part is about the slime, not about the hero's life
     await ctx.teleport(44, 0); // flat ground, past the pit: a slime 7 m ahead has room to come
     await ctx.step(20);
+    await clear();
     const slime = (await ctx.page.evaluate('window.__troid.spawnSlime(window.__troid.session.player.body.x + 7, 0, -1)')) as string; // (R1 has its own, far away in its arena)
     await ctx.step(2);
-    await clear();
     c = await until('the slime winds up', (x) => only(x, 'enemyTelegraph').length >= 1, 400, 4);
     const windUp = one(c, 'enemyTelegraph');
-    assert.equal(windUp.variant, 'ink_slime');
+    assert.equal(windUp.variant, 'slime_lunge', 'the wind-up says WHICH attack it is');
     placed(windUp);
+    // …and the lunge itself is announced once, after exactly the wind-up, from where the slime is
+    c = await until('the slime lunges', (x) => only(x, 'enemyStrike').length >= 1, 200, 2);
+    const strikeAt = one(c, 'enemyStrike');
+    assert.equal(strikeAt.variant, 'slime_lunge');
+    assert.equal(strikeAt.tick - windUp.tick, 24, 'the lunge comes exactly one wind-up (24 ticks) after the warning');
+    placed(strikeAt);
+    assert.ok(only(c, 'enemyAlert').length >= 1, 'the slime noticed the hero first');
     const pull = (): Promise<unknown> =>
       ctx.page.evaluate(`(() => { const t = window.__troid; const e = t.session.entities.find((x) => x.id === ${JSON.stringify(slime)}); const p = t.session.player.body; e.body.x = p.x + 1.6; e.body.vx = 0; })()`);
     for (let blow = 1; blow <= 3; blow++) {
@@ -202,9 +209,12 @@ export const audioCues: Scenario = {
     await clear();
     await ctx.teleport(30, 0); // the feet cross x = 27.5: the Warden wakes
     c = await until('the Warden strikes', (x) => only(x, 'bossAttack').length >= 1, 2400, 5);
-    const windUpBoss = c.recent.find((e) => e.cue === 'enemyTelegraph' && e.variant === 'ink_warden');
+    const windUpBoss = c.recent.find((e) => e.cue === 'enemyTelegraph' && e.variant.startsWith('warden_'));
     const strike = one(c, 'bossAttack');
-    assert.ok(windUpBoss, 'it winded up first, and said who');
+    assert.ok(windUpBoss, 'it winded up first, and said which attack');
+    assert.equal(windUpBoss.variant, strike.variant, 'the warning is of the attack that follows');
+    assert.equal(only(c, 'bossWake').length, 1, 'it woke once');
+    assert.ok(one(c, 'bossWake').tick <= windUpBoss.tick, 'and woke before it wound up');
     assert.ok(windUpBoss.tick < strike.tick, `the wind-up (${windUpBoss.tick}) is before the strike (${strike.tick})`);
     assert.ok(['warden_charge', 'warden_rain'].includes(strike.variant), strike.variant);
     placed(strike);
@@ -222,7 +232,8 @@ export const audioCues: Scenario = {
     assert.equal(fall.variant, 'ink_warden');
     placed(fall);
     assert.equal(only(c, 'bossDeath').length, 1, 'once');
-    assert.ok(only(c, 'enemyDeath').some((e) => e.tick === fall.tick), 'a fall is also the death of an enemy, on the same tick');
+    assert.ok(!only(c, 'enemyDeath').some((e) => e.tick === fall.tick), 'a fall is the boss\'s alone: it does not also sound as the death of an ordinary enemy');
+    assert.ok(only(c, 'bossPhase').length <= 1, 'at most one change of phase');
     assert.equal(ctx.errors.length, 0);
   },
 };

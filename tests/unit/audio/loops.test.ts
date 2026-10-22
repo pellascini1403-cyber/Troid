@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { LIMITER_MAKEUP } from '@/audio/engine';
 import { LAYER_KEEP_SECONDS, LoopChannel } from '@/audio/loops';
-import { makeRig, type Rig } from '../../helpers/audioRig';
-import { FakeGain, type FakeSource } from '../../helpers/fakeAudio';
+import { makeIndex, makeRig, type Rig } from '../../helpers/audioRig';
+import { FakeGain, fakeBuffer, type FakeSource } from '../../helpers/fakeAudio';
 
 function channel(rig: Rig, bus: 'music' | 'ambience' = 'music', warn?: (m: string) => void): LoopChannel {
   return new LoopChannel({ engine: rig.engine, loader: rig.loader, index: rig.index, levels: rig.levels, bus, warn });
@@ -57,6 +58,21 @@ describe('LoopChannel: music that waits for a gesture', () => {
     const driveAt = (drive.offset + (rig.ctx.currentTime - (drive.startedAt as number))) % 30;
     expect(driveAt).toBeCloseTo(baseAt, 2);
     expect(drive.offset).toBeGreaterThan(7);
+  });
+
+  it('loops over the whole of what was decoded, not over the manifest\'s seconds (rounded to the millisecond: a loop that ended before the file did would skip its last samples at every turn)', async () => {
+    const index = makeIndex();
+    // the file is 17 samples longer than the manifest says
+    const real = 30 + 17 / 48000;
+    const rig = makeRig({ index, loader: { io: { fetchBytes: async () => new ArrayBuffer(8), decode: async () => fakeBuffer(real) } } });
+    const music = channel(rig);
+    rig.start();
+    music.play('a');
+    await rig.settle();
+    const [base] = loops(rig) as [FakeSource];
+    expect(index.sounds['music.a.base']?.loop?.end).toBe(30);
+    expect(base.loopEnd).toBe(real);
+    expect(base.loopEnd).toBeGreaterThan(30);
   });
 
   it('fetches nothing of the drive layer until it is wanted, plays the base at full, and brings the drive in and out smoothly', async () => {
@@ -489,7 +505,7 @@ describe('LoopChannel: the ambience bed', () => {
     run(rig, 3);
     const hall = loops(rig)[0] as FakeSource;
     // the bed's own trim is −3 dB, the bus is at the square of 0.5
-    expect(rig.ctx.audibleGain(hall)).toBeCloseTo(10 ** (-3 / 20) * 0.25, 2);
+    expect(rig.ctx.audibleGain(hall)).toBeCloseTo(10 ** (-3 / 20) * 0.25 * LIMITER_MAKEUP, 2);
     ambience.play('bed.well', 2);
     await rig.settle();
     run(rig, 4);

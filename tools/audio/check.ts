@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { namedSounds, STINGER_RANK } from '../../src/audio/soundMap';
 import { parseIndex, type AudioIndex } from '../../src/audio/manifest';
+import { SEAM_LIMITS, seamCloses } from '../../src/audio/seam';
 import { BOSS_MUSIC, ZONES } from '../../src/audio/zoneAudio';
 import { AUDIO_DIR, INDEX_PATH, MEASURES_PATH, type Measure } from './build';
 import { measuredLufs, measuredPeak, measureName, PEAK_CEILING, targetOf } from './levels';
@@ -24,8 +25,8 @@ export interface CheckReport {
 export const SIZE_BUDGET_BYTES = 16 * 1024 * 1024;
 /** The longest a sound effect may be (s); the stingers and the one-off big sounds may be longer. */
 export const LONGEST_SFX_SECONDS = 9;
-/** A loop closes if the step at its seam is within this many of its neighbourhood's steps, or is lower than this (dBFS). */
-export const SEAM = { step: 4, jumpDb: -45 } as const;
+/** A loop closes if the step at its seam is within this many of its neighbourhood's steps, or is lower than this (dBFS) — the rule the player's browser holds the decoded loops to as well (`src/audio/seam.ts`). */
+export const SEAM = SEAM_LIMITS;
 
 const rel = (p: string): string => relative(AUDIO_DIR, p).split('\\').join('/');
 
@@ -144,8 +145,7 @@ export function checkAudio(): CheckReport {
       if (m.peakDb < -40) errors.push(`${id} (${k + 1}) is almost silent (peak ${m.peakDb} dBFS)`);
       if (s.loop) {
         if (m.silentMs > 100) errors.push(`${id} is a loop with a silence of ${m.silentMs} ms in it`);
-        const closes = (m.seamStep ?? Infinity) <= SEAM.step || (m.seamJumpDb ?? 0) <= SEAM.jumpDb;
-        if (!closes) errors.push(`${id} does not close on itself: its seam steps ×${m.seamStep} and ${m.seamJumpDb} dBFS`);
+        if (!seamCloses({ step: m.seamStep ?? Infinity, jumpDb: m.seamJumpDb ?? 0 })) errors.push(`${id} does not close on itself: its seam steps ×${m.seamStep} and ${m.seamJumpDb} dBFS`);
         if ((m.seamLevelDb ?? 0) > 6 && s.bus !== 'music') errors.push(`${id}: the level at the end of the loop is ${m.seamLevelDb} dB from the level at the start`);
       } else if (s.bus === 'sfx' || s.bus === 'ui') {
         if (v.seconds > LONGEST_SFX_SECONDS) errors.push(`${id} is ${v.seconds} s long: the longest an effect may be is ${LONGEST_SFX_SECONDS}`);

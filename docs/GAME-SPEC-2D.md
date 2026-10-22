@@ -770,9 +770,25 @@ Idiomas iniciales: **español** e **inglés**. Preparado para añadir francés, 
 
 ---
 
-## 19. Audio (solo arquitectura ahora)
+## 19. Audio
 
-Debe prever SFX de ataque, impactos, dash, magia, daño, muerte, interacción, ambiente y música. **No se produce audio definitivo en el Prompt 3 ni en el 4.** Los sonidos se piden por **id lógico** desde los eventos (`sfx.hero.slash`, `sfx.hit`, `sfx.dash`, `sfx.cast`, `sfx.hurt`, `sfx.die`, `sfx.interact`, `sfx.bottle.drink`, `ui.tap`) y un manifiesto de datos decide el archivo, variaciones, ganancia, bus y límite de voces. Detalle en ARCHITECTURE-2D §10. *(Prompt 7, S41: el juego levanta ya **las señales** de cada uno de esos momentos —golpe, impacto, *dash*, daño, muerte, *Spirit Bolt*, botella, interacción, ataque y caída del jefe, cambio de sala—, con su lugar e intensidad, hacia un sumidero que hoy no oye nadie: [ART-PIPELINE-2D](ART-PIPELINE-2D.md) parte H.)*
+**Implementado en el Prompt 18** ([bitácora](PROMPT18-LOG.md); arquitectura en ARCHITECTURE-2D §10). Lo que el juego hace sonar, y cuándo (todo audio es **sintetizado por código del repositorio**: pre-producción, no una banda sonora profesional; **ningún sonido ni música ha sido oído por una persona**, solo medido):
+
+| Qué | Cuándo suena | Cómo |
+|---|---|---|
+| **Efectos del héroe** (59 efectos en total en el juego) | pasos (uno por zancada: 1.05 m al andar, 1.7 m al correr, 0.8 m agachado; suenan al suelo de la sala), salto y salto en el aire, *dash*, aterrizajes (ligero, medio, pesado; menos de 0.1 no suena), espadazos (1.º, 2.º, aéreo, agachado), daño (ligero o pesado), muerte, reaparición, **latido con la vida al 34 % o menos** | por señal (36), con lugar, intensidad y variante |
+| **Combate** | golpe (ligero o pesado según su fuerza), impacto del conjuro, rechazo del sello, sello roto, pinchos | |
+| **Poderes y botellas** | cargar, soltar, chispa, denegado; empezar a beber, beber, denegado, interrumpido, recargada | |
+| **El mundo** | recoger, abrir, activar, descansar en el santuario, puerta que abre y que cierra, paso de sala | |
+| **Enemigos** | el limo avisa al verte, **anuncia su salto** con un siseo que dura lo que el viento y salta; el Guardián despierta, cambia de fase, **anuncia cada ataque con un sonido distinto** (carga, lluvia) y cae | |
+| **Música** | R1 y R2: «Ruinas» (la misma, sin reiniciarse al cruzar la puerta); R3: «Cámara»; R4: «Santuario»; el jefe: «El Guardián de tinta»; **la capa de peligro de cada pieza entra** durante 7 s de tiempo de juego tras cualquier amenaza (a media en el jefe, a plena en su segunda fase) | fundido cruzado de 3.5 s entre zonas, 1.2 s al jefe, 4.5 s al salir de él |
+| ***Stingers*** | carta (3.8 s), habilidad (5.8 s), victoria (8.0 s; tras 1.1 s de la caída del Guardián); solo suena el mayor de un mismo momento | |
+| **Ambiente** | una cama por sala (viento, raíces, agua honda, quietud) y sonidos sueltos de cada lugar (gotas, piedra, ráfagas, crujidos, resonancias, pulsos del sello, aliento del santuario); cada sala tiene **su eco** (1.0 – 2.8 s) | |
+| **Interfaz** | abrir y cerrar la pausa, tocar, mover un deslizador, encender o apagar un interruptor, guardar la partida | |
+
+**Controles (Ajustes → Sonido):** cuatro deslizadores — **General, Música, Efectos, Ambiente** (por defecto 0.8 · 0.7 · 0.9 · 0.8; la amplitud es el cuadrado del nivel). Se oyen **al instante**, se **guardan** y arrancan con la página. **Un nivel 0 es silencio**: la categoría no se reproduce, no se descarga y no se mantiene en marcha. **La pausa** calla el mundo (efectos y ambiente), baja la música 8 dB y la apaga, y deja sonar la interfaz; al reanudar nada se reinicia. **El audio empieza en el primer gesto** (tecla, clic o toque; **un botón del mando no cuenta**); antes de él la página no crea ningún contexto de audio.
+
+**Lo que no hay:** música de menú principal o de título (no hay menú principal), de créditos (no hay final), una pieza distinta para la segunda fase del jefe, subtítulos de sonidos. Ver la [§9 de la bitácora](PROMPT18-LOG.md#9--lo-que-sigue-sin-existir).
 
 ## 20. Persistencia (solo arquitectura ahora)
 

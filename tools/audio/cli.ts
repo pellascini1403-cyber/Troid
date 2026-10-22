@@ -2,7 +2,8 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildAudio, ROOT } from './build';
 import { checkAudio } from './check';
-import { balance } from './levels';
+import { measurePlayed, verifyAudio } from './verify';
+import { balance, writePlayed } from './levels';
 import { mulberry32, seedOf, SR } from './dsp/core';
 import { activeRmsDb, bandProfile, integratedLufs, loopSeam, momentaryLufs, OCTAVES, peakDb, silence, spectralCentroid, truePeakDb } from './dsp/measure';
 import { toMono } from './dsp/sfxlib';
@@ -10,8 +11,9 @@ import { spectrogramPng, waveformPng } from './encode';
 import { SOUNDS, TRACKS } from './sounds';
 
 /**
- * `npm run audio:build [-- --only=hero.,ui.]` makes the sounds (all, or the ones whose id starts with what is given); `npm run audio:spec -- <id>` renders one and draws it (a spectrogram and a waveform in `.audio-spec/`) with its
- * numbers, to look at a sound that cannot be listened to here.
+ * `npm run audio:build [-- --only=hero.,ui.]` makes the sounds (all, or the ones whose id starts with what is given); `npm run audio:check` reads what the build wrote down and the files; `npm run audio:verify` decodes every file
+ * that ships, in both formats, and measures what a player's browser is given; `npm run audio:spec -- <id>` renders one and draws it (a spectrogram and a waveform in `.audio-spec/`) with its numbers, to look at a sound
+ * that cannot be listened to here.
  */
 const args = process.argv.slice(2);
 const command = args[0] ?? 'build';
@@ -21,9 +23,11 @@ if (command === 'build') {
   const t0 = Date.now();
   const index = await buildAudio({ only: only.length ? only : undefined, log: (l) => console.log(l), recipes: { sounds: SOUNDS, tracks: TRACKS } });
   console.log(`\n${Object.keys(index.sounds).length} sounds and ${Object.keys(index.tracks).length} tracks written to public/audio (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
+  console.log(`decoded: ${writePlayed(await measurePlayed())} files measured as a player's browser gets them`);
   const trims = balance();
   console.log(`levels set: ${trims.length} sounds got a new trim`);
 } else if (command === 'balance') {
+  console.log(`decoded: ${writePlayed(await measurePlayed())} files measured as a player's browser gets them`);
   const trims = balance();
   for (const t of trims) console.log(`  ${t.id.padEnd(26)} ${t.from.toFixed(1).padStart(6)} → ${t.to.toFixed(1).padStart(6)} dB`);
   console.log(`${trims.length} sounds got a new trim`);
@@ -32,6 +36,19 @@ if (command === 'build') {
   for (const w of report.warnings) console.log(`warning: ${w}`);
   for (const e of report.errors) console.error(`ERROR: ${e}`);
   console.log(`${report.counts.sounds} sounds, ${report.counts.tracks} pieces, ${report.counts.files} files, ${(report.counts.bytes / 1048576).toFixed(2)} MiB: ${report.errors.length} errors, ${report.warnings.length} warnings`);
+  process.exit(report.errors.length > 0 ? 1 : 0);
+} else if (command === 'verify') {
+  const t0 = Date.now();
+  const report = await verifyAudio((line) => console.log(line));
+  const worst = [...report.rows].sort((a, b) => Math.abs(b.levelError) - Math.abs(a.levelError)).slice(0, 8);
+  console.log('the furthest from their targets (LU, decoded, with the trim):');
+  for (const r of worst) console.log(`  ${r.id.padEnd(26)} ${r.format.padEnd(5)} ${(r.levelError > 0 ? '+' : '') + r.levelError.toFixed(1)}  peak ${r.peakDb.toFixed(1)} dBFS`);
+  const loud = [...report.rows].sort((a, b) => b.peakDb - a.peakDb).slice(0, 5);
+  console.log('the highest peaks (dBFS, decoded, with the trim):');
+  for (const r of loud) console.log(`  ${r.id.padEnd(26)} ${r.format.padEnd(5)} ${r.peakDb.toFixed(2)}  true peak ${r.truePeakDb.toFixed(2)}`);
+  for (const w of report.warnings) console.log(`warning: ${w}`);
+  for (const e of report.errors) console.error(`ERROR: ${e}`);
+  console.log(`${report.rows.length} files verified in ${((Date.now() - t0) / 1000).toFixed(1)} s: ${report.errors.length} errors, ${report.warnings.length} warnings`);
   process.exit(report.errors.length > 0 ? 1 : 0);
 } else if (command === 'spec') {
   const out = join(ROOT, '.audio-spec');

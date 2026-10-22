@@ -1,8 +1,7 @@
 import type { AudioEngine } from './engine';
-import type { Levels } from './levels';
+import { categoryOfBus, type Levels } from './levels';
 import type { SoundLoader } from './loader';
 import type { AudioIndex, SoundDef, TrackDef } from './manifest';
-import { categoryOfBus } from '@/presentation/audioMix';
 import { dbToGain } from './spatial';
 
 /**
@@ -300,13 +299,14 @@ export class LoopChannel {
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.loop = true;
-    const loop = layer.def.loop ?? { start: 0, end: buffer.duration };
-    source.loopStart = loop.start;
-    source.loopEnd = loop.end;
+    const start = layer.def.loop?.start ?? 0;
+    // the loop is the whole of what was decoded: the manifest's seconds are rounded to the millisecond, and a loop that ended before the file did would skip its last samples at every turn
+    source.loopStart = start;
+    source.loopEnd = buffer.duration;
     source.connect(gain);
-    const length = loop.end - loop.start;
+    const length = buffer.duration - start;
     const elapsed = Math.max(0, ctx.currentTime - origin);
-    source.start(Math.max(ctx.currentTime, origin), loop.start + (length > 0 ? elapsed % length : 0));
+    source.start(Math.max(ctx.currentTime, origin), start + (length > 0 ? elapsed % length : 0));
     layer.source = source;
     layer.gain = gain;
   }

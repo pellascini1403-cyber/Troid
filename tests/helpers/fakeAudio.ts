@@ -3,11 +3,23 @@
  * and can say what value they have at any moment of a clock the test moves by hand, sources that end when their time comes. The engine is written against the real API; this is how the tests see what it did with it.
  */
 
-type Event = { type: 'set' | 'target'; time: number; value: number; tau: number };
+type Event = { type: 'set' | 'target' | 'ramp'; time: number; value: number; tau: number };
 
 export class FakeParam {
   private events: Event[] = [];
-  constructor(public value: number, private readonly clock: () => number) {}
+  private base: number;
+  constructor(value: number, private readonly clock: () => number) {
+    this.base = value;
+  }
+
+  /** As in the real API: what the parameter is now (the value it was given, moved by whatever is scheduled); setting it gives it a new value to start from. */
+  get value(): number {
+    return this.valueAt(this.clock());
+  }
+
+  set value(v: number) {
+    this.base = v;
+  }
 
   setValueAtTime(value: number, time: number): this {
     this.insert({ type: 'set', time, value, tau: 0 });
@@ -16,6 +28,12 @@ export class FakeParam {
 
   setTargetAtTime(value: number, time: number, tau: number): this {
     this.insert({ type: 'target', time, value, tau });
+    return this;
+  }
+
+  /** (A ramp is told by the time it ENDS; it starts where the event before it left the parameter.) */
+  linearRampToValueAtTime(value: number, time: number): this {
+    this.insert({ type: 'ramp', time, value, tau: 0 });
     return this;
   }
 
@@ -31,21 +49,33 @@ export class FakeParam {
     this.events.splice(i, 0, e);
   }
 
-  /** What the parameter is at time `t`: the value it was given, moved by the events up to `t` as the Web Audio rules say (a target approaches exponentially from where the parameter was). */
+  /** What the parameter is at time `t`: the value it was given, moved by the events up to `t` as the Web Audio rules say (a target approaches exponentially from where the parameter was, a ramp is a straight line from the event before it). */
   valueAt(t: number): number {
-    let v = this.value;
-    let active: { from: number; to: number; start: number; tau: number } | null = null;
+    let time0 = -Infinity;
+    let v0 = this.base;
+    let target: { to: number; start: number; tau: number } | null = null;
+    const now = (x: number): number => (target && x > target.start ? target.to + (v0 - target.to) * Math.exp(-(x - target.start) / target.tau) : v0);
     for (const e of this.events) {
-      if (e.time > t) break;
-      if (active) {
-        v = active.to + (active.from - active.to) * Math.exp(-(e.time - active.start) / active.tau);
-        active = null;
+      if (e.type === 'ramp') {
+        if (t >= e.time) {
+          v0 = e.value;
+          time0 = e.time;
+          target = null;
+          continue;
+        }
+        return time0 === -Infinity || t <= time0 ? v0 : v0 + (e.value - v0) * ((t - time0) / (e.time - time0));
       }
-      if (e.type === 'set') v = e.value;
-      else active = { from: v, to: e.value, start: e.time, tau: Math.max(1e-9, e.tau) };
+      if (e.time > t) break;
+      if (e.type === 'set') {
+        v0 = e.value;
+        target = null;
+      } else {
+        v0 = now(e.time);
+        target = { to: e.value, start: e.time, tau: Math.max(1e-9, e.tau) };
+      }
+      time0 = e.time;
     }
-    if (active) return active.to + (active.from - active.to) * Math.exp(-(t - active.start) / active.tau);
-    return v;
+    return now(t);
   }
 
   /** The value now, on the clock. */
@@ -140,6 +170,8 @@ export class FakeAnalyser extends FakeNode {
 
 export class FakeBuffer {
   readonly length: number;
+  /** The samples of each channel, made the first time they are asked for: most tests look at the graph and never do, and a minute of stereo is twenty MiB. */
+  private readonly data: Float32Array[] = [];
   constructor(readonly numberOfChannels: number, length: number, readonly sampleRate: number) {
     this.length = length;
   }
@@ -148,8 +180,12 @@ export class FakeBuffer {
     return this.length / this.sampleRate;
   }
 
-  copyToChannel(): void {
-    // the data is not kept: the tests look at the graph, not at the samples
+  getChannelData(channel: number): Float32Array {
+    return (this.data[channel] ??= new Float32Array(this.length));
+  }
+
+  copyToChannel(source: Float32Array, channel: number): void {
+    this.getChannelData(channel).set(source);
   }
 }
 

@@ -296,6 +296,84 @@ describe('the pause menu', () => {
     });
   });
 
+  describe('the sound of the menu (docs/PROMPT18-LOG.md)', () => {
+    const slide = (id: string, value: string): void => {
+      const input = q(menu.root, id) as HTMLInputElement;
+      input.value = value;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    it('a button taps; going back into the game does not (the page makes the sound of the menu closing)', () => {
+      menu.open();
+      q(menu.root, 'pause-settings').click();
+      q(menu.root, 'settings-back').click();
+      expect(probe.sounds).toEqual(['tap', 'tap']);
+      q(menu.root, 'pause-resume').click();
+      expect(probe.sounds, 'Continue is silent here').toEqual(['tap', 'tap']);
+    });
+
+    it('a language or a quality button taps', () => {
+      menu.open();
+      q(menu.root, 'pause-settings').click();
+      probe.sounds.length = 0;
+      (menu.root.querySelector('[data-testid^="settings-quality-"]') as HTMLElement).click();
+      expect(probe.sounds).toEqual(['tap']);
+    });
+
+    it('a slider that moves is heard on every step, and says nothing else', () => {
+      menu.open();
+      q(menu.root, 'pause-settings').click();
+      probe.sounds.length = 0;
+      slide('settings-volume', '0.5');
+      slide('settings-volume-music', '0.25');
+      slide('settings-volume-sfx', '0.6');
+      slide('settings-volume-ambience', '0.4');
+      expect(probe.sounds).toEqual(['slider', 'slider', 'slider', 'slider']);
+      expect(probe.calls.filter((c) => c.startsWith('volume:'))).toEqual(['volume:master:0.5', 'volume:music:0.25', 'volume:sfx:0.6', 'volume:ambience:0.4']);
+    });
+
+    it('a switch says which way it went — read as it was left, not as it was', () => {
+      // (a host whose settings follow the change, as the game's do)
+      const settings = probe.host.settings;
+      const was = settings.current();
+      const accessibility = { ...was.accessibility };
+      settings.current = () => ({ ...was, accessibility: { ...accessibility } });
+      settings.setAccessibility = (patch) => void Object.assign(accessibility, patch);
+      menu.open();
+      q(menu.root, 'pause-settings').click();
+      probe.sounds.length = 0;
+      const sw = menu.root.querySelector('[role="switch"]') as HTMLElement;
+      const before = sw.getAttribute('aria-checked');
+      sw.click();
+      const after = sw.getAttribute('aria-checked');
+      expect(after).not.toBe(before);
+      expect(probe.sounds).toEqual([after === 'true' ? 'on' : 'off']);
+      sw.click();
+      expect(probe.sounds).toEqual([after === 'true' ? 'on' : 'off', before === 'true' ? 'on' : 'off']);
+    });
+
+    it('a menu on a page with no sound asks for none (and does not break)', () => {
+      menu.dispose();
+      const silent = pauseProbe();
+      delete silent.host.sound;
+      menu = new PauseMenu(parent, tr, silent.host);
+      menu.open();
+      q(menu.root, 'pause-settings').click();
+      slide('settings-volume', '0.3');
+      (menu.root.querySelector('[role="switch"]') as HTMLElement).click();
+      expect(silent.sounds).toEqual([]);
+      expect(silent.calls).toContain('volume:master:0.3');
+    });
+
+    it('a disposed menu is silent', () => {
+      menu.open();
+      const resume = q(menu.root, 'pause-settings');
+      menu.dispose();
+      resume.click();
+      expect(probe.sounds).toEqual([]);
+    });
+  });
+
   it('dispose removes the menu, its screens and its listeners', () => {
     menu.open();
     q(menu.root, 'pause-settings').click();

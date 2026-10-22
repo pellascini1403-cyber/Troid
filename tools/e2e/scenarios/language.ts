@@ -173,7 +173,7 @@ export const language: Scenario = {
     await enter(page, 'settings');
     await page.locator('[data-testid="settings-lang-es"]').click();
     await savedLanguage(page, 'es');
-    assert.equal((await saved(page))!['version'], 4, 'and a new choice is saved properly, as the current version of the settings (4 since each touch button has its own place; 3 had the accessibility choices and the saved game in use)');
+    assert.equal((await saved(page))!['version'], 5, 'and a new choice is saved properly, as the current version of the settings (5 since the music, the effects and the ambience have a volume each; 4 gave each touch button its own place)');
 
     // a value from a LATER game is kept aside, never overwritten silently
     await page.evaluate(`localStorage.setItem(${JSON.stringify(KEY)}, '{"version":9,"language":"es"}')`);

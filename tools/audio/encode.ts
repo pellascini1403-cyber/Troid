@@ -80,9 +80,12 @@ export async function probe(path: string): Promise<Probe> {
   });
 }
 
-/** Decodes a file the way a player would, to 48 kHz stereo float: what the checks measure (the file that ships, not the samples it was made from). */
-export async function decodeFile(path: string): Promise<Stereo> {
-  const { out } = await run(['-i', path, '-f', 'f32le', '-ac', '2', '-ar', String(SR), 'pipe:1']);
+/**
+ * Decodes a file the way a player would, to 48 kHz stereo float: what the checks measure (the file that ships, not the samples it was made from). A mono file is given to both sides at its own level, as the browser plays
+ * it (ffmpeg's own up-mix would take 3 dB off it).
+ */
+export async function decodeFile(path: string, channels: 1 | 2 = 2): Promise<Stereo> {
+  const { out } = await run(['-i', path, '-f', 'f32le', ...(channels === 1 ? ['-af', 'pan=stereo|c0=c0|c1=c0'] : ['-ac', '2']), '-ar', String(SR), 'pipe:1']);
   const f = new Float32Array(out.buffer, out.byteOffset, Math.floor(out.byteLength / 4));
   const n = Math.floor(f.length / 2);
   const l = buf(n);

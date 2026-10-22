@@ -5,7 +5,9 @@
   "peakDb": -17,
   "lufs": -23.9,
   "activeRmsDb": -33.2,
-  "silentMs": 5
+  "silentMs": 5,
+  "playedLufs": -24.3,
+  "playedPeakDb": -17.2
  },
  "amb_drip_2": {
   "frames": 83647,
@@ -13,7 +15,9 @@
   "peakDb": -17,
   "lufs": -22.8,
   "activeRmsDb": -32.8,
-  "silentMs": 10
+  "silentMs": 10,
+  "playedLufs": -23.2,
+  "playedPeakDb": -16.7
  },
  "amb_drip_3": {
   "frames": 97722,
@@ -21,7 +25,9 @@
   "peakDb": -17,
   "lufs": -24.3,
   "activeRmsDb": -33.2,
-  "silentMs": 40
+  "silentMs": 40,
+  "playedLufs": -24.6,
+  "playedPeakDb": -16.6
  },
  "amb_echo_far_1": {
   "frames": 274239,
@@ -29,7 +35,9 @@
   "peakDb": -19,
   "lufs": -27.3,
   "activeRmsDb": -29.2,
-  "silentMs": 175
+  "silentMs": 175,
+  "playedLufs": -27.6,
+  "playedPeakDb": -18.7
  },
  "amb_echo_far_2": {
   "frames": 257306,
@@ -37,7 +45,9 @@
   "peakDb": -19,
   "lufs": -24.8,
   "activeRmsDb": -26.4,
-  "silentMs": 170
+  "silentMs": 170,
+  "playedLufs": -25.1,
+  "playedPeakDb": -18.3
  },
  "amb_magic_pulse_1": {
   "frames": 133259,
@@ -45,7 +55,9 @@
   "peakDb": -18.1,
   "lufs": -20.3,
   "activeRmsDb": -27.2,
-  "silentMs": 40
+  "silentMs": 40,
+  "playedLufs": -20.5,
+  "playedPeakDb": -18
  },
  "amb_magic_pulse_2": {
   "frames": 136313,
@@ -53,7 +65,9 @@
   "peakDb": -18,
   "lufs": -21.6,
   "activeRmsDb": -28.1,
-  "silentMs": 35
+  "silentMs": 35,
+  "playedLufs": -21.8,
+  "playedPeakDb": -17.9
  },
  "amb_roots_creak_1": {
   "frames": 86140,
@@ -61,7 +75,9 @@
   "peakDb": -18,
   "lufs": -24.7,
   "activeRmsDb": -29.7,
-  "silentMs": 205
+  "silentMs": 205,
+  "playedLufs": -25,
+  "playedPeakDb": -17.8
  },
  "amb_roots_creak_2": {
   "frames": 88367,
@@ -69,7 +85,9 @@
   "peakDb": -18,
   "lufs": -24.1,
   "activeRmsDb": -29.1,
-  "silentMs": 205
+  "silentMs": 205,
+  "playedLufs": -24.4,
+  "playedPeakDb": -17.6
  },
  "amb_sanctum_breath": {
   "frames": 316997,
@@ -77,7 +95,9 @@
   "peakDb": -19,
   "lufs": -27,
   "activeRmsDb": -30.4,
-  "silentMs": 275
+  "silentMs": 275,
+  "playedLufs": -27.3,
+  "playedPeakDb": -18.9
  },
  "amb_stone_1": {
   "frames": 67439,
@@ -85,7 +105,9 @@
   "peakDb": -17,
   "lufs": -29.7,
   "activeRmsDb": -36.5,
-  "silentMs": 280
+  "silentMs": 280,
+  "playedLufs": -30.2,
+  "playedPeakDb": -17.1
  },
  "amb_stone_2": {
   "frames": 71397,
@@ -93,7 +115,9 @@
   "peakDb": -17,
   "lufs": -29.1,
   "activeRmsDb": -35.9,
-  "silentMs": 355
+  "silentMs": 355,
+  "playedLufs": -29.6,
+  "playedPeakDb": -16.7
  },
  "amb_wind_gust_1": {
   "frames": 159069,
@@ -101,7 +125,9 @@
   "peakDb": -18.2,
   "lufs": -29.5,
   "activeRmsDb": -33,
-  "silentMs": 350
+  "silentMs": 350,
+  "playedLufs": -30,
+  "playedPeakDb": -18.7
  },
  "amb_wind_gust_2": {
   "frames": 161038,
@@ -109,7 +135,9 @@
   "peakDb": -18,
   "lufs": -29.5,
   "activeRmsDb": -33.2,
-  "silentMs": 360
+  "silentMs": 360,
+  "playedLufs": -30,
+  "playedPeakDb": -18.3
  },
  "bed_chamber_base": {
   "frames": 576000,
@@ -120,7 +148,9 @@
   "silentMs": 0,
   "seamStep": 0.45,
   "seamLevelDb": 2,
-  "seamJumpDb": -63.5
+  "seamJumpDb": -63.5,
+  "playedLufs": -30.2,
+  "playedPeakDb": -17.5
  },
  "bed_roots_base": {
   "frames": 576000,
@@ -131,7 +161,9 @@
   "silentMs": 0,
   "seamStep": 0.55,
   "seamLevelDb": 0.2,
-  "seamJumpDb": -69.5
+  "seamJumpDb": -69.5,
+  "playedLufs": -31.2,
+  "playedPeakDb": -17
  },
  "bed_ruins_base": {
   "frames": 576000,
@@ -142,7 +174,9 @@
   "silentMs": 0,
   "seamStep": 0.73,
   "seamLevelDb": 1.9,
-  "seamJumpDb": -53.2
+  "seamJumpDb": -53.2,
+  "playedLufs": -31.2,
+  "playedPeakDb": -17.4
  },
  "bed_sanctum_base": {
   "frames": 576000,
@@ -153,7 +187,9 @@
   "silentMs": 0,
   "seamStep": 0.57,
   "seamLevelDb": 0,
-  "seamJumpDb": -56.4
+  "seamJumpDb": -56.4,
+  "playedLufs": -32.2,
+  "playedPeakDb": -21.1
  },
  "boss_death": {
   "frames": 292489,
@@ -161,7 +197,9 @@
   "peakDb": -1.1,
   "lufs": -12.9,
   "activeRmsDb": -15.2,
-  "silentMs": 15
+  "silentMs": 15,
+  "playedLufs": -13.1,
+  "playedPeakDb": -1.2
  },
  "boss_phase": {
   "frames": 151353,
@@ -169,7 +207,9 @@
   "peakDb": -2.2,
   "lufs": -16.2,
   "activeRmsDb": -16.8,
-  "silentMs": 55
+  "silentMs": 55,
+  "playedLufs": -16.4,
+  "playedPeakDb": -2.2
  },
  "boss_strike_charge": {
   "frames": 49097,
@@ -177,7 +217,9 @@
   "peakDb": -1,
   "lufs": -11.9,
   "activeRmsDb": -15.5,
-  "silentMs": 30
+  "silentMs": 30,
+  "playedLufs": -12.2,
+  "playedPeakDb": -1.4
  },
  "boss_strike_rain_1": {
   "frames": 37726,
@@ -185,7 +227,9 @@
   "peakDb": -3,
   "lufs": -14.2,
   "activeRmsDb": -17.1,
-  "silentMs": 10
+  "silentMs": 10,
+  "playedLufs": -14.5,
+  "playedPeakDb": -3.1
  },
  "boss_strike_rain_2": {
   "frames": 37497,
@@ -193,7 +237,9 @@
   "peakDb": -3,
   "lufs": -14.6,
   "activeRmsDb": -17.4,
-  "silentMs": 15
+  "silentMs": 15,
+  "playedLufs": -15,
+  "playedPeakDb": -3.7
  },
  "boss_strike_rain_3": {
   "frames": 37712,
@@ -201,7 +247,9 @@
   "peakDb": -3,
   "lufs": -14.2,
   "activeRmsDb": -17.1,
-  "silentMs": 15
+  "silentMs": 15,
+  "playedLufs": -14.5,
+  "playedPeakDb": -3.1
  },
  "boss_telegraph_charge": {
   "frames": 63190,
@@ -209,7 +257,9 @@
   "peakDb": -3.4,
   "lufs": -13.2,
   "activeRmsDb": -16,
-  "silentMs": 30
+  "silentMs": 30,
+  "playedLufs": -13.4,
+  "playedPeakDb": -3.8
  },
  "boss_telegraph_rain": {
   "frames": 70302,
@@ -217,7 +267,9 @@
   "peakDb": -5,
   "lufs": -8.9,
   "activeRmsDb": -17,
-  "silentMs": 5
+  "silentMs": 5,
+  "playedLufs": -9.1,
+  "playedPeakDb": -5
  },
  "boss_wake": {
   "frames": 205556,
@@ -225,7 +277,9 @@
   "peakDb": -2.7,
   "lufs": -13,
   "activeRmsDb": -15,
-  "silentMs": 70
+  "silentMs": 70,
+  "playedLufs": -13.3,
+  "playedPeakDb": -2.4
  },
  "bottle_denied": {
   "frames": 9211,
@@ -233,7 +287,9 @@
   "peakDb": -10,
   "lufs": -24.9,
   "activeRmsDb": -22.2,
-  "silentMs": 25
+  "silentMs": 25,
+  "playedLufs": -25.1,
+  "playedPeakDb": -9.8
  },
  "bottle_drunk": {
   "frames": 101674,
@@ -241,7 +297,9 @@
   "peakDb": -5,
   "lufs": -9.4,
   "activeRmsDb": -17,
-  "silentMs": 5
+  "silentMs": 5,
+  "playedLufs": -9.7,
+  "playedPeakDb": -4.9
  },
  "bottle_interrupted": {
   "frames": 17406,
@@ -249,7 +307,9 @@
   "peakDb": -8,
   "lufs": -21.1,
   "activeRmsDb": -23,
-  "silentMs": 45
+  "silentMs": 45,
+  "playedLufs": -21.7,
+  "playedPeakDb": -8.1
  },
  "bottle_ready": {
   "frames": 44615,
@@ -257,7 +317,9 @@
   "peakDb": -14,
   "lufs": -16.1,
   "activeRmsDb": -24.3,
-  "silentMs": 70
+  "silentMs": 70,
+  "playedLufs": -16.4,
+  "playedPeakDb": -13.8
  },
  "bottle_start": {
   "frames": 27159,
@@ -265,7 +327,9 @@
   "peakDb": -9.2,
   "lufs": -18.1,
   "activeRmsDb": -20.7,
-  "silentMs": 35
+  "silentMs": 35,
+  "playedLufs": -18.3,
+  "playedPeakDb": -9.2
  },
  "chamber_base": {
   "frames": 2160000,
@@ -276,7 +340,9 @@
   "silentMs": 0,
   "seamStep": 0.28,
   "seamLevelDb": 0.3,
-  "seamJumpDb": -45.5
+  "seamJumpDb": -45.5,
+  "playedLufs": -20.2,
+  "playedPeakDb": -7.6
  },
  "chamber_drive": {
   "frames": 2160000,
@@ -287,7 +353,9 @@
   "silentMs": 0,
   "seamStep": 0.1,
   "seamLevelDb": 25.6,
-  "seamJumpDb": -57.8
+  "seamJumpDb": -57.8,
+  "playedLufs": -24.2,
+  "playedPeakDb": -7.1
  },
  "gate_close": {
   "frames": 108475,
@@ -295,7 +363,9 @@
   "peakDb": -2.1,
   "lufs": -12.2,
   "activeRmsDb": -18.9,
-  "silentMs": 65
+  "silentMs": 65,
+  "playedLufs": -12.5,
+  "playedPeakDb": -2.2
  },
  "gate_open": {
   "frames": 151876,
@@ -303,7 +373,9 @@
   "peakDb": -3,
   "lufs": -18.4,
   "activeRmsDb": -18.4,
-  "silentMs": 105
+  "silentMs": 105,
+  "playedLufs": -18.7,
+  "playedPeakDb": -3
  },
  "hazard_spikes_1": {
   "frames": 9245,
@@ -311,7 +383,9 @@
   "peakDb": -4,
   "lufs": -23.7,
   "activeRmsDb": -22.9,
-  "silentMs": 30
+  "silentMs": 30,
+  "playedLufs": -25,
+  "playedPeakDb": -4.3
  },
  "hazard_spikes_2": {
   "frames": 9278,
@@ -319,7 +393,9 @@
   "peakDb": -4,
   "lufs": -24.2,
   "activeRmsDb": -23.2,
-  "silentMs": 30
+  "silentMs": 30,
+  "playedLufs": -24.9,
+  "playedPeakDb": -3.9
  },
  "hero_dash_air_1": {
   "frames": 26705,
@@ -327,7 +403,9 @@
   "peakDb": -4.1,
   "lufs": -14.2,
   "activeRmsDb": -19.2,
-  "silentMs": 30
+  "silentMs": 30,
+  "playedLufs": -15,
+  "playedPeakDb": -4.9
  },
  "hero_dash_air_2": {
   "frames": 28212,
@@ -335,7 +413,9 @@
   "peakDb": -4,
   "lufs": -13.8,
   "activeRmsDb": -19.5,
-  "silentMs": 45
+  "silentMs": 45,
+  "playedLufs": -14,
+  "playedPeakDb": -3.8
  },
  "hero_dash_ground_1": {
   "frames": 19782,
@@ -343,7 +423,9 @@
   "peakDb": -4.1,
   "lufs": -14.4,
   "activeRmsDb": -16.8,
-  "silentMs": 20
+  "silentMs": 20,
+  "playedLufs": -14.6,
+  "playedPeakDb": -3.8
  },
  "hero_dash_ground_2": {
   "frames": 19475,
@@ -351,7 +433,9 @@
   "peakDb": -4.1,
   "lufs": -16,
   "activeRmsDb": -18.2,
-  "silentMs": 20
+  "silentMs": 20,
+  "playedLufs": -16.1,
+  "playedPeakDb": -4.3
  },
  "hero_death": {
   "frames": 116387,
@@ -359,7 +443,9 @@
   "peakDb": -3,
   "lufs": -11.2,
   "activeRmsDb": -17.8,
-  "silentMs": 5
+  "silentMs": 5,
+  "playedLufs": -11.4,
+  "playedPeakDb": -2.9
  },
  "hero_heartbeat": {
   "frames": 25470,
@@ -367,7 +453,9 @@
   "peakDb": -11,
   "lufs": -23.4,
   "activeRmsDb": -24.4,
-  "silentMs": 70
+  "silentMs": 70,
+  "playedLufs": -23.7,
+  "playedPeakDb": -11.1
  },
  "hero_hurt_heavy_1": {
   "frames": 25837,
@@ -375,7 +463,9 @@
   "peakDb": -3.2,
   "lufs": -14.4,
   "activeRmsDb": -16,
-  "silentMs": 25
+  "silentMs": 25,
+  "playedLufs": -14.6,
+  "playedPeakDb": -3.1
  },
  "hero_hurt_heavy_2": {
   "frames": 26675,
@@ -383,7 +473,9 @@
   "peakDb": -3.2,
   "lufs": -14.5,
   "activeRmsDb": -16.1,
-  "silentMs": 45
+  "silentMs": 45,
+  "playedLufs": -14.7,
+  "playedPeakDb": -3
  },
  "hero_hurt_light_1": {
   "frames": 23765,
@@ -391,7 +483,9 @@
   "peakDb": -3.1,
   "lufs": -16.3,
   "activeRmsDb": -17.6,
-  "silentMs": 45
+  "silentMs": 45,
+  "playedLufs": -16.5,
+  "playedPeakDb": -3
  },
  "hero_hurt_light_2": {
   "frames": 23766,
@@ -399,7 +493,9 @@
   "peakDb": -3.1,
   "lufs": -16.3,
   "activeRmsDb": -17.6,
-  "silentMs": 45
+  "silentMs": 45,
+  "playedLufs": -16.6,
+  "playedPeakDb": -3.2
  },
  "hero_jump_1": {
   "frames": 13671,
@@ -407,7 +503,9 @@
   "peakDb": -8,
   "lufs": -22.1,
   "activeRmsDb": -20.5,
-  "silentMs": 50
+  "silentMs": 50,
+  "playedLufs": -22.4,
+  "playedPeakDb": -7.9
  },
  "hero_jump_2": {
   "frames": 14647,
@@ -415,7 +513,9 @@
   "peakDb": -8,
   "lufs": -22.1,
   "activeRmsDb": -20.5,
-  "silentMs": 65
+  "silentMs": 65,
+  "playedLufs": -22.3,
+  "playedPeakDb": -8
  },
  "hero_jump_air_1": {
   "frames": 23769,
@@ -423,7 +523,9 @@
   "peakDb": -8,
   "lufs": -17.6,
   "activeRmsDb": -22.4,
-  "silentMs": 65
+  "silentMs": 65,
+  "playedLufs": -18.2,
+  "playedPeakDb": -8.4
  },
  "hero_jump_air_2": {
   "frames": 21764,
@@ -431,7 +533,9 @@
   "peakDb": -8.2,
   "lufs": -18.4,
   "activeRmsDb": -22.7,
-  "silentMs": 50
+  "silentMs": 50,
+  "playedLufs": -18.9,
+  "playedPeakDb": -8.3
  },
  "hero_land_heavy_1": {
   "frames": 26496,
@@ -439,7 +543,9 @@
   "peakDb": -3,
   "lufs": -16.1,
   "activeRmsDb": -17.8,
-  "silentMs": 15
+  "silentMs": 15,
+  "playedLufs": -16.3,
+  "playedPeakDb": -2.9
  },
  "hero_land_heavy_2": {
   "frames": 26579,
@@ -447,7 +553,9 @@
   "peakDb": -3,
   "lufs": -15.6,
   "activeRmsDb": -17.4,
-  "silentMs": 10
+  "silentMs": 10,
+  "playedLufs": -15.9,
+  "playedPeakDb": -3
  },
  "hero_land_light_1": {
   "frames": 14305,
@@ -455,7 +563,9 @@
   "peakDb": -8,
   "lufs": -24.5,
   "activeRmsDb": -23.3,
-  "silentMs": 25
+  "silentMs": 25,
+  "playedLufs": -24.8,
+  "playedPeakDb": -7.3
  },
  "hero_land_light_2": {
   "frames": 14980,
@@ -463,7 +573,9 @@
   "peakDb": -8,
   "lufs": -24.5,
   "activeRmsDb": -23.3,
-  "silentMs": 40
+  "silentMs": 40,
+  "playedLufs": -24.7,
+  "playedPeakDb": -7.4
  },
  "hero_land_medium_1": {
   "frames": 18631,
@@ -471,7 +583,9 @@
   "peakDb": -5,
   "lufs": -19.7,
   "activeRmsDb": -19.4,
-  "silentMs": 15
+  "silentMs": 15,
+  "playedLufs": -20,
+  "playedPeakDb": -4.6
  },
  "hero_land_medium_2": {
   "frames": 18637,
@@ -479,7 +593,9 @@
   "peakDb": -5,
   "lufs": -19.3,
   "activeRmsDb": -19,
-  "silentMs": 15
+  "silentMs": 15,
+  "playedLufs": -19.7,
+  "playedPeakDb": -5.6
  },
  "hero_respawn": {
   "frames": 91625,
@@ -487,7 +603,9 @@
   "peakDb": -6.1,
   "lufs": -11.3,
   "activeRmsDb": -18.8,
-  "silentMs": 10
+  "silentMs": 10,
+  "playedLufs": -11.5,
+  "playedPeakDb": -6.1
  },
  "hero_slash_1_1": {
   "frames": 15726,
@@ -495,7 +613,9 @@
   "peakDb": -5,
   "lufs": -18.5,
   "activeRmsDb": -21,
-  "silentMs": 45
+  "silentMs": 45,
+  "playedLufs": -19.6,
+  "playedPeakDb": -5.8
  },
  "hero_slash_1_2": {
   "frames": 15556,
@@ -503,7 +623,9 @@
   "peakDb": -5,
   "lufs": -17,
   "activeRmsDb": -19.7,
-  "silentMs": 30
+  "silentMs": 30,
+  "playedLufs": -18.1,
+  "playedPeakDb": -5.3
  },
  "hero_slash_1_3": {
   "frames": 16076,
@@ -511,7 +633,9 @@
   "peakDb": -5,
   "lufs": -18.3,
   "activeRmsDb": -20.9,
-  "silentMs": 45
+  "silentMs": 45,
+  "playedLufs": -19.3,
+  "playedPeakDb": -5.1
  },
  "hero_slash_2_1": {
   "frames": 18110,
@@ -519,7 +643,9 @@
   "peakDb": -5,
   "lufs": -16.7,
   "activeRmsDb": -19.7,
-  "silentMs": 45
+  "silentMs": 45,
+  "playedLufs": -17.5,
+  "playedPeakDb": -4.6
  },
  "hero_slash_2_2": {
   "frames": 18249,
@@ -527,7 +653,9 @@
   "peakDb": -5.1,
   "lufs": -18.1,
   "activeRmsDb": -21,
-  "silentMs": 55
+  "silentMs": 55,
+  "playedLufs": -18.9,
+  "playedPeakDb": -5.6
  },
  "hero_slash_2_3": {
   "frames": 18188,
@@ -535,7 +663,9 @@
   "peakDb": -5,
   "lufs": -18.8,
   "activeRmsDb": -21.6,
-  "silentMs": 55
+  "silentMs": 55,
+  "playedLufs": -19.6,
+  "playedPeakDb": -5.6
  },
  "hero_slash_air_1": {
   "frames": 15729,
@@ -543,7 +673,9 @@
   "peakDb": -5,
   "lufs": -16.8,
   "activeRmsDb": -20,
-  "silentMs": 30
+  "silentMs": 30,
+  "playedLufs": -17,
+  "playedPeakDb": -5.2
  },
  "hero_slash_air_2": {
   "frames": 16389,
@@ -551,7 +683,9 @@
   "peakDb": -5,
   "lufs": -17.8,
   "activeRmsDb": -21.1,
-  "silentMs": 45
+  "silentMs": 45,
+  "playedLufs": -17.8,
+  "playedPeakDb": -3.5
  },
  "hero_slash_air_3": {
   "frames": 16165,
@@ -559,7 +693,9 @@
   "peakDb": -5.1,
   "lufs": -17.3,
   "activeRmsDb": -20.7,
-  "silentMs": 30
+  "silentMs": 30,
+  "playedLufs": -18.7,
+  "playedPeakDb": -5.7
  },
  "hero_slash_crouch_1": {
   "frames": 14884,
@@ -567,7 +703,9 @@
   "peakDb": -5,
   "lufs": -20.3,
   "activeRmsDb": -21.2,
-  "silentMs": 50
+  "silentMs": 50,
+  "playedLufs": -21.1,
+  "playedPeakDb": -4.8
  },
  "hero_slash_crouch_2": {
   "frames": 14721,
@@ -575,7 +713,9 @@
   "peakDb": -5,
   "lufs": -20.5,
   "activeRmsDb": -21.2,
-  "silentMs": 45
+  "silentMs": 45,
+  "playedLufs": -21.3,
+  "playedPeakDb": -5.3
  },
  "hero_slash_crouch_3": {
   "frames": 14555,
@@ -583,7 +723,9 @@
   "peakDb": -5,
   "lufs": -19.9,
   "activeRmsDb": -20.8,
-  "silentMs": 20
+  "silentMs": 20,
+  "playedLufs": -20.7,
+  "playedPeakDb": -5.1
  },
  "hero_step_earth_1": {
   "frames": 12527,
@@ -591,7 +733,9 @@
   "peakDb": -9,
   "lufs": -25.1,
   "activeRmsDb": -23.1,
-  "silentMs": 50
+  "silentMs": 50,
+  "playedLufs": -25.4,
+  "playedPeakDb": -9.1
  },
  "hero_step_earth_2": {
   "frames": 12366,
@@ -599,7 +743,9 @@
   "peakDb": -9,
   "lufs": -25.8,
   "activeRmsDb": -23.7,
-  "silentMs": 45
+  "silentMs": 45,
+  "playedLufs": -26.1,
+  "playedPeakDb": -9.6
  },
  "hero_step_earth_3": {
   "frames": 12465,
@@ -607,7 +753,9 @@
   "peakDb": -9,
   "lufs": -25,
   "activeRmsDb": -23,
-  "silentMs": 50
+  "silentMs": 50,
+  "playedLufs": -25.4,
+  "playedPeakDb": -9.3
  },
  "hero_step_earth_4": {
   "frames": 12833,
@@ -615,7 +763,9 @@
   "peakDb": -9,
   "lufs": -24.8,
   "activeRmsDb": -22.7,
-  "silentMs": 50
+  "silentMs": 50,
+  "playedLufs": -25.1,
+  "playedPeakDb": -9.3
  },
  "hero_step_stone_1": {
   "frames": 15809,
@@ -623,7 +773,9 @@
   "peakDb": -9,
   "lufs": -27.4,
   "activeRmsDb": -27.9,
-  "silentMs": 25
+  "silentMs": 25,
+  "playedLufs": -28,
+  "playedPeakDb": -8.3
  },
  "hero_step_stone_2": {
   "frames": 15562,
@@ -631,7 +783,9 @@
   "peakDb": -9,
   "lufs": -28.7,
   "activeRmsDb": -29,
-  "silentMs": 20
+  "silentMs": 20,
+  "playedLufs": -29.3,
+  "playedPeakDb": -8.9
  },
  "hero_step_stone_3": {
   "frames": 15450,
@@ -639,7 +793,9 @@
   "peakDb": -9,
   "lufs": -28.3,
   "activeRmsDb": -28.5,
-  "silentMs": 20
+  "silentMs": 20,
+  "playedLufs": -29,
+  "playedPeakDb": -10
  },
  "hero_step_stone_4": {
   "frames": 15322,
@@ -647,7 +803,9 @@
   "peakDb": -9,
   "lufs": -29.6,
   "activeRmsDb": -29.5,
-  "silentMs": 20
+  "silentMs": 20,
+  "playedLufs": -30.2,
+  "playedPeakDb": -9.1
  },
  "hero_step_wet_1": {
   "frames": 24533,
@@ -655,7 +813,9 @@
   "peakDb": -9,
   "lufs": -26.2,
   "activeRmsDb": -28.1,
-  "silentMs": 70
+  "silentMs": 70,
+  "playedLufs": -26.6,
+  "playedPeakDb": -9.4
  },
  "hero_step_wet_2": {
   "frames": 25247,
@@ -663,7 +823,9 @@
   "peakDb": -9,
   "lufs": -26.3,
   "activeRmsDb": -27.9,
-  "silentMs": 85
+  "silentMs": 85,
+  "playedLufs": -26.7,
+  "playedPeakDb": -9.1
  },
  "hero_step_wet_3": {
   "frames": 24262,
@@ -671,7 +833,9 @@
   "peakDb": -9,
   "lufs": -26.2,
   "activeRmsDb": -28.2,
-  "silentMs": 90
+  "silentMs": 90,
+  "playedLufs": -26.6,
+  "playedPeakDb": -8.5
  },
  "hero_step_wet_4": {
   "frames": 24510,
@@ -679,7 +843,9 @@
   "peakDb": -9,
   "lufs": -27.4,
   "activeRmsDb": -29.4,
-  "silentMs": 55
+  "silentMs": 55,
+  "playedLufs": -27.9,
+  "playedPeakDb": -8.7
  },
  "hit_bolt_1": {
   "frames": 35111,
@@ -687,7 +853,9 @@
   "peakDb": -3,
   "lufs": -11.4,
   "activeRmsDb": -17.8,
-  "silentMs": 20
+  "silentMs": 20,
+  "playedLufs": -12.5,
+  "playedPeakDb": -2.6
  },
  "hit_bolt_2": {
   "frames": 36202,
@@ -695,7 +863,9 @@
   "peakDb": -3,
   "lufs": -12.5,
   "activeRmsDb": -19,
-  "silentMs": 10
+  "silentMs": 10,
+  "playedLufs": -13.2,
+  "playedPeakDb": -2.9
  },
  "hit_heavy_1": {
   "frames": 24113,
@@ -703,7 +873,9 @@
   "peakDb": -3,
   "lufs": -16.3,
   "activeRmsDb": -17.3,
-  "silentMs": 5
+  "silentMs": 5,
+  "playedLufs": -16.6,
+  "playedPeakDb": -2.8
  },
  "hit_heavy_2": {
   "frames": 24110,
@@ -711,7 +883,9 @@
   "peakDb": -3,
   "lufs": -16.5,
   "activeRmsDb": -17.6,
-  "silentMs": 5
+  "silentMs": 5,
+  "playedLufs": -16.8,
+  "playedPeakDb": -2.9
  },
  "hit_heavy_3": {
   "frames": 24115,
@@ -719,7 +893,9 @@
   "peakDb": -3,
   "lufs": -16.2,
   "activeRmsDb": -17.3,
-  "silentMs": 5
+  "silentMs": 5,
+  "playedLufs": -16.5,
+  "playedPeakDb": -3.1
  },
  "hit_light_1": {
   "frames": 14406,
@@ -727,7 +903,9 @@
   "peakDb": -5,
   "lufs": -21.9,
   "activeRmsDb": -20.8,
-  "silentMs": 50
+  "silentMs": 50,
+  "playedLufs": -22.2,
+  "playedPeakDb": -6.2
  },
  "hit_light_2": {
   "frames": 13222,
@@ -735,7 +913,9 @@
   "peakDb": -5,
   "lufs": -21.6,
   "activeRmsDb": -20.6,
-  "silentMs": 25
+  "silentMs": 25,
+  "playedLufs": -21.9,
+  "playedPeakDb": -5.2
  },
  "hit_light_3": {
   "frames": 14412,
@@ -743,7 +923,9 @@
   "peakDb": -5,
   "lufs": -20.9,
   "activeRmsDb": -19.9,
-  "silentMs": 50
+  "silentMs": 50,
+  "playedLufs": -21.2,
+  "playedPeakDb": -5.2
  },
  "interact_activate": {
   "frames": 56710,
@@ -751,7 +933,9 @@
   "peakDb": -8.1,
   "lufs": -12.7,
   "activeRmsDb": -18.4,
-  "silentMs": 15
+  "silentMs": 15,
+  "playedLufs": -12.9,
+  "playedPeakDb": -8.1
  },
  "interact_open_1": {
   "frames": 34848,
@@ -759,7 +943,9 @@
   "peakDb": -5,
   "lufs": -19.2,
   "activeRmsDb": -21.2,
-  "silentMs": 35
+  "silentMs": 35,
+  "playedLufs": -19.4,
+  "playedPeakDb": -5.4
  },
  "interact_open_2": {
   "frames": 34258,
@@ -767,7 +953,9 @@
   "peakDb": -5,
   "lufs": -19.4,
   "activeRmsDb": -21.4,
-  "silentMs": 20
+  "silentMs": 20,
+  "playedLufs": -19.7,
+  "playedPeakDb": -5.4
  },
  "interact_pickup_1": {
   "frames": 79716,
@@ -775,7 +963,9 @@
   "peakDb": -6,
   "lufs": -10.7,
   "activeRmsDb": -17.6,
-  "silentMs": 10
+  "silentMs": 10,
+  "playedLufs": -10.9,
+  "playedPeakDb": -5.8
  },
  "interact_pickup_2": {
   "frames": 76510,
@@ -783,7 +973,9 @@
   "peakDb": -6.1,
   "lufs": -11.3,
   "activeRmsDb": -18,
-  "silentMs": 10
+  "silentMs": 10,
+  "playedLufs": -11.6,
+  "playedPeakDb": -5.9
  },
  "interact_rest": {
   "frames": 164914,
@@ -791,7 +983,9 @@
   "peakDb": -5.7,
   "lufs": -15.4,
   "activeRmsDb": -19.2,
-  "silentMs": 165
+  "silentMs": 165,
+  "playedLufs": -15.7,
+  "playedPeakDb": -5.7
  },
  "magic_bolt_fizzle_1": {
   "frames": 21033,
@@ -799,7 +993,9 @@
   "peakDb": -10,
   "lufs": -17,
   "activeRmsDb": -22.9,
-  "silentMs": 5
+  "silentMs": 5,
+  "playedLufs": -17.2,
+  "playedPeakDb": -9.5
  },
  "magic_bolt_fizzle_2": {
   "frames": 18617,
@@ -807,7 +1003,9 @@
   "peakDb": -10,
   "lufs": -18.5,
   "activeRmsDb": -23.6,
-  "silentMs": 15
+  "silentMs": 15,
+  "playedLufs": -18.7,
+  "playedPeakDb": -9.6
  },
  "magic_cast_release_1": {
   "frames": 34622,
@@ -815,7 +1013,9 @@
   "peakDb": -3,
   "lufs": -13.5,
   "activeRmsDb": -19.6,
-  "silentMs": 10
+  "silentMs": 10,
+  "playedLufs": -13.7,
+  "playedPeakDb": -2.6
  },
  "magic_cast_release_2": {
   "frames": 34622,
@@ -823,7 +1023,9 @@
   "peakDb": -3,
   "lufs": -13.5,
   "activeRmsDb": -19.6,
-  "silentMs": 10
+  "silentMs": 10,
+  "playedLufs": -13.6,
+  "playedPeakDb": -2.5
  },
  "magic_cast_start": {
   "frames": 18026,
@@ -831,7 +1033,9 @@
   "peakDb": -11,
   "lufs": -22.3,
   "activeRmsDb": -26.5,
-  "silentMs": 35
+  "silentMs": 35,
+  "playedLufs": -22.6,
+  "playedPeakDb": -10.5
  },
  "magic_denied": {
   "frames": 14003,
@@ -839,7 +1043,9 @@
   "peakDb": -7,
   "lufs": -20,
   "activeRmsDb": -19.2,
-  "silentMs": 40
+  "silentMs": 40,
+  "playedLufs": -20.3,
+  "playedPeakDb": -7
  },
  "ruins_base": {
   "frames": 2094545,
@@ -850,7 +1056,9 @@
   "silentMs": 0,
   "seamStep": 0.33,
   "seamLevelDb": 0.6,
-  "seamJumpDb": -53.6
+  "seamJumpDb": -53.6,
+  "playedLufs": -20.2,
+  "playedPeakDb": -7.7
  },
  "ruins_drive": {
   "frames": 2094545,
@@ -861,7 +1069,9 @@
   "silentMs": 0,
   "seamStep": 0.03,
   "seamLevelDb": 10.6,
-  "seamJumpDb": -64.3
+  "seamJumpDb": -64.3,
+  "playedLufs": -24.7,
+  "playedPeakDb": -11.9
  },
  "sanctum_base": {
   "frames": 2057143,
@@ -872,7 +1082,9 @@
   "silentMs": 0,
   "seamStep": 3.17,
   "seamLevelDb": 4.2,
-  "seamJumpDb": -36.9
+  "seamJumpDb": -36.9,
+  "playedLufs": -20.2,
+  "playedPeakDb": -8.2
  },
  "sanctum_drive": {
   "frames": 2057143,
@@ -883,7 +1095,9 @@
   "silentMs": 0,
   "seamStep": 1.9,
   "seamLevelDb": 12.3,
-  "seamJumpDb": -37
+  "seamJumpDb": -37,
+  "playedLufs": -25.2,
+  "playedPeakDb": -12.5
  },
  "seal_break": {
   "frames": 176054,
@@ -891,7 +1105,9 @@
   "peakDb": -2,
   "lufs": -7.6,
   "activeRmsDb": -14.6,
-  "silentMs": 10
+  "silentMs": 10,
+  "playedLufs": -7.8,
+  "playedPeakDb": -1.4
  },
  "seal_reject_1": {
   "frames": 40327,
@@ -899,7 +1115,9 @@
   "peakDb": -3,
   "lufs": -17.7,
   "activeRmsDb": -20.7,
-  "silentMs": 45
+  "silentMs": 45,
+  "playedLufs": -18,
+  "playedPeakDb": -4
  },
  "seal_reject_2": {
   "frames": 40700,
@@ -907,7 +1125,9 @@
   "peakDb": -3,
   "lufs": -17.2,
   "activeRmsDb": -20.4,
-  "silentMs": 45
+  "silentMs": 45,
+  "playedLufs": -17.5,
+  "playedPeakDb": -2.7
  },
  "slime_alert_1": {
   "frames": 19854,
@@ -915,7 +1135,9 @@
   "peakDb": -8,
   "lufs": -17.4,
   "activeRmsDb": -18.9,
-  "silentMs": 15
+  "silentMs": 15,
+  "playedLufs": -17.7,
+  "playedPeakDb": -7.9
  },
  "slime_alert_2": {
   "frames": 19039,
@@ -923,7 +1145,9 @@
   "peakDb": -8,
   "lufs": -18.5,
   "activeRmsDb": -19.6,
-  "silentMs": 15
+  "silentMs": 15,
+  "playedLufs": -18.7,
+  "playedPeakDb": -7.8
  },
  "slime_death_1": {
   "frames": 50492,
@@ -931,7 +1155,9 @@
   "peakDb": -3,
   "lufs": -11.3,
   "activeRmsDb": -16.4,
-  "silentMs": 15
+  "silentMs": 15,
+  "playedLufs": -11.6,
+  "playedPeakDb": -2.9
  },
  "slime_death_2": {
   "frames": 49837,
@@ -939,7 +1165,9 @@
   "peakDb": -3,
   "lufs": -11.1,
   "activeRmsDb": -16.4,
-  "silentMs": 20
+  "silentMs": 20,
+  "playedLufs": -11.5,
+  "playedPeakDb": -2.6
  },
  "slime_lunge_1": {
   "frames": 18628,
@@ -947,7 +1175,9 @@
   "peakDb": -5,
   "lufs": -15,
   "activeRmsDb": -16.4,
-  "silentMs": 0
+  "silentMs": 0,
+  "playedLufs": -15.2,
+  "playedPeakDb": -4.8
  },
  "slime_lunge_2": {
   "frames": 18942,
@@ -955,7 +1185,9 @@
   "peakDb": -5,
   "lufs": -14.8,
   "activeRmsDb": -16.3,
-  "silentMs": 5
+  "silentMs": 5,
+  "playedLufs": -15.1,
+  "playedPeakDb": -4.9
  },
  "slime_telegraph": {
   "frames": 31623,
@@ -963,7 +1195,9 @@
   "peakDb": -5.1,
   "lufs": -14.6,
   "activeRmsDb": -17.8,
-  "silentMs": 30
+  "silentMs": 30,
+  "playedLufs": -14.9,
+  "playedPeakDb": -5.4
  },
  "stinger_card": {
   "frames": 180016,
@@ -971,7 +1205,9 @@
   "peakDb": -7,
   "lufs": -12.5,
   "activeRmsDb": -17.4,
-  "silentMs": 5
+  "silentMs": 5,
+  "playedLufs": -12.7,
+  "playedPeakDb": -6.4
  },
  "stinger_unlock": {
   "frames": 276822,
@@ -979,7 +1215,9 @@
   "peakDb": -6,
   "lufs": -12.8,
   "activeRmsDb": -18.3,
-  "silentMs": 5
+  "silentMs": 5,
+  "playedLufs": -13,
+  "playedPeakDb": -5.3
  },
  "stinger_victory": {
   "frames": 384374,
@@ -987,7 +1225,9 @@
   "peakDb": -6,
   "lufs": -14.6,
   "activeRmsDb": -17.7,
-  "silentMs": 90
+  "silentMs": 90,
+  "playedLufs": -14.9,
+  "playedPeakDb": -5.8
  },
  "transition_pass": {
   "frames": 84440,
@@ -995,7 +1235,9 @@
   "peakDb": -10.3,
   "lufs": -17,
   "activeRmsDb": -22.2,
-  "silentMs": 190
+  "silentMs": 190,
+  "playedLufs": -17.2,
+  "playedPeakDb": -9.9
  },
  "ui_pause_close": {
   "frames": 19322,
@@ -1003,7 +1245,9 @@
   "peakDb": -11,
   "lufs": -25,
   "activeRmsDb": -26.1,
-  "silentMs": 40
+  "silentMs": 40,
+  "playedLufs": -25.4,
+  "playedPeakDb": -11.3
  },
  "ui_pause_open": {
   "frames": 20597,
@@ -1011,7 +1255,9 @@
   "peakDb": -11,
   "lufs": -22.8,
   "activeRmsDb": -23.7,
-  "silentMs": 55
+  "silentMs": 55,
+  "playedLufs": -23.1,
+  "playedPeakDb": -10.8
  },
  "ui_save": {
   "frames": 52633,
@@ -1019,7 +1265,9 @@
   "peakDb": -16,
   "lufs": -19,
   "activeRmsDb": -26.8,
-  "silentMs": 25
+  "silentMs": 25,
+  "playedLufs": -19.2,
+  "playedPeakDb": -16.2
  },
  "ui_slider": {
   "frames": 14391,
@@ -1027,7 +1275,9 @@
   "peakDb": -20,
   "lufs": -25.6,
   "activeRmsDb": -28.7,
-  "silentMs": 70
+  "silentMs": 70,
+  "playedLufs": -25.8,
+  "playedPeakDb": -19.7
  },
  "ui_tap": {
   "frames": 12417,
@@ -1035,7 +1285,9 @@
   "peakDb": -14,
   "lufs": -21.2,
   "activeRmsDb": -23.3,
-  "silentMs": 5
+  "silentMs": 5,
+  "playedLufs": -21.5,
+  "playedPeakDb": -14.3
  },
  "ui_toggle_off": {
   "frames": 17044,
@@ -1043,7 +1295,9 @@
   "peakDb": -14,
   "lufs": -20.7,
   "activeRmsDb": -23.9,
-  "silentMs": 15
+  "silentMs": 15,
+  "playedLufs": -20.9,
+  "playedPeakDb": -13.7
  },
  "ui_toggle_on": {
   "frames": 15171,
@@ -1051,7 +1305,9 @@
   "peakDb": -14,
   "lufs": -21.5,
   "activeRmsDb": -24.9,
-  "silentMs": 20
+  "silentMs": 20,
+  "playedLufs": -21.7,
+  "playedPeakDb": -14
  },
  "warden_base": {
   "frames": 1706667,
@@ -1062,7 +1318,9 @@
   "silentMs": 0,
   "seamStep": 3.52,
   "seamLevelDb": 6.3,
-  "seamJumpDb": -24.7
+  "seamJumpDb": -24.7,
+  "playedLufs": -19.2,
+  "playedPeakDb": -7
  },
  "warden_drive": {
   "frames": 1706667,
@@ -1073,6 +1331,8 @@
   "silentMs": 0,
   "seamStep": 0.17,
   "seamLevelDb": 6.3,
-  "seamJumpDb": -52.5
+  "seamJumpDb": -52.5,
+  "playedLufs": -23.4,
+  "playedPeakDb": -11.1
  }
 }

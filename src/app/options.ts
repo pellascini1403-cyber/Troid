@@ -87,10 +87,3 @@ export function artIndexUrl(param: string | undefined, built: string, base: stri
   }
   return built === '' ? null : new URL(built, base).href;
 }
-
-/**
- * Where the audio index is (docs/PROMPT18-LOG.md): the one the build found in `public/audio`, or NOWHERE — `null`, and a page that has none asks for no file and can fail on none. `base` is the page's URL.
- */
-export function audioIndexUrl(built: string, base: string): string | null {
-  return built === '' ? null : new URL(built, base).href;
-}

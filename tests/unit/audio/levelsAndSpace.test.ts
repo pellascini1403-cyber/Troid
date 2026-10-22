@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { Levels } from '@/audio/levels';
+import { categoryOfBus, Levels } from '@/audio/levels';
 import { renderImpulse, type RoomSpec } from '@/audio/reverb';
 import { centsToRate, dbToGain, FAR, FLOOR, NEAR, PAN_LIMIT, spatialOf } from '@/audio/spatial';
-import { AUDIO_CATEGORIES, categoryOfBus, DEFAULT_AUDIO_LEVELS } from '@/presentation/audioMix';
+import { AUDIO_CATEGORIES, DEFAULT_AUDIO_LEVELS } from '@/presentation/audioMix';
 
 describe('Levels: the four volumes the player chooses', () => {
   it('start at the defaults, and the music sits under the effects', () => {
