@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LoopChannel } from '@/audio/loops';
+import { LAYER_KEEP_SECONDS, LoopChannel } from '@/audio/loops';
 import { makeRig, type Rig } from '../../helpers/audioRig';
 import { FakeGain, type FakeSource } from '../../helpers/fakeAudio';
 
@@ -31,43 +31,117 @@ describe('LoopChannel: music that waits for a gesture', () => {
     rig.start();
     await rig.settle();
     expect(music.stats().current).toBe('a');
-    expect(loops(rig)).toHaveLength(2); // base and drive, together
+    expect(loops(rig)).toHaveLength(1); // the base: the drive is fetched when it is first wanted
     expect(rig.fetched.length).toBeGreaterThan(0);
   });
 
-  it('starts every layer of a piece at the same instant, looping over its whole length with no gap', async () => {
+  it('starts the base looping over its whole length with no gap, and a layer that comes later joins in step with it', async () => {
     const rig = makeRig();
     const music = channel(rig);
     rig.start();
     music.play('a');
     await rig.settle();
-    const sources = loops(rig);
-    expect(sources).toHaveLength(2);
-    expect(new Set(sources.map((s) => s.startedAt)).size).toBe(1);
-    for (const s of sources) {
-      expect(s.loop).toBe(true);
-      expect(s.loopStart).toBe(0);
-      expect(s.loopEnd).toBeCloseTo(30, 9);
-      expect(s.offset).toBe(0);
-    }
+    const [base] = loops(rig) as [FakeSource];
+    expect(base.loop).toBe(true);
+    expect(base.loopStart).toBe(0);
+    expect(base.loopEnd).toBeCloseTo(30, 9);
+    expect(base.offset).toBe(0);
+    run(rig, 7.3);
+    music.setLayer('drive', 1);
+    await rig.settle();
+    const drive = loops(rig).find((s) => s !== base) as FakeSource;
+    expect(drive).toBeDefined();
+    expect(drive.loop && drive.loopEnd === 30 && drive.loopStart === 0).toBe(true);
+    // it joins where the base has got to: the same point of the loop, however late it arrives
+    const baseAt = (rig.ctx.currentTime - (base.startedAt as number)) % 30;
+    const driveAt = (drive.offset + (rig.ctx.currentTime - (drive.startedAt as number))) % 30;
+    expect(driveAt).toBeCloseTo(baseAt, 2);
+    expect(drive.offset).toBeGreaterThan(7);
   });
 
-  it('plays the base at full and keeps the drive layer silent until the game asks for it', async () => {
+  it('fetches nothing of the drive layer until it is wanted, plays the base at full, and brings the drive in and out smoothly', async () => {
     const rig = makeRig();
     const music = channel(rig);
     rig.start();
     music.play('a');
     await rig.settle();
-    const [base, drive] = loops(rig) as [FakeSource, FakeSource];
-    const baseGain = base.outputs[0] as FakeGain;
-    const driveGain = drive.outputs[0] as FakeGain;
-    expect(baseGain.gain.valueAt(rig.ctx.currentTime)).toBe(1);
-    expect(driveGain.gain.valueAt(rig.ctx.currentTime)).toBe(0);
+    expect(rig.fetched.some((u) => u.includes('a_drive'))).toBe(false);
+    expect(music.stats().loaded).toEqual(['base']);
+    expect(music.stats().layers).toEqual({ base: 1, drive: 0 });
+    const [base] = loops(rig) as [FakeSource];
+    expect(((base.outputs[0] as FakeGain).gain).valueAt(rig.ctx.currentTime)).toBe(1);
     music.setLayer('drive', 1, 1);
-    expect(driveGain.gain.valueAt(rig.ctx.currentTime + 2)).toBeCloseTo(10 ** (-2 / 20), 2); // the layer's own trim is −2 dB
+    await rig.settle();
+    expect(rig.fetched.some((u) => u.includes('a_drive'))).toBe(true);
+    expect(music.stats().loaded).toEqual(['base', 'drive']);
+    const drive = loops(rig).find((s) => s !== base) as FakeSource;
+    const driveGain = drive.outputs[0] as FakeGain;
+    expect(driveGain.gain.valueAt(rig.ctx.currentTime + 3)).toBeCloseTo(10 ** (-2 / 20), 2); // the layer's own trim is −2 dB
     expect(music.stats().layers).toEqual({ base: 1, drive: 1 });
     music.setLayer('drive', 0, 4);
     expect(driveGain.gain.valueAt(rig.ctx.currentTime + 8)).toBeLessThan(0.01);
+    // no step on the way out
+    let previous = driveGain.gain.valueAt(rig.ctx.currentTime);
+    for (let t = rig.ctx.currentTime + 0.01; t < rig.ctx.currentTime + 6; t += 0.01) {
+      const v = driveGain.gain.valueAt(t);
+      expect(Math.abs(v - previous)).toBeLessThan(0.02);
+      previous = v;
+    }
+  });
+
+  it('lets a layer of its own go when it has been silent for a while — its source stops, its group is given back, its memory is freed — and fetches it again when it is wanted again', async () => {
+    const rig = makeRig();
+    const music = channel(rig);
+    rig.start();
+    music.play('a');
+    await rig.settle();
+    music.setLayer('drive', 1);
+    await rig.settle();
+    const withDrive = rig.loader.bytes;
+    expect(rig.loader.stats().groups['music.a.drive']?.refs).toBe(1);
+    music.setLayer('drive', 0, 1);
+    run(rig, LAYER_KEEP_SECONDS - 2);
+    expect(music.stats().loaded).toEqual(['base', 'drive']); // not yet
+    run(rig, 3);
+    expect(music.stats().loaded).toEqual(['base']);
+    expect(rig.loader.stats().groups['music.a.drive']?.refs).toBe(0);
+    rig.timers.fire(); // the loader's grace period for a group nobody holds
+    expect(rig.loader.bytes).toBeLessThan(withDrive);
+    music.setLayer('drive', 1);
+    await rig.settle();
+    expect(music.stats().loaded).toEqual(['base', 'drive']);
+    expect(rig.ctx.sources.filter((s) => s.loop && !s.ended && s.stoppedAt === null && s.startedAt !== null)).toHaveLength(2);
+  });
+
+  it('keeps the base playing, and makes no noise, when the drive layer cannot be fetched', async () => {
+    const warnings: string[] = [];
+    const rig = makeRig({ failing: ['a_drive'], loader: { warn: (m) => warnings.push(m) } });
+    const music = channel(rig);
+    rig.start();
+    music.play('a');
+    await rig.settle();
+    music.setLayer('drive', 1);
+    await rig.settle();
+    expect(music.stats().loaded).toEqual(['base']);
+    expect(loops(rig)).toHaveLength(1);
+    expect(rig.loader.stats().groups['music.a.drive']?.refs).toBe(0); // it gave the group back
+    expect(warnings.length).toBeGreaterThan(0);
+  });
+
+  it('gives back the drive layer\'s group with the piece it belonged to', async () => {
+    const rig = makeRig();
+    const music = channel(rig);
+    rig.start();
+    music.play('a');
+    await rig.settle();
+    music.setLayer('drive', 1);
+    await rig.settle();
+    music.play('b', 1);
+    await rig.settle();
+    run(rig, 3);
+    expect(rig.loader.stats().groups['music.a.drive']?.refs).toBe(0);
+    expect(rig.loader.stats().groups['music.a']?.refs).toBe(0);
+    expect(music.stats().current).toBe('b');
   });
 
   it('gives a piece started later the drive level the game already asked for', async () => {
@@ -77,7 +151,8 @@ describe('LoopChannel: music that waits for a gesture', () => {
     music.setLayer('drive', 0.5);
     music.play('b');
     await rig.settle();
-    const drive = loops(rig).find((s) => (s.buffer?.duration ?? 0) === 24 && s !== loops(rig)[0]) as FakeSource;
+    expect(loops(rig)).toHaveLength(2); // the base, and the drive that was already asked for, fetched with it
+    const drive = loops(rig)[1] as FakeSource;
     expect((drive.outputs[0] as FakeGain).gain.value).toBeCloseTo(0.5, 6);
   });
 });
@@ -95,7 +170,7 @@ describe('LoopChannel: the music does not restart, and is never twice', () => {
     await rig.settle();
     expect(loops(rig)).toEqual(first);
     expect(rig.fetched).toHaveLength(fetches);
-    expect(rig.ctx.sources.filter((s) => s.loop)).toHaveLength(2);
+    expect(rig.ctx.sources.filter((s) => s.loop)).toHaveLength(1);
   });
 
   it('crossfades to another piece: the new one rises as the old one falls, with no step, and the old one is let go after', async () => {
@@ -129,7 +204,7 @@ describe('LoopChannel: the music does not restart, and is never twice', () => {
     run(rig, 4.5);
     expect(music.stats().leaving).toEqual([]);
     expect(music.stats().current).toBe('b');
-    expect(loops(rig)).toHaveLength(2); // only b's layers
+    expect(loops(rig)).toHaveLength(1); // only b's base
     expect(loops(rig).every((s) => s.buffer?.duration === 24)).toBe(true);
     expect(aBase.ended || aBase.stoppedAt !== null).toBe(true);
   });
@@ -150,12 +225,12 @@ describe('LoopChannel: the music does not restart, and is never twice', () => {
     expect(music.stats().current).toBe('a');
     // no new source of a was made: the ones that were fading are the ones that play
     const aSources = rig.ctx.sources.filter((s) => s.loop && s.buffer?.duration === 30);
-    expect(aSources).toHaveLength(2);
+    expect(aSources).toHaveLength(1);
     expect(aSources.every((s) => original.includes(s))).toBe(true);
     run(rig, 6);
     expect(music.stats().current).toBe('a');
     expect(music.stats().leaving).toEqual([]);
-    expect(loops(rig)).toHaveLength(2);
+    expect(loops(rig)).toHaveLength(1);
     expect(loops(rig).every((s) => s.buffer?.duration === 30)).toBe(true);
     const out = (original[0]?.outputs[0] as FakeGain).outputs[0] as FakeGain;
     expect(out.gain.valueAt(rig.ctx.currentTime)).toBeGreaterThan(0.95);
@@ -175,7 +250,7 @@ describe('LoopChannel: the music does not restart, and is never twice', () => {
       expect(copies(24)).toBeLessThanOrEqual(2);
     }
     run(rig, 8);
-    expect(loops(rig)).toHaveLength(2);
+    expect(loops(rig)).toHaveLength(1);
     expect(music.stats().current).toBe('a');
   });
 
@@ -188,7 +263,7 @@ describe('LoopChannel: the music does not restart, and is never twice', () => {
     await rig.settle();
     expect(music.stats().current).toBe('b');
     expect(loops(rig).every((s) => s.buffer?.duration === 24)).toBe(true);
-    expect(loops(rig)).toHaveLength(2);
+    expect(loops(rig)).toHaveLength(1);
     // the group nobody holds is let go after its grace period
     expect(rig.loader.stats().groups['music.a']?.refs).toBe(0);
   });
@@ -203,7 +278,7 @@ describe('LoopChannel: the music does not restart, and is never twice', () => {
     music.play('a'); // changed its mind before b was in
     await rig.settle();
     expect(music.stats().current).toBe('a');
-    expect(loops(rig)).toHaveLength(2);
+    expect(loops(rig)).toHaveLength(1);
     expect(rig.loader.stats().groups['music.b']?.refs).toBe(0);
   });
 
@@ -221,7 +296,7 @@ describe('LoopChannel: the music does not restart, and is never twice', () => {
     expect(music.stats()).toMatchObject({ current: null, wanted: null, leaving: [], sources: 0 });
     music.play('a');
     await rig.settle();
-    expect(loops(rig)).toHaveLength(2);
+    expect(loops(rig)).toHaveLength(1);
     expect(loops(rig).some((s) => before.includes(s))).toBe(false);
   });
 });
@@ -242,7 +317,7 @@ describe('LoopChannel: pause, volume and the page in the background', () => {
     rig.engine.setPaused(false);
     run(rig, 1);
     expect(loops(rig)).toEqual(before);
-    expect(rig.ctx.sources.filter((s) => s.loop)).toHaveLength(2); // no copy was made by resuming
+    expect(rig.ctx.sources.filter((s) => s.loop)).toHaveLength(1); // no copy was made by resuming
   });
 
   it('mutes the ambience of the world in a pause and not the music', async () => {
@@ -261,7 +336,7 @@ describe('LoopChannel: pause, volume and the page in the background', () => {
     const later = rig.ctx.currentTime + 2;
     expect(rig.ctx.audibleGain(bedSource, later)).toBeLessThan(1e-4);
     expect(rig.ctx.audibleGain(musicSource, later)).toBeGreaterThan(0.1); // dimmed, still there
-    expect(loops(rig)).toHaveLength(3); // the bed keeps running behind the gate: it will be where it should be
+    expect(loops(rig)).toHaveLength(2); // the bed keeps running behind the gate: it will be where it should be
   });
 
   it('plays nothing, loads nothing and keeps nothing running while its volume is zero — and plays the wish when the volume comes back', async () => {
@@ -276,7 +351,7 @@ describe('LoopChannel: pause, volume and the page in the background', () => {
     rig.levels.set('music', 0.6);
     await rig.settle();
     expect(music.stats().current).toBe('a');
-    expect(loops(rig)).toHaveLength(2);
+    expect(loops(rig)).toHaveLength(1);
   });
 
   it('lets a piece go when its volume goes to zero, remembering the wish, and brings it back from the start', async () => {
@@ -295,7 +370,7 @@ describe('LoopChannel: pause, volume and the page in the background', () => {
     await rig.settle();
     expect(music.stats().current).toBe('a');
     expect(loops(rig).some((s) => first.includes(s))).toBe(false);
-    expect(loops(rig)).toHaveLength(2);
+    expect(loops(rig)).toHaveLength(1);
   });
 
   it('is silent for the general volume at zero as well', async () => {
@@ -307,7 +382,7 @@ describe('LoopChannel: pause, volume and the page in the background', () => {
     expect(loops(rig)).toHaveLength(0);
     rig.levels.set('master', 0.4);
     await rig.settle();
-    expect(loops(rig)).toHaveLength(2);
+    expect(loops(rig)).toHaveLength(1);
   });
 
   it('does not react to the volume of another category', async () => {
@@ -364,15 +439,16 @@ describe('LoopChannel: when the files are not there', () => {
     expect(music.stats().current).toBe('b');
   });
 
-  it('plays the layers it has when one is missing', async () => {
+  it('plays the base when its drive layer is missing from the manifest\'s files, and setting that layer is harmless', async () => {
     const rig = makeRig({ failing: ['a_drive'] });
     const music = channel(rig);
     rig.start();
     music.play('a');
     await rig.settle();
     expect(loops(rig)).toHaveLength(1);
-    expect(music.stats().layers).toEqual({ base: 1 });
+    expect(music.stats().layers).toEqual({ base: 1, drive: 0 });
     expect(() => music.setLayer('drive', 1)).not.toThrow();
+    expect(() => music.setLayer('no.such.layer', 1)).not.toThrow();
   });
 
   it('ignores a piece the manifest does not have', () => {

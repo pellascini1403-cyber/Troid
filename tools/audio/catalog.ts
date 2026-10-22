@@ -33,16 +33,20 @@ export interface SoundRecipe {
   note: string;
 }
 
-/** A piece of music, as layers that are played together. */
+/** A piece of music — or the bed of an ambience — as layers that are played together. */
 export interface TrackRecipe {
   id: string;
   group: string;
+  /** Where it plays: the music (default) or the ambience. */
+  bus?: 'music' | 'ambience';
   bpm: number;
   bars: number;
-  /** Renders every layer, each exactly `frames` samples long and closing on itself. */
+  /** Renders every layer, each exactly the same number of samples long and closing on itself (the end is followed by the start with no seam). */
   render(rnd: () => number): Record<string, Stereo>;
   /** Per layer: the level it plays at when it plays (dB). */
   layerDb?: Record<string, number>;
+  /** The layers that are written as one channel (a layer of percussion or of a single line has nothing in its stereo field: half the memory once it is decoded). */
+  mono?: readonly string[];
   note: string;
 }
 
@@ -51,5 +55,7 @@ export const BITRATE = {
   sfxMono: { opus: 48000, mp3: 64000 },
   sfxStereo: { opus: 72000, mp3: 96000 },
   ambience: { opus: 64000, mp3: 96000 },
+  ambienceMono: { opus: 40000, mp3: 64000 },
   music: { opus: 112000, mp3: 128000 },
+  musicMono: { opus: 72000, mp3: 96000 },
 } as const;

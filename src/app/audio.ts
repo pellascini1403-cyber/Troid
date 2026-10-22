@@ -131,6 +131,8 @@ export async function createAudio(o: AudioOptions): Promise<AudioSystem> {
     baseUrl: o.indexUrl,
     formats,
     warn: o.warn,
+    // a decoded piece of music or bed is many MiB: it is let go a few seconds after the hero has left it (the crossfade is over by then), the small sounds of a place and the boss's are kept longer
+    graceFor: (group) => (group.startsWith('music.') || group.startsWith('amb.') ? 4000 : 20_000),
     io: {
       fetchBytes,
       decode: (bytes) => {

@@ -29,6 +29,8 @@
     "hud:check": "tsx tools/hud/cli.ts --check",
     "audio:build": "tsx tools/audio/cli.ts build",
     "audio:spec": "tsx tools/audio/cli.ts spec",
+    "audio:balance": "tsx tools/audio/cli.ts balance",
+    "audio:check": "tsx tools/audio/cli.ts check",
     "check": "npm run typecheck && npm test"
   },
   "dependencies": {

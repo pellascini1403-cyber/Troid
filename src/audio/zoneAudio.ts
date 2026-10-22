@@ -36,6 +36,7 @@ export const SILENT_ZONE: ZoneAudio = {
 
 export const ZONES: Readonly<Record<string, ZoneAudio>> = {
   r1_gate: {
+    groups: ['amb'],
     track: 'ruins',
     bed: 'bed.ruins',
     surface: 'stone',
@@ -46,6 +47,7 @@ export const ZONES: Readonly<Record<string, ZoneAudio>> = {
     ],
   },
   r2_hall: {
+    groups: ['amb'],
     track: 'ruins',
     bed: 'bed.roots',
     surface: 'earth',
@@ -56,6 +58,7 @@ export const ZONES: Readonly<Record<string, ZoneAudio>> = {
     ],
   },
   r3_chamber: {
+    groups: ['amb'],
     track: 'chamber',
     bed: 'bed.chamber',
     surface: 'wet',
@@ -67,7 +70,7 @@ export const ZONES: Readonly<Record<string, ZoneAudio>> = {
     ],
   },
   r4_sanctum: {
-    groups: ['boss'],
+    groups: ['amb', 'boss'],
     track: 'sanctum',
     bed: 'bed.sanctum',
     surface: 'stone',

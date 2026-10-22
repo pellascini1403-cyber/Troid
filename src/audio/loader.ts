@@ -23,8 +23,10 @@ export interface LoaderOptions {
   formats: readonly AudioFormat[];
   /** Files fetched at the same time (default 6). */
   concurrency?: number;
-  /** How long a group nobody needs any more is kept before it is let go (ms, default 20 000): a hero who steps back through a door finds the room's music still there. */
+  /** How long a group nobody needs any more is kept before it is let go (ms, default 20 000): a hero who steps back through a door finds the room's sounds still there. */
   graceMs?: number;
+  /** The same, for a group that is dear to keep (a decoded piece of music is twenty MiB): it may be let go sooner than the rest. */
+  graceFor?: (group: string) => number;
   /** A file that has not arrived by now is given up on (ms, default 20 000). */
   timeoutMs?: number;
   /** After a failure the file is not asked for again until this long has passed (ms, default 15 000). */
@@ -123,7 +125,7 @@ export class SoundLoader {
     g.releaseTimer = timers.set(() => {
       g.releaseTimer = null;
       if (g.refs === 0) this.unload(g);
-    }, this.opts.graceMs);
+    }, this.opts.graceFor?.(group) ?? this.opts.graceMs);
   }
 
   /** The memory the decoded sounds take, in bytes. */

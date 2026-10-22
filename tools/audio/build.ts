@@ -32,14 +32,16 @@ export interface Measure {
   /** For loops: the step at the seam over the usual step (1 is smooth), and how different the level of the last 50 ms is from the first. */
   seamStep?: number;
   seamLevelDb?: number;
+  /** The step at the seam in dBFS: a step that is large against its neighbourhood is harmless when it is this low. */
+  seamJumpDb?: number;
 }
 export type Measures = Record<string, Measure>;
 
 const kindOf = (r: SoundRecipe): 'sfx' | 'ambience' | 'music' => (r.bus === 'music' ? 'music' : r.bus === 'ambience' ? 'ambience' : 'sfx');
 
 function bitrateFor(kind: 'sfx' | 'ambience' | 'music', channels: 1 | 2): { opus: number; mp3: number } {
-  if (kind === 'music') return BITRATE.music;
-  if (kind === 'ambience') return BITRATE.ambience;
+  if (kind === 'music') return channels === 1 ? BITRATE.musicMono : BITRATE.music;
+  if (kind === 'ambience') return channels === 1 ? BITRATE.ambienceMono : BITRATE.ambience;
   return channels === 1 ? BITRATE.sfxMono : BITRATE.sfxStereo;
 }
 
@@ -75,6 +77,7 @@ function measure(pcm: Stereo, loop: boolean): Measure {
     const s = loopSeam(pcm);
     m.seamStep = Math.round(s.step * 100) / 100;
     m.seamLevelDb = round1(s.levelDb);
+    m.seamJumpDb = round1(s.jumpDb);
   }
   return m;
 }
@@ -164,25 +167,28 @@ export async function buildAudio(o: BuildOptions): Promise<AudioIndex> {
     jobs.push(async () => {
       const layers = t.render(mulberry32(seedOf(t.id)));
       const ids: Record<string, string> = {};
+      const bus = t.bus ?? 'music';
       let seconds = 0;
       for (const [layer, pcm] of Object.entries(layers)) {
         const id = `${t.id}.${layer}`;
         const name = id.replace(/\./g, '_');
         const m = measure(pcm, true);
         measures[name] = m;
-        const files = await write('music', name, pcm, 2);
+        const channels: 1 | 2 = t.mono?.includes(layer) ? 1 : 2;
+        const files = await write(bus, name, pcm, channels);
         seconds = m.seconds;
         sounds[id] = {
-          bus: 'music',
-          group: t.group,
+          bus,
+          // the base layer comes with the piece; the others (the drive) are groups of their own, fetched when the game first asks for them
+          group: layer === 'base' ? t.group : `${t.group}.${layer}`,
           variants: [{ opus: files.opus, mp3: files.mp3, seconds: m.seconds }],
-          channels: 2,
+          channels,
           gainDb: t.layerDb?.[layer] ?? 0,
           pitchCents: 0,
           gainJitterDb: 0,
           cooldownMs: 0,
           voices: 1,
-          priority: 10,
+          priority: bus === 'music' ? 10 : 1,
           reverb: 0,
           loop: { start: 0, end: m.seconds },
         };
@@ -197,7 +203,7 @@ export async function buildAudio(o: BuildOptions): Promise<AudioIndex> {
   const index: AudioIndex = { version: 1, sampleRate: SR, origin: ORIGIN, sounds: sorted(sounds), tracks: sorted(tracks) };
   writeFileSync(INDEX_PATH, `${JSON.stringify(index, null, 1)}\n`);
   writeFileSync(MEASURES_PATH, `${JSON.stringify(sorted(measures), null, 1)}\n`);
-  if (!o.only) prune(index);
+  prune(index); // (what the manifest now names is kept, whether it was made by this run or an earlier one)
   return index;
 }
 

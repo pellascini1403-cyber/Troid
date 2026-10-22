@@ -13,6 +13,9 @@ import { dbToGain } from './spatial';
  * Layers (`base`, `drive`…) are separate files of the same length, started at the same instant and looped together, so that they stay in step for as long as the game runs. A layer's level moves smoothly to what the
  * game asks (the combat layer of a track comes in as the danger rises).
  *
+ * A layer that is in a group of its own (the manifest says which: `music.ruins.drive`) is not fetched until the game first asks for it, joins at the point of the loop the others have reached, and is let go of again
+ * when it has been silent for a while: the drive of a piece is needed in a fight, not all the time, and a decoded minute of music is twenty-three MiB.
+ *
  * What is silent costs nothing: with the channel's volume at zero the piece is not fetched, not decoded and not started — only remembered, and played from its start when the volume comes back (or when the first gesture
  * lets the browser make sound).
  */
@@ -28,10 +31,17 @@ export interface ChannelOptions {
 
 interface Layer {
   def: SoundDef;
+  soundId: string;
   source: AudioBufferSourceNode | null;
-  gain: GainNode;
+  gain: GainNode | null;
   /** The level the game wants of it (0 … 1), before the sound's own trim. */
   target: number;
+  /** It is in a group of its own: fetched when first wanted, let go of when it has been silent for a while. */
+  lazy: boolean;
+  /** Its group is being fetched. */
+  loading: boolean;
+  /** The audio clock's time since which its target is zero (a lazy layer that has been silent long enough is let go of). */
+  silentSince: number | null;
 }
 
 interface Instance {
@@ -43,6 +53,8 @@ interface Instance {
   leavingUntil: number | null;
   /** A piece that left because it was asked to can be brought back until it is gone; one that left because the volume went to zero cannot. */
   revivable: boolean;
+  /** The audio clock's time at which the loop was at its start (a layer that arrives late joins where the loop has got to). */
+  origin: number;
 }
 
 export interface ChannelStats {
@@ -56,12 +68,16 @@ export interface ChannelStats {
   sources: number;
   /** A piece is being fetched. */
   loading: boolean;
+  /** The layers whose sound is in memory and playing (a layer of a group of its own is not until it was wanted). */
+  loaded: string[];
 }
 
 /** A fade of `s` seconds is an exponential approach with time constant `s / 4`: it is inaudible (−35 dB) by the end. */
 const TAU_PER_FADE = 1 / 4;
 /** How long a fading piece is kept after its fade is over, so that nothing is cut while it can still be heard (a fraction of the fade). */
 const LINGER = 1.25;
+/** How long a layer of a group of its own may stay silent before it is let go of (seconds of the audio clock). */
+export const LAYER_KEEP_SECONDS = 20;
 
 export class LoopChannel {
   private current: Instance | null = null;
@@ -116,8 +132,13 @@ export class LoopChannel {
   setLayer(name: string, level: number, seconds = 1.2): void {
     const v = Math.min(1, Math.max(0, level));
     this.layerTargets.set(name, v);
-    const layer = this.current?.layers.get(name);
-    if (layer) this.moveLayer(layer, v, seconds);
+    const cur = this.current;
+    const layer = cur?.layers.get(name);
+    if (!cur || !layer) return;
+    layer.target = v;
+    layer.silentSince = v > 0 ? null : (layer.silentSince ?? this.o.engine.now);
+    if (layer.source) this.moveLayer(layer, v, seconds);
+    else if (v > 0 && layer.lazy) this.loadLayer(cur, layer);
   }
 
   stats(): ChannelStats {
@@ -125,7 +146,8 @@ export class LoopChannel {
     for (const [name, layer] of this.current?.layers ?? []) layers[name] = layer.target;
     let sources = 0;
     for (const inst of [this.current, ...this.leaving]) if (inst) for (const l of inst.layers.values()) if (l.source) sources++;
-    return { current: this.current?.id ?? null, leaving: this.leaving.map((i) => i.id), wanted: this.wanted?.id ?? null, layers, sources, loading: this.loading };
+    const loaded = [...(this.current?.layers ?? [])].filter(([, l]) => l.source).map(([name]) => name);
+    return { current: this.current?.id ?? null, leaving: this.leaving.map((i) => i.id), wanted: this.wanted?.id ?? null, layers, sources, loading: this.loading, loaded };
   }
 
   dispose(): void {
@@ -217,7 +239,15 @@ export class LoopChannel {
   /** The fading pieces whose fade is over are stopped (the engine calls this each frame, with the audio clock: a context frozen in the background keeps its fade where it was). */
   private tick(): void {
     const ctx = this.o.engine.context;
-    if (!ctx || this.leaving.length === 0) return;
+    if (!ctx) return;
+    // a layer of a group of its own that has been silent for a while goes back to the loader
+    const cur = this.current;
+    if (cur) {
+      for (const layer of cur.layers.values()) {
+        if (layer.lazy && layer.source && layer.target === 0 && layer.silentSince !== null && ctx.currentTime - layer.silentSince >= LAYER_KEEP_SECONDS) this.dropLayer(layer);
+      }
+    }
+    if (this.leaving.length === 0) return;
     for (const inst of [...this.leaving]) {
       if (inst.leavingUntil !== null && ctx.currentTime >= inst.leavingUntil) {
         this.leaving = this.leaving.filter((i) => i !== inst);
@@ -235,40 +265,90 @@ export class LoopChannel {
     out.gain.value = 0;
     out.connect(bus);
     const origin = ctx.currentTime + 0.06;
-    const inst: Instance = { id, group: def.group, out, layers: new Map(), leavingUntil: null, revivable: true };
+    const inst: Instance = { id, group: def.group, out, layers: new Map(), leavingUntil: null, revivable: true, origin };
     for (const [name, soundId] of Object.entries(def.layers)) {
-      const buffer = loader.get(soundId)[0];
       const sd = index.sounds[soundId];
-      if (!buffer || !sd) {
+      if (!sd) continue;
+      const target = name === 'base' ? 1 : (this.layerTargets.get(name) ?? 0);
+      const layer: Layer = { def: sd, soundId, source: null, gain: null, target, lazy: sd.group !== def.group, loading: false, silentSince: target > 0 ? null : ctx.currentTime };
+      inst.layers.set(name, layer);
+      if (layer.lazy) continue; // fetched when it is first wanted
+      const buffer = loader.get(soundId)[0];
+      if (!buffer) {
         this.o.warn?.(`audio: the layer ${name} of "${id}" is not loaded`);
+        inst.layers.delete(name);
         continue;
       }
-      const gain = ctx.createGain();
-      const target = name === 'base' ? 1 : (this.layerTargets.get(name) ?? 0);
-      gain.gain.value = dbToGain(sd.gainDb) * target;
-      gain.connect(out);
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.loop = true;
-      const loop = sd.loop ?? { start: 0, end: buffer.duration };
-      source.loopStart = loop.start;
-      source.loopEnd = loop.end;
-      source.connect(gain);
-      source.start(origin, loop.start);
-      inst.layers.set(name, { def: sd, source, gain, target });
+      this.startLayer(inst, layer, buffer, origin);
     }
-    if (inst.layers.size === 0) {
+    for (const layer of inst.layers.values()) if (layer.lazy && layer.target > 0) this.loadLayer(inst, layer);
+    if (![...inst.layers.values()].some((l) => l.source)) {
+      // (a layer that was already being fetched gives its group back when it arrives and finds the piece gone)
       out.disconnect();
+      inst.layers.clear();
       return null;
     }
     return inst;
+  }
+
+  /** Makes the looped source of a layer and starts it at the point of the loop the instance has reached (the start of it, for a layer that came with the piece). */
+  private startLayer(inst: Instance, layer: Layer, buffer: AudioBuffer, origin: number): void {
+    const ctx = this.o.engine.context as AudioContext;
+    const gain = ctx.createGain();
+    gain.gain.value = dbToGain(layer.def.gainDb) * layer.target;
+    gain.connect(inst.out);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    const loop = layer.def.loop ?? { start: 0, end: buffer.duration };
+    source.loopStart = loop.start;
+    source.loopEnd = loop.end;
+    source.connect(gain);
+    const length = loop.end - loop.start;
+    const elapsed = Math.max(0, ctx.currentTime - origin);
+    source.start(Math.max(ctx.currentTime, origin), loop.start + (length > 0 ? elapsed % length : 0));
+    layer.source = source;
+    layer.gain = gain;
+  }
+
+  /** Fetches the group of a layer that has one of its own and, when it is in, starts it in step with the others. */
+  private loadLayer(inst: Instance, layer: Layer): void {
+    if (layer.loading || layer.source) return;
+    const { loader } = this.o;
+    layer.loading = true;
+    const group = layer.def.group;
+    void loader.retain(group).then(() => {
+      layer.loading = false;
+      const alive = !this.disposed && (inst === this.current || this.leaving.includes(inst)) && [...inst.layers.values()].includes(layer) && layer.target > 0;
+      const buffer = loader.get(layer.soundId)[0];
+      if (!alive || !buffer || !this.o.engine.context) {
+        loader.release(group);
+        return;
+      }
+      this.startLayer(inst, layer, buffer, inst.origin);
+      this.moveLayer(layer, layer.target, 0.4);
+    });
+  }
+
+  /** Stops a layer of a group of its own and gives its group back. */
+  private dropLayer(layer: Layer): void {
+    try {
+      layer.source?.stop();
+    } catch {
+      // not started
+    }
+    layer.source?.disconnect();
+    layer.gain?.disconnect();
+    layer.source = null;
+    layer.gain = null;
+    this.o.loader.release(layer.def.group);
   }
 
   private moveLayer(layer: Layer, level: number, seconds: number): void {
     const ctx = this.o.engine.context;
     layer.target = level;
     if (!ctx) return;
-    layer.gain.gain.setTargetAtTime(dbToGain(layer.def.gainDb) * level, ctx.currentTime, Math.max(0.02, seconds * TAU_PER_FADE));
+    layer.gain?.gain.setTargetAtTime(dbToGain(layer.def.gainDb) * level, ctx.currentTime, Math.max(0.02, seconds * TAU_PER_FADE));
   }
 
   private fade(node: GainNode, to: number, seconds: number): void {
@@ -293,13 +373,17 @@ export class LoopChannel {
 
   private destroy(inst: Instance): void {
     for (const layer of inst.layers.values()) {
+      if (layer.lazy) {
+        if (layer.source) this.dropLayer(layer);
+        continue;
+      }
       try {
         layer.source?.stop();
       } catch {
         // not started
       }
       layer.source?.disconnect();
-      layer.gain.disconnect();
+      layer.gain?.disconnect();
       layer.source = null;
     }
     inst.out.disconnect();

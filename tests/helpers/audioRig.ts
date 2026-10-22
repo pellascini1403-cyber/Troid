@@ -71,11 +71,11 @@ export function makeIndex(): AudioIndex {
       'stinger.win': sound({ name: 'win', bus: 'music', channels: 2, seconds: 3, priority: 10, voices: 1 }),
       'wide.thing': sound({ name: 'wide', channels: 2 }),
       'music.a.base': loopOf('a_base', 'music.a', 'music', 30),
-      'music.a.drive': loopOf('a_drive', 'music.a', 'music', 30, -2),
+      'music.a.drive': loopOf('a_drive', 'music.a.drive', 'music', 30, -2),
       'music.b.base': loopOf('b_base', 'music.b', 'music', 24),
-      'music.b.drive': loopOf('b_drive', 'music.b', 'music', 24),
+      'music.b.drive': loopOf('b_drive', 'music.b.drive', 'music', 24),
       'music.w.base': loopOf('w_base', 'music.w', 'music', 20),
-      'music.w.drive': loopOf('w_drive', 'music.w', 'music', 20),
+      'music.w.drive': loopOf('w_drive', 'music.w.drive', 'music', 20),
       'amb.hall': loopOf('hall', 'amb.hall', 'ambience', 16, -3),
       'amb.well': loopOf('well', 'amb.well', 'ambience', 18),
     },
@@ -124,7 +124,8 @@ export function makeRig(o: RigOptions = {}): Rig {
   const fetched: string[] = [];
   const inFlight = { now: 0, max: 0 };
   const seconds = new Map<string, number>();
-  for (const s of Object.values(index.sounds)) for (const v of s.variants) for (const p of [v.opus, v.mp3]) if (p) seconds.set(p, v.seconds);
+  const channelsOf = new Map<string, number>();
+  for (const s of Object.values(index.sounds)) for (const v of s.variants) for (const p of [v.opus, v.mp3]) if (p) (seconds.set(p, v.seconds), channelsOf.set(p, s.channels));
   const failing = o.failing;
   const fails = typeof failing === 'function' ? failing : (url: string): boolean => (failing ?? []).some((f) => url.includes(f));
   const io: LoaderIO = {
@@ -139,6 +140,7 @@ export function makeRig(o: RigOptions = {}): Rig {
         const path = url.replace('https://t.test/audio/', '');
         const bytes = new ArrayBuffer(8);
         new Float32Array(bytes)[0] = seconds.get(path) ?? 0.3;
+        new Float32Array(bytes)[1] = channelsOf.get(path) ?? 1;
         return bytes;
       } finally {
         inFlight.now--;
@@ -146,7 +148,7 @@ export function makeRig(o: RigOptions = {}): Rig {
     },
     async decode(bytes) {
       const secs = new Float32Array(bytes)[0] ?? 0.3;
-      return fakeBuffer(secs, 1);
+      return fakeBuffer(secs, new Float32Array(bytes)[1] ?? 1);
     },
   };
   const timers = {

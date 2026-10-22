@@ -152,29 +152,34 @@ export function silence(s: Stereo | Buf, thresholdDb = -60): { longestMs: number
 
 /**
  * Whether a loop closes on itself. When it plays round, the last sample is followed by the first: if they are far apart compared with how far neighbouring samples are from each other, there is a click. The score is
- * the size of that step over the typical step around the seam (1 is smooth; more than ~4 can be heard). `levelDb` is how loud the last 50 ms is against the first 50 ms (a loop that begins quieter than it ends,
- * or the reverse, "breathes" at the seam).
+ * the size of that step over the 95th percentile of the steps within 2048 samples of the seam (1 or less is a seam like any other place in the sound; more than ~4 is an event that is only there). `levelDb` is how loud the last 50 ms is against the first 50 ms (a loop that begins quieter than it ends,
+ * or the reverse, "breathes" at the seam). `jumpDb` is the size of the step itself, in dBFS: a step that is large against a quiet neighbourhood but is 60 dB below full scale (an onset that falls on the seam) cannot be heard.
  */
-export function loopSeam(s: Stereo | Buf): { step: number; levelDb: number } {
+export function loopSeam(s: Stereo | Buf): { step: number; levelDb: number; jumpDb: number } {
   const cs = channels(s);
   let worst = 0;
   let level = 0;
+  let jumpAbs = 0;
   for (const c of cs) {
     const n = c.length;
-    const span = Math.min(256, Math.floor(n / 4));
-    let typical = 0;
+    // what a step usually is near the seam: the 95th percentile of the steps of the 2048 samples on each side of it (the seam's own step is left out)
+    const span = Math.min(2048, Math.floor(n / 4));
+    const steps: number[] = [];
     for (let i = 1; i < span; i++) {
-      typical += Math.abs((c[i] as number) - (c[i - 1] as number)) + Math.abs((c[n - i] as number) - (c[n - i - 1] as number));
+      steps.push(Math.abs((c[i] as number) - (c[i - 1] as number)));
+      steps.push(Math.abs((c[n - i] as number) - (c[n - i - 1] as number)));
     }
-    typical /= Math.max(1, 2 * (span - 1));
+    steps.sort((a, b) => a - b);
+    const typical = steps[Math.floor(steps.length * 0.95)] ?? 0;
     const jump = Math.abs((c[0] as number) - (c[n - 1] as number));
+    jumpAbs = Math.max(jumpAbs, jump);
     worst = Math.max(worst, jump / Math.max(typical, 1e-7));
     const w = Math.round(0.05 * SR);
     const head = Math.sqrt(c.subarray(0, w).reduce((a, v) => a + v * v, 0) / w);
     const tail = Math.sqrt(c.subarray(n - w).reduce((a, v) => a + v * v, 0) / w);
     level = Math.max(level, Math.abs(linToDb(head + 1e-9) - linToDb(tail + 1e-9)));
   }
-  return { step: worst, levelDb: level };
+  return { step: worst, levelDb: level, jumpDb: linToDb(jumpAbs) };
 }
 
 /** The "brightness" of a sound: the frequency (Hz) at which its energy is centred. A shrill, tiring sound has a high one. Found from a handful of windows with a plain DFT, which is enough to compare one sound with another. */
@@ -205,4 +210,77 @@ export function spectralCentroid(b: Buf): number {
     }
   }
   return den > 0 ? num / den : 0;
+}
+
+/** The octave bands the profile is given in: centre frequency (Hz). */
+export const OCTAVES = [63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as const;
+
+/** An in-place radix-2 FFT of `re` + i·`im` (their length is a power of two). */
+function fft(re: Float64Array, im: Float64Array): void {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) {
+      [re[i], re[j]] = [re[j] as number, re[i] as number];
+      [im[i], im[j]] = [im[j] as number, im[i] as number];
+    }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = (-2 * Math.PI) / len;
+    const wr = Math.cos(ang);
+    const wi = Math.sin(ang);
+    for (let i = 0; i < n; i += len) {
+      let cr = 1;
+      let ci = 0;
+      for (let k = 0; k < len / 2; k++) {
+        const a = i + k;
+        const b = a + len / 2;
+        const tr = (re[b] as number) * cr - (im[b] as number) * ci;
+        const ti = (re[b] as number) * ci + (im[b] as number) * cr;
+        re[b] = (re[a] as number) - tr;
+        im[b] = (im[a] as number) - ti;
+        re[a] = (re[a] as number) + tr;
+        im[a] = (im[a] as number) + ti;
+        const nr = cr * wr - ci * wi;
+        ci = cr * wi + ci * wr;
+        cr = nr;
+      }
+    }
+  }
+}
+
+/**
+ * How the energy of a sound is spread over the octaves, in dB below the loudest octave (0 is the loudest): the average power spectrum of the whole sound (Hann windows of 8192 samples, half overlapping) summed in each
+ * octave band. It says where a sound's weight is and whether it is bright, thin or muddy — what a spectrogram shows by eye, as numbers a check can read.
+ */
+export function bandProfile(s: Stereo | Buf): number[] {
+  const size = 8192;
+  const mono = 'l' in s ? Float32Array.from(s.l, (v, i) => (v + (s.r[i] as number)) / 2) : s;
+  const win = new Float64Array(size);
+  for (let i = 0; i < size; i++) win[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / size);
+  const power = new Float64Array(size / 2);
+  const re = new Float64Array(size);
+  const im = new Float64Array(size);
+  for (let start = 0; start + size <= mono.length; start += size / 2) {
+    for (let i = 0; i < size; i++) {
+      re[i] = (mono[start + i] as number) * (win[i] as number);
+      im[i] = 0;
+    }
+    fft(re, im);
+    for (let k = 0; k < size / 2; k++) power[k] = (power[k] as number) + (re[k] as number) ** 2 + (im[k] as number) ** 2;
+  }
+  const bands = OCTAVES.map((c) => {
+    const lo = c / Math.SQRT2;
+    const hi = c * Math.SQRT2;
+    let sum = 0;
+    for (let k = 1; k < size / 2; k++) {
+      const f = (k * SR) / size;
+      if (f >= lo && f < hi) sum += power[k] as number;
+    }
+    return sum;
+  });
+  const max = Math.max(...bands, 1e-30);
+  return bands.map((b) => Math.round(10 * Math.log10(Math.max(b, 1e-30) / max) * 10) / 10);
 }

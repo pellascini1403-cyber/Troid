@@ -51,7 +51,8 @@ const ATTACK_SOUND: Readonly<Record<string, string>> = {
 /** A landing softer than this is not heard: a step down a ledge is not a landing. */
 export const LAND_SILENCE = 0.1;
 
-const db = (intensity: number, depth: number): number => -(1 - Math.min(1, Math.max(0, intensity))) * depth;
+/** How many dB under full a moment of this strength is: 0 at full strength, `depth` at none (never −0). */
+const db = (intensity: number, depth: number): number => (1 - Math.min(1, Math.max(0, intensity))) * depth * -1 || 0;
 
 /** The sounds for one cue. Empty when the moment has no sound of its own (or has been given to another cue, so that it is not sounded twice). */
 export function soundsFor(cue: Readonly<AudioCueEvent>, context: SoundContext): PlaySpec[] {

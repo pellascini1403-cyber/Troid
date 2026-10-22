@@ -1,30 +1,186 @@
 {
+ "amb_drip_1": {
+  "frames": 90379,
+  "seconds": 1.883,
+  "peakDb": -17,
+  "lufs": -23.9,
+  "activeRmsDb": -33.2,
+  "silentMs": 5
+ },
+ "amb_drip_2": {
+  "frames": 83647,
+  "seconds": 1.743,
+  "peakDb": -17,
+  "lufs": -22.8,
+  "activeRmsDb": -32.8,
+  "silentMs": 10
+ },
+ "amb_drip_3": {
+  "frames": 97722,
+  "seconds": 2.036,
+  "peakDb": -17,
+  "lufs": -24.3,
+  "activeRmsDb": -33.2,
+  "silentMs": 40
+ },
+ "amb_echo_far_1": {
+  "frames": 274239,
+  "seconds": 5.713,
+  "peakDb": -19,
+  "lufs": -27.3,
+  "activeRmsDb": -29.2,
+  "silentMs": 175
+ },
+ "amb_echo_far_2": {
+  "frames": 257306,
+  "seconds": 5.361,
+  "peakDb": -19,
+  "lufs": -24.8,
+  "activeRmsDb": -26.4,
+  "silentMs": 170
+ },
+ "amb_magic_pulse_1": {
+  "frames": 133259,
+  "seconds": 2.776,
+  "peakDb": -18.1,
+  "lufs": -20.3,
+  "activeRmsDb": -27.2,
+  "silentMs": 40
+ },
+ "amb_magic_pulse_2": {
+  "frames": 136313,
+  "seconds": 2.84,
+  "peakDb": -18,
+  "lufs": -21.6,
+  "activeRmsDb": -28.1,
+  "silentMs": 35
+ },
+ "amb_roots_creak_1": {
+  "frames": 86140,
+  "seconds": 1.795,
+  "peakDb": -18,
+  "lufs": -24.7,
+  "activeRmsDb": -29.7,
+  "silentMs": 205
+ },
+ "amb_roots_creak_2": {
+  "frames": 88367,
+  "seconds": 1.841,
+  "peakDb": -18,
+  "lufs": -24.1,
+  "activeRmsDb": -29.1,
+  "silentMs": 205
+ },
+ "amb_sanctum_breath": {
+  "frames": 316997,
+  "seconds": 6.604,
+  "peakDb": -19,
+  "lufs": -27,
+  "activeRmsDb": -30.4,
+  "silentMs": 275
+ },
+ "amb_stone_1": {
+  "frames": 67439,
+  "seconds": 1.405,
+  "peakDb": -17,
+  "lufs": -29.7,
+  "activeRmsDb": -36.5,
+  "silentMs": 280
+ },
+ "amb_stone_2": {
+  "frames": 71397,
+  "seconds": 1.487,
+  "peakDb": -17,
+  "lufs": -29.1,
+  "activeRmsDb": -35.9,
+  "silentMs": 355
+ },
+ "amb_wind_gust_1": {
+  "frames": 159069,
+  "seconds": 3.314,
+  "peakDb": -18.2,
+  "lufs": -29.5,
+  "activeRmsDb": -33,
+  "silentMs": 350
+ },
+ "amb_wind_gust_2": {
+  "frames": 161038,
+  "seconds": 3.355,
+  "peakDb": -18,
+  "lufs": -29.5,
+  "activeRmsDb": -33.2,
+  "silentMs": 360
+ },
+ "bed_chamber_base": {
+  "frames": 576000,
+  "seconds": 12,
+  "peakDb": -17.8,
+  "lufs": -30,
+  "activeRmsDb": -30,
+  "silentMs": 0,
+  "seamStep": 0.45,
+  "seamLevelDb": 2,
+  "seamJumpDb": -63.5
+ },
+ "bed_roots_base": {
+  "frames": 576000,
+  "seconds": 12,
+  "peakDb": -16.8,
+  "lufs": -31,
+  "activeRmsDb": -30.5,
+  "silentMs": 0,
+  "seamStep": 0.55,
+  "seamLevelDb": 0.2,
+  "seamJumpDb": -69.5
+ },
+ "bed_ruins_base": {
+  "frames": 576000,
+  "seconds": 12,
+  "peakDb": -17.1,
+  "lufs": -31,
+  "activeRmsDb": -29.9,
+  "silentMs": 0,
+  "seamStep": 0.73,
+  "seamLevelDb": 1.9,
+  "seamJumpDb": -53.2
+ },
+ "bed_sanctum_base": {
+  "frames": 576000,
+  "seconds": 12,
+  "peakDb": -21,
+  "lufs": -32,
+  "activeRmsDb": -30.4,
+  "silentMs": 0,
+  "seamStep": 0.57,
+  "seamLevelDb": 0,
+  "seamJumpDb": -56.4
+ },
  "boss_death": {
-  "frames": 290863,
-  "seconds": 6.06,
+  "frames": 292489,
+  "seconds": 6.094,
   "peakDb": -1.1,
   "lufs": -12.9,
   "activeRmsDb": -15.2,
-  "silentMs": 5
+  "silentMs": 15
  },
  "boss_phase": {
-  "frames": 151361,
+  "frames": 151353,
   "seconds": 3.153,
   "peakDb": -2.2,
   "lufs": -16.2,
   "activeRmsDb": -16.8,
-  "silentMs": 65
+  "silentMs": 55
  },
  "boss_strike_charge": {
   "frames": 49097,
   "seconds": 1.023,
   "peakDb": -1,
   "lufs": -11.9,
-  "activeRmsDb": -15.6,
-  "silentMs": 15
+  "activeRmsDb": -15.5,
+  "silentMs": 30
  },
  "boss_strike_rain_1": {
-  "frames": 37725,
+  "frames": 37726,
   "seconds": 0.786,
   "peakDb": -3,
   "lufs": -14.2,
@@ -32,7 +188,7 @@
   "silentMs": 10
  },
  "boss_strike_rain_2": {
-  "frames": 37496,
+  "frames": 37497,
   "seconds": 0.781,
   "peakDb": -3,
   "lufs": -14.6,
@@ -40,7 +196,7 @@
   "silentMs": 15
  },
  "boss_strike_rain_3": {
-  "frames": 37711,
+  "frames": 37712,
   "seconds": 0.786,
   "peakDb": -3,
   "lufs": -14.2,
@@ -56,63 +212,85 @@
   "silentMs": 30
  },
  "boss_telegraph_rain": {
-  "frames": 70230,
-  "seconds": 1.463,
+  "frames": 70302,
+  "seconds": 1.465,
   "peakDb": -5,
   "lufs": -8.9,
   "activeRmsDb": -17,
   "silentMs": 5
  },
  "boss_wake": {
-  "frames": 205567,
-  "seconds": 4.283,
+  "frames": 205556,
+  "seconds": 4.282,
   "peakDb": -2.7,
   "lufs": -13,
   "activeRmsDb": -15,
-  "silentMs": 50
+  "silentMs": 70
  },
  "bottle_denied": {
-  "frames": 9203,
+  "frames": 9211,
   "seconds": 0.192,
   "peakDb": -10,
-  "lufs": -25,
-  "activeRmsDb": -22.4,
+  "lufs": -24.9,
+  "activeRmsDb": -22.2,
   "silentMs": 25
  },
  "bottle_drunk": {
-  "frames": 101784,
-  "seconds": 2.121,
+  "frames": 101674,
+  "seconds": 2.118,
   "peakDb": -5,
   "lufs": -9.4,
   "activeRmsDb": -17,
   "silentMs": 5
  },
  "bottle_interrupted": {
-  "frames": 17487,
-  "seconds": 0.364,
+  "frames": 17406,
+  "seconds": 0.363,
   "peakDb": -8,
   "lufs": -21.1,
   "activeRmsDb": -23,
   "silentMs": 45
  },
  "bottle_ready": {
-  "frames": 45001,
-  "seconds": 0.938,
+  "frames": 44615,
+  "seconds": 0.929,
   "peakDb": -14,
   "lufs": -16.1,
   "activeRmsDb": -24.3,
   "silentMs": 70
  },
  "bottle_start": {
-  "frames": 27202,
-  "seconds": 0.567,
+  "frames": 27159,
+  "seconds": 0.566,
   "peakDb": -9.2,
   "lufs": -18.1,
   "activeRmsDb": -20.7,
   "silentMs": 35
  },
+ "chamber_base": {
+  "frames": 2160000,
+  "seconds": 45,
+  "peakDb": -7.5,
+  "lufs": -20,
+  "activeRmsDb": -22,
+  "silentMs": 0,
+  "seamStep": 0.28,
+  "seamLevelDb": 0.3,
+  "seamJumpDb": -45.5
+ },
+ "chamber_drive": {
+  "frames": 2160000,
+  "seconds": 45,
+  "peakDb": -7,
+  "lufs": -24,
+  "activeRmsDb": -25.3,
+  "silentMs": 0,
+  "seamStep": 0.1,
+  "seamLevelDb": 25.6,
+  "seamJumpDb": -57.8
+ },
  "gate_close": {
-  "frames": 108474,
+  "frames": 108475,
   "seconds": 2.26,
   "peakDb": -2.1,
   "lufs": -12.2,
@@ -120,7 +298,7 @@
   "silentMs": 65
  },
  "gate_open": {
-  "frames": 151874,
+  "frames": 151876,
   "seconds": 3.164,
   "peakDb": -3,
   "lufs": -18.4,
@@ -128,19 +306,19 @@
   "silentMs": 105
  },
  "hazard_spikes_1": {
-  "frames": 8823,
-  "seconds": 0.184,
-  "peakDb": -4,
-  "lufs": -24.1,
-  "activeRmsDb": -23.2,
-  "silentMs": 20
- },
- "hazard_spikes_2": {
-  "frames": 9277,
+  "frames": 9245,
   "seconds": 0.193,
   "peakDb": -4,
-  "lufs": -24,
-  "activeRmsDb": -23.1,
+  "lufs": -23.7,
+  "activeRmsDb": -22.9,
+  "silentMs": 30
+ },
+ "hazard_spikes_2": {
+  "frames": 9278,
+  "seconds": 0.193,
+  "peakDb": -4,
+  "lufs": -24.2,
+  "activeRmsDb": -23.2,
   "silentMs": 30
  },
  "hero_dash_air_1": {
@@ -160,12 +338,12 @@
   "silentMs": 45
  },
  "hero_dash_ground_1": {
-  "frames": 20241,
-  "seconds": 0.422,
+  "frames": 19782,
+  "seconds": 0.412,
   "peakDb": -4.1,
   "lufs": -14.4,
   "activeRmsDb": -16.8,
-  "silentMs": 30
+  "silentMs": 20
  },
  "hero_dash_ground_2": {
   "frames": 19475,
@@ -183,8 +361,16 @@
   "activeRmsDb": -17.8,
   "silentMs": 5
  },
+ "hero_heartbeat": {
+  "frames": 25470,
+  "seconds": 0.531,
+  "peakDb": -11,
+  "lufs": -23.4,
+  "activeRmsDb": -24.4,
+  "silentMs": 70
+ },
  "hero_hurt_heavy_1": {
-  "frames": 25836,
+  "frames": 25837,
   "seconds": 0.538,
   "peakDb": -3.2,
   "lufs": -14.4,
@@ -192,7 +378,7 @@
   "silentMs": 25
  },
  "hero_hurt_heavy_2": {
-  "frames": 26674,
+  "frames": 26675,
   "seconds": 0.556,
   "peakDb": -3.2,
   "lufs": -14.5,
@@ -208,7 +394,7 @@
   "silentMs": 45
  },
  "hero_hurt_light_2": {
-  "frames": 23765,
+  "frames": 23766,
   "seconds": 0.495,
   "peakDb": -3.1,
   "lufs": -16.3,
@@ -216,19 +402,19 @@
   "silentMs": 45
  },
  "hero_jump_1": {
-  "frames": 13670,
+  "frames": 13671,
   "seconds": 0.285,
   "peakDb": -8,
-  "lufs": -22.3,
-  "activeRmsDb": -20.6,
+  "lufs": -22.1,
+  "activeRmsDb": -20.5,
   "silentMs": 50
  },
  "hero_jump_2": {
-  "frames": 14646,
+  "frames": 14647,
   "seconds": 0.305,
   "peakDb": -8,
-  "lufs": -22.3,
-  "activeRmsDb": -20.6,
+  "lufs": -22.1,
+  "activeRmsDb": -20.5,
   "silentMs": 65
  },
  "hero_jump_air_1": {
@@ -242,21 +428,21 @@
  "hero_jump_air_2": {
   "frames": 21764,
   "seconds": 0.453,
-  "peakDb": -8.1,
+  "peakDb": -8.2,
   "lufs": -18.4,
   "activeRmsDb": -22.7,
-  "silentMs": 45
+  "silentMs": 50
  },
  "hero_land_heavy_1": {
-  "frames": 27088,
-  "seconds": 0.564,
+  "frames": 26496,
+  "seconds": 0.552,
   "peakDb": -3,
   "lufs": -16.1,
-  "activeRmsDb": -17.9,
-  "silentMs": 5
+  "activeRmsDb": -17.8,
+  "silentMs": 15
  },
  "hero_land_heavy_2": {
-  "frames": 26578,
+  "frames": 26579,
   "seconds": 0.554,
   "peakDb": -3,
   "lufs": -15.6,
@@ -264,7 +450,7 @@
   "silentMs": 10
  },
  "hero_land_light_1": {
-  "frames": 14306,
+  "frames": 14305,
   "seconds": 0.298,
   "peakDb": -8,
   "lufs": -24.5,
@@ -272,15 +458,15 @@
   "silentMs": 25
  },
  "hero_land_light_2": {
-  "frames": 14981,
+  "frames": 14980,
   "seconds": 0.312,
   "peakDb": -8,
-  "lufs": -24.4,
+  "lufs": -24.5,
   "activeRmsDb": -23.3,
   "silentMs": 40
  },
  "hero_land_medium_1": {
-  "frames": 18635,
+  "frames": 18631,
   "seconds": 0.388,
   "peakDb": -5,
   "lufs": -19.7,
@@ -288,11 +474,11 @@
   "silentMs": 15
  },
  "hero_land_medium_2": {
-  "frames": 18639,
+  "frames": 18637,
   "seconds": 0.388,
   "peakDb": -5,
   "lufs": -19.3,
-  "activeRmsDb": -19.1,
+  "activeRmsDb": -19,
   "silentMs": 15
  },
  "hero_respawn": {
@@ -306,125 +492,125 @@
  "hero_slash_1_1": {
   "frames": 15726,
   "seconds": 0.328,
-  "peakDb": -5.1,
-  "lufs": -18.1,
-  "activeRmsDb": -20.6,
+  "peakDb": -5,
+  "lufs": -18.5,
+  "activeRmsDb": -21,
   "silentMs": 45
  },
  "hero_slash_1_2": {
-  "frames": 16183,
-  "seconds": 0.337,
+  "frames": 15556,
+  "seconds": 0.324,
   "peakDb": -5,
-  "lufs": -17.1,
+  "lufs": -17,
+  "activeRmsDb": -19.7,
+  "silentMs": 30
+ },
+ "hero_slash_1_3": {
+  "frames": 16076,
+  "seconds": 0.335,
+  "peakDb": -5,
+  "lufs": -18.3,
+  "activeRmsDb": -20.9,
+  "silentMs": 45
+ },
+ "hero_slash_2_1": {
+  "frames": 18110,
+  "seconds": 0.377,
+  "peakDb": -5,
+  "lufs": -16.7,
   "activeRmsDb": -19.7,
   "silentMs": 45
  },
- "hero_slash_1_3": {
-  "frames": 15299,
-  "seconds": 0.319,
-  "peakDb": -5,
-  "lufs": -18.6,
-  "activeRmsDb": -21.2,
-  "silentMs": 30
- },
- "hero_slash_2_1": {
-  "frames": 18295,
-  "seconds": 0.381,
-  "peakDb": -5.1,
-  "lufs": -16.4,
-  "activeRmsDb": -19.1,
-  "silentMs": 50
- },
  "hero_slash_2_2": {
-  "frames": 18250,
+  "frames": 18249,
   "seconds": 0.38,
-  "peakDb": -5,
-  "lufs": -17.4,
-  "activeRmsDb": -20,
-  "silentMs": 35
+  "peakDb": -5.1,
+  "lufs": -18.1,
+  "activeRmsDb": -21,
+  "silentMs": 55
  },
  "hero_slash_2_3": {
-  "frames": 18189,
+  "frames": 18188,
   "seconds": 0.379,
   "peakDb": -5,
-  "lufs": -18.6,
-  "activeRmsDb": -21.1,
-  "silentMs": 45
+  "lufs": -18.8,
+  "activeRmsDb": -21.6,
+  "silentMs": 55
  },
  "hero_slash_air_1": {
-  "frames": 15730,
+  "frames": 15729,
   "seconds": 0.328,
   "peakDb": -5,
   "lufs": -16.8,
-  "activeRmsDb": -20.1,
+  "activeRmsDb": -20,
   "silentMs": 30
  },
  "hero_slash_air_2": {
   "frames": 16389,
   "seconds": 0.341,
   "peakDb": -5,
-  "lufs": -17.9,
-  "activeRmsDb": -21.2,
+  "lufs": -17.8,
+  "activeRmsDb": -21.1,
   "silentMs": 45
  },
  "hero_slash_air_3": {
-  "frames": 16244,
-  "seconds": 0.338,
+  "frames": 16165,
+  "seconds": 0.337,
   "peakDb": -5.1,
   "lufs": -17.3,
   "activeRmsDb": -20.7,
-  "silentMs": 25
+  "silentMs": 30
  },
  "hero_slash_crouch_1": {
-  "frames": 14883,
+  "frames": 14884,
   "seconds": 0.31,
   "peakDb": -5,
-  "lufs": -20.4,
-  "activeRmsDb": -20.9,
-  "silentMs": 35
+  "lufs": -20.3,
+  "activeRmsDb": -21.2,
+  "silentMs": 50
  },
  "hero_slash_crouch_2": {
-  "frames": 14886,
-  "seconds": 0.31,
+  "frames": 14721,
+  "seconds": 0.307,
   "peakDb": -5,
-  "lufs": -19.6,
-  "activeRmsDb": -20.2,
-  "silentMs": 35
+  "lufs": -20.5,
+  "activeRmsDb": -21.2,
+  "silentMs": 45
  },
  "hero_slash_crouch_3": {
   "frames": 14555,
   "seconds": 0.303,
   "peakDb": -5,
   "lufs": -19.9,
-  "activeRmsDb": -20.5,
+  "activeRmsDb": -20.8,
   "silentMs": 20
  },
  "hero_step_earth_1": {
-  "frames": 13058,
-  "seconds": 0.272,
+  "frames": 12527,
+  "seconds": 0.261,
   "peakDb": -9,
-  "lufs": -25,
-  "activeRmsDb": -23,
-  "silentMs": 35
+  "lufs": -25.1,
+  "activeRmsDb": -23.1,
+  "silentMs": 50
  },
  "hero_step_earth_2": {
-  "frames": 12365,
+  "frames": 12366,
   "seconds": 0.258,
   "peakDb": -9,
-  "lufs": -25.7,
-  "activeRmsDb": -23.6,
+  "lufs": -25.8,
+  "activeRmsDb": -23.7,
   "silentMs": 45
  },
  "hero_step_earth_3": {
-  "frames": 12428,
-  "seconds": 0.259,
+  "frames": 12465,
+  "seconds": 0.26,
   "peakDb": -9,
   "lufs": -25,
   "activeRmsDb": -23,
   "silentMs": 50
  },
  "hero_step_earth_4": {
-  "frames": 12835,
+  "frames": 12833,
   "seconds": 0.267,
   "peakDb": -9,
   "lufs": -24.8,
@@ -472,7 +658,7 @@
   "silentMs": 70
  },
  "hero_step_wet_2": {
-  "frames": 25246,
+  "frames": 25247,
   "seconds": 0.526,
   "peakDb": -9,
   "lufs": -26.3,
@@ -484,14 +670,14 @@
   "seconds": 0.505,
   "peakDb": -9,
   "lufs": -26.2,
-  "activeRmsDb": -28.1,
+  "activeRmsDb": -28.2,
   "silentMs": 90
  },
  "hero_step_wet_4": {
   "frames": 24510,
   "seconds": 0.511,
   "peakDb": -9,
-  "lufs": -27.3,
+  "lufs": -27.4,
   "activeRmsDb": -29.4,
   "silentMs": 55
  },
@@ -504,60 +690,60 @@
   "silentMs": 20
  },
  "hit_bolt_2": {
-  "frames": 36250,
-  "seconds": 0.755,
+  "frames": 36202,
+  "seconds": 0.754,
   "peakDb": -3,
   "lufs": -12.5,
   "activeRmsDb": -19,
-  "silentMs": 15
+  "silentMs": 10
  },
  "hit_heavy_1": {
-  "frames": 25034,
-  "seconds": 0.522,
+  "frames": 24113,
+  "seconds": 0.502,
   "peakDb": -3,
   "lufs": -16.3,
   "activeRmsDb": -17.3,
-  "silentMs": 15
+  "silentMs": 5
  },
  "hit_heavy_2": {
-  "frames": 25032,
-  "seconds": 0.522,
+  "frames": 24110,
+  "seconds": 0.502,
   "peakDb": -3,
   "lufs": -16.5,
   "activeRmsDb": -17.6,
-  "silentMs": 15
+  "silentMs": 5
  },
  "hit_heavy_3": {
-  "frames": 25035,
-  "seconds": 0.522,
+  "frames": 24115,
+  "seconds": 0.502,
   "peakDb": -3,
   "lufs": -16.2,
   "activeRmsDb": -17.3,
-  "silentMs": 15
+  "silentMs": 5
  },
  "hit_light_1": {
-  "frames": 13415,
-  "seconds": 0.279,
+  "frames": 14406,
+  "seconds": 0.3,
   "peakDb": -5,
   "lufs": -21.9,
-  "activeRmsDb": -20.9,
-  "silentMs": 20
+  "activeRmsDb": -20.8,
+  "silentMs": 50
  },
  "hit_light_2": {
-  "frames": 13284,
-  "seconds": 0.277,
+  "frames": 13222,
+  "seconds": 0.275,
   "peakDb": -5,
   "lufs": -21.6,
   "activeRmsDb": -20.6,
-  "silentMs": 20
+  "silentMs": 25
  },
  "hit_light_3": {
-  "frames": 14174,
-  "seconds": 0.295,
+  "frames": 14412,
+  "seconds": 0.3,
   "peakDb": -5,
   "lufs": -20.9,
-  "activeRmsDb": -20,
-  "silentMs": 35
+  "activeRmsDb": -19.9,
+  "silentMs": 50
  },
  "interact_activate": {
   "frames": 56710,
@@ -576,7 +762,7 @@
   "silentMs": 35
  },
  "interact_open_2": {
-  "frames": 34257,
+  "frames": 34258,
   "seconds": 0.714,
   "peakDb": -5,
   "lufs": -19.4,
@@ -584,44 +770,44 @@
   "silentMs": 20
  },
  "interact_pickup_1": {
-  "frames": 80206,
-  "seconds": 1.671,
+  "frames": 79716,
+  "seconds": 1.661,
   "peakDb": -6,
   "lufs": -10.7,
   "activeRmsDb": -17.6,
-  "silentMs": 15
+  "silentMs": 10
  },
  "interact_pickup_2": {
-  "frames": 80257,
-  "seconds": 1.672,
+  "frames": 76510,
+  "seconds": 1.594,
   "peakDb": -6.1,
   "lufs": -11.3,
   "activeRmsDb": -18,
   "silentMs": 10
  },
  "interact_rest": {
-  "frames": 163942,
-  "seconds": 3.415,
+  "frames": 164914,
+  "seconds": 3.436,
   "peakDb": -5.7,
   "lufs": -15.4,
   "activeRmsDb": -19.2,
-  "silentMs": 145
+  "silentMs": 165
  },
  "magic_bolt_fizzle_1": {
-  "frames": 21041,
+  "frames": 21033,
   "seconds": 0.438,
   "peakDb": -10,
   "lufs": -17,
-  "activeRmsDb": -23,
+  "activeRmsDb": -22.9,
   "silentMs": 5
  },
  "magic_bolt_fizzle_2": {
-  "frames": 18307,
-  "seconds": 0.381,
+  "frames": 18617,
+  "seconds": 0.388,
   "peakDb": -10,
   "lufs": -18.5,
   "activeRmsDb": -23.6,
-  "silentMs": 10
+  "silentMs": 15
  },
  "magic_cast_release_1": {
   "frames": 34622,
@@ -640,20 +826,64 @@
   "silentMs": 10
  },
  "magic_cast_start": {
-  "frames": 18036,
+  "frames": 18026,
   "seconds": 0.376,
   "peakDb": -11,
-  "lufs": -22.2,
-  "activeRmsDb": -26.4,
-  "silentMs": 30
+  "lufs": -22.3,
+  "activeRmsDb": -26.5,
+  "silentMs": 35
  },
  "magic_denied": {
-  "frames": 14002,
+  "frames": 14003,
   "seconds": 0.292,
   "peakDb": -7,
   "lufs": -20,
   "activeRmsDb": -19.2,
   "silentMs": 40
+ },
+ "ruins_base": {
+  "frames": 2094545,
+  "seconds": 43.636,
+  "peakDb": -7.8,
+  "lufs": -20,
+  "activeRmsDb": -21.6,
+  "silentMs": 0,
+  "seamStep": 0.33,
+  "seamLevelDb": 0.6,
+  "seamJumpDb": -53.6
+ },
+ "ruins_drive": {
+  "frames": 2094545,
+  "seconds": 43.636,
+  "peakDb": -11.2,
+  "lufs": -24,
+  "activeRmsDb": -25.8,
+  "silentMs": 0,
+  "seamStep": 0.03,
+  "seamLevelDb": 10.6,
+  "seamJumpDb": -64.3
+ },
+ "sanctum_base": {
+  "frames": 2057143,
+  "seconds": 42.857,
+  "peakDb": -8.4,
+  "lufs": -20,
+  "activeRmsDb": -21.4,
+  "silentMs": 0,
+  "seamStep": 3.17,
+  "seamLevelDb": 4.2,
+  "seamJumpDb": -36.9
+ },
+ "sanctum_drive": {
+  "frames": 2057143,
+  "seconds": 42.857,
+  "peakDb": -11.5,
+  "lufs": -24,
+  "activeRmsDb": -26.3,
+  "silentMs": 0,
+  "seamStep": 1.9,
+  "seamLevelDb": 12.3,
+  "seamJumpDb": -37
  },
  "seal_break": {
   "frames": 176054,
@@ -664,7 +894,7 @@
   "silentMs": 10
  },
  "seal_reject_1": {
-  "frames": 40326,
+  "frames": 40327,
   "seconds": 0.84,
   "peakDb": -3,
   "lufs": -17.7,
@@ -672,7 +902,7 @@
   "silentMs": 45
  },
  "seal_reject_2": {
-  "frames": 40690,
+  "frames": 40700,
   "seconds": 0.848,
   "peakDb": -3,
   "lufs": -17.2,
@@ -688,7 +918,7 @@
   "silentMs": 15
  },
  "slime_alert_2": {
-  "frames": 19037,
+  "frames": 19039,
   "seconds": 0.397,
   "peakDb": -8,
   "lufs": -18.5,
@@ -704,12 +934,12 @@
   "silentMs": 15
  },
  "slime_death_2": {
-  "frames": 48705,
-  "seconds": 1.015,
+  "frames": 49837,
+  "seconds": 1.038,
   "peakDb": -3,
   "lufs": -11.1,
   "activeRmsDb": -16.4,
-  "silentMs": 15
+  "silentMs": 20
  },
  "slime_lunge_1": {
   "frames": 18628,
@@ -728,12 +958,36 @@
   "silentMs": 5
  },
  "slime_telegraph": {
-  "frames": 32182,
-  "seconds": 0.67,
+  "frames": 31623,
+  "seconds": 0.659,
   "peakDb": -5.1,
   "lufs": -14.6,
   "activeRmsDb": -17.8,
-  "silentMs": 45
+  "silentMs": 30
+ },
+ "stinger_card": {
+  "frames": 180016,
+  "seconds": 3.75,
+  "peakDb": -7,
+  "lufs": -12.5,
+  "activeRmsDb": -17.4,
+  "silentMs": 5
+ },
+ "stinger_unlock": {
+  "frames": 276822,
+  "seconds": 5.767,
+  "peakDb": -6,
+  "lufs": -12.8,
+  "activeRmsDb": -18.3,
+  "silentMs": 5
+ },
+ "stinger_victory": {
+  "frames": 384374,
+  "seconds": 8.008,
+  "peakDb": -6,
+  "lufs": -14.6,
+  "activeRmsDb": -17.7,
+  "silentMs": 90
  },
  "transition_pass": {
   "frames": 84440,
@@ -744,59 +998,81 @@
   "silentMs": 190
  },
  "ui_pause_close": {
-  "frames": 19246,
-  "seconds": 0.401,
+  "frames": 19322,
+  "seconds": 0.403,
   "peakDb": -11,
-  "lufs": -25.8,
-  "activeRmsDb": -27,
-  "silentMs": 80
+  "lufs": -25,
+  "activeRmsDb": -26.1,
+  "silentMs": 40
  },
  "ui_pause_open": {
-  "frames": 20596,
+  "frames": 20597,
   "seconds": 0.429,
   "peakDb": -11,
-  "lufs": -23.1,
-  "activeRmsDb": -24,
+  "lufs": -22.8,
+  "activeRmsDb": -23.7,
   "silentMs": 55
  },
  "ui_save": {
-  "frames": 52817,
-  "seconds": 1.1,
+  "frames": 52633,
+  "seconds": 1.097,
   "peakDb": -16,
   "lufs": -19,
   "activeRmsDb": -26.8,
-  "silentMs": 20
+  "silentMs": 25
  },
  "ui_slider": {
-  "frames": 14637,
-  "seconds": 0.305,
+  "frames": 14391,
+  "seconds": 0.3,
   "peakDb": -20,
   "lufs": -25.6,
   "activeRmsDb": -28.7,
-  "silentMs": 75
+  "silentMs": 70
  },
  "ui_tap": {
-  "frames": 12654,
-  "seconds": 0.264,
+  "frames": 12417,
+  "seconds": 0.259,
   "peakDb": -14,
   "lufs": -21.2,
   "activeRmsDb": -23.3,
-  "silentMs": 10
+  "silentMs": 5
  },
  "ui_toggle_off": {
-  "frames": 17144,
-  "seconds": 0.357,
+  "frames": 17044,
+  "seconds": 0.355,
   "peakDb": -14,
   "lufs": -20.7,
   "activeRmsDb": -23.9,
   "silentMs": 15
  },
  "ui_toggle_on": {
-  "frames": 15172,
+  "frames": 15171,
   "seconds": 0.316,
   "peakDb": -14,
   "lufs": -21.5,
-  "activeRmsDb": -25,
-  "silentMs": 15
+  "activeRmsDb": -24.9,
+  "silentMs": 20
+ },
+ "warden_base": {
+  "frames": 1706667,
+  "seconds": 35.556,
+  "peakDb": -7,
+  "lufs": -19,
+  "activeRmsDb": -19.8,
+  "silentMs": 0,
+  "seamStep": 3.52,
+  "seamLevelDb": 6.3,
+  "seamJumpDb": -24.7
+ },
+ "warden_drive": {
+  "frames": 1706667,
+  "seconds": 35.556,
+  "peakDb": -11,
+  "lufs": -23,
+  "activeRmsDb": -24,
+  "silentMs": 0,
+  "seamStep": 0.17,
+  "seamLevelDb": 6.3,
+  "seamJumpDb": -52.5
  }
 }

@@ -150,7 +150,7 @@ describe('Conductor: the music follows the place, and does not restart', () => {
   it('plays the piece of the room the game starts in once the engine runs', async () => {
     const s = await setup();
     expect(s.music.stats().current).toBe('a');
-    expect(s.loops().filter((x) => x.buffer?.duration === 30)).toHaveLength(2);
+    expect(s.loops().filter((x) => x.buffer?.duration === 30)).toHaveLength(1); // the base: the drive is fetched when the danger comes
     expect(s.ambience.stats().current).toBe('bed.hall');
   });
 
@@ -164,7 +164,7 @@ describe('Conductor: the music follows the place, and does not restart', () => {
     expect(s.music.stats().current).toBe('a');
     expect(s.music.stats().leaving).toEqual([]);
     expect(s.loops().filter((x) => x.buffer?.duration === 30)).toEqual(before);
-    expect(s.rig.ctx.sources.filter((x) => x.loop && x.buffer?.duration === 30)).toHaveLength(2); // never a second copy
+    expect(s.rig.ctx.sources.filter((x) => x.loop && x.buffer?.duration === 30)).toHaveLength(1); // never a second copy
     expect(s.ambience.stats().current).toBe('bed.well');
   });
 
@@ -182,7 +182,7 @@ describe('Conductor: the music follows the place, and does not restart', () => {
     await s.rig.settle();
     s.run(FADE.zone + 2);
     expect(s.music.stats().current).toBe('a');
-    expect(s.loops()).toHaveLength(2);
+    expect(s.loops()).toHaveLength(1);
   });
 
   it('does not restart when the same room is built again (a respawn, a reload): nothing changes, not even the echo', async () => {
@@ -336,7 +336,7 @@ describe('Conductor: the boss', () => {
     s.run(FADE.bossOut + 2);
     expect(s.music.stats().current).toBe('a');
     expect(s.conductor.state()).toMatchObject({ boss: 'none', dead: false });
-    expect(s.loops()).toHaveLength(2);
+    expect(s.loops()).toHaveLength(1);
   });
 
   it('dims and dulls the music while the hero is down and gives it back when they return', async () => {

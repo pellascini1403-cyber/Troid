@@ -71,6 +71,11 @@ export interface ReverbOptions {
   dry?: number;
   /** Seconds added after the input for the tail to ring out (default: `rt60`). */
   tailSec?: number;
+  /**
+   * The input is a LOOP of this many seconds, whose end will be followed by its start: the modulation of every delay line is then made to complete a whole number of cycles in it, so that the room answers the loop's
+   * end exactly as it answers its start, and a reverberation folded back onto the beginning of the loop closes on itself with no seam.
+   */
+  loopSec?: number;
 }
 
 const FDN_MS = [29.7, 37.1, 41.1, 43.7, 53.3, 59.3, 61.9, 67.7] as const;
@@ -125,6 +130,11 @@ export function reverb(input: Stereo, o: ReverbOptions): Stereo {
   const lpState = new Float64Array(8);
   const lpCoef = 0.08 + damp * 0.62; // the larger, the darker
   const phase = lines.map((_, k) => (k * 0.37) % 1);
+  // each line's modulation rate; in a loop, a whole number of cycles per round
+  const rates = lines.map((_, k) => {
+    const r = rate * (1 + k * 0.11);
+    return o.loopSec ? Math.max(1, Math.round(r * o.loopSec)) / o.loopSec : r;
+  });
   const outL = buf(n);
   const outR = buf(n);
   const y = new Float64Array(8);
@@ -137,7 +147,7 @@ export function reverb(input: Stereo, o: ReverbOptions): Stereo {
     const xin = i >= pre ? (diffused[i - pre] as number) : 0;
     const sin = i >= pre ? (side[i - pre] as number) : 0;
     for (let k = 0; k < 8; k++) {
-      const d = (lines[k] as number) + depth * Math.sin(TAU * (phase[k] as number + (rate * (1 + k * 0.11) * i) / SR));
+      const d = (lines[k] as number) + depth * Math.sin(TAU * (phase[k] as number + ((rates[k] as number) * i) / SR));
       let rp = (wp[k] as number) - d;
       const m = mem[k] as Buf;
       while (rp < 0) rp += maxLen;
