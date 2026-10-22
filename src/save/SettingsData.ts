@@ -1,22 +1,22 @@
 import { clamp } from '@/core/math';
 import { BUTTON_DESIGN, uiScale } from '@/input/gestures/TouchConfig';
 import { sanitizeKeyMap, type KeyMap } from '@/input/remap';
+import { AUDIO_CATEGORIES, AUDIO_LEVEL_LIMITS, DEFAULT_AUDIO_LEVELS, type AudioLevels } from '@/presentation/audioMix';
 import { QUALITY_SETTINGS, type QualitySetting } from '@/presentation/viewport';
 import { DEFAULT_SLOT, sanitizeSlot } from './SaveSlots';
 
 /**
  * The player's SETTINGS as data (docs/ARCHITECTURE-2D.md §11): separate from the progress, versioned, and repairable. Version 1 held the
- * language and the size and opacity of the touch controls; version 2 (docs/PROMPT6-LOG.md S30) adds the volume (prepared: there is no sound yet),
+ * language and the size and opacity of the touch controls; version 2 (docs/PROMPT6-LOG.md S30) adds the volume,
  * the quality profile, the remapped keys and the position of the touch controls; version 3 (docs/PROMPT14-LOG.md) adds the saved game being played (`slot`) and the
  * accessibility choices (fewer flashes, no camera shake, the size of the HUD); version 4 (docs/PROMPT15-LOG.md) lets the player place each touch button where they like (the side and the two
- * offsets of version 2 become the position of every button). Each one came with a migration, the day it existed.
+ * offsets of version 2 become the position of every button); version 5 (docs/PROMPT18-LOG.md) gives the sound its three other volumes — the music, the effects and the ambience — under the general one. Each one came with a
+ * migration, the day it existed.
  */
-export const SETTINGS_VERSION = 4;
+export const SETTINGS_VERSION = 5;
 
-export interface VolumeSettings {
-  /** The master volume, 0 (silence) … 1. */
-  master: number;
-}
+/** The volumes the player chooses, each 0 (silence) … 1: the general one and one for each kind of sound. */
+export type VolumeSettings = AudioLevels;
 
 /** The three fixed touch buttons the player can place: the melee attack, the dash and the ranged / magic ability (the bottle chip is not one of them: it hangs from the attack). */
 export const TOUCH_BUTTONS = ['attack', 'dash', 'ability'] as const;
@@ -74,7 +74,7 @@ export const TOUCH_LIMITS = {
   button: { min: 0.7, max: 1.5 },
 } as const;
 
-export const VOLUME_LIMITS = { master: { min: 0, max: 1 } } as const;
+export const VOLUME_LIMITS = { master: AUDIO_LEVEL_LIMITS, music: AUDIO_LEVEL_LIMITS, sfx: AUDIO_LEVEL_LIMITS, ambience: AUDIO_LEVEL_LIMITS } as const;
 
 /** The HUD is never smaller than 85 % of its design (the numbers on it would stop being legible) nor bigger than 135 % (it would take the corner of a small phone). */
 export const HUD_SCALE_LIMITS = { min: 0.85, max: 1.35 } as const;
@@ -83,7 +83,7 @@ export function defaultSettings(): SettingsData {
   return {
     version: SETTINGS_VERSION,
     language: null,
-    volume: { master: 0.8 },
+    volume: { ...DEFAULT_AUDIO_LEVELS },
     quality: 'auto',
     keys: {},
     touch: { scale: 1, opacity: 1, buttons: {} },
@@ -137,7 +137,7 @@ export function repairSettings(raw: unknown): SettingsData {
   return {
     version: SETTINGS_VERSION,
     language,
-    volume: { master: limited(v['master'], VOLUME_LIMITS.master.min, VOLUME_LIMITS.master.max, base.volume.master) },
+    volume: Object.fromEntries(AUDIO_CATEGORIES.map((c) => [c, limited(v[c], VOLUME_LIMITS[c].min, VOLUME_LIMITS[c].max, base.volume[c])])) as VolumeSettings,
     quality,
     keys: sanitizeKeyMap(r['keys']),
     touch: {
@@ -165,6 +165,7 @@ export type Migration = (data: Record<string, unknown>) => Record<string, unknow
  *    arrive; everything version 2 held is kept as it was.
  *  - 3 → 4 (docs/PROMPT15-LOG.md): the side and the two offsets of the block of buttons become the position of each button. A player who never touched them (the right, no offset) keeps the
  *    design's places; one who did gets their three buttons on the same side and as far in and up as they had them, worked out on the reference screen of the design (844 × 390).
+ *  - 4 → 5 (docs/PROMPT18-LOG.md): the music, the effects and the ambience get a volume of their own (at the defaults); the general volume the player had chosen is kept as it was.
  */
 export const SETTINGS_MIGRATIONS: Readonly<Record<number, Migration>> = {
   1: (data) => ({ ...data, version: 2, volume: { master: 0.8 }, quality: 'auto', keys: {}, touch: { ...record(data['touch']), side: 'right', offsetX: 0, offsetY: 0 } }),
@@ -173,6 +174,7 @@ export const SETTINGS_MIGRATIONS: Readonly<Record<number, Migration>> = {
     const { side, offsetX, offsetY, ...kept } = record(data['touch']);
     return { ...data, version: 4, touch: { ...kept, buttons: placedAsBefore(side, offsetX, offsetY) } };
   },
+  4: (data) => ({ ...data, version: 5, volume: { ...DEFAULT_AUDIO_LEVELS, ...record(data['volume']) } }),
 };
 
 /**

@@ -291,6 +291,26 @@ describe('Ink Slime — the telegraph, the lunge and the recovery', () => {
     expect(s.state).toBe('attack');
   });
 
+  it('names the attack it winds up, and announces the lunge once — on the very tick its hitbox appears (the sound of the blow is the blow\'s, not the wind-up\'s)', () => {
+    const d = arena({ playerX: 24 });
+    d.session.godMode = true;
+    const telegraphs: Array<{ tick: number; attack: string | undefined }> = [];
+    const strikes: Array<{ tick: number; attack: string; defId: string; facing: number }> = [];
+    d.session.bus.on('enemy:telegraph', (e) => telegraphs.push({ tick: d.session.now, attack: e.attack }));
+    d.session.bus.on('enemy:struck', (e) => strikes.push({ tick: d.session.now, attack: e.attack, defId: e.defId, facing: e.facing }));
+    const log = recordSubmissions(d);
+    const s = spawnSlime(d, 31);
+    untilState(d, s, 'recover');
+    expect(telegraphs).toHaveLength(1);
+    expect(telegraphs[0]!.attack).toBe('slime_lunge');
+    expect(strikes).toHaveLength(1);
+    expect(strikes[0]).toMatchObject({ attack: 'slime_lunge', defId: 'ink_slime', facing: -1 });
+    const firstBox = log.find((h) => h.attackId === 'slime_lunge')!;
+    expect(strikes[0]!.tick, 'the lunge is announced the tick its first hitbox is submitted').toBeGreaterThanOrEqual(firstBox.tick - 1);
+    expect(strikes[0]!.tick).toBeLessThanOrEqual(firstBox.tick);
+    expect(strikes[0]!.tick - telegraphs[0]!.tick, 'after exactly the wind-up').toBe(24);
+  });
+
   it('lunges for EXACTLY 10 ticks at 9 m/s: ten hitboxes of 1.3 × 0.9 m centred on the body, ≈ 1.5 m travelled', () => {
     const d = arena({ playerX: 24 });
     d.session.godMode = true;

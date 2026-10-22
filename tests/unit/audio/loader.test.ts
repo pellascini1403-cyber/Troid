@@ -23,10 +23,10 @@ describe('SoundLoader: the groups of sounds', () => {
   it('counts the memory the decoded sounds take', async () => {
     const { loader } = makeRig();
     expect(loader.bytes).toBe(0);
-    await loader.retain('boss');
+    await loader.retain('solo');
     // one mono sound of two seconds at 48 kHz, 4 bytes a sample
     expect(loader.bytes).toBe(2 * 48000 * 4);
-    expect(loader.stats().groups['boss']?.bytes).toBe(2 * 48000 * 4);
+    expect(loader.stats().groups['solo']?.bytes).toBe(2 * 48000 * 4);
   });
 
   it('lets a group go a while after the last holder has: a hero who steps back through a door finds it still there', async () => {
@@ -78,10 +78,10 @@ describe('SoundLoader: the groups of sounds', () => {
 
   it('two holders asking at once share one load', async () => {
     const { loader, fetched } = makeRig();
-    const [a, b] = await Promise.all([loader.retain('boss'), loader.retain('boss')]);
+    const [a, b] = await Promise.all([loader.retain('solo'), loader.retain('solo')]);
     expect(a).toBe(b);
     expect(fetched).toHaveLength(1);
-    expect(loader.stats().groups['boss']?.refs).toBe(2);
+    expect(loader.stats().groups['solo']?.refs).toBe(2);
   });
 
   it('never fetches more files at once than it is allowed', async () => {
@@ -104,7 +104,7 @@ describe('SoundLoader: the groups of sounds', () => {
 describe('SoundLoader: when a file cannot be had', () => {
   it('falls back to the next format and the sound still plays', async () => {
     const { loader, fetched } = makeRig({ failing: ['.opus'] });
-    const report = await loader.retain('boss');
+    const report = await loader.retain('solo');
     expect(report.failed).toEqual([]);
     expect(loader.has('boss.roar')).toBe(true);
     expect(fetched.some((u) => u.endsWith('.mp3'))).toBe(true);
@@ -112,14 +112,14 @@ describe('SoundLoader: when a file cannot be had', () => {
 
   it('leaves out a sound whose every file fails, reports it, and loads the rest of the group', async () => {
     const warnings: string[] = [];
-    const { loader } = makeRig({ failing: ['hit_'], loader: { warn: (m) => warnings.push(m) } });
+    const { loader } = makeRig({ failing: (url) => /\/hit_[12]\.(opus|mp3)$/.test(url), loader: { warn: (m) => warnings.push(m) } });
     const report = await loader.retain('core');
     expect(loader.has('hit.heavy')).toBe(false);
     expect(loader.get('hit.heavy')).toHaveLength(0);
     expect(loader.has('hero.slash')).toBe(true);
     expect(report.failed.length).toBe(2); // the two variations of the sound
     expect(warnings.length).toBeGreaterThan(0);
-    expect(warnings[0]).toMatch(/hit_1\.opus/);
+    expect(warnings.some((w) => /hit_1\.opus/.test(w))).toBe(true);
   });
 
   it('keeps the variations that did arrive of a sound that lost some', async () => {
@@ -131,18 +131,18 @@ describe('SoundLoader: when a file cannot be had', () => {
   it('does not ask again for a file that just failed, and does after a while', async () => {
     let clock = 0;
     const { loader, timers, fetched } = makeRig({ failing: ['roar'], loader: { now: () => clock, retryAfterMs: 5000 } });
-    await loader.retain('boss');
+    await loader.retain('solo');
     const first = fetched.filter((u) => u.includes('roar')).length;
     expect(first).toBe(2); // both formats were tried
-    loader.release('boss');
+    loader.release('solo');
     timers.fire();
     clock = 1000;
-    await loader.retain('boss');
+    await loader.retain('solo');
     expect(fetched.filter((u) => u.includes('roar')).length).toBe(first); // too soon
-    loader.release('boss');
+    loader.release('solo');
     timers.fire();
     clock = 6000;
-    await loader.retain('boss');
+    await loader.retain('solo');
     expect(fetched.filter((u) => u.includes('roar')).length).toBe(first * 2);
   });
 
@@ -150,12 +150,12 @@ describe('SoundLoader: when a file cannot be had', () => {
     let clock = 0;
     let broken = true;
     const { loader } = makeRig({ failing: (url) => broken && url.includes('roar'), loader: { now: () => clock, retryAfterMs: 1000 } });
-    const first = await loader.retain('boss');
+    const first = await loader.retain('solo');
     expect(first.failed).toHaveLength(1);
     expect(loader.has('boss.roar')).toBe(false);
     broken = false;
     clock = 2000;
-    const second = await loader.retain('boss');
+    const second = await loader.retain('solo');
     expect(second.failed).toEqual([]);
     expect(loader.has('boss.roar')).toBe(true);
   });
@@ -163,7 +163,7 @@ describe('SoundLoader: when a file cannot be had', () => {
   it('gives up on a file that never arrives', async () => {
     const { loader } = makeRig({ loader: { timeoutMs: 20, io: { fetchBytes: (_u, signal) => new Promise((_r, rej) => signal.addEventListener('abort', () => rej(new Error('aborted')))), decode: async () => fakeBuffer(1) } } });
     const t0 = Date.now();
-    const report = await loader.retain('boss');
+    const report = await loader.retain('solo');
     expect(Date.now() - t0).toBeLessThan(1500);
     expect(report.failed).toHaveLength(1);
     expect(loader.has('boss.roar')).toBe(false);
@@ -171,14 +171,14 @@ describe('SoundLoader: when a file cannot be had', () => {
 
   it('survives a file that is not audio at all', async () => {
     const { loader } = makeRig({ loader: { io: { fetchBytes: async () => new ArrayBuffer(4), decode: async () => { throw new Error('EncodingError: unable to decode'); } } } });
-    const report = await loader.retain('boss');
+    const report = await loader.retain('solo');
     expect(report.failed).toHaveLength(1);
     expect(loader.bytes).toBe(0);
   });
 
   it('does nothing after it has been disposed', async () => {
     const { loader } = makeRig();
-    await loader.retain('boss');
+    await loader.retain('solo');
     loader.dispose();
     expect(loader.has('boss.roar')).toBe(false);
     const r = await loader.retain('core');

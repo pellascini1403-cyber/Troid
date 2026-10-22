@@ -255,7 +255,7 @@ describe('LoopChannel: pause, volume and the page in the background', () => {
     await rig.settle();
     run(rig, 5);
     const musicSource = loops(rig).find((s) => s.buffer?.duration === 30) as FakeSource;
-    const bedSource = loops(rig).find((s) => s.buffer?.duration === 20) as FakeSource;
+    const bedSource = loops(rig).find((s) => s.buffer?.duration === 16) as FakeSource;
     expect(rig.ctx.audibleGain(bedSource)).toBeGreaterThan(0.1);
     rig.engine.setPaused(true);
     const later = rig.ctx.currentTime + 2;

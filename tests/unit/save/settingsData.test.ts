@@ -1,23 +1,26 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_AUDIO_LEVELS } from '@/presentation/audioMix';
 import { defaultSettings, HUD_SCALE_LIMITS, parseSettings, repairSettings, serializeSettings, SETTINGS_MIGRATIONS, SETTINGS_VERSION, TOUCH_BUTTONS, TOUCH_LIMITS, VOLUME_LIMITS } from '@/save/SettingsData';
 
 /**
  * The settings as DATA (docs/ARCHITECTURE-2D.md §11): a version, repairs for whatever a damaged or hand-edited value could be,
  * and a migration chain with a golden file per version so a format change can never silently break the settings of a player.
  * Version 2 (docs/PROMPT6-LOG.md S30) added the volume, the quality profile, the remapped keys and the position of the touch controls; version 3 (docs/PROMPT14-LOG.md) the saved game
- * being played and the accessibility choices; version 4 (docs/PROMPT15-LOG.md) the place and the size of each touch button.
+ * being played and the accessibility choices; version 4 (docs/PROMPT15-LOG.md) the place and the size of each touch button; version 5 (docs/PROMPT18-LOG.md) the music's, the effects' and the ambience's volumes.
  */
 const touch = (over: Record<string, unknown> = {}) => ({ scale: 1, opacity: 1, buttons: {}, ...over });
 const BUTTON = (x: number, y: number, scale = 1) => ({ x, y, scale });
 /** What a block of buttons on the left, half way in and a quarter of the way up (the golden files of versions 2 and 3) is, button by button, on the reference screen of the design (844 × 390). */
 const LEFT_HALF_IN_QUARTER_UP = { attack: BUTTON(0.1437, 0.7076), dash: BUTTON(0.2598, 0.7997), ability: BUTTON(0.2139, 0.6852) };
 const ACCESS = { reduceFlashes: false, reduceShake: false, hudScale: 1 } as const;
+/** The volumes a settings file of before the sound had: the general one it held, the rest at their defaults. */
+const VOLUME = (master = DEFAULT_AUDIO_LEVELS.master) => ({ ...DEFAULT_AUDIO_LEVELS, master });
 
 describe('defaults and repair', () => {
-  it('the defaults: no language chosen (follow the device), the volume at 80 %, the balanced quality, no key changed and the touch controls as designed', () => {
-    expect(defaultSettings()).toEqual({ version: 4, language: null, volume: { master: 0.8 }, quality: 'auto', keys: {}, touch: touch(), slot: 1, accessibility: ACCESS });
-    expect(SETTINGS_VERSION).toBe(4);
+  it('the defaults: no language chosen (follow the device), the general volume at 80 % and the music under the effects, the balanced quality, no key changed and the touch controls as designed', () => {
+    expect(defaultSettings()).toEqual({ version: 5, language: null, volume: { master: 0.8, music: 0.7, sfx: 0.9, ambience: 0.8 }, quality: 'auto', keys: {}, touch: touch(), slot: 1, accessibility: ACCESS });
+    expect(SETTINGS_VERSION).toBe(5);
   });
 
   it('each default is a fresh object: changing one never changes the next', () => {
@@ -32,13 +35,17 @@ describe('defaults and repair', () => {
 
   it('numbers are clamped to what the settings screen offers (80–140 % size, 30–100 % opacity, one button 70–150 % on its own, the position and the volume 0–1)', () => {
     expect(TOUCH_LIMITS).toEqual({ scale: { min: 0.8, max: 1.4 }, opacity: { min: 0.3, max: 1 }, position: { min: 0, max: 1 }, button: { min: 0.7, max: 1.5 } });
-    expect(VOLUME_LIMITS).toEqual({ master: { min: 0, max: 1 } });
+    expect(VOLUME_LIMITS).toEqual({ master: { min: 0, max: 1 }, music: { min: 0, max: 1 }, sfx: { min: 0, max: 1 }, ambience: { min: 0, max: 1 } });
     expect(repairSettings({ touch: { scale: 9, opacity: 9 } }).touch).toEqual(touch({ scale: 1.4, opacity: 1 }));
     expect(repairSettings({ touch: { scale: -3, opacity: 0 } }).touch).toEqual(touch({ scale: 0.8, opacity: 0.3 }));
     expect(repairSettings({ touch: { scale: 1.2, opacity: 0.8 } }).touch).toEqual(touch({ scale: 1.2, opacity: 0.8 }));
-    expect(repairSettings({ volume: { master: 3 } }).volume).toEqual({ master: 1 });
-    expect(repairSettings({ volume: { master: -1 } }).volume).toEqual({ master: 0 });
-    expect(repairSettings({ volume: { master: 0 } }).volume, 'silence is a value, not a missing one').toEqual({ master: 0 });
+    expect(repairSettings({ volume: { master: 3 } }).volume).toEqual(VOLUME(1));
+    expect(repairSettings({ volume: { master: -1 } }).volume).toEqual(VOLUME(0));
+    expect(repairSettings({ volume: { master: 0 } }).volume, 'silence is a value, not a missing one').toEqual(VOLUME(0));
+    // each of the four is held on its own: one out of range does not drag the others, and one that is not a number is the default of THAT one
+    expect(repairSettings({ volume: { master: 0.5, music: 9, sfx: -2, ambience: 'loud' } }).volume).toEqual({ master: 0.5, music: 1, sfx: 0, ambience: 0.8 });
+    expect(repairSettings({ volume: { music: 0, sfx: 0, ambience: 0 } }).volume, 'silence of a category is a value too').toEqual({ master: 0.8, music: 0, sfx: 0, ambience: 0 });
+    for (const bad of [null, 7, 'a', []]) expect(repairSettings({ volume: bad }).volume).toEqual(VOLUME());
   });
 
   it('the saved game is a slot that exists (1 … 3); anything else is the first, so a settings file a person edited cannot point the game at a place there is not', () => {
@@ -123,12 +130,12 @@ describe('defaults and repair', () => {
 
 describe('parsing what was stored', () => {
   it('a valid value of the current version gives the same settings', () => {
-    const s = { version: 4, language: 'es', volume: { master: 0.5 }, quality: 'low', keys: { attack: 'KeyF' }, touch: touch({ scale: 1.1, opacity: 0.6, buttons: { attack: BUTTON(0.15, 0.7, 1.2), dash: BUTTON(0.3, 0.8) } }), slot: 3, accessibility: { reduceFlashes: true, reduceShake: false, hudScale: 1.1 } };
+    const s = { version: 5, language: 'es', volume: { master: 0.5, music: 0.3, sfx: 1, ambience: 0 }, quality: 'low', keys: { attack: 'KeyF' }, touch: touch({ scale: 1.1, opacity: 0.6, buttons: { attack: BUTTON(0.15, 0.7, 1.2), dash: BUTTON(0.3, 0.8) } }), slot: 3, accessibility: { reduceFlashes: true, reduceShake: false, hudScale: 1.1 } };
     expect(parseSettings(JSON.stringify(s))).toEqual(s);
   });
 
   it('round trip: what is serialised parses back unchanged', () => {
-    const s = { ...defaultSettings(), language: 'en', volume: { master: 0 }, quality: 'high' as const, keys: { jump: 'KeyH', down: 'KeyX' }, touch: touch({ scale: 0.9, opacity: 0.4, buttons: { ability: BUTTON(0.9, 0.2, 1.5) } }) };
+    const s = { ...defaultSettings(), language: 'en', volume: { master: 0, music: 0.2, sfx: 0.4, ambience: 0.6 }, quality: 'high' as const, keys: { jump: 'KeyH', down: 'KeyX' }, touch: touch({ scale: 0.9, opacity: 0.4, buttons: { ability: BUTTON(0.9, 0.2, 1.5) } }) };
     expect(parseSettings(serializeSettings(s))).toEqual(s);
   });
 
@@ -138,7 +145,7 @@ describe('parsing what was stored', () => {
   });
 
   it('what cannot be trusted at all is `null`: not JSON, not an object, no integer version, or a version from a LATER game', () => {
-    for (const bad of ['', '{', 'null', '[]', '"es"', '3', '{}', '{"version":"1"}', '{"version":1.5}', '{"version":0}', '{"version":5,"language":"es"}', '{"version":99}']) {
+    for (const bad of ['', '{', 'null', '[]', '"es"', '3', '{}', '{"version":"1"}', '{"version":1.5}', '{"version":0}', '{"version":6,"language":"es"}', '{"version":99}']) {
       expect(parseSettings(bad), bad).toBeNull();
     }
   });
@@ -150,20 +157,20 @@ describe('parsing what was stored', () => {
 });
 
 describe('migrations', () => {
-  it('version 1 → 2 (S30) → 3 → 4: the golden file of version 1 keeps what it held and gets everything new with its defaults', () => {
-    expect(Object.keys(SETTINGS_MIGRATIONS)).toEqual(['1', '2', '3']);
+  it('version 1 → 2 (S30) → 3 → 4 → 5: the golden file of version 1 keeps what it held and gets everything new with its defaults', () => {
+    expect(Object.keys(SETTINGS_MIGRATIONS)).toEqual(['1', '2', '3', '4']);
     const golden = readFileSync(new URL('./golden/settings.v1.json', import.meta.url), 'utf8');
     expect(JSON.parse(golden).version).toBe(1);
-    expect(parseSettings(golden)).toEqual({ version: 4, language: 'es', volume: { master: 0.8 }, quality: 'auto', keys: {}, touch: touch({ scale: 1.2, opacity: 0.8 }), slot: 1, accessibility: ACCESS });
+    expect(parseSettings(golden)).toEqual({ version: 5, language: 'es', volume: VOLUME(), quality: 'auto', keys: {}, touch: touch({ scale: 1.2, opacity: 0.8 }), slot: 1, accessibility: ACCESS });
   });
 
-  it('version 2 → 3 → 4: the golden file of version 2 keeps every field it held; the game it was playing is the first slot (where every save made so far lives), no accessibility choice is on, and its block of buttons (the left, half way in, a quarter up) is the place of each button', () => {
+  it('version 2 → 3 → 4 → 5: the golden file of version 2 keeps every field it held; the game it was playing is the first slot (where every save made so far lives), no accessibility choice is on, and its block of buttons (the left, half way in, a quarter up) is the place of each button', () => {
     const golden = readFileSync(new URL('./golden/settings.v2.json', import.meta.url), 'utf8');
     expect(JSON.parse(golden).version).toBe(2);
     expect(parseSettings(golden)).toEqual({
-      version: 4,
+      version: 5,
       language: 'en',
-      volume: { master: 0.35 },
+      volume: VOLUME(0.35),
       quality: 'high',
       keys: { attack: 'KeyF', dash: 'KeyG' },
       touch: touch({ scale: 1.2, opacity: 0.8, buttons: LEFT_HALF_IN_QUARTER_UP }),
@@ -172,13 +179,13 @@ describe('migrations', () => {
     });
   });
 
-  it('version 3 → 4 (docs/PROMPT15-LOG.md): the golden file of version 3 keeps every field; its block of buttons becomes the place of each of the three, worked out on the reference screen of the design', () => {
+  it('version 3 → 4 (docs/PROMPT15-LOG.md) → 5: the golden file of version 3 keeps every field; its block of buttons becomes the place of each of the three, worked out on the reference screen of the design', () => {
     const golden = readFileSync(new URL('./golden/settings.v3.json', import.meta.url), 'utf8');
     expect(JSON.parse(golden).version).toBe(3);
     expect(parseSettings(golden)).toEqual({
-      version: 4,
+      version: 5,
       language: 'en',
-      volume: { master: 0.35 },
+      volume: VOLUME(0.35),
       quality: 'high',
       keys: { attack: 'KeyF', dash: 'KeyG' },
       touch: touch({ scale: 1.2, opacity: 0.8, buttons: LEFT_HALF_IN_QUARTER_UP }),
@@ -211,13 +218,34 @@ describe('migrations', () => {
     for (const bad of [Number.NaN, 1e9, -5]) expect(Object.values(migrate('left', bad, bad)).every((b) => b.x >= 0 && b.x <= 1 && b.y >= 0 && b.y <= 1), String(bad)).toBe(true);
   });
 
-  it('a golden file of version 4 pins the current format: every field of every section, the buttons the player placed with them', () => {
+  it('version 4 → 5 (docs/PROMPT18-LOG.md): the golden file of version 4 keeps every field, the general volume the player chose included; the music, the effects and the ambience arrive at their defaults', () => {
     const golden = readFileSync(new URL('./golden/settings.v4.json', import.meta.url), 'utf8');
+    expect(JSON.parse(golden).version).toBe(4);
+    expect(parseSettings(golden)).toEqual({
+      version: 5,
+      language: 'es',
+      volume: VOLUME(0.6),
+      quality: 'low',
+      keys: { jump: 'KeyH' },
+      touch: { scale: 1.1, opacity: 0.7, buttons: { attack: BUTTON(0.12, 0.74, 1.25), dash: BUTTON(0.27, 0.84), ability: BUTTON(0.2, 0.62, 0.8) } },
+      slot: 3,
+      accessibility: { reduceFlashes: false, reduceShake: true, hudScale: 1.1 },
+    });
+  });
+
+  it('a player who had the general volume at zero (silence) keeps it silent: the new categories do not un-mute them', () => {
+    const migrated = parseSettings('{"version":4,"volume":{"master":0}}')!;
+    expect(migrated.volume).toEqual(VOLUME(0));
+    expect(migrated.volume.master).toBe(0);
+  });
+
+  it('a golden file of version 5 pins the current format: every field of every section, the four volumes (one of them silent) and the buttons the player placed with them', () => {
+    const golden = readFileSync(new URL('./golden/settings.v5.json', import.meta.url), 'utf8');
     const s = parseSettings(golden);
     expect(s).toEqual({
-      version: 4,
+      version: 5,
       language: 'es',
-      volume: { master: 0.6 },
+      volume: { master: 0.6, music: 0.35, sfx: 0.95, ambience: 0 },
       quality: 'low',
       keys: { jump: 'KeyH' },
       touch: { scale: 1.1, opacity: 0.7, buttons: { attack: BUTTON(0.12, 0.74, 1.25), dash: BUTTON(0.27, 0.84), ability: BUTTON(0.2, 0.62, 0.8) } },

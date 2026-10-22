@@ -36,6 +36,33 @@ describe('the whole world, R1 to the end of R4', () => {
     }
   });
 
+  it('and the ones the sound of the world is made of: footsteps, the doors, the cast, the card, the seal, what the enemies and the boss do', () => {
+    for (const cue of ['step', 'gate', 'castStart', 'cardAcquired', 'abilityUnlocked', 'sealBroken', 'enemyAlert', 'bossWake', 'bossPhase'] as const) {
+      expect(count(cues, cue), cue).toBeGreaterThan(0);
+    }
+    expect(count(cues, 'bossWake'), 'the boss wakes once').toBe(1);
+    expect(count(cues, 'bossPhase'), 'and turns once').toBe(1);
+    expect(count(cues, 'sealBroken'), 'the seal breaks once').toBe(1);
+    const wake = cues.find((c) => c.cue === 'bossWake')!;
+    const phase = cues.find((c) => c.cue === 'bossPhase')!;
+    const death = cues.find((c) => c.cue === 'bossDeath')!;
+    expect(wake.tick).toBeLessThan(phase.tick);
+    expect(phase.tick).toBeLessThan(death.tick);
+  });
+
+  it('the footsteps: only on foot, on the ground, never two on one tick, a stride apart in distance and in time', () => {
+    const steps = cues.filter((c) => c.cue === 'step');
+    expect(steps.length).toBeGreaterThan(50);
+    for (let i = 1; i < steps.length; i++) {
+      const a = steps[i - 1]!;
+      const b = steps[i]!;
+      if (b.tick === a.tick) throw new Error(`two footsteps on tick ${b.tick}`);
+    }
+    // a walking stride is a bit more than a metre and a half-second of walking is two of them: no two footsteps are closer than 5 ticks (0.08 s)
+    const gaps = steps.slice(1).map((s, i) => s.tick - steps[i]!.tick).filter((g) => g < 20);
+    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(5);
+  });
+
   it('the rooms: one change of room per exit taken, with nothing to say where, and the room it leads to as its kind', () => {
     const rooms = cues.filter((c) => c.cue === 'roomTransition');
     expect(rooms.map((c) => c.variant)).toEqual(['r2_hall', 'r3_chamber', 'r4_sanctum', 'r4_sanctum'].slice(0, rooms.length));
@@ -48,6 +75,8 @@ describe('the whole world, R1 to the end of R4', () => {
     const falls = cues.filter((c) => c.cue === 'bossDeath');
     expect(falls).toHaveLength(1);
     expect(falls[0]!.variant).toBe('ink_warden');
+    // each of its two warnings is a different one, and the same attack that follows
+    expect(new Set(cues.filter((c) => c.cue === 'enemyTelegraph' && c.variant.startsWith('warden_')).map((c) => c.variant))).toEqual(new Set(['warden_charge', 'warden_rain']));
     expect(Math.max(...strikes.map((s) => s.tick))).toBeLessThanOrEqual(falls[0]!.tick);
     expect(new Set(strikes.map((s) => s.variant))).toEqual(new Set(['warden_charge', 'warden_rain']));
     const rain = strikes.filter((s) => s.variant === 'warden_rain');
@@ -55,10 +84,11 @@ describe('the whole world, R1 to the end of R4', () => {
     for (const s of rain) byTick.set(s.tick, (byTick.get(s.tick) ?? 0) + 1);
     expect(Math.max(...byTick.values()), 'the rain raises one cue per mark on the same tick').toBeGreaterThanOrEqual(3);
     // its wind-up is heard before its first blow
-    const windUp = cues.find((c) => c.cue === 'enemyTelegraph' && c.variant === 'ink_warden')!;
+    const windUp = cues.find((c) => c.cue === 'enemyTelegraph' && c.variant.startsWith('warden_'))!;
     expect(windUp.tick).toBeLessThan(strikes[0]!.tick);
-    // its fall also raises the death of any enemy, on the same tick (what a death sounds like, on top of what THIS death sounds like)
-    expect(cues.some((c) => c.cue === 'enemyDeath' && c.tick === falls[0]!.tick)).toBe(true);
+    // its fall is its own: it does not also raise the death of an ordinary enemy on the same tick (the slime's dying sound under the boss's)
+    expect(cues.some((c) => c.cue === 'enemyDeath' && c.tick === falls[0]!.tick)).toBe(false);
+    expect(count(cues, 'enemyDeath'), 'the slimes of the journey').toBe(3);
   });
 
   it('the bolt: cast once and its impact on what it hit is the bolt\'s, not the sword\'s', () => {

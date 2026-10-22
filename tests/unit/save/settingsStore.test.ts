@@ -68,7 +68,7 @@ describe('loading', () => {
 
   it('a value from a LATER game is not read, not overwritten silently: it is kept aside and the defaults are used', async () => {
     const storage = new MemoryStorage();
-    const future = '{"version":5,"language":"fr","hologram":true}';
+    const future = '{"version":6,"language":"fr","hologram":true}';
     await storage.set(KEY, future);
     const store = new SettingsStore(storage);
     expect(await store.load()).toEqual(defaultSettings());
@@ -129,7 +129,7 @@ describe('saving', () => {
     await store.update({ volume: { master: 0.35 }, quality: 'low' });
     await store.update({ keys: { attack: 'KeyF' }, touch: { buttons: { attack: { x: 0.2, y: 0.7, scale: 1.1 } } } });
     await store.update({ touch: { scale: 1.25 } });
-    const want = { ...defaultSettings(), volume: { master: 0.35 }, quality: 'low', keys: { attack: 'KeyF' }, touch: { ...defaultSettings().touch, scale: 1.25, buttons: { attack: { x: 0.2, y: 0.7, scale: 1.1 } } } };
+    const want = { ...defaultSettings(), volume: { ...defaultSettings().volume, master: 0.35 }, quality: 'low', keys: { attack: 'KeyF' }, touch: { ...defaultSettings().touch, scale: 1.25, buttons: { attack: { x: 0.2, y: 0.7, scale: 1.1 } } } };
     expect(store.value).toEqual(want);
     expect(JSON.parse((await storage.get(KEY)) ?? '')).toEqual(want);
     // and a new store reads it back as it was
@@ -162,8 +162,8 @@ describe('saving', () => {
     const storage = new MemoryStorage();
     const store = new SettingsStore(storage);
     await store.load();
-    await store.update({ volume: { master: 7 }, quality: 'ultra' as never, keys: { attack: 'KeyD', jump: 'Tab', dash: 'KeyG' }, touch: { buttons: { attack: { x: -3, y: 9, scale: 99 }, dash: { x: Number.NaN, y: 0.5, scale: 1 } } } });
-    expect(store.value.volume.master).toBe(1);
+    await store.update({ volume: { master: 7, music: -1, sfx: Number.NaN, ambience: 0.25 }, quality: 'ultra' as never, keys: { attack: 'KeyD', jump: 'Tab', dash: 'KeyG' }, touch: { buttons: { attack: { x: -3, y: 9, scale: 99 }, dash: { x: Number.NaN, y: 0.5, scale: 1 } } } });
+    expect(store.value.volume).toEqual({ master: 1, music: 0, sfx: 0.9, ambience: 0.25 });
     expect(store.value.quality).toBe('auto');
     expect(store.value.keys, 'KeyD is movement and Tab is the browser\'s').toEqual({ dash: 'KeyG' });
     expect(store.value.touch.buttons, 'the one outside the screen is held inside it, the one with no place is not placed').toEqual({ attack: { x: 0, y: 1, scale: 1.5 } });

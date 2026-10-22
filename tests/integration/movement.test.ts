@@ -467,3 +467,106 @@ describe('determinism & hygiene', () => {
     expect(d.session.collision.count).toBe(n);
   });
 });
+
+describe('footsteps (docs/PROMPT18-LOG.md): the sound of the hero\'s pace', () => {
+  /** Every `player:stepped` the session raises, with the tick and where the hero was. */
+  function footsteps(d: Driver) {
+    const log: Array<{ tick: number; x: number; y: number; speed: number; crouch: boolean }> = [];
+    d.session.bus.on('player:stepped', (e) => void log.push({ ...e, tick: d.session.now }));
+    return log;
+  }
+
+  it('walking raises one footstep per stride of about a metre, however long the walk', () => {
+    const d = driver({ room: flatRoom() });
+    d.settle();
+    d.moveX = 0.6; // a firm tilt of the stick that is still a walk
+    d.step(30); // up to pace
+    const log = footsteps(d);
+    const x0 = d.body.x;
+    d.step(300);
+    const covered = d.body.x - x0;
+    expect(d.body.vx).toBeLessThanOrEqual(T.walkSpeed * 1.15);
+    expect(Math.abs(log.length - covered / 1.05), 'one per stride (the metres walked before the count began are carried over)').toBeLessThanOrEqual(1);
+    for (let i = 1; i < log.length; i++) expect(log[i]!.x - log[i - 1]!.x).toBeCloseTo(1.05, 0);
+    for (const s of log) expect(s.crouch).toBe(false);
+  });
+
+  it('running takes longer strides than walking: the same ground has fewer, and farther apart, footsteps', () => {
+    const run = driver({ room: flatRoom() });
+    run.settle();
+    run.right();
+    run.step(20);
+    const log = footsteps(run);
+    const x0 = run.body.x;
+    run.step(120);
+    const covered = run.body.x - x0;
+    expect(Math.abs(log.length - covered / 1.7)).toBeLessThanOrEqual(1);
+    expect(log[1]!.x - log[0]!.x).toBeCloseTo(1.7, 0);
+    expect(log[1]!.tick - log[0]!.tick, 'about five steps a second').toBeGreaterThanOrEqual(11);
+    expect(log[1]!.tick - log[0]!.tick).toBeLessThanOrEqual(14);
+    expect(log[0]!.speed).toBeCloseTo(T.runSpeed, 1);
+  });
+
+  it('crouched, the strides are short', () => {
+    const d = driver({ room: flatRoom() });
+    d.settle();
+    d.moveY = -1;
+    d.step(5);
+    d.right();
+    d.step(20);
+    const log = footsteps(d);
+    const x0 = d.body.x;
+    d.step(180);
+    expect(d.p.controller.crouched).toBe(true);
+    expect(Math.abs(log.length - (d.body.x - x0) / 0.8)).toBeLessThanOrEqual(1);
+    expect(log.length).toBeGreaterThan(2);
+    for (const s of log) expect(s.crouch).toBe(true);
+  });
+
+  it('standing still, pressing against a wall, in the air and in a dash raise none', () => {
+    const d = driver({ room: flatRoom() });
+    d.settle();
+    const log = footsteps(d);
+    d.step(120);
+    expect(log).toHaveLength(0); // standing
+    d.tap('jump');
+    d.right();
+    const airborne: number[] = [];
+    d.session.bus.on('player:jumped', () => void airborne.push(d.session.now));
+    d.step(20);
+    expect(d.body.grounded).toBe(false);
+    expect(log).toHaveLength(0); // in the air, at full speed
+    d.until(() => d.body.grounded, 120);
+    d.stop();
+    d.step(60);
+    const withWall = driver({ room: flatRoom([block('wall', 14, 0, 16, 10)]), unlocked: ['dash'] });
+    withWall.settle();
+    const wallLog = footsteps(withWall);
+    withWall.right();
+    withWall.until(() => withWall.body.x > 13.6, 300);
+    const atWall = wallLog.length;
+    withWall.step(120); // pressing on
+    expect(wallLog.length).toBe(atWall);
+    const dashing = driver({ room: flatRoom(), unlocked: ['dash'] });
+    dashing.settle();
+    const dashLog = footsteps(dashing);
+    dashing.tap('dash');
+    dashing.step(8);
+    expect(dashing.p.controller.state).toBe('dash');
+    expect(dashLog).toHaveLength(0);
+  });
+
+  it('is deterministic: the same walk gives the same footsteps on the same ticks', () => {
+    const walk = (): string => {
+      const d = driver({ room: flatRoom(), seed: 5 });
+      d.settle();
+      const log = footsteps(d);
+      d.right();
+      d.step(150);
+      d.left();
+      d.step(150);
+      return JSON.stringify(log);
+    };
+    expect(walk()).toBe(walk());
+  });
+});

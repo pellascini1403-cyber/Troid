@@ -5,6 +5,7 @@ import type { Translator } from '@/i18n/translator';
 import type { ControlInput, ControlsReference } from '@/input/controlsReference';
 import { keyLabel } from '@/input/glyphs';
 import { assignKey, effectiveKeys, REMAPPABLE, type KeyMap, type Remappable } from '@/input/remap';
+import { AUDIO_CATEGORIES, type AudioCategory, type AudioLevels } from '@/presentation/audioMix';
 import type { QualitySetting } from '@/presentation/viewport';
 import { ensureMenuStyle } from './menuStyle';
 import { ScrollHint } from './scrollHint';
@@ -19,11 +20,11 @@ export interface SettingsMenuHost {
   touchAvailable(): boolean;
   /** Is there a keyboard whose keys can be changed? (A phone that never saw one does not offer them.) */
   keyboardAvailable(): boolean;
-  current(): { language: string; volume: number; quality: QualitySetting; keys: KeyMap; touch: TouchSettings; accessibility: AccessibilitySettings };
+  current(): { language: string; volume: AudioLevels; quality: QualitySetting; keys: KeyMap; touch: TouchSettings; accessibility: AccessibilitySettings };
   /** The controls as they are now (the bindings in force), for the reference list of the controls screen. */
   reference(): ControlsReference;
   setLanguage(language: string): void;
-  setVolume(level: number): void;
+  setVolume(category: AudioCategory, level: number): void;
   setQuality(quality: QualitySetting): void;
   /** The whole map of keys (the menu works out the swaps and the refusals; the game applies and saves what it is given). */
   setKeys(keys: KeyMap): void;
@@ -54,6 +55,10 @@ const SCREEN_IDS: Readonly<Record<SettingsScreen, { root: string; title: string;
   settings: { root: 'settings-screen', title: 'settings-screen-title', back: 'settings-back' },
   controls: { root: 'controls-screen', title: 'controls-screen-title', back: 'controls-back' },
 };
+
+/** The four volumes, as the menu shows them: the name of each (a translator key) and the test id of its slider. */
+const VOLUME_LABELS: Readonly<Record<AudioCategory, string>> = { master: 'settings.volume', music: 'settings.volumeMusic', sfx: 'settings.volumeSfx', ambience: 'settings.volumeAmbience' };
+const VOLUME_IDS: Readonly<Record<AudioCategory, string>> = { master: 'settings-volume', music: 'settings-volume-music', sfx: 'settings-volume-sfx', ambience: 'settings-volume-ambience' };
 
 /** What each remappable action is called, as a translator key (literals: the catalogs are checked against them). */
 const ACTION_LABELS: Readonly<Record<Remappable, string>> = {
@@ -93,7 +98,7 @@ export function languageName(code: string): string {
 
 /**
  * The pause / settings menu (DOM, docs/GAME-SPEC-2D.md §17 "menú de pausa mínimo"; docs/PROMPT6-LOG.md S30): the language (each in its own name), the
- * volume (prepared: there is no sound yet), the quality profile (Auto / Low / High), the keys of the main actions — where a keyboard exists — and,
+ * volumes (the general one and the music's, the effects' and the ambience's: each category is silent at zero), the quality profile (Auto / Low / High), the keys of the main actions — where a keyboard exists — and,
  * where a touch layer exists, the size and opacity of the touch controls, a small picture of where their three buttons are, and the way into the editor where each one is placed. It owns no text (every word is a translator key), keeps no
  * state of its own (the host holds the settings; the menu reads them every time it opens) and decides nothing: it reports a choice, the game applies
  * it and saves it. It is a separate chunk: a player's first load does not carry it until the menu is asked for.
@@ -110,8 +115,10 @@ export class SettingsMenu {
   private readonly languageButtons = new Map<string, HTMLButtonElement>();
   private readonly qualityButtons = new Map<QualitySetting, HTMLButtonElement>();
   private readonly keyButtons = new Map<Remappable, HTMLButtonElement>();
-  private readonly volume: HTMLInputElement;
-  private readonly volumeValue: HTMLOutputElement;
+  /** The four volume sliders and what each says of its level. */
+  private readonly volumes: Record<AudioCategory, { input: HTMLInputElement; output: HTMLOutputElement }>;
+  /** Says that the general volume is at zero (and so nothing is heard whatever the others say). */
+  private readonly volumeStatus: HTMLElement;
   private readonly keysSection: HTMLElement;
   private readonly keysMessage: HTMLElement;
   private readonly touchSection: HTMLElement;
@@ -184,12 +191,20 @@ export class SettingsMenu {
     }
     language.appendChild(langRow);
 
-    // ---- volume (prepared) ----
+    // ---- sound: the general volume and one for each kind of sound; zero is silence ----
     const volume = el('div', 'settings-section', 'settings-volume-section');
-    const vol = this.slider(doc, el, volume, 'settings.volume', 'settings-volume', VOLUME_LIMITS.master, (value) => host.setVolume(value));
-    this.volume = vol.input;
-    this.volumeValue = vol.output;
-    volume.appendChild(this.note(doc, 'settings.volumeNote', 'settings-volume-note'));
+    volume.appendChild(this.label(doc, 'settings.sound'));
+    const volumes = {} as Record<AudioCategory, { input: HTMLInputElement; output: HTMLOutputElement }>;
+    for (const category of AUDIO_CATEGORIES) {
+      volumes[category] = this.slider(
+        doc, el, volume, VOLUME_LABELS[category], VOLUME_IDS[category], VOLUME_LIMITS[category],
+        (value) => host.setVolume(category, value),
+        (value) => this.showVolume(category, value),
+      );
+    }
+    this.volumes = volumes;
+    this.volumeStatus = this.note(doc, 'settings.volumeMasterOff', 'settings-volume-status');
+    volume.append(this.volumeStatus, this.note(doc, 'settings.volumeNote', 'settings-volume-note'));
 
     // ---- quality ----
     const quality = el('div', 'settings-section', 'settings-quality');
@@ -344,8 +359,11 @@ export class SettingsMenu {
   private refresh(): void {
     const cur = this.host.current();
     for (const [code, b] of this.languageButtons) b.setAttribute('aria-pressed', code === cur.language ? 'true' : 'false');
-    this.volume.value = String(cur.volume);
-    this.showVolume(cur.volume);
+    for (const category of AUDIO_CATEGORIES) {
+      this.volumes[category].input.value = String(cur.volume[category]);
+      this.showVolume(category, cur.volume[category]);
+    }
+    this.volumeStatus.style.display = cur.volume.master > 0 ? 'none' : '';
     for (const [q, b] of this.qualityButtons) b.setAttribute('aria-pressed', q === cur.quality ? 'true' : 'false');
     this.keysSection.style.display = this.host.keyboardAvailable() ? '' : 'none';
     const eff = effectiveKeys(cur.keys);
@@ -497,9 +515,14 @@ export class SettingsMenu {
     this.keysMessage.style.display = m ? '' : 'none';
   }
 
-  private showVolume(level: number): void {
-    this.volumeValue.textContent = percent(level);
-    this.volume.setAttribute('aria-valuetext', percent(level));
+  /** A volume as it is written: a percentage, and «muted» at zero (silence is a state, not a very low volume). */
+  private showVolume(category: AudioCategory, level: number): void {
+    const { input, output } = this.volumes[category];
+    const text = level <= 0 ? this.translator.t('settings.muted') : percent(level);
+    output.textContent = text;
+    input.setAttribute('aria-valuetext', text);
+    input.dataset['muted'] = level <= 0 ? '1' : '0';
+    if (category === 'master') this.volumeStatus.style.display = level > 0 ? 'none' : '';
   }
 
   private label(doc: Document, key: string): HTMLElement {
@@ -553,6 +576,8 @@ export class SettingsMenu {
     testid: string,
     limits: { min: number; max: number },
     onInput: (value: number) => void,
+    /** How the level is written next to the slider (default: a percentage). */
+    show?: (value: number) => void,
   ): { input: HTMLInputElement; output: HTMLOutputElement } {
     const row = el('label', 'settings-slider');
     const name = doc.createElement('span');
@@ -566,7 +591,7 @@ export class SettingsMenu {
     this.outputs.set(input, output);
     listen(this.store, input, 'input', () => {
       const v = Number(input.value);
-      if (input === this.volume) this.showVolume(v);
+      if (show) show(v);
       else output.textContent = percent(v);
       onInput(v);
     });

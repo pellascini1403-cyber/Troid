@@ -4,6 +4,7 @@ import { SUPPORTED_LOCALES, type Translator } from '@/i18n';
 import type { GameSession } from '@/gameplay/GameSession';
 import type { PlayStats } from '@/gameplay/PlayStats';
 import type { KeyMap } from '@/input/remap';
+import type { AudioCategory } from '@/presentation/audioMix';
 import type { QualitySetting } from '@/presentation/viewport';
 import type { AccessibilitySettings, TouchSettings } from '@/save/SettingsData';
 import type { SettingsStore } from '@/save/SettingsStore';
@@ -43,7 +44,7 @@ export interface MenuDeps {
   keyboardInUse(): boolean;
   change: {
     language(language: string): void;
-    volume(level: number): void;
+    volume(category: AudioCategory, level: number): void;
     quality(quality: QualitySetting): void;
     keys(keys: KeyMap): void;
     touch(patch: Partial<TouchSettings>): void;
@@ -82,7 +83,7 @@ export function createPauseMenu(d: MenuDeps): PauseMenu {
       keyboardAvailable: () => !d.touchAvailable() || d.keyboardInUse(),
       current: () => {
         const v = d.settings.value;
-        return { language: d.translator.locale, volume: v.volume.master, quality: v.quality, keys: { ...v.keys }, touch: { ...v.touch }, accessibility: { ...v.accessibility } };
+        return { language: d.translator.locale, volume: { ...v.volume }, quality: v.quality, keys: { ...v.keys }, touch: { ...v.touch }, accessibility: { ...v.accessibility } };
       },
       reference: () => controlsReference(d.bindings()),
       setLanguage: d.change.language,

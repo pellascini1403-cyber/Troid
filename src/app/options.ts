@@ -29,6 +29,8 @@ export interface GameOptions {
   vfx: 'auto' | 'procedural';
   /** `?arrival=<ms>`: the longest the world waits, held at black, for the art of the room it arrives in (default 10 000). For tests that must see the wait give up; a player never needs it. */
   arrivalWait?: number;
+  /** `?audio=on|off`: whether the game makes sound. On by default; off by default under `?hooks=1` (a test does not want a sound it cannot hear to depend on a gesture), where `?audio=on` turns it on (docs/PROMPT18-LOG.md). */
+  audio: 'on' | 'off';
   /** `?light=off` takes away the light the energy casts on the world (the hero's, the bolt's, the enemies'): the game as it was before phase I, to compare and to see what it adds; anything else (the default) has it. */
   light: 'auto' | 'off';
   camera: Partial<CameraConfig>;
@@ -65,6 +67,7 @@ export function optionsFromQuery(q: URLSearchParams): GameOptions {
     visual: (VISUAL_MODES as readonly string[]).includes(q.get('visual') ?? '') ? (q.get('visual') as VisualMode) : 'auto',
     vfx: q.get('vfx') === 'procedural' ? 'procedural' : 'auto',
     light: q.get('light') === 'off' ? 'off' : 'auto',
+    audio: q.get('audio') === 'on' ? 'on' : q.get('audio') === 'off' || q.get('hooks') === '1' ? 'off' : 'on',
     arrivalWait: arrivalWaitFromQuery(q),
     camera: cameraConfigFromQuery(q),
   };
@@ -82,5 +85,12 @@ export function artIndexUrl(param: string | undefined, built: string, base: stri
     if (!ART_FOLDER.test(param)) return null;
     return new URL(`${param.replace(/\/$/, '')}/index.json`, base).href;
   }
+  return built === '' ? null : new URL(built, base).href;
+}
+
+/**
+ * Where the audio index is (docs/PROMPT18-LOG.md): the one the build found in `public/audio`, or NOWHERE — `null`, and a page that has none asks for no file and can fail on none. `base` is the page's URL.
+ */
+export function audioIndexUrl(built: string, base: string): string | null {
   return built === '' ? null : new URL(built, base).href;
 }

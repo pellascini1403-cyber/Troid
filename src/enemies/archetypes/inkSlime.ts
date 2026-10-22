@@ -142,7 +142,7 @@ export class SlimeBrain implements EnemyBrain {
           this.stop();
           this.faceTarget(true);
           this.sim.bus.emit('enemy:telegraph', {
-            id: e.id, defId: e.def.id, x: e.body.x, y: e.body.y, facing: e.facing, ticks: this.attack.startup,
+            id: e.id, defId: e.def.id, x: e.body.x, y: e.body.y, facing: e.facing, ticks: this.attack.startup, attack: this.attack.id,
           });
         },
         update: (_, t) => {
@@ -157,6 +157,7 @@ export class SlimeBrain implements EnemyBrain {
           this.alreadyHit = new Set();
           const lunge = this.attack.lunge;
           e.body.vx = lunge ? e.facing * lunge.speed : 0;
+          this.sim.bus.emit('enemy:struck', { id: e.id, defId: e.def.id, x: e.body.x, y: e.body.y, facing: e.facing, attack: this.attack.id });
         },
         update: (_, t) => {
           const lunge = this.attack.lunge;

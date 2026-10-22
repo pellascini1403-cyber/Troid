@@ -5,6 +5,7 @@ import { DEFAULT_BINDINGS } from '@/input/bindings';
 import { applyKeyMap } from '@/input/remap';
 import { controlsReference } from '@/input/controlsReference';
 import type { KeyMap } from '@/input/remap';
+import { DEFAULT_AUDIO_LEVELS, type AudioLevels } from '@/presentation/audioMix';
 import { QUALITY_SETTINGS, type QualitySetting } from '@/presentation/viewport';
 import { defaultSettings, HUD_SCALE_LIMITS, type AccessibilitySettings, type TouchSettings } from '@/save/SettingsData';
 import { languageName, SettingsMenu, type SettingsMenuHost, type SettingsScreen } from '@/ui/settings/SettingsMenu';
@@ -35,7 +36,7 @@ const TOUCH: TouchSettings = { scale: 1, opacity: 1, buttons: {} };
 describe('settings menu', () => {
   let host: HTMLDivElement;
   let menu: SettingsMenu;
-  let state: { language: string; volume: number; quality: QualitySetting; keys: KeyMap; touch: TouchSettings; accessibility: AccessibilitySettings };
+  let state: { language: string; volume: AudioLevels; quality: QualitySetting; keys: KeyMap; touch: TouchSettings; accessibility: AccessibilitySettings };
   let calls: string[];
   let touchAvailable: boolean;
   let keyboardAvailable: boolean;
@@ -52,9 +53,9 @@ describe('settings menu', () => {
       state.language = language;
       tr.setLocale(language);
     },
-    setVolume: (level) => {
-      calls.push(`volume:${level}`);
-      state.volume = level;
+    setVolume: (category, level) => {
+      calls.push(`volume:${category}:${level}`);
+      state.volume = { ...state.volume, [category]: level };
     },
     setQuality: (quality) => {
       calls.push(`quality:${quality}`);
@@ -83,7 +84,7 @@ describe('settings menu', () => {
     document.head.innerHTML = '';
     host = document.createElement('div');
     document.body.appendChild(host);
-    state = { language: 'es', volume: 0.8, quality: 'auto', keys: {}, touch: { ...TOUCH }, accessibility: { ...defaultSettings().accessibility } };
+    state = { language: 'es', volume: { ...DEFAULT_AUDIO_LEVELS }, quality: 'auto', keys: {}, touch: { ...TOUCH }, accessibility: { ...defaultSettings().accessibility } };
     calls = [];
     touchAvailable = true;
     keyboardAvailable = true;
@@ -186,12 +187,13 @@ describe('settings menu', () => {
   it('reads the settings fresh every time it opens (nothing is cached in the menu)', () => {
     menu.open();
     menu.close();
-    state = { language: 'en', volume: 0.3, quality: 'high', keys: { attack: 'KeyF' }, touch: { ...TOUCH, scale: 0.9, opacity: 0.5, buttons: { attack: { x: 0.2, y: 0.7, scale: 1 } } }, accessibility: { ...defaultSettings().accessibility } };
+    state = { language: 'en', volume: { ...DEFAULT_AUDIO_LEVELS, master: 0.3, music: 0.2 }, quality: 'high', keys: { attack: 'KeyF' }, touch: { ...TOUCH, scale: 0.9, opacity: 0.5, buttons: { attack: { x: 0.2, y: 0.7, scale: 1 } } }, accessibility: { ...defaultSettings().accessibility } };
     tr.setLocale('en');
     menu.open();
     expect(q(host, 'settings-lang-en').getAttribute('aria-pressed')).toBe('true');
     expect((q(host, 'settings-touch-size') as HTMLInputElement).value).toBe('0.9');
     expect((q(host, 'settings-volume') as HTMLInputElement).value).toBe('0.3');
+    expect((q(host, 'settings-volume-music') as HTMLInputElement).value).toBe('0.2');
     expect(q(host, 'settings-quality-high').getAttribute('aria-pressed')).toBe('true');
     expect(q(host, 'settings-key-attack').textContent).toBe('F');
     expect(Number.parseFloat(q(host, 'settings-touch-preview-attack').style.left), 'the small picture follows the layout').toBeCloseTo(computeTouchLayout(844, 390, undefined, { scale: 0.9, buttons: state.touch.buttons }).attack.cx * Math.min(260 / 844, 150 / 390), 3);
@@ -239,30 +241,68 @@ describe('settings menu', () => {
     expect(host.querySelector('.troid-settings')).toBeNull();
   });
 
-  describe('the volume (prepared: the game has no sound yet)', () => {
-    it('is a slider from 0 to 1 that shows the saved level and its percentage, and says so for the screen reader', () => {
+  describe('the volumes: the general one and one for the music, the effects and the ambience', () => {
+    const slider = (id: string): HTMLInputElement => q(host, id) as HTMLInputElement;
+
+    it('are four sliders from 0 to 1 that show the saved levels and their percentage, and say so for the screen reader', () => {
       menu.open();
-      const v = q(host, 'settings-volume') as HTMLInputElement;
-      expect([v.min, v.max, v.value]).toEqual(['0', '1', '0.8']);
-      expect(q(host, 'settings-volume-section').textContent).toContain('Volumen');
-      expect(q(host, 'settings-volume-section').textContent).toContain('80%');
-      expect(v.getAttribute('aria-valuetext')).toBe('80%');
+      for (const [id, level, text] of [['settings-volume', '0.8', '80%'], ['settings-volume-music', '0.7', '70%'], ['settings-volume-sfx', '0.9', '90%'], ['settings-volume-ambience', '0.8', '80%']] as const) {
+        const v = slider(id);
+        expect([v.min, v.max, v.value], id).toEqual(['0', '1', level]);
+        expect(v.getAttribute('aria-valuetext'), id).toBe(text);
+      }
+      const section = q(host, 'settings-volume-section').textContent ?? '';
+      for (const name of ['Sonido', 'Volumen general', 'Música', 'Efectos', 'Ambiente']) expect(section, name).toContain(name);
     });
 
-    it('reports the level the player moves it to, live, and its percentage follows', () => {
+    it('report the category and the level the player moves it to, live, each to its own category', () => {
       menu.open();
       input('settings-volume', '0.35');
-      input('settings-volume', '0');
-      expect(calls).toEqual(['volume:0.35', 'volume:0']);
-      expect(q(host, 'settings-volume-section').textContent).toContain('0%');
+      input('settings-volume-music', '0.1');
+      input('settings-volume-sfx', '1');
+      input('settings-volume-ambience', '0.55');
+      expect(calls).toEqual(['volume:master:0.35', 'volume:music:0.1', 'volume:sfx:1', 'volume:ambience:0.55']);
+      expect(slider('settings-volume').getAttribute('aria-valuetext')).toBe('35%');
+      expect(q(host, 'settings-volume-section').textContent).toContain('55%');
     });
 
-    it('is honest about it: a note says the sound comes later, in both languages', () => {
+    it('say MUTED, not 0 %, at zero — silence is a state — and say nothing is heard when the general one is at zero', () => {
       menu.open();
-      expect(q(host, 'settings-volume-note').textContent).toContain('sonido llegará');
+      const status = q(host, 'settings-volume-status');
+      expect(status.style.display, 'the general volume is up: nothing to warn about').toBe('none');
+      input('settings-volume-music', '0');
+      expect(slider('settings-volume-music').getAttribute('aria-valuetext')).toBe('Silenciado');
+      expect(slider('settings-volume-music').dataset['muted']).toBe('1');
+      expect(q(host, 'settings-volume-section').textContent).toContain('Silenciado');
+      expect(status.style.display).toBe('none');
+      input('settings-volume', '0');
+      expect(status.style.display).toBe('');
+      expect(status.textContent).toContain('no se oye nada');
+      input('settings-volume', '0.5');
+      expect(status.style.display).toBe('none');
+      expect(slider('settings-volume').dataset['muted']).toBe('0');
+    });
+
+    it('can be moved from the keyboard: Home is silence, End is full', () => {
+      menu.open();
+      const v = slider('settings-volume-sfx');
+      v.focus();
+      v.value = '0';
+      v.dispatchEvent(new Event('input', { bubbles: true }));
+      v.value = '1';
+      v.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(calls).toEqual(['volume:sfx:0', 'volume:sfx:1']);
+    });
+
+    it('say what a volume at zero means, in both languages', () => {
+      menu.open();
+      expect(q(host, 'settings-volume-note').textContent).toContain('silencia');
       tr.setLocale('en');
-      expect(q(host, 'settings-volume-note').textContent).toContain('Sound arrives');
-      expect(q(host, 'settings-volume-section').textContent).toContain('Volume');
+      expect(q(host, 'settings-volume-note').textContent).toContain('mutes');
+      const section = q(host, 'settings-volume-section').textContent ?? '';
+      for (const name of ['Sound', 'Master volume', 'Music', 'Effects', 'Ambience']) expect(section, name).toContain(name);
+      input('settings-volume-music', '0');
+      expect(slider('settings-volume-music').getAttribute('aria-valuetext')).toBe('Muted');
     });
   });
 

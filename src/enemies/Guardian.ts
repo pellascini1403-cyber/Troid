@@ -327,7 +327,7 @@ export class Guardian extends Actor implements SimEntity, Combatant {
       const len = (d.params.charge.speed * d.params.charge.ticks) / 60;
       const x0 = this.body.x + this.facing * (d.body.halfWidth);
       this.marks.push({ x: x0 + (this.facing * len) / 2, w: len, t01: 0 });
-      sim?.bus.emit('enemy:telegraph', { id: this.id, defId: d.id, x: this.body.x, y: this.body.y + 0.45, facing: this.facing, ticks: this.windUp });
+      sim?.bus.emit('enemy:telegraph', { id: this.id, defId: d.id, x: this.body.x, y: this.body.y + 0.45, facing: this.facing, ticks: this.windUp, attack: attack.id });
     } else {
       // the ink falls where the hero stood when it began (and either side of it): the zones do not follow, so they can be left
       const heroX = this.sim?.player.body.x ?? this.body.x;
@@ -336,7 +336,7 @@ export class Guardian extends Actor implements SimEntity, Combatant {
       for (const off of offsets) {
         const x = Math.min(this.arena.x1 - w / 2, Math.max(this.arena.x0 + w / 2, heroX + off));
         this.marks.push({ x, w, t01: 0 });
-        sim?.bus.emit('enemy:telegraph', { id: this.id, defId: d.id, x, y: this.body.y + 0.45, facing: this.facing, ticks: this.windUp });
+        sim?.bus.emit('enemy:telegraph', { id: this.id, defId: d.id, x, y: this.body.y + 0.45, facing: this.facing, ticks: this.windUp, attack: attack.id });
       }
     }
     this.view.marks = this.marks;

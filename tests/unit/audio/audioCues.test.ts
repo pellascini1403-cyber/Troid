@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { AudioDirector, CueLog, NO_AUDIO } from '@/audio/AudioDirector';
 import { EventBus } from '@/core/events';
 import type { GameEvents } from '@/gameplay/events';
-import { attackIntensity, AUDIO_CONTRACT, AUDIO_CUES, clamp01, hitIntensity, hurtIntensity, landIntensity, type AudioCueEvent } from '@/presentation/audioCues';
+import { attackIntensity, AUDIO_CONTRACT, AUDIO_CUES, clamp01, hitIntensity, hurtIntensity, landIntensity, stepIntensity, type AudioCueEvent } from '@/presentation/audioCues';
 
 /**
  * THE CUES OF THE SOUND TO COME (docs/ART-PIPELINE-2D.md, part H): the moments a sound will be made for, each raised by a simulation event, with what a sound needs to
@@ -22,8 +22,14 @@ describe('the contract', () => {
     expect(Object.keys(AUDIO_CONTRACT).sort()).toEqual([...AUDIO_CUES].sort());
   });
 
-  it('names the eleven moments the sound is made for: attack, hit, dash, hurt, death, the Spirit Bolt, the bottle, an interaction, the boss\'s attack and fall, a change of room', () => {
+  it('names the moments the sound is made for: attack, hit, dash, hurt, death, the Spirit Bolt, the bottle, an interaction, the boss\'s attack and fall, a change of room', () => {
     for (const c of ['attack', 'hit', 'dash', 'hurt', 'death', 'boltCast', 'boltImpact', 'bottleStart', 'bottleDrunk', 'interact', 'bossAttack', 'bossDeath', 'roomTransition'] as const) {
+      expect(AUDIO_CUES, c).toContain(c);
+    }
+  });
+
+  it('and the rest of what a world sounds like: footsteps, the respawn, the cast, a bolt that fizzles, what is denied, the doors, the shrine, the seal, the spikes, a power won, what the enemies and the boss do', () => {
+    for (const c of ['step', 'respawn', 'castStart', 'boltFizzle', 'skillDenied', 'bottleDenied', 'bottleInterrupted', 'bottleReady', 'gate', 'checkpoint', 'sealRejected', 'sealBroken', 'hazardHit', 'abilityUnlocked', 'cardAcquired', 'enemyAlert', 'enemyStrike', 'bossWake', 'bossPhase'] as const) {
       expect(AUDIO_CUES, c).toContain(c);
     }
   });
@@ -121,6 +127,82 @@ describe('AudioDirector: simulation events → cues (the simulation never knows 
       ['bossAttack', 'warden_rain'], ['bossAttack', 'warden_rain'], ['bossAttack', 'warden_rain'], ['enemyTelegraph', 'ink_warden'], ['bossDeath', 'ink_warden'], ['enemyDeath', ''],
     ]);
     expect(cues.slice(0, 3).map((c) => c.x)).toEqual([28, 31.4, 34.8]);
+  });
+
+  it('a boss that woke does not also die as an enemy: its fall is the boss\'s cue alone', () => {
+    const { bus, cues } = rig();
+    bus.emit('boss:started', { id: 'b', defId: 'ink_warden', nameKey: 'boss.warden', health: 30, maxHealth: 30, x: 58, y: 0 });
+    bus.emit('actor:died', { id: 'b', team: 'enemy', x: 30, y: 0 });
+    bus.emit('boss:defeated', { id: 'b', defId: 'ink_warden', x: 30, y: 0 });
+    bus.emit('actor:died', { id: 's', team: 'enemy', x: 5, y: 0 }); // a slime still dies as one
+    expect(cues.map((c) => c.cue)).toEqual(['bossWake', 'bossDeath', 'enemyDeath']);
+  });
+
+  it('a wind-up says which attack it is — the boss\'s two warnings are not the same — and falls back to the enemy when the event does not say', () => {
+    const { bus, cues } = rig();
+    bus.emit('enemy:telegraph', { id: 's', defId: 'ink_slime', x: 5, y: 0, facing: 1, ticks: 24, attack: 'slime_lunge' });
+    bus.emit('enemy:telegraph', { id: 'b', defId: 'ink_warden', x: 30, y: 0.45, facing: -1, ticks: 40, attack: 'warden_charge' });
+    bus.emit('enemy:telegraph', { id: 'b', defId: 'ink_warden', x: 33, y: 0.45, facing: -1, ticks: 40, attack: 'warden_rain' });
+    bus.emit('enemy:telegraph', { id: 'x', defId: 'ink_slime', x: 5, y: 0, facing: 1, ticks: 24 });
+    expect(cues.map((c) => [c.cue, c.variant])).toEqual([['enemyTelegraph', 'slime_lunge'], ['enemyTelegraph', 'warden_charge'], ['enemyTelegraph', 'warden_rain'], ['enemyTelegraph', 'ink_slime']]);
+  });
+
+  it('a footstep is where the hero is, as strong as their pace, and softer crouched', () => {
+    const { bus, cues } = rig();
+    bus.emit('player:stepped', { x: 3, y: 0, speed: 4.2, crouch: false });
+    bus.emit('player:stepped', { x: 4, y: 0, speed: 8.5, crouch: false });
+    bus.emit('player:stepped', { x: 5, y: 0, speed: 2, crouch: true });
+    expect(cues.map((c) => [c.cue, c.variant, c.x])).toEqual([['step', '', 3], ['step', '', 4], ['step', 'crouch', 5]]);
+    expect(cues[0]!.intensity).toBeCloseTo(0.494, 2);
+    expect(cues[1]!.intensity).toBe(1);
+    expect(stepIntensity(99)).toBe(1);
+    expect(stepIntensity(Number.NaN)).toBe(0);
+  });
+
+  it('what the hero does with the magic and the bottles: a cast begins, a bolt dies out (but not on what it hits), what is refused, a bottle that is ready again', () => {
+    const { bus, cues } = rig();
+    bus.emit('skill:castStarted', { skillId: 'spirit_bolt', x: 3, y: 1, facing: 1, ticks: 12 });
+    bus.emit('projectile:ended', { id: 'p', skillId: 'spirit_bolt', x: 9, y: 1, facing: 1, reason: 'range' });
+    bus.emit('projectile:ended', { id: 'p', skillId: 'spirit_bolt', x: 9, y: 1, facing: 1, reason: 'wall' });
+    bus.emit('projectile:ended', { id: 'p', skillId: 'spirit_bolt', x: 9, y: 1, facing: 1, reason: 'hit' }); // the impact is the hit's cue
+    bus.emit('skill:denied', { skillId: 'spirit_bolt', reason: 'noMagic' });
+    bus.emit('bottle:denied', { reason: 'none' });
+    bus.emit('bottle:interrupted', { slot: 1, reason: 'hit' });
+    bus.emit('bottle:changed', { type: 'used', slot: 0, states: [] });
+    bus.emit('bottle:changed', { type: 'recharged', slot: 2, states: [] });
+    expect(cues.map((c) => [c.cue, c.variant, c.x])).toEqual([
+      ['castStart', 'spirit_bolt', 3], ['boltFizzle', 'range', 9], ['boltFizzle', 'wall', 9], ['skillDenied', 'noMagic', null], ['bottleDenied', 'none', null], ['bottleInterrupted', 'hit', null], ['bottleReady', '2', null],
+    ]);
+  });
+
+  it('the world: a door opens or shuts, the hero rests, a seal turns a blow away or breaks, spikes hurt, a card is won and a power with it', () => {
+    const { bus, cues } = rig();
+    bus.emit('gate:changed', { roomId: 'r1_gate', gateId: 'exit_door', open: true });
+    bus.emit('gate:changed', { roomId: 'r4_sanctum', gateId: 'arena_door_w', open: false });
+    bus.emit('checkpoint:set', { room: 'r2_hall', entry: 'rest', x: 12, y: 0 });
+    bus.emit('seal:rejected', { id: 's', attackId: 'slash_1', x: 63, y: 1, direction: 1, shake: 0.4 });
+    bus.emit('flag:set', { flag: 'broken:r3_seal' });
+    bus.emit('flag:set', { flag: 'defeated:r1_slime' }); // not a seal
+    bus.emit('hazard:hit', { roomId: 'r2_hall', hazardId: 'spikes_ditch', kind: 'spikes', damage: 1, x: 40, y: -2.8 });
+    bus.emit('card:changed', { type: 'acquired', cardId: 'card_spirit_bolt' });
+    bus.emit('card:changed', { type: 'equipped', cardId: 'card_spirit_bolt' }); // not a new card
+    bus.emit('ability:unlocked', { id: 'air_dash' });
+    bus.emit('death:respawned', { roomId: 'r2_hall', entryId: 'rest' });
+    expect(cues.map((c) => [c.cue, c.variant, c.x, c.intensity])).toEqual([
+      ['gate', 'open', null, 1], ['gate', 'close', null, 1], ['checkpoint', 'r2_hall', 12, 1], ['sealRejected', 'slash_1', 63, 0.4], ['sealBroken', 'broken:r3_seal', null, 1], ['hazardHit', 'spikes', 40, 0.5],
+      ['cardAcquired', 'card_spirit_bolt', null, 1], ['abilityUnlocked', 'air_dash', null, 1], ['respawn', 'r2_hall', null, 1],
+    ]);
+  });
+
+  it('the enemies and the boss: noticing the hero, the blow that begins, the boss waking and turning', () => {
+    const { bus, cues } = rig();
+    bus.emit('enemy:alerted', { id: 's', defId: 'ink_slime', x: 20, y: 0 });
+    bus.emit('enemy:struck', { id: 's', defId: 'ink_slime', x: 21, y: 0, facing: -1, attack: 'slime_lunge' });
+    bus.emit('boss:started', { id: 'b', defId: 'ink_warden', nameKey: 'boss.warden', health: 30, maxHealth: 30, x: 58, y: 0 });
+    bus.emit('boss:phase', { id: 'b', defId: 'ink_warden', phase: 2, x: 50, y: 0 });
+    expect(cues.map((c) => [c.cue, c.variant, c.x, c.intensity])).toEqual([
+      ['enemyAlert', 'ink_slime', 20, 1], ['enemyStrike', 'slime_lunge', 21, 1], ['bossWake', 'ink_warden', 58, 1], ['bossPhase', 'ink_warden', 50, 1],
+    ]);
   });
 
   it('an enemy dying is a cue and the hero dying is not THAT one (player:died owns it)', () => {

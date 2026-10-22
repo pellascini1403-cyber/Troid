@@ -15,6 +15,8 @@ import type { SimEntity } from './SimEntity';
 export interface GameEvents extends CombatEvents {
   'player:jumped': { x: number; y: number; air: boolean };
   'player:landed': { x: number; y: number; impact: number };
+  /** A footstep: the hero covered one stride of ground at the pace the animation shows (a stride is a step of the walk, a longer one of the run, a short one crouched). `speed` is how fast they go (m/s). */
+  'player:stepped': { x: number; y: number; speed: number; crouch: boolean };
   'player:dashed': { x: number; y: number; facing: 1 | -1; air: boolean };
   'player:dashEnded': { x: number; y: number };
   'player:attacked': { attackId: string; x: number; y: number; facing: 1 | -1; air: boolean; combo: number };
@@ -62,8 +64,10 @@ export interface GameEvents extends CombatEvents {
   'room:entered': { roomId: string; entryId: string; from: string };
   /** An enemy noticed the player (audio cue, camera nudge…). */
   'enemy:alerted': { id: string; defId: string; x: number; y: number };
-  /** An enemy begins the wind-up of an attack: `ticks` ticks until the blow (the VFX layer draws the warning). */
-  'enemy:telegraph': { id: string; defId: string; x: number; y: number; facing: 1 | -1; ticks: number };
+  /** An enemy begins the wind-up of an attack: `ticks` ticks until the blow (the VFX layer draws the warning). `attack` is which one (its id: `slime_lunge`, `warden_charge`, `warden_rain`), for the warning a sound makes of it. */
+  'enemy:telegraph': { id: string; defId: string; x: number; y: number; facing: 1 | -1; ticks: number; attack?: string };
+  /** An enemy's attack BEGINS (its blow is in the air from now on: the lunge of a slime). The bosses raise `boss:strike` instead. */
+  'enemy:struck': { id: string; defId: string; x: number; y: number; facing: 1 | -1; attack: string };
   /** A world flag was set / cleared (progression memory: defeated guardians, opened doors). */
   'flag:set': { flag: string };
   'flag:cleared': { flag: string };

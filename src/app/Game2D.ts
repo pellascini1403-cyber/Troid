@@ -26,7 +26,8 @@ import { GameSession } from '@/gameplay/GameSession';
 import { createPlayerStatus } from '@/gameplay/PlayerStatus';
 import { log } from '@/core/log';
 import { DEFAULT_TOUCH } from '@/input/gestures/TouchConfig';
-import { MasterVolume } from '@/audio/volume';
+import { Levels } from '@/audio/levels';
+import type { AudioCategory } from '@/presentation/audioMix';
 import { DEFAULT_BINDINGS, type Bindings } from '@/input/bindings';
 import { InputManager } from '@/input/InputManager';
 import { applyKeyMap, effectiveKeys, type KeyMap } from '@/input/remap';
@@ -77,12 +78,13 @@ import { GameLoop } from './GameLoop';
 import { CURTAIN_TIMEOUT_MS, curtainUp, liftCurtain, wantsCurtain, type CurtainReason } from './curtain';
 import { afterIdle } from './dom';
 import type { Art } from './art';
-import type { CueLog } from '@/audio/AudioDirector';
+import { CueLog } from '@/audio/AudioDirector';
+import type { AudioSystem } from './audio';
 import type { Effects } from './effects';
 import type { HookHost } from './testHooks';
 
 type BossViews = typeof import('./bossViews');
-import { artIndexUrl, optionsFromQuery, type GameOptions } from './options';
+import { artIndexUrl, audioIndexUrl, optionsFromQuery, type GameOptions } from './options';
 
 /** How long after the first frame the page waits before it fetches the effects (it still waits for an idle moment after that). */
 const EFFECTS_DELAY_MS = 2000;
@@ -124,16 +126,19 @@ export class Game2D {
   private readonly promptPoint = { x: 0, y: 0 };
   /** The keys in force: the defaults with what the player chose on top (S30). A remap replaces the object, and every reader asks for it again each time. */
   private bindings: Bindings = structuredClone(DEFAULT_BINDINGS);
-  /** The master volume (S30, prepared): the level the player chose; the sound of a later version reads its gain from here. */
-  private readonly volume: MasterVolume;
+  /** The volumes the player chose (the general one and the music's, the effects' and the ambience's): the sound reads its gains from here, and a slider moves them. */
+  private readonly levels: Levels;
   /** The protagonist: the placeholder, and the real art on top when the art library has it (docs/ART-PIPELINE-2D.md part D). */
   private readonly playerVisual: PlayerVisualSwitch;
   private readonly entityViews: EntityViews;
   /** The effects: a separate chunk, fetched when the page is idle (or at once under `?hooks=1`). `null` until it arrives: the game needs none of them. */
   private effects: Effects | null = null;
   private effectsRequest: Promise<void> | null = null;
-  /** What the sound of a later version would be told (docs/ART-PIPELINE-2D.md part H): written down in a development build and under `?hooks=1`, nowhere else. It outlives a rebuild of the effects. */
+  /** What the sound was told (docs/ART-PIPELINE-2D.md part H): written down in a development build and under `?hooks=1`, nowhere else. */
   private cueLog: CueLog | null = null;
+  /** The sound: a separate chunk, fetched when the page is idle (or at once under `?hooks=1`). `null` until it arrives: the game needs none of it. */
+  private audio: AudioSystem | null = null;
+  private audioRequest: Promise<void> | null = null;
   /** The boot curtain is up (docs/PROMPT8-LOG.md, phase J): the world waits, still, until the art of the first room is in — a cold start never shows the blockout on its way to the produced look. */
   private veiled = false;
   /** Builds the effects again with the budgets of the profile in force (set once their chunk has arrived). */
@@ -257,7 +262,7 @@ export class Game2D {
     this.settings = settings;
     this.arrival = new ArrivalGate({ maxWaitMs: options.arrivalWait ?? ARRIVAL.maxWaitMs, warmFrames: ARRIVAL.warmFrames });
     this.bindings = applyKeyMap(DEFAULT_BINDINGS, settings.value.keys);
-    this.volume = new MasterVolume(settings.value.volume.master);
+    this.levels = new Levels(settings.value.volume);
     // A new game starts the vertical slice (room R1, with the starting abilities). `?room=` opens a playground instead and
     // then the abilities are exactly `?unlock=` says: the test rooms never depended on what the hero starts with.
     const startRoom = options.room && ROOMS[options.room] ? options.room : START.room;
@@ -431,9 +436,8 @@ export class Game2D {
     // first frame is up and it has a moment, 2 s after it at the latest idle — or at once under `?hooks=1` (so a test never waits for them by luck) and behind the boot curtain (nothing is seen yet: the sooner they are in, the sooner it lifts).
     const body = this.session.player.body;
     const loadEffects = (): Promise<void> =>
-      (this.effectsRequest ??= import('./effects').then(({ createEffects, createCueLog }) => {
+      (this.effectsRequest ??= import('./effects').then(({ createEffects }) => {
         if (this.closed) return;
-        if (options.hooks || import.meta.env.DEV) this.cueLog ??= createCueLog();
         // built from the profile in force NOW — and again whenever the player chooses another one (its budgets are those of the profile)
         const build = (): void => {
           this.effects?.dispose();
@@ -445,8 +449,6 @@ export class Game2D {
             tier: renderer.qualityTier,
             playerPosition: () => ({ x: body.x, y: body.y }),
             projectileSkills: new Set(Object.keys(SKILLS)),
-            audioSink: this.cueLog,
-            now: () => this.session.now,
             // the hero carries light as long as their magic is high (and none once they are down)
             ambientLevel: () => (this.session.player.health.dead ? 0 : this.session.magic.fraction),
             light: options.light !== 'off',
@@ -459,6 +461,35 @@ export class Game2D {
       }));
     this.lifecycle.add(() => this.effects?.dispose());
     this.lifecycle.add(() => this.vfxArt?.dispose());
+    // The sound (docs/PROMPT18-LOG.md): its code, its manifest and the files of the hero's sounds come in after the first frame as well; the first touch of the person lets the browser make it. Under `?hooks=1` the sound is
+    // off unless `?audio=on` asks for it (the cues are still written down); a page with no sound files plays with none.
+    const loadAudio = (): Promise<void> =>
+      (this.audioRequest ??= import('./audio').then(async ({ createAudio }) => {
+        if (this.closed) return;
+        if (options.hooks || import.meta.env.DEV) this.cueLog ??= new CueLog();
+        const audio = await createAudio({
+          bus: this.session.bus,
+          levels: this.levels,
+          now: () => this.session.now,
+          projectileSkills: new Set(Object.keys(SKILLS)),
+          cueLog: this.cueLog,
+          enabled: options.audio === 'on',
+          indexUrl: audioIndexUrl(__TROID_AUDIO_INDEX__, document.baseURI),
+          room: this.session.room.id,
+          meter: options.hooks || import.meta.env.DEV,
+          warn: (message) => log.scope('audio').warn(message),
+        });
+        if (this.closed) {
+          audio.dispose();
+          return;
+        }
+        this.audio = audio;
+        if (this.menuOpen) audio.setPaused(true); // a menu that was opened before the sound arrived
+      }).catch((err: unknown) => {
+        this.audioRequest = null;
+        log.scope('audio').warn(`the sound could not be started: ${String(err)}`);
+      }));
+    this.lifecycle.add(() => this.audio?.dispose());
     // The art that comes from files: its code is fetched with the effects, once the first frame is up, and only when there is an index to read — a page with
     // no art never downloads it, asks for no file and can fail on none. The zone follows the hero: a room's art is fetched while the fade hides the change.
     const artUrl = artIndexUrl(options.art, __TROID_ART_INDEX__, document.baseURI);
@@ -508,6 +539,7 @@ export class Game2D {
       // the moment the game asks for its cosmetic parts: what it had fetched before is the code of its first frame (the bundle bench reads this mark)
       performance.mark('troid:cosmetics');
       void loadEffects();
+      void loadAudio();
       loadBossViews().catch(() => undefined);
       void this.loadOverlays();
       startArt();
@@ -543,6 +575,7 @@ export class Game2D {
     });
     // Mobile: never simulate (or burn battery) while hidden, never replay the time away, never leave a key stuck.
     listen(this.lifecycle, document, 'visibilitychange', () => {
+      this.audio?.setHidden(document.hidden);
       if (document.hidden) {
         this.loop.stop();
         this.input.releaseAll();
@@ -872,6 +905,13 @@ export class Game2D {
     this.updateArrivalIndicator(realDt);
     this.overlays?.notice.update(realDt);
     this.updateHud(worldDt);
+    // the sound keeps game time: it hears no time at all while the world is stopped (a menu, the curtain, the black of a change of zone), and follows the hero
+    this.audio?.update(this.debug.get('paused') || this.menuOpen || this.veiled || this.arrival.blocking ? 0 : realDt, {
+      x: p.body.x,
+      y: p.body.y,
+      life: p.health.max > 0 ? p.health.current / p.health.max : undefined,
+      dead: p.health.dead,
+    });
 
     // which limits hold now: the room's, or those of the camera zone the hero's feet are in (an arena; it eases, it never jumps)
     this.camera.setView(resolveCameraView(this.session.room, this.session.flags, p.body.x, p.body.y, this.cameraView));
@@ -1025,6 +1065,8 @@ export class Game2D {
     this.touchControls.releaseAll();
     this.overlays?.pause.setHidden(true);
     this.overlays?.hud.setPaused(true);
+    this.audio?.setPaused(true);
+    this.audio?.ui('open');
     this.loadMenu().then(
       () => {
         if (this.menuOpen) this.menu?.open();
@@ -1040,6 +1082,8 @@ export class Game2D {
     this.menu?.close();
     this.overlays?.pause.setHidden(false);
     this.overlays?.hud.setPaused(false);
+    this.audio?.setPaused(false);
+    this.audio?.ui('close');
     this.input.releaseAll();
   }
 
@@ -1063,7 +1107,7 @@ export class Game2D {
           keyboardInUse: () => this.input.device === 'keyboard',
           change: {
             language: (language) => this.setLanguage(language),
-            volume: (level) => this.setVolume(level),
+            volume: (category, level) => this.setVolume(category, level),
             quality: (quality) => this.setQuality(quality),
             keys: (keys) => this.setKeys(keys),
             touch: (patch) => this.setTouch(patch),
@@ -1121,10 +1165,10 @@ export class Game2D {
     if (!this.settings.value.accessibility.reduceShake) this.camera.addTrauma(amount);
   }
 
-  /** The volume slider (prepared: nothing plays yet): the level is the master's and it is saved. */
-  private setVolume(level: number): void {
-    void this.settings.update({ volume: { master: level } });
-    this.volume.set(this.settings.value.volume.master);
+  /** A volume slider (the general one, the music's, the effects' or the ambience's): heard at once — the gain of its bus follows — and saved. */
+  private setVolume(category: AudioCategory, level: number): void {
+    void this.settings.update({ volume: { [category]: level } });
+    this.levels.set(category, this.settings.value.volume[category]); // repaired: what is heard is what is saved
   }
 
   /**
@@ -1228,13 +1272,14 @@ export class Game2D {
       hud: () => this.overlays?.hud ?? null,
       translator: this.translator,
       settings: this.settings,
-      volume: this.volume,
+      levels: this.levels,
+      audio: () => this.audio,
       fps: this.fps,
       counter: this.counter,
       shakes: this.shakes,
       effects: () => this.effects,
       cueLog: () => this.cueLog,
-      cosmeticsReady: () => this.effects !== null && this.bossViews !== null && this.overlays !== null,
+      cosmeticsReady: () => this.effects !== null && this.bossViews !== null && this.overlays !== null && this.audio !== null,
       art: () => this.art,
       visualLacks: () => (this.playerVisual.artSet ? lackedClips(this.playerVisual.artSet.def, PLAYER_VISUAL.required) : [...PLAYER_VISUAL.required]),
       menuOpen: () => this.menuOpen,

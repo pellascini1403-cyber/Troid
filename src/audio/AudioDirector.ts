@@ -1,11 +1,11 @@
 import type { EventBus } from '@/core/events';
 import type { GameEvents } from '@/gameplay/events';
-import { attackIntensity, hitIntensity, hurtIntensity, landIntensity, clamp01, type AudioCueEvent, type AudioCueId, type AudioSink } from '@/presentation/audioCues';
+import { attackIntensity, hitIntensity, hurtIntensity, landIntensity, stepIntensity, clamp01, type AudioCueEvent, type AudioCueId, type AudioSink } from '@/presentation/audioCues';
 
 /**
- * Listens to the simulation's events and raises the cues of the sound to come (docs/ART-PIPELINE-2D.md, part H) — the same shape as the effects' director, for the
- * same reason: the simulation never knows this class exists, WHEN a cue happens is the simulation's event, and WHAT is done with it is a sink's. The game has no
- * sound: this is the seam an audio engine will plug into, and the one thing it reads.
+ * Listens to the simulation's events and raises the cues of the sound (docs/ART-PIPELINE-2D.md, part H) — the same shape as the effects' director, for the
+ * same reason: the simulation never knows this class exists, WHEN a cue happens is the simulation's event, and WHAT is done with it is a sink's. It is the seam
+ * the audio engine plugs into, and the one thing it reads.
  */
 export interface AudioDirectorOptions {
   /** The simulation's clock (ticks), stamped on every cue. */
@@ -16,6 +16,8 @@ export interface AudioDirectorOptions {
 
 export class AudioDirector {
   private readonly off: Array<() => void> = [];
+  /** The bosses that woke: their fall is `bossDeath`, not also the death of an enemy. */
+  private readonly bosses = new Set<string>();
   private readonly now: () => number;
   private readonly projectileSkills: ReadonlySet<string>;
 
@@ -46,10 +48,40 @@ export class AudioDirector {
       bus.on('transition:started', (e) => this.raise('roomTransition', null, null, 1, e.to.room)),
       bus.on('player:jumped', (e) => at('jump', e.x, e.y, 1, e.air ? 'air' : 'ground')),
       bus.on('player:landed', (e) => at('land', e.x, e.y, landIntensity(e.impact))),
-      bus.on('enemy:telegraph', (e) => at('enemyTelegraph', e.x, e.y, 1, e.defId)),
+      bus.on('enemy:telegraph', (e) => at('enemyTelegraph', e.x, e.y, 1, e.attack ?? e.defId)),
       bus.on('actor:died', (e) => {
-        if (e.team !== 'player') at('enemyDeath', e.x, e.y);
+        if (e.team !== 'player' && !this.bosses.has(e.id)) at('enemyDeath', e.x, e.y);
       }),
+      bus.on('player:stepped', (e) => at('step', e.x, e.y, stepIntensity(e.speed), e.crouch ? 'crouch' : '')),
+      bus.on('death:respawned', (e) => this.raise('respawn', null, null, 1, e.roomId)),
+      bus.on('skill:castStarted', (e) => at('castStart', e.x, e.y, 1, e.skillId)),
+      bus.on('projectile:ended', (e) => {
+        if (e.reason !== 'hit') at('boltFizzle', e.x, e.y, 1, e.reason);
+      }),
+      bus.on('skill:denied', (e) => this.raise('skillDenied', null, null, 1, e.reason)),
+      bus.on('bottle:denied', (e) => this.raise('bottleDenied', null, null, 1, e.reason)),
+      bus.on('bottle:interrupted', (e) => this.raise('bottleInterrupted', null, null, 1, e.reason)),
+      bus.on('bottle:changed', (e) => {
+        if (e.type === 'recharged') this.raise('bottleReady', null, null, 1, String(e.slot));
+      }),
+      bus.on('gate:changed', (e) => this.raise('gate', null, null, 1, e.open ? 'open' : 'close')),
+      bus.on('checkpoint:set', (e) => at('checkpoint', e.x, e.y, 1, e.room)),
+      bus.on('seal:rejected', (e) => at('sealRejected', e.x, e.y, clamp01(e.shake), e.attackId)),
+      bus.on('flag:set', (e) => {
+        if (e.flag.startsWith('broken:')) this.raise('sealBroken', null, null, 1, e.flag);
+      }),
+      bus.on('hazard:hit', (e) => at('hazardHit', e.x, e.y, hurtIntensity(e.damage), e.kind)),
+      bus.on('ability:unlocked', (e) => this.raise('abilityUnlocked', null, null, 1, e.id)),
+      bus.on('card:changed', (e) => {
+        if (e.type === 'acquired') this.raise('cardAcquired', null, null, 1, e.cardId ?? '');
+      }),
+      bus.on('enemy:alerted', (e) => at('enemyAlert', e.x, e.y, 1, e.defId)),
+      bus.on('enemy:struck', (e) => at('enemyStrike', e.x, e.y, 1, e.attack)),
+      bus.on('boss:started', (e) => {
+        this.bosses.add(e.id);
+        at('bossWake', e.x, e.y, 1, e.defId);
+      }),
+      bus.on('boss:phase', (e) => at('bossPhase', e.x, e.y, clamp01(e.phase / 2), e.defId)),
     );
   }
 
@@ -59,6 +91,7 @@ export class AudioDirector {
 
   dispose(): void {
     for (const off of this.off.splice(0)) off();
+    this.bosses.clear();
   }
 }
 

@@ -271,7 +271,7 @@ describe('AudioEngine: the player\'s volumes', () => {
 
   it('puts the amplitude of each bus where the level says, at once, and the general volume on its own node', async () => {
     const rig = await running({ levels: { master: 0.5, music: 0.5, sfx: 1, ambience: 0.25 } });
-    await rig.loader.retain('boss');
+    await rig.loader.retain('solo');
     rig.engine.play({ id: 'boss.roar' }); // two seconds long: still there when we look
     const src = sourcesOf(rig).at(-1) as FakeSource;
     // source → voice gain → effects bus → world gate → general → limiter → make-up → destination

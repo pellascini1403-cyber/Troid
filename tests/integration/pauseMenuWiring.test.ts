@@ -84,7 +84,7 @@ describe('the pause menu over the real game', () => {
       keyboardInUse: () => over.keyboard ?? true,
       change: {
         language: (l) => void changes.push(`language:${l}`),
-        volume: (v) => void changes.push(`volume:${v}`),
+        volume: (c, v) => void changes.push(`volume:${c}:${v}`),
         quality: (qq) => void changes.push(`quality:${qq}`),
         keys: (k) => void changes.push(`keys:${JSON.stringify(k)}`),
         touch: (p) => {

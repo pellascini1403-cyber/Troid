@@ -11,7 +11,8 @@ import type { PlayStats } from '@/gameplay/PlayStats';
 import type { Projectile } from '@/gameplay/Projectile';
 import type { Translator } from '@/i18n';
 import type { CueLog } from '@/audio/AudioDirector';
-import type { MasterVolume } from '@/audio/volume';
+import type { Levels } from '@/audio/levels';
+import type { AudioSystem } from './audio';
 import type { InputManager } from '@/input/InputManager';
 import { VirtualPad } from '@/input/sources/VirtualPad';
 import type { TouchSource } from '@/input/sources/TouchSource';
@@ -82,13 +83,15 @@ export interface HookHost {
   hud(): HudView | null;
   readonly translator: Translator;
   readonly settings: SettingsStore;
-  readonly volume: MasterVolume;
+  readonly levels: Levels;
+  /** The sound, once its chunk has arrived (`null` before). */
+  audio(): AudioSystem | null;
   readonly fps: FpsMeter;
   readonly counter: DrawCallCounter;
   readonly shakes: { count: number; last: number };
   /** The effects, once their chunk has arrived. */
   effects(): Effects | null;
-  /** What the sound of a later version would be told, once the effects' chunk has arrived (`null` before). */
+  /** What the sound was told, once the sound's chunk has arrived (`null` before). */
   cueLog(): CueLog | null;
   /** Every cosmetic chunk (the effects, the looks of the boss) has arrived. */
   cosmeticsReady(): boolean;
@@ -330,8 +333,13 @@ export function createTestHooks(h: HookHost) {
           return { id: p.id, x: p.x, y: p.y, facing: p.facing };
         }),
         respawnPoint: { ...session.respawnPoint },
-        // the settings in force (S30): the volume the sound of a later version will read, the profile and what it costs, the main key of each action
-        volume: { level: h.volume.level, gain: h.volume.gain },
+        // the settings in force (S30): the volumes the sound plays at (the general one is `level`, `gain`; the four with their gains are `levels`, `gains`), the profile and what it costs, the main key of each action
+        volume: {
+          level: h.levels.level('master'),
+          gain: h.levels.gain('master'),
+          levels: h.levels.snapshot(),
+          gains: { master: h.levels.gain('master'), music: h.levels.gain('music'), sfx: h.levels.gain('sfx'), ambience: h.levels.gain('ambience') },
+        },
         quality: {
           setting: h.settings.value.quality,
           tier: h.renderer.qualityTier,
@@ -345,8 +353,10 @@ export function createTestHooks(h: HookHost) {
         slot: h.saves()?.slot ?? null,
         stats: h.stats.snapshot(session.now),
         notice: h.notice(),
-        // the cues of the sound to come (S41): how many of each, and the last ones — what an audio engine would have been told
+        // the cues of the sound (S41): how many of each, and the last ones — what the audio engine was told
         cues: h.cueLog()?.snapshot() ?? null,
+        // the sound itself (docs/PROMPT18-LOG.md): the engine, the music, the ambience, the conductor, the loader (`null` while it has not arrived or the page makes no sound)
+        audio: h.audio()?.snapshot() ?? null,
         art: h.art()?.snapshot() ?? null,
         sprite: {
           set: ps.spriteSetId, frame: ps.frame, facing: ps.facing, visible: ps.visible,

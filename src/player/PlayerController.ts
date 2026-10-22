@@ -15,6 +15,9 @@ export type PlayerStateId = 'free' | 'crouch' | 'dash' | 'attack' | 'cast' | 'dr
 /** Ticks the white hit flash lasts. */
 const FLASH_TICKS = 6;
 
+/** Metres of ground per footstep: the distance the feet of the walk and run animations (matched to the ground speed) cover between two contacts. */
+const STRIDE = { walk: 1.05, run: 1.7, crouch: 0.8 } as const;
+
 /**
  * PLAYER LOGIC (movement): turns one `InputFrame` into velocities and moves the body.
  *
@@ -74,6 +77,9 @@ export class PlayerController {
   private drinkTicks = 0;
   /** Ticks of the `interact` pose left (the control is held until it runs out). */
   private interactTicks = 0;
+
+  /** Metres of ground covered since the last footstep: the footsteps are the hero's pace, one per stride, as far as the animation's feet go (docs/PROMPT18-LOG.md). */
+  private strideDistance = 0;
 
   private jumping = false;
   private jumpCut = false;
@@ -738,11 +744,33 @@ export class PlayerController {
     const t = this.tuning;
     const wasGrounded = b.grounded;
     const fallSpeed = -b.vy;
+    const x0 = b.x;
     this.sim.collision.moveBody(b, b.vx * TICK_SECONDS, b.vy * TICK_SECONDS, this.dropThrough > 0);
     if (!wasGrounded && b.grounded && fallSpeed > 0) {
       this.landTicks = fallSpeed >= t.landImpactSpeed ? 10 : 0;
       this.sim.bus.emit('player:landed', { x: b.x, y: b.y, impact: fallSpeed });
     }
+    this.stepOn(Math.abs(b.x - x0), wasGrounded);
+  }
+
+  /**
+   * The footsteps: a stride of ground covered on foot — on the ground before and after the tick, free to walk or crouched — is one step. The stride is the distance the animation's feet cover per step (the walk and the run
+   * clips are matched to the ground speed), so that the sound lands with the foot: 1.05 m walking, 1.7 m running, 0.8 m crouched. Anything that is not walking (the air, a dash, a blow, a drink) starts the next stride afresh.
+   */
+  private stepOn(dx: number, wasGrounded: boolean): void {
+    const b = this.player.body;
+    const t = this.tuning;
+    const state = this.fsm.current;
+    if (!wasGrounded || !b.grounded || (state !== 'free' && state !== 'crouch')) {
+      this.strideDistance = 0;
+      return;
+    }
+    this.strideDistance += dx;
+    const speed = Math.abs(b.vx);
+    const stride = this.crouching ? STRIDE.crouch : speed <= t.walkSpeed * 1.15 ? STRIDE.walk : STRIDE.run;
+    if (this.strideDistance < stride) return;
+    this.strideDistance -= stride;
+    this.sim.bus.emit('player:stepped', { x: b.x, y: b.y, speed, crouch: this.crouching });
   }
 }
 

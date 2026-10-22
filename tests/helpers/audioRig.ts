@@ -32,6 +32,29 @@ function track(group: string, layers: Record<string, string>, seconds: number): 
   return { group, layers, seconds, bpm: 80, bars: 8 };
 }
 
+/** The sounds the conductor asks for by name, as the game's own manifest has them (the test manifest is smaller, so the conductor's table is exercised against these). */
+function gameSounds(): Record<string, SoundDef> {
+  const out: Record<string, SoundDef> = {};
+  const add = (id: string, o: Partial<SoundDef> & { files?: number; seconds?: number } = {}): void => {
+    out[id] = sound({ name: id.replace(/\./g, '_'), ...o });
+  };
+  for (const id of ['hero.slash.1', 'hero.slash.2', 'hero.slash.air', 'hero.slash.crouch']) add(id, { files: 2, voices: 2, priority: 7 });
+  for (const id of ['hero.step.stone', 'hero.step.earth', 'hero.step.wet']) add(id, { files: 2, cooldownMs: 70, voices: 3, priority: 2 });
+  for (const id of ['hero.jump', 'hero.jump.air', 'hero.dash.ground', 'hero.dash.air', 'hero.land.light', 'hero.land.medium', 'hero.land.heavy', 'hero.hurt.light', 'hero.hurt.heavy']) add(id, { priority: 6 });
+  add('hero.death', { seconds: 2, priority: 10, voices: 1 });
+  add('hero.respawn', { seconds: 2, priority: 9, voices: 1 });
+  add('hero.heartbeat', { seconds: 0.6, priority: 3, voices: 1, cooldownMs: 300 });
+  for (const id of ['hit.light', 'hit.bolt']) add(id, { files: 2, priority: 8 });
+  for (const id of ['magic.cast.start', 'magic.cast.release', 'magic.bolt.fizzle', 'magic.denied', 'bottle.start', 'bottle.drunk', 'bottle.denied', 'bottle.interrupted', 'bottle.ready']) add(id, { priority: 5 });
+  for (const id of ['interact.pickup', 'interact.open', 'interact.activate', 'interact.rest', 'gate.open', 'gate.close', 'seal.reject', 'seal.break', 'hazard.spikes', 'transition.pass']) add(id, { priority: 7 });
+  for (const id of ['slime.alert', 'slime.telegraph', 'slime.lunge', 'slime.death']) add(id, { priority: 8 });
+  for (const id of ['boss.wake', 'boss.phase', 'boss.death', 'boss.strike.charge', 'boss.strike.rain', 'boss.telegraph.charge', 'boss.telegraph.rain']) add(id, { group: 'boss', seconds: 1.5, priority: 10 });
+  for (const id of ['stinger.card', 'stinger.unlock', 'stinger.victory']) add(id, { bus: 'music', channels: 2, seconds: 4, priority: 10, voices: 1 });
+  for (const id of ['ui.pause.open', 'ui.pause.close', 'ui.slider', 'ui.toggle.on', 'ui.toggle.off', 'ui.save']) add(id, { bus: 'ui', priority: 5 });
+  for (const id of ['amb.drip', 'amb.stone', 'amb.wind.gust']) add(id, { bus: 'ambience', priority: 2, files: 2 });
+  return out;
+}
+
 /** A small manifest with every kind of sound the engine meets: effects (one, several variations, a short cooldown, a duck), a stinger, two pieces of music with a drive layer and a bed of ambience. */
 export function makeIndex(): AudioIndex {
   return {
@@ -39,10 +62,11 @@ export function makeIndex(): AudioIndex {
     sampleRate: 48000,
     origin: 'test',
     sounds: {
+      ...gameSounds(),
       'hero.slash': sound({ name: 'slash', files: 3, voices: 2, priority: 7, pitchCents: 100, gainJitterDb: 1 }),
       'hero.step': sound({ name: 'step', files: 4, cooldownMs: 70, voices: 3, priority: 2, reverb: 0.25 }),
       'hit.heavy': sound({ name: 'hit', files: 2, priority: 8, reverb: 0.2, duck: { db: -3, ms: 200 } }),
-      'boss.roar': sound({ name: 'roar', group: 'boss', seconds: 2, priority: 10, voices: 1, cooldownMs: 3000, duck: { db: -6, ms: 1000 } }),
+      'boss.roar': sound({ name: 'roar', group: 'solo', seconds: 2, priority: 10, voices: 1, cooldownMs: 3000, duck: { db: -6, ms: 1000 } }),
       'ui.tap': sound({ name: 'tap', bus: 'ui', priority: 5, cooldownMs: 60 }),
       'stinger.win': sound({ name: 'win', bus: 'music', channels: 2, seconds: 3, priority: 10, voices: 1 }),
       'wide.thing': sound({ name: 'wide', channels: 2 }),
@@ -50,14 +74,17 @@ export function makeIndex(): AudioIndex {
       'music.a.drive': loopOf('a_drive', 'music.a', 'music', 30, -2),
       'music.b.base': loopOf('b_base', 'music.b', 'music', 24),
       'music.b.drive': loopOf('b_drive', 'music.b', 'music', 24),
-      'amb.hall': loopOf('hall', 'amb.hall', 'ambience', 20, -3),
-      'amb.well': loopOf('well', 'amb.well', 'ambience', 20),
+      'music.w.base': loopOf('w_base', 'music.w', 'music', 20),
+      'music.w.drive': loopOf('w_drive', 'music.w', 'music', 20),
+      'amb.hall': loopOf('hall', 'amb.hall', 'ambience', 16, -3),
+      'amb.well': loopOf('well', 'amb.well', 'ambience', 18),
     },
     tracks: {
       a: track('music.a', { base: 'music.a.base', drive: 'music.a.drive' }, 30),
       b: track('music.b', { base: 'music.b.base', drive: 'music.b.drive' }, 24),
-      'bed.hall': track('amb.hall', { base: 'amb.hall' }, 20),
-      'bed.well': track('amb.well', { base: 'amb.well' }, 20),
+      warden: track('music.w', { base: 'music.w.base', drive: 'music.w.drive' }, 20),
+      'bed.hall': track('amb.hall', { base: 'amb.hall' }, 16),
+      'bed.well': track('amb.well', { base: 'amb.well' }, 18),
     },
   };
 }
