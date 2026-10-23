@@ -12,6 +12,8 @@ import type { Projectile } from '@/gameplay/Projectile';
 import type { Translator } from '@/i18n';
 import { gainOf } from '@/audio/volume';
 import type { AudioSystem } from './audio';
+import type { effectiveKeys } from '@/input/remap';
+import type { lackedClips } from '@/presentation/visualSource';
 import type { InputManager } from '@/input/InputManager';
 import { VirtualPad } from '@/input/sources/VirtualPad';
 import type { TouchSource } from '@/input/sources/TouchSource';
@@ -27,15 +29,16 @@ import type { HudModel } from '@/ui/hud/HudModel';
 import type { HudView } from '@/ui/hud/HudView';
 import type { TouchControls } from '@/ui/touch/TouchControls';
 import type { Art } from './art';
+import type { Game2D } from './Game2D';
 import type { GameSaves } from './gameSaves';
 import type { Effects } from './effects';
 
 /**
  * `window.__troid`: what lets Playwright drive and inspect the game deterministically (dev builds and `?hooks=1`), and what no player ever needs.
  * It is a chunk of its own, fetched only when the hooks are asked for — so none of it travels in the cold start of a real player (docs/PROMPT6-LOG.md
- * S30, the bundle budget) — and it reaches the game only through `HookHost`: the handful of things the game hands over, never its internals. It
- * imports NO module the game itself uses at run time (everything of that kind is handed over by the host, or is a type): a module shared between two
- * chunks is cut out into a chunk of its own, and that one would travel with the game.
+ * S30, the bundle budget). Since Prompt 20 the game no longer builds the `HookHost` itself (forty-odd closures in the first download): `hostOf` below reads the game by name, here, and the game keeps only
+ * the few methods the hooks need to call (`stepOnce`, `refreshPresented`, `whenArrived`, `settleCamera`). A module the game uses at run time and this chunk imports too is cut out into a chunk of its own,
+ * so the few that are imported here are the ones the cold start did not carry as chunks of their own already (see the bundle bench).
  */
 /** What the page says about the arrival at a room (see `HookHost.arrival`). */
 export interface ArrivalState {
@@ -120,7 +123,79 @@ export interface HookHost {
 
 const NO_EFFECTS = { particles: 0, sprites: 0, spawned: 0, dropped: 0, unplayed: 0, peakParticles: 0, poolCreated: 0 };
 
-export function createTestHooks(h: HookHost) {
+/** What the game hands the hooks that it runs itself: modules the cold start carries already, passed along rather than imported (a module imported by two chunks is cut out into a chunk of its own, and that one would travel with the game). */
+export interface HookShared {
+  effectiveKeys: typeof effectiveKeys;
+  lackedClips: typeof lackedClips;
+  /** The clips the protagonist must have to be drawn entirely with its art. */
+  requiredClips: Parameters<typeof lackedClips>[1];
+}
+
+/**
+ * The parts of the game the hooks read, reached BY NAME (`game['renderer']`: the members are private, and TypeScript lets a bracket reach them with their types) instead of handed over by the game — so none of this
+ * object, some forty closures, travels in the cold start of a real player: only the page that asks for the hooks fetches them.
+ */
+function hostOf(game: Game2D, shared: HookShared): HookHost {
+  return {
+    game,
+    session: game.session,
+    input: game.input,
+    debug: game.debug,
+    renderer: game['renderer'],
+    camera: game['camera'],
+    playerVisual: game['playerVisual'],
+    roomView: game['roomView'],
+    roomArt: () => game['roomArtCover'],
+    roomArtGates: () => game['roomArt']?.gated() ?? [],
+    arrival: () => ({
+      ...game['arrival'].snapshot(performance.now()),
+      indicator: game['overlays']?.arrival.current.opacity ?? 0,
+      indicatorShown: game['indicatorSeen'],
+      history: game['arrivals'].map((a) => ({ ...a })),
+      aheadFor: game['aheadFor'],
+      progress: game['art']?.progress() ?? null,
+    }),
+    arrivalHeld: () => game['arrival'].blocking,
+    whenArrived: () => game.whenArrived(),
+    entityViews: game['entityViews'],
+    touchControls: game['touchControls'],
+    touchSource: game['touchSource'],
+    hudModel: game['hudModel'],
+    hud: () => game['overlays']?.hud ?? null,
+    translator: game.translator,
+    settings: game['settings'],
+    audio: () => game['audio'],
+    fps: game['fps'],
+    counter: game['counter'],
+    shakes: game['shakes'],
+    effects: () => game['effects'],
+    cosmeticsReady: () => game['effects'] !== null && game['bossViews'] !== null && game['overlays'] !== null && game['audio'] !== null,
+    art: () => game['art'],
+    visualLacks: () => {
+      const set = game['playerVisual'].artSet;
+      return set ? shared.lackedClips(set.def, shared.requiredClips) : [...shared.requiredClips];
+    },
+    menuOpen: () => game['menuOpen'],
+    saves: () => game['saves'],
+    stats: game['stats'],
+    notice: () => {
+      const n = game['overlays']?.notice;
+      return { kind: n?.current.kind ?? null, slot: n?.current.slot ?? 0, opacity: n?.current.opacity ?? 0, text: n?.root.textContent ?? '' };
+    },
+    virtualPad: () => game['virtualPad'],
+    setVirtualPad: (pad) => void (game['virtualPad'] = pad),
+    stepOnce: () => game.stepOnce(),
+    refreshPresented: () => game.refreshPresented(),
+    spawnDummy: (x, y, health) => game['spawnDummy'](x, y, { health }),
+    spawnSlime: (x, y, facing) => game['spawnSlime'](x, y, facing),
+    settleCamera: (seconds) => game.settleCamera(seconds),
+    keys: () => ({ ...shared.effectiveKeys(game['settings'].value.keys) }),
+    shake: (amount) => game['shake'](amount),
+  };
+}
+
+export function createTestHooks(game: Game2D, shared: HookShared) {
+  const h = hostOf(game, shared);
   const { session } = h;
   return {
     game: h.game,

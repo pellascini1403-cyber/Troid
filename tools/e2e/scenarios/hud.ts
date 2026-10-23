@@ -201,6 +201,8 @@ export const hud: Scenario = {
     await ctx.step(1);
     assert.equal(await numberOf(page, 'life'), '100', 'never beyond the maximum');
     await barAt(page, 'life', 1);
+    // (the rectangle fades out: a single sample taken while the fade is on its last frames reads 0.017 on a slow frame, so the fade is given its time and then it must be exactly 0)
+    await page.waitForFunction("getComputedStyle(document.querySelector('[data-testid=\"hud-life-mark\"]')).opacity === '0'", undefined, { timeout: 3000 }).catch(() => undefined);
     assert.equal(await page.locator('[data-testid="hud-life-mark"]').evaluate((e) => getComputedStyle(e).opacity), '0', 'a full bar again has no white rectangle');
 
     // ================================================================== magic: a bar that follows the number, continuously, in the artist's colours

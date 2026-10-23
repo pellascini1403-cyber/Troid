@@ -18,7 +18,7 @@ import { buildMapLayout, mapScene, type MapLayout } from '@/world/worldMap';
 import { downloadText, pickTextFile } from './files';
 import { AUTOSAVE, type GameSaves } from './gameSaves';
 import { buildProfile } from './profile';
-import { requestPersistence, storageStatus } from './storage';
+import { requestPersistence, storageStatus } from './storageStatus';
 
 /**
  * What the pause menu needs of the page, handed over by the game when the menu is first asked for (docs/PROMPT14-LOG.md). This module is the menu's side of the wiring — it reads the settings, the

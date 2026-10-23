@@ -80,7 +80,6 @@ import { afterIdle } from './dom';
 import type { Art } from './art';
 import type { AudioSystem } from './audio';
 import type { Effects } from './effects';
-import type { HookHost } from './testHooks';
 
 type BossViews = typeof import('./bossViews');
 import { artIndexUrl, optionsFromQuery, type GameOptions } from './options';
@@ -820,8 +819,8 @@ export class Game2D {
     for (const resume of this.arrivalWaiters.splice(0)) resume();
   }
 
-  /** Resolves when the world is not held at a change of zone (at once when it is not). */
-  private whenArrived(): Promise<void> {
+  /** Resolves when the world is not held at a change of zone (at once when it is not). The test hooks wait on it. */
+  whenArrived(): Promise<void> {
     return this.arrival.blocking ? new Promise<void>((resolve) => this.arrivalWaiters.push(resolve)) : Promise.resolve();
   }
 
@@ -1196,8 +1195,8 @@ export class Game2D {
           renderer: this.renderer,
           step: () => this.stepOnce(),
           spawn: {
-            dummy: (x, y, facing) => void this.session.spawn(new TrainingDummy(this.session.ids.next('dummy'), { x, y, facing })),
-            slime: (x, y, facing) => void this.session.spawn(new Enemy(this.session.ids.next('ink_slime'), ENEMIES.ink_slime as EnemyDefinition, { x, y, facing })),
+            dummy: (x, y, facing) => void this.spawnDummy(x, y, { facing }),
+            slime: (x, y, facing) => void this.spawnSlime(x, y, facing),
           },
         },
         document.getElementById('ui') ?? document.body,
@@ -1208,9 +1207,9 @@ export class Game2D {
 
   /**
    * Tests read what is PRESENTED (sprite frame, overlay) right after stepping the simulation: bring those up to date
-   * without waiting for the next animation frame. A room rebuilt by the simulation is applied here too.
+   * without waiting for the next animation frame. A room rebuilt by the simulation is applied here too. (The test hooks' door; the game itself does the same in `render`.)
    */
-  private refreshPresented(): void {
+  refreshPresented(): void {
     if (this.roomDirty && this.arrivalAdmits()) {
       this.roomDirty = false;
       this.buildRoomView();
@@ -1227,69 +1226,37 @@ export class Game2D {
 
   /**
    * `window.__troid`: lets Playwright drive and inspect the game deterministically (dev builds / `?hooks=1`). It lives in a chunk of its own
-   * (`testHooks.ts`) that is fetched when it is asked for — a player never downloads it — and gets what it needs through `HookHost`.
+   * (`testHooks.ts`) that is fetched when it is asked for — a player never downloads it — and it reads the game by name (`game['renderer']`: TypeScript lets a bracket reach a private member with its type), so
+   * that none of the forty-odd closures it is made of weighs on the cold start.
    */
   private exposeTestHooks(): void {
-    const host: HookHost = {
-      game: this,
-      session: this.session,
-      input: this.input,
-      debug: this.debug,
-      renderer: this.renderer,
-      camera: this.camera,
-      playerVisual: this.playerVisual,
-      roomView: this.roomView,
-      roomArt: () => this.roomArtCover,
-      roomArtGates: () => this.roomArt?.gated() ?? [],
-      entityViews: this.entityViews,
-      touchControls: this.touchControls,
-      touchSource: this.touchSource,
-      hudModel: this.hudModel,
-      hud: () => this.overlays?.hud ?? null,
-      translator: this.translator,
-      settings: this.settings,
-      audio: () => this.audio,
-      fps: this.fps,
-      counter: this.counter,
-      shakes: this.shakes,
-      effects: () => this.effects,
-      cosmeticsReady: () => this.effects !== null && this.bossViews !== null && this.overlays !== null && this.audio !== null,
-      art: () => this.art,
-      visualLacks: () => (this.playerVisual.artSet ? lackedClips(this.playerVisual.artSet.def, PLAYER_VISUAL.required) : [...PLAYER_VISUAL.required]),
-      menuOpen: () => this.menuOpen,
-      saves: () => this.saves,
-      stats: this.stats,
-      notice: () => {
-        const n = this.overlays?.notice;
-        return { kind: n?.current.kind ?? null, slot: n?.current.slot ?? 0, opacity: n?.current.opacity ?? 0, text: n?.root.textContent ?? '' };
-      },
-      virtualPad: () => this.virtualPad,
-      setVirtualPad: (pad) => void (this.virtualPad = pad),
-      stepOnce: () => this.stepOnce(),
-      refreshPresented: () => this.refreshPresented(),
-      arrival: () => ({ ...this.arrival.snapshot(performance.now()), indicator: this.overlays?.arrival.current.opacity ?? 0, indicatorShown: this.indicatorSeen, history: this.arrivals.map((a) => ({ ...a })), aheadFor: this.aheadFor, progress: this.art?.progress() ?? null }),
-      arrivalHeld: () => this.arrival.blocking,
-      whenArrived: () => this.whenArrived(),
-      spawnDummy: (x, y, health) => this.session.spawn(new TrainingDummy(this.session.ids.next('dummy'), { x, y, health })).id,
-      spawnSlime: (x, y, facing) => this.session.spawn(new Enemy(this.session.ids.next('ink_slime'), ENEMIES.ink_slime as EnemyDefinition, { x, y, facing })).id,
-      settleCamera: (seconds) => {
-        const p = this.session.player;
-        const v = p.view;
-        const target: CameraTarget = { x: v.x, y: v.y, vx: p.body.vx, vy: p.body.vy, facing: p.facing, grounded: p.body.grounded };
-        for (let i = 0, n = Math.round(seconds * 60); i < n; i++) {
-          this.camera.setView(resolveCameraView(this.session.room, this.session.flags, p.body.x, p.body.y, this.cameraView));
-          this.camera.update(1 / 60, target);
-        }
-      },
-      keys: () => ({ ...effectiveKeys(this.settings.value.keys) }),
-      shake: (amount) => this.shake(amount),
-    };
     void import('./testHooks').then(({ createTestHooks }) => {
       if (this.closed) return;
-      (window as unknown as { __troid?: unknown }).__troid = createTestHooks(host);
+      (window as unknown as { __troid?: unknown }).__troid = createTestHooks(this, { effectiveKeys, lackedClips, requiredClips: PLAYER_VISUAL.required });
     });
     this.lifecycle.add(() => {
       delete (window as unknown as { __troid?: unknown }).__troid;
     });
+  }
+
+  /** A training dummy that joins the world at the end of the next tick (the developer tools and the test hooks place them). Answers its id. */
+  private spawnDummy(x: number, y: number, o: { facing?: 1 | -1; health?: number } = {}): string {
+    return this.session.spawn(new TrainingDummy(this.session.ids.next('dummy'), { x, y, ...o })).id;
+  }
+
+  /** An Ink Slime that joins the world at the end of the next tick. Answers its id. */
+  private spawnSlime(x: number, y: number, facing: 1 | -1): string {
+    return this.session.spawn(new Enemy(this.session.ids.next('ink_slime'), ENEMIES.ink_slime as EnemyDefinition, { x, y, facing })).id;
+  }
+
+  /** Lets the camera run `seconds` of its own time at 60 Hz right now (the test hooks: a slow frame need not be waited for). */
+  settleCamera(seconds: number): void {
+    const p = this.session.player;
+    const v = p.view;
+    const target: CameraTarget = { x: v.x, y: v.y, vx: p.body.vx, vy: p.body.vy, facing: p.facing, grounded: p.body.grounded };
+    for (let i = 0, n = Math.round(seconds * 60); i < n; i++) {
+      this.camera.setView(resolveCameraView(this.session.room, this.session.flags, p.body.x, p.body.y, this.cameraView));
+      this.camera.update(1 / 60, target);
+    }
   }
 }
