@@ -24,8 +24,8 @@
 |---|---|---|---|
 | **M1** | Inspección | hecha | [§1](#1--inspección-antes-de-tocar-una-línea) |
 | **M2** | Modelo del mapa **puro** sobre los datos reales del mundo y lo descubierto | hecha | [§3](#3--m2--el-modelo-del-mapa), `tests/unit/world/worldMap.test.ts` (32), `tests/integration/mapDiscovery.test.ts` (10) |
-| **M3** | Vista del mapa: salas, conexiones, posición, puntos de interés, zoom y desplazamiento (ratón, rueda, teclado, botones, dos dedos) | hecha | [§4](#4--m3--la-vista), `tests/unit/ui/mapViewport.test.ts` (18), `tests/unit/ui/mapView.test.ts` (23) |
-| **M4** | La pausa se abre sobre el mapa; las opciones, a la derecha; cada una se abre en el panel principal y se vuelve al mapa | hecha | [§5](#5--m4--la-pausa-con-el-mapa-dentro), `tests/unit/ui/pauseMenu.test.ts` (41), E2E `pauseMap` B–E |
+| **M3** | Vista del mapa: salas, conexiones, posición, puntos de interés, zoom y desplazamiento (ratón, rueda, teclado, botones, dos dedos) | hecha | [§4](#4--m3--la-vista), `tests/unit/ui/mapViewport.test.ts` (18), `tests/unit/ui/mapView.test.ts` (26) |
+| **M4** | La pausa se abre sobre el mapa; las opciones, a la derecha; cada una se abre en el panel principal y se vuelve al mapa | hecha | [§5](#5--m4--la-pausa-con-el-mapa-dentro), `tests/unit/ui/pauseMenu.test.ts` (43), `tests/integration/pauseMenuWiring.test.ts` (28), E2E `pauseMap` B–E |
 | **M5** | El botón de pausa a la esquina superior derecha, sin tocar HUD ni controles | hecha | [§6](#6--m5--el-botón-de-pausa), `pauseButton`, `mobileGeometry`, `saveNotice`, E2E `pauseMap` A y G |
 | **M6** | Pruebas, regresión, presupuesto, documentación | ver [§8](#8--m6--pruebas-y-resultados) | [§8](#8--m6--pruebas-y-resultados) |
 
@@ -91,7 +91,7 @@ Lo que se ve está en `MapView` y lo que se decide, en las funciones puras de ar
 
 **Que nada atraviesa el menú.** El menú sigue siendo `data-ui-block`: un clic o un toque sobre él no es un ataque ni un movimiento, las teclas escritas en él (incluidas las flechas, `+`, `-`, `0` del mapa y las de la columna) no llegan al juego salvo la de pausa, y al abrirse se sueltan las teclas y los dedos. Las flechas de la columna de opciones funcionan en cualquier pantalla, así que no hay que volver al mapa para cambiar de opción con teclado.
 
-**Presentación adaptable.** El marco se mide en porcentajes de lo que deja la muesca (`--safe-*-px` / `env(safe-area-inset-*)`, como el HUD y los botones táctiles), no en `vh`. *Escritorio y apaisado:* mapa a la izquierda, opciones a la derecha (en un teléfono apaisado de 844 × 390 la columna es de **252 px** con las opciones **en dos columnas de 44 px de alto**, para que quepan las siete sin recortar el mapa; la leyenda se oculta). *En vertical* (≤ 700 px de ancho): el mapa arriba y las opciones debajo en dos columnas, cada una de al menos 44 px, de modo que el mapa y los controles se leen. El mapa tiene siempre más área que la columna de opciones (lo comprueba la escena E2E en los tres tamaños).
+**Presentación adaptable.** El marco se mide en porcentajes de lo que deja la muesca (`--safe-*-px` / `env(safe-area-inset-*)`, como el HUD y los botones táctiles), no en `vh`. *Escritorio y apaisado:* mapa a la izquierda, opciones a la derecha (en un teléfono apaisado de 844 × 390 la columna es de **252 px** con las opciones **en dos columnas de 44 px de alto**, para que quepan las siete sin recortar el mapa; la leyenda se oculta). *En vertical* (≤ 700 px de ancho): el mapa arriba y las opciones debajo en dos columnas, cada una de al menos 44 px, de modo que el mapa y los controles se leen. El mapa tiene siempre más área que la columna de opciones (lo comprueba la escena E2E en los cuatro teléfonos).
 
 ---
 
@@ -127,11 +127,11 @@ Lo que se ve está en `MapView` y lo que se decide, en las funciones puras de ar
 | Qué | Resultado |
 |---|---|
 | `npx tsc --noEmit` | limpio |
-| `npx vitest run` | ‹vitest› |
-| E2E en desarrollo | ‹e2e-dev› |
-| E2E contra el *build* de producción | ‹e2e-prod› |
-| `npm run build` | ‹build› |
-| `npm run bench:bundle` | ‹bundle› |
+| `npx vitest run` | **210 archivos, 3 539 pruebas, todas pasan** (al cerrar el Prompt 18: 206 y 3 435: 4 archivos y 104 pruebas más) |
+| E2E en desarrollo | **58 de 58** (≈ 35 min de escenas). Una corrida completa **de en medio** (con la escena nueva a medias) encontró **dos instrumentos que el encargo dejó viejos** —`language` esperaba el botón de pausa arriba al centro y `audio` volvía a Ajustes donde ahora hay que volver a Sonido—: corregidos sin tocar lo que afirman del juego; la corrida completa sobre el código final los incluye y pasa |
+| E2E contra el *build* de producción | **58 de 58** (≈ 33 min de escenas, sobre el *build* de arriba) |
+| `npm run build` | `tsc` + `assets:check` + `hud:check` + `vite build`: limpio. El *chunk* del menú pasa de 21 693 a 30 930 B gz (+9 237 B); el de los avisos, de 8 780 a 8 843 B |
+| `npm run bench:bundle` | arranque en frío de R1: **204 792 B gz de los 204 800 del techo — quedan 8 B** (los mismos que antes del encargo; con la primera forma de `pauseOrigin` eran 204 803, 3 B por encima: §7.7). El mapa y el menú viajan en el *chunk* diferido del menú |
 
 **Pruebas nuevas o adaptadas de este encargo**
 
@@ -140,8 +140,9 @@ Lo que se ve está en `MapView` y lo que se decide, en las funciones puras de ar
 | `tests/unit/world/worldMap.test.ts` (32) | el plano: las puertas se enfrentan y quedan a la misma altura, una sala que cae sobre otra se desliza, las no alcanzables van debajo, determinismo; `sideOfExit` y `mapPoint`; la escena: solo lo visitado y la sala actual, puertas cerradas por su bandera, tramos hacia lo desconocido, conexiones solo con las dos salas, estados de los puntos de interés, regiones, cuenta de descubiertas |
 | `tests/integration/mapDiscovery.test.ts` (10) | **con el mundo de verdad** (`WORLD`, `ROOMS`, una `GameSession`): el mapa sigue al héroe sala a sala, las banderas abren los caminos, los puntos de interés con el santuario real donde se descansa, **guardar → cargar da el mismo mapa** (con `attachProgressRecorder` y `restoreFromProgress`), una partida v1, ids de sala desconocidos ignorados, **el mapa y el perfil leen un único registro** |
 | `tests/unit/ui/mapViewport.test.ts` (18) | encajar, centrar, **mantener la esquina de los botones libre solo donde el mapa llegaría a ella**, no pasar de la escala mínima ni de la máxima, el punto bajo el cursor no se mueve, `clampView`, pellizco, rueda |
-| `tests/unit/ui/mapView.test.ts` (23) | estructura, estados de puertas, puntos de interés y héroe, vacío, la vista inicial, la vista que se conserva, botones, rueda, ratón, dos dedos, teclado, limpieza |
-| `tests/unit/ui/pauseMenu.test.ts` (41, 9 del mapa) | el mapa es la primera vista, la leyenda, las entradas y su orden, cada pantalla en el panel principal, volver al mapa, `aria-current`, flechas en cualquier pantalla, el mapa se vuelve a calcular al abrir, el sonido en su pantalla |
+| `tests/unit/ui/mapView.test.ts` (26) | estructura, estados de puertas, puntos de interés y héroe, vacío, la vista inicial, la vista que se conserva, botones (también **al levantar el dedo, sin clic**), rueda, ratón, dos dedos, los dedos que se olvidan, teclado, limpieza |
+| `tests/unit/ui/pauseMenu.test.ts` (43, 11 del mapa) | el mapa es la primera vista, la leyenda, las entradas y su orden, cada pantalla en el panel principal, volver al mapa, `aria-current`, flechas en cualquier pantalla, el mapa se vuelve a calcular al abrir, **una entrada actúa al levantar el dedo y el clic que llegue no es una segunda pulsación**, **un dedo que queda sobre el mapa al apartarlo no es un fantasma**, el sonido en su pantalla |
+| `tests/integration/pauseMenuWiring.test.ts` (28, 4 nuevas) | **el mapa del menú sobre el juego real** (`createPauseMenu` con una `GameSession`, `PlayStats` y partidas de verdad): las salas contadas y el héroe donde la sesión lo tiene, una sala nueva aparece al volver a abrir (y el perfil cuenta la misma), una bandera abre una puerta y rompe un sello en el mapa, y el campo de pruebas dice que no hay mapa |
 | `tests/unit/ui/pauseButton.test.ts`, `mobileGeometry.test.ts`, `saveNotice.test.ts` | el botón en la esquina superior derecha en cada clase de ventana, bajo el HUD cuando no cabe, sin tocar los botones táctiles; el aviso debajo del botón |
 | `tests/unit/ui/settingsMenu.test.ts` (62) | Ajustes sin el sonido, la pantalla de Sonido con sus cuatro volúmenes y nada más, sin el subtítulo repetido |
 | `tests/unit/i18n/catalogs.test.ts` | las familias de claves `map` y `region` en los catálogos del menú |
@@ -186,7 +187,7 @@ Un guion cambia **una línea** del código, corre las pruebas que deberían verl
 
 ### 8.4 Cómo se encontró cada cosa (para quien herede esto)
 
-(1) Una escena con **dedos de verdad** (el protocolo de depuración, no eventos de DOM) vio lo del toque tras un pellizco; **reproducirlo aislado** en una página de cuatro líneas antes de arreglar nada separó lo del entorno de lo del juego, y **medir el mismo coste de fotograma en la versión anterior** (un *worktree* del último *commit*) dijo que el menú nuevo no era la causa. (2) Mirar la **captura** de cada tamaño encontró lo de la puerta bajo los botones. (3) Medir `pauseOrigin` contra el HUD con la caja **ya escalada** encontró el 0.2 px de solape cuando el botón baja bajo el HUD.
+(1) Una escena con **dedos de verdad** (el protocolo de depuración, no eventos de DOM) vio lo del toque tras un pellizco; **reproducirlo aislado** en una página de cuatro líneas antes de arreglar nada separó lo del entorno de lo del juego, y **medir el mismo coste de fotograma en la versión anterior** (un *worktree* del último *commit*) dijo que el menú nuevo no era la causa. (2) Mirar la **captura** de cada tamaño encontró lo de la puerta bajo los botones. (3) Medir `pauseOrigin` contra el HUD con la caja **ya escalada** encontró el 0.2 px de solape cuando el botón baja bajo el HUD. (4) **Comprobar que la escena falla cuando se quita el arreglo**: la primera versión de la escena (toques justo después de arrastrar y pellizcar) **seguía pasando con las entradas actuando al `click`** —el fallo era intermitente y en esa corrida no salió—; no vigilaba nada. Solo el caso del **dedo apoyado en el mapa** es determinista (Chromium no hace clic de un segundo dedo), y es el que la escena tiene ahora. (5) Una corrida **completa** de la suite, no solo de las escenas tocadas, encontró dos instrumentos viejos que ninguna otra cosa habría visto.
 
 ---
 
