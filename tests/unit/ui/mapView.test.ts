@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { CATALOGS, createTranslator } from '@/i18n';
 import { MENU_CATALOGS } from '@/i18n/menuCatalogs';
 import { MapView } from '@/ui/map/MapView';
-import { fitView, FIT_PAD, TOOLS_RESERVE, toScreen, ZOOM, ZOOM_STEP } from '@/ui/map/viewport';
+import { fitView, FIT_PAD, TOOLS_CORNER, toScreen, ZOOM, ZOOM_STEP } from '@/ui/map/viewport';
 import { EMPTY_SCENE, type MapScene } from '@/world/worldMap';
 import { shippedScene } from '../../helpers/pauseHost';
 
@@ -148,14 +148,15 @@ describe('the map view', () => {
   });
 
   describe('the view', () => {
-    it('opens on everything discovered, fitted to the panel less the strip the zoom buttons sit on', () => {
+    it('opens on everything discovered, fitted to the panel — and, where that would put the map under the zoom buttons, to what is left of it', () => {
       const scene = two();
       view.update(scene, { recentre: true });
-      expect(view.view).toEqual(fitView(scene.bounds!, { width: 800, height: 400 }, FIT_PAD, TOOLS_RESERVE));
+      expect(view.view).toEqual(fitView(scene.bounds!, { width: 800, height: 400 }, FIT_PAD, TOOLS_CORNER));
       expect(Number(view.root.dataset['scale'])).toBeCloseTo(view.view.scale, 3);
-      // …so the east end of the map (a door, its stub) is left of the buttons
-      const east = toScreen(view.view, { x: scene.bounds!.x1, y: scene.bounds!.y0 });
-      expect(east.x).toBeLessThanOrEqual(800 - TOOLS_RESERVE);
+      // a short panel: the map would reach the corner of the buttons, so its east end (a door, its stub) is left of them
+      view.resize(800, 240);
+      view.update(scene, { recentre: true });
+      expect(toScreen(view.view, { x: scene.bounds!.x1, y: scene.bounds!.y0 }).x).toBeLessThanOrEqual(800 - TOOLS_CORNER.width);
     });
 
     it('fits again when the panel changes size, until the player has moved it — then it keeps what the player has', () => {

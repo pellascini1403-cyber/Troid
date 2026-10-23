@@ -90,7 +90,8 @@ function menuCss(): string {
   .troid-pausemenu .pm-frame { grid-template-columns:minmax(0, 1fr); grid-template-rows:minmax(0, 1fr) auto; gap:10px; width:100%; height:100%; padding:12px 12px 14px; border-radius:0; border-left:0; border-right:0; }
   .troid-pausemenu .pm-side { display:grid; grid-template-columns:1fr 1fr; gap:6px; overflow:visible; padding:0; }
   .troid-pausemenu .pm-title { display:none; }
-  .troid-pausemenu .pm-entry { min-height:44px; padding:0 10px 0 9px; gap:8px; grid-template-columns:22px 1fr; }
+  .troid-pausemenu .pm-entry { min-height:44px; padding:0 10px 0 9px; gap:8px; grid-template-columns:22px 1fr; line-height:1.1; }
+  .troid-pausemenu .pm-entry > span { white-space:normal; overflow-wrap:anywhere; }
   .troid-pausemenu .pm-entry::after { display:none; }
   .troid-pausemenu .pm-entry[data-id="resume"] { grid-column:1 / -1; }
   .troid-pausemenu .pm-zone { font-size:1.05rem; }

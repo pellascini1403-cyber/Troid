@@ -4,7 +4,7 @@ import { DisposableStore } from '@/core/lifecycle';
 import type { Translator } from '@/i18n/translator';
 import { EMPTY_SCENE, STUB_LENGTH, type MapScene, type SceneDoor, type ScenePoi, type SceneRoom } from '@/world/worldMap';
 import { mapGlyph, mapIconSvg, type MapIconId } from './mapIcons';
-import { clampView, FIT_PAD, KEEP_IN_VIEW, openingView, PAN_STEP, panBy, pinchOf, TOOLS_RESERVE, toScreen, wheelFactor, ZOOM, ZOOM_STEP, zoomAbout, type Point, type Size, type View } from './viewport';
+import { clampView, FIT_PAD, KEEP_IN_VIEW, openingView, PAN_STEP, panBy, pinchOf, TOOLS_CORNER, toScreen, wheelFactor, ZOOM, ZOOM_STEP, zoomAbout, type Point, type Size, type View } from './viewport';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -161,7 +161,7 @@ export class MapView {
       this.setView({ scale: ZOOM.legible, x: 0, y: 0 }, false);
       return;
     }
-    this.setView(openingView(b, this.scene.hero, this.size, FIT_PAD, TOOLS_RESERVE), false);
+    this.setView(openingView(b, this.scene.hero, this.size, FIT_PAD, TOOLS_CORNER), false);
   }
 
   zoomBy(factor: number, anchor: Point = { x: this.size.width / 2, y: this.size.height / 2 }): void {

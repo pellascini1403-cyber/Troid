@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clampScale, clampView, fitScale, fitView, FIT_PAD, KEEP_IN_VIEW, openingView, panBy, pinchOf, TOOLS_RESERVE, toMap, toScreen, viewCentredOn, wheelFactor, ZOOM, zoomAbout } from '@/ui/map/viewport';
+import { clampScale, clampView, fitScale, fitView, FIT_PAD, KEEP_IN_VIEW, openingView, panBy, pinchOf, TOOLS_CORNER, toMap, toScreen, viewCentredOn, wheelFactor, ZOOM, zoomAbout } from '@/ui/map/viewport';
 
 /** The arithmetic of seeing the map: fitting, zooming into a point, dragging and never losing it off the screen. */
 
@@ -20,17 +20,21 @@ describe('fitting the map to the panel', () => {
     expect(mid.y).toBeCloseTo(200, 9);
   });
 
-  it('sets a strip at the right edge aside: the map is fitted and centred in what is left, the buttons have their own place', () => {
-    const v = fitView(strip, size, FIT_PAD, TOOLS_RESERVE);
-    expect(v.scale).toBeCloseTo((800 - TOOLS_RESERVE - 2 * FIT_PAD) / 400, 9);
-    const east = toScreen(v, { x: 400, y: 10 });
-    const west = toScreen(v, { x: 0, y: 10 });
-    expect(east.x).toBeCloseTo(800 - TOOLS_RESERVE - FIT_PAD, 9); // the same room is left on each side, within what is left
-    expect(west.x).toBeCloseTo(FIT_PAD, 9);
-    // nothing reserved is the whole panel, as before
-    expect(fitView(strip, size, FIT_PAD, 0)).toEqual(fitView(strip, size));
-    // a strip wider than the panel does not turn the numbers into nonsense
-    const v2 = fitView(strip, { width: 40, height: 400 }, FIT_PAD, TOOLS_RESERVE);
+  it('keeps the map out of the corner the buttons are in: where it would reach it, it is fitted in what is left to the left of it; where it would not, in the whole panel', () => {
+    // a short panel: the strip, fitted to the whole of it, would end under the buttons
+    const short = { width: 800, height: 240 };
+    const v = fitView(strip, short, FIT_PAD, TOOLS_CORNER);
+    expect(v.scale).toBeCloseTo((800 - TOOLS_CORNER.width - 2 * FIT_PAD) / 400, 9);
+    expect(toScreen(v, { x: 400, y: 10 }).x).toBeCloseTo(800 - TOOLS_CORNER.width - FIT_PAD, 9); // the same room on each side, within what is left
+    expect(toScreen(v, { x: 0, y: 10 }).x).toBeCloseTo(FIT_PAD, 9);
+    // a tall panel: a thin map is nowhere near the corner, and has the whole of the width
+    const tall = { width: 300, height: 700 };
+    expect(fitView(strip, tall, FIT_PAD, TOOLS_CORNER)).toEqual(fitView(strip, tall));
+    expect(fitView(strip, tall, FIT_PAD, TOOLS_CORNER).scale).toBeCloseTo((300 - 2 * FIT_PAD) / 400, 9);
+    // no corner is the whole panel
+    expect(fitView(strip, short, FIT_PAD)).toEqual(fitView(strip, short));
+    // a panel narrower than the corner does not turn the numbers into nonsense
+    const v2 = fitView(strip, { width: 40, height: 100 }, FIT_PAD, TOOLS_CORNER);
     expect(Number.isFinite(v2.scale) && Number.isFinite(v2.x) && Number.isFinite(v2.y)).toBe(true);
   });
 
@@ -61,13 +65,14 @@ describe('the first view of the map', () => {
     expect(openingView(wide, null, size).scale).toBeLessThan(ZOOM.legible);
   });
 
-  it('puts the hero in the middle of what the buttons leave of the panel', () => {
+  it('puts the hero in the middle of the panel when everything could not be read, and keeps the corner of the buttons clear of what it fits', () => {
     const wide = { x0: 0, y0: 0, x1: 3000, y1: 40 };
-    const v = openingView(wide, { x: 2500, y: 20 }, size, FIT_PAD, TOOLS_RESERVE);
+    const v = openingView(wide, { x: 2500, y: 20 }, size, FIT_PAD, TOOLS_CORNER);
     expect(v.scale).toBe(ZOOM.legible);
     const at = toScreen(v, { x: 2500, y: 20 });
-    expect([at.x, at.y]).toEqual([(800 - TOOLS_RESERVE) / 2, 200]);
-    expect(openingView({ x0: 0, y0: 0, x1: 300, y1: 20 }, { x: 10, y: 10 }, size, FIT_PAD, TOOLS_RESERVE)).toEqual(fitView({ x0: 0, y0: 0, x1: 300, y1: 20 }, size, FIT_PAD, TOOLS_RESERVE));
+    expect([at.x, at.y]).toEqual([400, 200]);
+    const small = { x0: 0, y0: 0, x1: 300, y1: 20 };
+    expect(openingView(small, { x: 10, y: 10 }, size, FIT_PAD, TOOLS_CORNER)).toEqual(fitView(small, size, FIT_PAD, TOOLS_CORNER));
   });
 });
 

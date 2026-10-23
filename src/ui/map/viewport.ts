@@ -24,8 +24,8 @@ export interface Point {
 export const ZOOM = { min: 0.35, max: 24, legible: 1, start: 5 } as const;
 /** Room kept around the map when it is fitted to the panel (px). */
 export const FIT_PAD = 28;
-/** The strip at the right of the panel the zoom buttons sit on (px): a first view fits the map in what is left of it, so a door at the east end is not hidden behind a button. */
-export const TOOLS_RESERVE = 64;
+/** The corner of the panel the zoom buttons sit in (px, with a little room around them): a first view that would put the map under it fits the map in what is left to its left instead, so a door at the east end is not hidden behind a button. */
+export const TOOLS_CORNER = { width: 64, height: 164 } as const;
 /** How much of the map must stay in the panel however it is dragged (px): the player can never lose it off the screen. */
 export const KEEP_IN_VIEW = 72;
 /** What one step of a button, a key or a notch of a wheel zooms by. */
@@ -54,21 +54,31 @@ export function viewCentredOn(at: Point, size: Size, scale: number): View {
 /** What is left of the panel once `reserve` px at its right edge are set aside. */
 const without = (size: Size, reserve: number): Size => ({ width: Math.max(1, size.width - reserve), height: size.height });
 
-/** The view that shows the whole of `bounds` in the middle of the panel (less `reserve` px at its right edge), as large as fits (and no larger than a first view goes). */
-export function fitView(bounds: Rect, size: Size, pad = FIT_PAD, reserve = 0): View {
-  const room = without(size, reserve);
-  const scale = clamp(fitScale(bounds, room, pad), ZOOM.min, ZOOM.start);
-  return viewCentredOn({ x: (bounds.x0 + bounds.x1) / 2, y: (bounds.y0 + bounds.y1) / 2 }, room, scale);
+/** The view that shows the whole of `bounds` in the middle of `size`, as large as fits (and no larger than a first view goes). */
+function fitIn(bounds: Rect, size: Size, pad: number): View {
+  const scale = clamp(fitScale(bounds, size, pad), ZOOM.min, ZOOM.start);
+  return viewCentredOn({ x: (bounds.x0 + bounds.x1) / 2, y: (bounds.y0 + bounds.y1) / 2 }, size, scale);
+}
+
+/**
+ * The view that shows the whole of `bounds` in the middle of the panel, as large as fits (and no larger than a first view goes). With a `corner` (the one the buttons are in) the map is fitted in the whole
+ * panel unless that would put it under the corner — a thin map in a tall panel never gets there — and then in what is left of the panel to the left of it.
+ */
+export function fitView(bounds: Rect, size: Size, pad = FIT_PAD, corner?: Size): View {
+  const whole = fitIn(bounds, size, pad);
+  if (!corner) return whole;
+  const under = bounds.x1 * whole.scale + whole.x > size.width - corner.width && bounds.y1 * whole.scale + whole.y > size.height - corner.height;
+  return under ? fitIn(bounds, without(size, corner.width), pad) : whole;
 }
 
 /**
  * The first view of the map: everything discovered, if it fits at a scale that can be read; if it does not (a world grown large, a small screen) the map is read at `ZOOM.legible` around the hero, who is
  * what a player looks for first. Without a hero (a map of a place that has none) it is the fitted one.
  */
-export function openingView(bounds: Rect, hero: Point | null, size: Size, pad = FIT_PAD, reserve = 0): View {
-  const fit = fitView(bounds, size, pad, reserve);
+export function openingView(bounds: Rect, hero: Point | null, size: Size, pad = FIT_PAD, corner?: Size): View {
+  const fit = fitView(bounds, size, pad, corner);
   if (fit.scale >= ZOOM.legible || !hero) return fit;
-  return viewCentredOn(hero, without(size, reserve), ZOOM.legible);
+  return viewCentredOn(hero, size, ZOOM.legible);
 }
 
 /** Zooms by `factor` keeping the map point that is under `anchor` (a screen point) where it is: the wheel zooms into the cursor, a pinch into its middle. */
