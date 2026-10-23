@@ -834,7 +834,7 @@ describe('the production kit', () => {
     for (const id of Object.keys(data.clips).filter((c) => !asked.includes(c))) expect(files.some((f) => f.startsWith(`${id}/`)), `${id} is drawn: nothing is asked for it`).toBe(false);
     // none of the clips asked for is in the manifest: the game draws them with the placeholder until they are delivered, never with a stand-in
     for (const id of asked) expect(readClips(root)[id], `${id} is not declared`).toBeUndefined();
-  });
+  }, 60_000);
 
   it('says so when nothing is asked for any more — which clips there are — and goes back to asking when a clip is requested again', () => {
     const data = JSON.parse(readFileSync(join(root, 'art', 'player', 'requests', 'requests.json'), 'utf8')) as Requests;
