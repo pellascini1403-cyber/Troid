@@ -347,6 +347,7 @@ export class GameSession implements SimServices {
     if (this.transition.active) frame = NEUTRAL_INPUT;
     this.player.tick(this, frame); // 1
     for (const e of this.live) e.tick(this); // 2
+    this.rescueFallenGuardians(); // 2a — nobody a door waits for is lost below the room
     this.hazards.update(this.hazardHost); // 2b — the zones that hurt submit their hitboxes with everyone else's
     this.combat.resolve(); // 3
     this.interaction.update(this.player.body.x, this.player.body.y, !this.player.health.dead); // 4 — who has the icon
@@ -709,6 +710,21 @@ export class GameSession implements SimServices {
     if (b.x > g.rect.x0 + 0.6 && b.x < g.rect.x1 - 0.6 && !this.hazards.touches(bodyRect(b, this.scratch))) {
       this.lastSafe.x = b.x;
       this.lastSafe.y = b.y;
+    }
+  }
+
+  /**
+   * An enemy or a guardian that fell out of the world — a pit with no floor, a blow that threw it over a ledge — comes back to where it was placed, with the life it had. What it guards (a door that opens
+   * with its fall, a way on) must not be lost below the room: the hero would be shut in with nothing left to beat, and only a reload would free them. A body that is already gone is let fall.
+   */
+  private rescueFallenGuardians(): void {
+    const killY = this.current.killY ?? this.current.bounds.y0 - 10;
+    for (const e of this.live) {
+      if (!(e instanceof Enemy) && !(e instanceof Guardian)) continue;
+      if (e.body.y >= killY || e.health.dead) continue;
+      e.teleport(e.home.x, e.home.y, e.facing);
+      this.collision.probeGround(e.body);
+      log.scope('world').warn(`"${e.id}" fell out of "${this.current.id}" and was put back where it was placed`);
     }
   }
 

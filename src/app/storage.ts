@@ -43,6 +43,23 @@ export function createStorage(): StorageAdapter {
   return new MemoryStorage();
 }
 
+/**
+ * The page's storage. Inside a native shell (`window.Capacitor`: a Capacitor app on iOS or Android) it is the platform's preferences store — the system never clears it to make room — once it has shown that
+ * it works; anywhere else, or when it does not, the browser's (`createStorage`). The native part is a chunk of its own: a web player never downloads it (docs/PROMPT20-LOG.md).
+ */
+export async function openStorage(): Promise<StorageAdapter> {
+  const cap = typeof window !== 'undefined' ? (window as { Capacitor?: unknown }).Capacitor : undefined;
+  if (cap) {
+    try {
+      const native = await (await import('./nativeStorage')).nativeStorage(cap as never);
+      if (native) return native;
+    } catch {
+      // the chunk could not be fetched, or the shell misbehaved: the web's storage is still there
+    }
+  }
+  return createStorage();
+}
+
 /** Does this storage outlive the page? A memory store (what `createStorage` falls back to when the browser offers nothing) does not: what is "saved" in it dies with the page. */
 export function isDurable(storage: StorageAdapter): boolean {
   return !(storage instanceof MemoryStorage);

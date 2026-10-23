@@ -70,7 +70,7 @@ import { applySafeOverride, SafeArea } from '@/ui/safeArea';
 import { TouchControls } from '@/ui/touch/TouchControls';
 import type { Insets } from '@/ui/touch/layout';
 import { listen } from './dom';
-import { createStorage, isDurable } from './storage';
+import { isDurable, openStorage } from './storage';
 import { browserPlatform, GameSaves } from './gameSaves';
 import type { DevTools } from './devTools';
 import { GameLoop } from './GameLoop';
@@ -210,7 +210,7 @@ export class Game2D {
     if (options.hooks || import.meta.env.DEV) DrawCallCounter.install(counter);
     // what the player chose last time (the language, the volume, the quality, the keys, the touch controls): read before anything is drawn, so the
     // first frame is already right — the quality is the profile the renderer is built with
-    const storage = createStorage();
+    const storage = await openStorage();
     const settings = new SettingsStore(storage, { warn: (message) => log.scope('save').warn(message) });
     await settings.load();
     const renderer = await Renderer2D.create({ host, viewHeight: options.camera.viewHeight ?? CAMERA_2D.viewHeight ?? 13.5, quality: settings.value.quality });
