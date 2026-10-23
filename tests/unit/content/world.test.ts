@@ -5,7 +5,7 @@ import { BOTTLE_DEFINITIONS, BOTTLES, CARDS } from '@/content/resources';
 import { SKILLS, SPIRIT_BOLT } from '@/content/skills';
 import { CATALOGS } from '@/i18n';
 import { validateRoom } from '@/world/validateRoom';
-import { analyzeProgression, buildWorldGraph, destinationOf, edgesFrom, routeBetween, validateWorld, worldGrantedFlags } from '@/world/worldGraph';
+import { analyzeProgression, buildWorldGraph, destinationOf, edgesFrom, routeBetween, validateWorld, worldEnds, worldGrantedFlags } from '@/world/worldGraph';
 
 /**
  * The shipped mini-world (docs/PROMPT6-LOG.md S22): four rooms in a line, each connected to the next and back, every connection
@@ -15,8 +15,15 @@ const player = { halfWidth: PLAYER.body.halfWidth, height: PLAYER.body.height };
 const graph = buildWorldGraph(WORLD, ROOMS);
 
 describe('the world as shipped', () => {
-  it('passes the world validator: every reference exists, no entry sits inside an exit, every room can be reached and left', () => {
-    expect(validateWorld(WORLD, ROOMS, { player })).toEqual([]);
+  it('passes the world validator: every reference exists, no entry sits inside an exit, every room can be reached and left — and the adventure can be FINISHED', () => {
+    expect(validateWorld(WORLD, ROOMS, { player, requireEnd: true })).toEqual([]);
+  });
+
+  it('has exactly one way out of the world, in the last room, and it asks for the guardian that waits there', () => {
+    expect(worldEnds(WORLD, ROOMS)).toEqual([{ room: 'r4_sanctum', exit: 'east', requires: 'defeated:r4_boss' }]);
+    expect(WORLD.rooms[WORLD.rooms.length - 1]).toBe('r4_sanctum');
+    const boss = ROOMS['r4_sanctum']!.bosses![0]!;
+    expect(boss.defeatFlag).toBe('defeated:r4_boss');
   });
 
   it('is four rooms, in the order the player meets them: R1 → R2 → R3 → R4', () => {

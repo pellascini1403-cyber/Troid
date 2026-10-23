@@ -18,6 +18,8 @@ export interface SlotCardView {
   ticks: number;
   /** When it was last written (milliseconds since 1970; 0: not known). */
   savedAt: number;
+  /** The game was taken to the end of the adventure. */
+  completed: boolean;
 }
 
 export type ImportOutcome = { ok: true } | { ok: false; reason: 'unreadable' | 'tooBig' | 'storage' };
@@ -227,6 +229,14 @@ export class SavesScreen {
     return b;
   }
 
+  private chip(doc: Document, kind: string, key: string): HTMLElement {
+    const chip = doc.createElement('span');
+    chip.className = 'saves-chip';
+    chip.dataset['kind'] = kind;
+    chip.textContent = this.t(key);
+    return chip;
+  }
+
   private card(doc: Document, c: SlotCardView): HTMLElement {
     const box = doc.createElement('div');
     box.className = 'saves-card';
@@ -238,12 +248,11 @@ export class SavesScreen {
     const name = doc.createElement('b');
     name.textContent = this.t('saves.slot', { n: c.slot });
     head.appendChild(name);
-    if (c.active) {
-      const chip = doc.createElement('span');
-      chip.className = 'saves-chip';
-      chip.textContent = this.t('saves.active');
-      head.appendChild(chip);
-    }
+    const chips = doc.createElement('span');
+    chips.className = 'saves-chips';
+    if (c.completed && c.state !== 'damaged' && c.state !== 'empty') chips.appendChild(this.chip(doc, 'completed', 'saves.completed'));
+    if (c.active) chips.appendChild(this.chip(doc, 'active', 'saves.active'));
+    if (chips.childElementCount > 0) head.appendChild(chips);
     const info = doc.createElement('div');
     info.className = 'saves-info';
     info.dataset['testid'] = `saves-info-${c.slot}`;

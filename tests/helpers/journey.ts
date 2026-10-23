@@ -85,7 +85,8 @@ export function playWorld(d: Driver): void {
   arriveIn(d, 'r4_sanctum');
   beatTheWarden(d); // R4: the arena, the Ink Warden, the Air Dash it leaves…
   toTheEastExit(d); // …and the way out of the world
-  d.step(20);
+  // The journey ends on the very tick that touches it. It used to idle 20 ticks more; but the way out of the world COMPLETES the adventure (`adventure:ended`), and the page answers it by
+  // holding the world at the closing screen — a game does not tick after that — so a browser replaying this run must have no ticks left to play after the touch.
 }
 
 /**

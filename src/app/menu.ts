@@ -1,4 +1,5 @@
 import { ROOMS, WORLD } from '@/content';
+import { CREDITS } from '@/content/credits';
 import type { Bindings } from '@/input/bindings';
 import { controlsReference } from '@/input/controlsReference';
 import { SUPPORTED_LOCALES, type Translator } from '@/i18n';
@@ -128,6 +129,8 @@ export function createPauseMenu(d: MenuDeps): PauseMenu {
       const hero = d.session.player.body;
       return mapScene(layout, { visited: d.stats.snapshot(d.session.now).rooms, flag: (f) => d.session.flags.has(f), room: d.session.room.id, hero: { x: hero.x, y: hero.y }, checkpoint: d.session.checkpoint });
     },
+    // the closing of the adventure: the credits roll by themselves unless the system asks for less motion
+    ending: { credits: CREDITS, rolls: !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) },
     resume: d.resume,
     sound: d.sound,
     interrupt: () => {

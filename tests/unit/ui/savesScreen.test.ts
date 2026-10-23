@@ -129,6 +129,18 @@ describe('the saved games screen', () => {
       expect(q(parent, 'saves-slot-2').dataset['state']).toBe('damaged');
     });
 
+    it('a game that was taken to the end of the adventure says so (a chip, in the language in force) — and one that was not, does not; an empty or damaged slot never claims it', async () => {
+      probe.cards = [slotCard(1, { state: 'ok', active: true, zoneKey: 'room.r4.name', ticks: 600, savedAt: 1, completed: true }), slotCard(2, { state: 'ok', zoneKey: 'room.r1.name', ticks: 60, savedAt: 2 }), slotCard(3, { state: 'damaged', completed: true })];
+      await open();
+      const chips = (n: number): string[] => [...q(parent, `saves-slot-${n}`).querySelectorAll('.saves-chip')].map((c) => (c as HTMLElement).dataset['kind']!);
+      expect(chips(1)).toEqual(['completed', 'active']);
+      expect(q(parent, 'saves-slot-1').querySelector('.saves-chip[data-kind="completed"]')?.textContent).toBe('Completada');
+      expect(chips(2)).toEqual([]);
+      expect(chips(3)).toEqual([]);
+      tr.setLocale('en');
+      expect(q(parent, 'saves-slot-1').querySelector('.saves-chip[data-kind="completed"]')?.textContent).toBe('Completed');
+    });
+
     it('marks the game being played', async () => {
       await open();
       expect(q(parent, 'saves-slot-1').textContent).toContain('En curso');

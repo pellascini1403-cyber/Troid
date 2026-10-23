@@ -1,12 +1,14 @@
 import { listen } from '@/app/dom';
 import { onPress } from '@/app/press';
 import type { ProfileData } from '@/app/profile';
+import type { CreditSection } from '@/presentation/credits';
 import { DisposableStore } from '@/core/lifecycle';
 import { MENU_CATALOGS } from '@/i18n/menuCatalogs';
 import type { Translator } from '@/i18n/translator';
 import { EMPTY_SCENE, type MapScene } from '@/world/worldMap';
 import { MapView } from '../map/MapView';
 import { mapIconSvg } from '../map/mapIcons';
+import { EndingScreen } from './EndingScreen';
 import { createMenuIcon, type MenuIconId } from './menuIcons';
 import { formatClock } from './menuFormat';
 import { ensureMenuStyle } from './menuStyle';
@@ -14,8 +16,8 @@ import { ProfileScreen } from './ProfileScreen';
 import { SavesScreen, type SavesHost } from './SavesScreen';
 import { SettingsMenu, type SettingsMenuHost } from './SettingsMenu';
 
-/** The screens of the pause menu: the map (`main`, the one it opens on) and the five it can show in its place. */
-export type PauseScreen = 'main' | 'sound' | 'settings' | 'controls' | 'saves' | 'profile';
+/** The screens of the pause menu: the map (`main`, the one it opens on), the five it can show in its place when they are chosen, and the closing of the adventure (`ending`), which the game opens it on when the hero walks out of the world. */
+export type PauseScreen = 'main' | 'sound' | 'settings' | 'controls' | 'saves' | 'profile' | 'ending';
 
 /** What the menu can ask the page to make heard: a press, a slider moving, a switch turned on or off, a game saved. Which sound each one is, is the page's. */
 export type MenuSound = 'tap' | 'slider' | 'on' | 'off' | 'save';
@@ -32,6 +34,8 @@ export interface PauseHost {
   profile(): ProfileData;
   /** The map of the world as the player has discovered it, now (read each time the menu opens). Absent where the page has none: the map then says so. */
   map?(): MapScene;
+  /** The closing of the adventure: the credits it rolls, and whether they roll by themselves. Absent where the page has none: the menu then opens on the map. */
+  ending?: { credits: readonly CreditSection[]; rolls: boolean; /** The page's clock (`performance.now()` by default). */ now?: () => number };
   /** Closes the menu and lets the game go on. */
   resume(): void;
   /** Something has the screen over the menu (the editor of the touch buttons): asks it to give up. Answers whether there was one to give up. */
@@ -94,7 +98,7 @@ export class PauseMenu {
   private readonly facts: HTMLElement;
   private readonly legend: Array<{ label: HTMLElement; key: string }> = [];
   private readonly hint: HTMLElement;
-  private readonly screens: { sound?: SettingsMenu; settings?: SettingsMenu; controls?: SettingsMenu; saves?: SavesScreen; profile?: ProfileScreen } = {};
+  private readonly screens: { sound?: SettingsMenu; settings?: SettingsMenu; controls?: SettingsMenu; saves?: SavesScreen; profile?: ProfileScreen; ending?: EndingScreen } = {};
   private current: PauseScreen | null = null;
   /** The entry the player came from, so the focus returns to it. */
   private lastEntry: Entry['id'] = 'resume';
@@ -208,11 +212,11 @@ export class PauseMenu {
     return this.map;
   }
 
-  /** Shows the menu on the map, with the game as it is NOW and the map seen as it opens (everything discovered, or the hero's surroundings). */
-  open(): void {
+  /** Shows the menu on the map, with the game as it is NOW and the map seen as it opens (everything discovered, or the hero's surroundings) — or, when the game asks, on the closing of the adventure. */
+  open(screen: PauseScreen = 'main'): void {
     this.lastEntry = 'resume';
     this.root.dataset['open'] = '1';
-    this.show('main', true);
+    this.show(screen, true);
   }
 
   /** Hides the menu and every screen of it. */
@@ -226,11 +230,12 @@ export class PauseMenu {
   }
 
   /**
-   * One step back: from a screen to the map. From the map (or closed) it does nothing and answers false — the caller closes the menu then, which is resuming the game.
+   * One step back: from a screen to the map. From the map (or closed) it does nothing and answers false — the caller closes the menu then, which is resuming the game. The closing of the adventure
+   * has no map to go back to: the key that leaves it goes straight back into the world.
    */
   back(): boolean {
     if (this.host.interrupt?.()) return true; // what has the screen over the menu gives way first
-    if (this.current === null || this.current === 'main') return false;
+    if (this.current === null || this.current === 'main' || this.current === 'ending') return false;
     this.show('main');
     return true;
   }
@@ -247,7 +252,7 @@ export class PauseMenu {
   dispose(): void {
     this.store.dispose();
     this.map.dispose();
-    for (const s of [this.screens.sound, this.screens.settings, this.screens.controls, this.screens.saves, this.screens.profile]) s?.dispose();
+    for (const s of [this.screens.sound, this.screens.settings, this.screens.controls, this.screens.saves, this.screens.profile, this.screens.ending]) s?.dispose();
     this.root.remove();
   }
 
@@ -299,6 +304,19 @@ export class PauseMenu {
       if (!saves) return this.show('main');
       const view = (this.screens.saves ??= new SavesScreen(this.stage, this.translator, { ...saves, back }));
       void view.open();
+    } else if (screen === 'ending') {
+      const ending = this.host.ending;
+      if (!ending) return this.show('main');
+      const saves = this.host.saves;
+      const view = (this.screens.ending ??= new EndingScreen(this.stage, this.translator, {
+        profile: () => this.host.profile(),
+        credits: ending.credits,
+        rolls: ending.rolls,
+        ...(ending.now ? { now: ending.now } : {}),
+        resume: () => this.host.resume(),
+        saves: saves ? () => this.choose('saves') : null,
+      }));
+      view.open();
     } else {
       const profile = (this.screens.profile ??= new ProfileScreen(this.stage, this.translator, { profile: () => this.host.profile(), back }));
       profile.open();
@@ -311,6 +329,7 @@ export class PauseMenu {
     this.screens.controls?.close();
     this.screens.saves?.close();
     this.screens.profile?.close();
+    this.screens.ending?.close();
   }
 
   /** The entry the focus can go to: the one asked for if the column has it, else the way back into the game. */

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { roomLimits } from '@/camera/cameraZones';
 import { ROOMS, WORLD } from '@/content';
+import { COMPLETED_FLAG } from '@/progression/adventure';
 import { freshWorld, playWorld } from '../../../tests/helpers/journey';
 import { frames } from '../frames';
 import { record, replay } from '../replay';
@@ -50,7 +51,7 @@ async function runWorld(ctx: Ctx, withArt: boolean): Promise<void> {
     assert.equal(s.now, 0, 'not one tick has run: the replay starts from tick 0');
     // what the world tells the interface, as it happens
     await ctx.page.evaluate(
-      `(() => { const s = window.__troid.session; window.__w = []; s.bus.on('room:entered', (e) => window.__w.push('enter ' + e.roomId + ':' + e.entryId + ' from ' + e.from)); s.bus.on('exit:reached', (e) => window.__w.push('exit ' + e.roomId + '/' + e.exitId)); s.bus.on('transition:cancelled', () => window.__w.push('cancelled')); s.bus.on('player:died', () => window.__w.push('died')); s.bus.on('card:changed', (e) => e.type === 'equipped' && window.__w.push('card')); s.bus.on('actor:died', (e) => e.team === 'neutral' && window.__w.push('seal broken')); s.bus.on('seal:rejected', () => window.__w.push('seal rejected')); s.bus.on('boss:started', () => window.__w.push('boss started')); s.bus.on('boss:defeated', () => window.__w.push('boss defeated')); s.bus.on('ability:unlocked', (e) => window.__w.push('ability ' + e.id)); })()`,
+      `(() => { const s = window.__troid.session; window.__w = []; s.bus.on('room:entered', (e) => window.__w.push('enter ' + e.roomId + ':' + e.entryId + ' from ' + e.from)); s.bus.on('exit:reached', (e) => window.__w.push('exit ' + e.roomId + '/' + e.exitId)); s.bus.on('transition:cancelled', () => window.__w.push('cancelled')); s.bus.on('player:died', () => window.__w.push('died')); s.bus.on('card:changed', (e) => e.type === 'equipped' && window.__w.push('card')); s.bus.on('actor:died', (e) => e.team === 'neutral' && window.__w.push('seal broken')); s.bus.on('seal:rejected', () => window.__w.push('seal rejected')); s.bus.on('boss:started', () => window.__w.push('boss started')); s.bus.on('boss:defeated', () => window.__w.push('boss defeated')); s.bus.on('ability:unlocked', (e) => window.__w.push('ability ' + e.id)); s.bus.on('adventure:ended', (e) => window.__w.push('adventure ' + e.roomId + '/' + e.exitId)); })()`,
     );
 
     let worst = 0;
@@ -106,6 +107,9 @@ async function runWorld(ctx: Ctx, withArt: boolean): Promise<void> {
     assert.deepEqual(events.filter((e) => e.startsWith('boss')), ['boss started', 'boss defeated'], 'the Warden woke once and fell once');
     assert.ok(at('enter r4_sanctum:west from r3_chamber') < at('boss started') && at('boss started') < at('boss defeated'), 'in R4, in that order');
     assert.ok(at('boss defeated') < at('ability air_dash') && at('ability air_dash') < at('exit r4_sanctum/east'), 'the reward after the fall, and the way out after the reward');
+    assert.deepEqual(events.filter((e) => e.startsWith('adventure')), ['adventure r4_sanctum/east'], 'the adventure ended once, at the way out of the world…');
+    assert.ok(at('exit r4_sanctum/east') < at('adventure r4_sanctum/east'), '…right after the way out was touched');
+    assert.equal(s.menuOpen, true, '…and the page answered by holding the world at the closing');
     assert.equal(transitions, 3, 'three fades were seen');
     assert.equal(s.room, 'r4_sanctum', 'the walk ends in the last room');
     assert.deepEqual(s.exits, ['east'], 'at the end of the world');
@@ -113,8 +117,8 @@ async function runWorld(ctx: Ctx, withArt: boolean): Promise<void> {
     assert.ok(s.health! > 0);
     assert.deepEqual(
       s.flags!.slice().sort(),
-      ['broken:r3_seal', 'defeated:r1_slime', 'defeated:r2_slime', 'defeated:r4_boss', 'taken:air_dash', 'taken:card_spirit_bolt'],
-      'both slimes fell on the way, the card was taken on R3\'s ledge and its seal broken, the Warden fell and its Air Dash was taken',
+      ['broken:r3_seal', COMPLETED_FLAG, 'defeated:r1_slime', 'defeated:r2_slime', 'defeated:r4_boss', 'taken:air_dash', 'taken:card_spirit_bolt'],
+      'both slimes fell on the way, the card was taken on R3\'s ledge and its seal broken, the Warden fell and its Air Dash was taken — and the way out of the world completed the adventure',
     );
     assert.equal(s.card, 'card_spirit_bolt', 'the hero ends the world with the Spirit Bolt in hand');
     assert.deepEqual([...shot].sort(), [...WORLD.rooms].sort(), 'every room was seen with the hero in it');

@@ -16,7 +16,7 @@ export interface ProfileHost {
 /**
  * THE PROFILE (DOM, docs/PROMPT14-LOG.md): what the game being played has to say of the hero, and nothing it cannot back up — the time played, where they are, how many rooms of the world they have been
  * in, what they can do, what they carry, the guardians they have beaten, how many times they fell and how many enemies fell to them. Every line is a number the simulation holds or the game counted
- * from its events (`PlayStats`); there is no level, no score and no percentage of "completion" because the game has nothing to compute them from. It is read every time the screen opens: nothing moves
+ * from its events (`PlayStats`); there is no level, no score and no percentage of "completion" because the game has nothing to compute them from — but whether the adventure has been taken to its end is a fact the world remembers, and it is shown. It is read every time the screen opens: nothing moves
  * while the game waits.
  *
  * Every word is a translator key. It owns no data and decides nothing.
@@ -120,6 +120,7 @@ export class ProfileScreen {
       const none = this.t('profile.none');
       const named = (keys: readonly string[]): string[] => keys.map((k) => this.t(k));
       row('slot', 'profile.slot', String(p.slot));
+      row('status', 'profile.status', this.t(p.completed ? 'profile.statusDone' : 'profile.statusPlaying'));
       row('time', 'profile.time', formatClock(p.ticks));
       row('zone', 'profile.zone', p.zoneKey ? this.t(p.zoneKey) : none);
       row('rooms', 'profile.rooms', this.t('profile.roomsValue', { visited: p.rooms.visited, total: p.rooms.total }));

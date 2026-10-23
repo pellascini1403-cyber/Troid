@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { attachProgressRecorder } from '@/app/progressRecorder';
 import { ROOMS, START, WORLD } from '@/content';
 import { captureProgress, restoreFromProgress } from '@/gameplay/progress';
+import { COMPLETED_FLAG } from '@/progression/adventure';
 import type { ProgressData } from '@/save/ProgressData';
 import { ProgressStore } from '@/save/ProgressStore';
 import { MemoryStorage } from '@/save/StorageAdapter';
@@ -20,7 +21,7 @@ import { R1_CROUCH } from '../helpers/vertical';
  * (what was opened stays open, what was broken stays broken, what was taken stays taken) and the way on is still there.
  */
 const QUICK = { death: { dying: 6, fadeOut: 4, hold: 4, fadeIn: 4, skipAfter: 1 } };
-const FINAL_FLAGS = ['broken:r3_seal', 'defeated:r1_slime', 'defeated:r2_slime', 'defeated:r4_boss', 'taken:air_dash', 'taken:card_spirit_bolt'];
+const FINAL_FLAGS = ['broken:r3_seal', COMPLETED_FLAG, 'defeated:r1_slime', 'defeated:r2_slime', 'defeated:r4_boss', 'taken:air_dash', 'taken:card_spirit_bolt'];
 
 /** What is left of the journey from the entry of a room (where a load puts the hero), reading what the world remembers. */
 function finishFrom(d: Driver): void {

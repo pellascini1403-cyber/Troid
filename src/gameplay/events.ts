@@ -75,6 +75,8 @@ export interface GameEvents extends CombatEvents {
   'gate:changed': { roomId: string; gateId: string; open: boolean };
   /** The player touched a way out of the room. Once per exit per room build. */
   'exit:reached': { roomId: string; exitId: string; to?: { room: string; entry: string } };
+  /** The hero walked out of the world through a way out marked `end`: the adventure is over (the flag `completed:adventure` is already set). Once per such exit per room build. */
+  'adventure:ended': { roomId: string; exitId: string };
   /** A cast BEGAN: the hero gathers the skill's power for `ticks` ticks at `(x, y)` — where the projectile will leave from. Nothing is paid yet (the cost is taken at the release) and a hit during the preparation ends the cast without it: this only tells the light to gather. */
   'skill:castStarted': { skillId: string; x: number; y: number; facing: 1 | -1; ticks: number };
   /** A skill was cast: the cost was paid and its effect released at `(x, y)`. */

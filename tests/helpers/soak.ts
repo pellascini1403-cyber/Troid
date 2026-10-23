@@ -1,5 +1,7 @@
-import { ROOMS } from '@/content';
+import { ROOMS, WORLD } from '@/content';
 import { createPlayerStatus } from '@/gameplay/PlayerStatus';
+import { captureProgress, restoreFromProgress } from '@/gameplay/progress';
+import { parseProgress, serializeProgress } from '@/save/ProgressData';
 import type { GameSession } from '@/gameplay/GameSession';
 import type { Projectile } from '@/gameplay/Projectile';
 import { DEFAULT_REACH, REACH_HYSTERESIS } from '@/interaction/Interactable';
@@ -280,6 +282,26 @@ export function soak(seed: number, ticks: number, hook?: SoakHook): Result {
     const bolts = s.entities.filter((e) => e.kind === 'projectile') as Projectile[];
     if (bolts.length > 6) bad(`${bolts.length} bolts in flight`);
     for (const bolt of bolts) if (!Number.isFinite(bolt.x) || !Number.isFinite(bolt.y)) bad('a bolt is not a number');
+
+    // a game saved NOW — in the middle of a defeat, a fall, a cast, a drink, a room that was just loaded — is a game that can be continued: through the text a cold start reads, into a session that opens alive,
+    // somewhere that exists, with what was won and no fight left over from it (docs/PROMPT20-LOG.md)
+    if ((i + 1) % 97 === 0) {
+      const saved = parseProgress(serializeProgress(captureProgress(s)));
+      if (saved === null) bad('a save made now cannot be read back');
+      else {
+        try {
+          const r = restoreFromProgress(saved, ROOMS, WORLD.start);
+          const again = driver({ room: ROOMS[r.startRoom]!, entry: r.startEntry, unlocked: r.unlocked, seed, extra: { rooms: ROOMS, ...r } });
+          again.step(2);
+          if (again.p.health.dead) bad('a game opened from a save made now begins with a dead hero');
+          if (again.session.flags.list().join() !== s.flags.list().filter((f) => !f.startsWith('~')).join()) bad('a game opened from a save made now has other flags than the game that was saved');
+          if (again.session.abilities.serialize().join() !== s.abilities.serialize().join()) bad('a game opened from a save made now can do other things than the game that was saved');
+          if (!again.session.room.entries.some((e) => e.id === saved.at.entry)) bad(`a game opened from a save made now is put at an entry (${saved.at.entry}) its room does not have`);
+        } catch (err) {
+          bad(`a game cannot be continued from a save made now: ${String(err)}`);
+        }
+      }
+    }
 
     if ((i + 1) % 50 === 0) digests.push(digestOf(s));
     hook?.(s, i);

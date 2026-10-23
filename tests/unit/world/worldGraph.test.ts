@@ -12,6 +12,7 @@ import {
   requiredFlags,
   routeBetween,
   validateWorld,
+  worldEnds,
   worldGrantedFlags,
   type RoomRegistry,
 } from '@/world/worldGraph';
@@ -362,5 +363,50 @@ describe('seals, on paper (docs/PROMPT6-LOG.md S28)', () => {
     const { world, rooms } = warded({ needs: 'taken:nothing' });
     expect(analyzeProgression(buildWorldGraph(world, rooms), rooms).flags.has('broken:ward')).toBe(false);
     expect(codes(world, rooms)).toEqual(expect.arrayContaining(['flag-ungranted', 'room-unreachable']));
+  });
+});
+
+describe('the end of the world: a whole campaign can be finished', () => {
+  /** A → B → C, with the way out of the world in C (asking for `flag`, when given) and a guardian in B that sets it. */
+  function campaign(end: { requires?: string } | null, grant = true): { world: WorldDefinition; rooms: RoomRegistry } {
+    const rooms: RoomRegistry = {
+      a: room('a', { exits: [east('b')] }),
+      b: room('b', { exits: [west('a'), east('c')], ...(grant ? { bosses: [{ id: 'boss', guardian: 'warden', x: 20, y: 0, arena: rect(10, 0, 30, 6), defeatFlag: 'defeated:boss', fightFlag: '~fight' }] } : {}) }),
+      c: room('c', { exits: [west('b'), ...(end ? [{ id: 'out', rect: rect(36, 0, 39, 4), end: true, ...(end.requires ? { requires: end.requires } : {}) }] : [])] }),
+    };
+    return { world: { id: 'w', start: { room: 'a', entry: 'west' }, rooms: ['a', 'b', 'c'] }, rooms };
+  }
+  const strict = (world: WorldDefinition, rooms: RoomRegistry): string[] => validateWorld(world, rooms, { requireEnd: true }).map((i) => i.code);
+
+  it('lists the ways out of the world in the order the rooms are listed, with what each asks for', () => {
+    const { world, rooms } = campaign({ requires: 'defeated:boss' });
+    expect(worldEnds(world, rooms)).toEqual([{ room: 'c', exit: 'out', requires: 'defeated:boss' }]);
+    expect(worldEnds(line().world, line().rooms)).toEqual([]);
+  });
+
+  it('a world with a reachable end passes, with or without asking for it', () => {
+    const open = campaign({});
+    expect(strict(open.world, open.rooms)).toEqual([]);
+    const gated = campaign({ requires: 'defeated:boss' });
+    expect(strict(gated.world, gated.rooms)).toEqual([]);
+  });
+
+  it('a world with no end is named when the campaign must have one — and is left alone when it need not (a test world, a lab)', () => {
+    const { world, rooms } = campaign(null);
+    expect(strict(world, rooms)).toEqual(['world-no-end']);
+    expect(codes(world, rooms)).toEqual([]);
+  });
+
+  it('an end that asks for something nothing gives is unreachable, and so is its flag', () => {
+    const { world, rooms } = campaign({ requires: 'defeated:nobody' });
+    expect(strict(world, rooms)).toEqual(expect.arrayContaining(['flag-ungranted', 'end-unreachable']));
+    const found = validateWorld(world, rooms, { requireEnd: true });
+    expect(found.find((i) => i.code === 'end-unreachable')!.message).toContain('c/out');
+  });
+
+  it('an end in a room nobody can reach is unreachable', () => {
+    const { world, rooms } = campaign({});
+    const shut = { ...rooms, b: room('b', { exits: [west('a'), east('c', 'taken:nothing')] }) };
+    expect(strict(world, shut)).toEqual(expect.arrayContaining(['room-unreachable', 'end-unreachable']));
   });
 });

@@ -65,7 +65,7 @@ import type { BossBarView } from '@/ui/hud/BossBarView';
 import { HudModel } from '@/ui/hud/HudModel';
 import type { SaveNoticeKind } from './gameSaves';
 import type { Overlays } from './overlays';
-import type { PauseMenu } from '@/ui/settings/PauseMenu';
+import type { PauseMenu, PauseScreen } from '@/ui/settings/PauseMenu';
 import { applySafeOverride, SafeArea } from '@/ui/safeArea';
 import { TouchControls } from '@/ui/touch/TouchControls';
 import type { Insets } from '@/ui/touch/layout';
@@ -196,6 +196,8 @@ export class Game2D {
   private menu: PauseMenu | null = null;
   private menuRequest: Promise<void> | null = null;
   private menuOpen = false;
+  /** The screen the menu opens on: the map, or the closing of the adventure when the hero has just walked out of the world. */
+  private menuScreen: PauseScreen = 'main';
   /** The developer tools (panel, collision overlay, debug actions): a separate chunk, fetched the first time they are asked for. */
   private tools: DevTools | null = null;
   private toolsRequest: Promise<void> | null = null;
@@ -348,6 +350,8 @@ export class Game2D {
       this.bossId = null;
       this.bossBarModel.hide();
     });
+    // the hero walked out of the world: the game is already saved as completed (the flag was set before this), the world is held and the pause menu opens on the closing of the adventure
+    on('adventure:ended', () => this.openMenu('ending'));
     // a refused cast (not enough magic): the bar shakes; a refused drink (no bottle, or full life): the bottles do
     this.lifecycle.add(this.session.bus.on('skill:denied', () => this.hudModel.magicDenied()));
     this.lifecycle.add(this.session.bus.on('bottle:denied', () => this.hudModel.bottlesDenied()));
@@ -1032,9 +1036,10 @@ export class Game2D {
     this.closeMenu();
   }
 
-  private openMenu(): void {
+  private openMenu(screen: PauseScreen = 'main'): void {
     if (this.menuOpen) return;
     this.menuOpen = true;
+    this.menuScreen = screen;
     this.loop.paused = true;
     // nothing may stay pressed while the game waits: no finger, no key, no button keeps acting behind the menu
     this.input.releaseAll();
@@ -1044,7 +1049,7 @@ export class Game2D {
     this.audio?.menu(true);
     this.loadMenu().then(
       () => {
-        if (this.menuOpen) this.menu?.open();
+        if (this.menuOpen) this.menu?.open(this.menuScreen);
       },
       // the menu could not be fetched (the page is offline, the file is gone): the game goes on rather than wait for a menu that is not coming; the next ask tries again
       () => this.closeMenu(),

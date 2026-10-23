@@ -19,6 +19,7 @@ import { createInputFrame, NEUTRAL_INPUT, type InputFrame } from '@/input/InputF
 import { Player } from '@/player/Player';
 import type { PlayerDefinition } from '@/player/PlayerDefinition';
 import { AbilitySystem, type AbilityDefinition } from '@/progression/AbilitySystem';
+import { COMPLETED_FLAG } from '@/progression/adventure';
 import { WorldFlags } from '@/progression/WorldFlags';
 import { bodyRect, CollisionWorld } from '@/world/collision';
 import type { Destination, RoomDefinition } from '@/world/RoomDefinition';
@@ -540,7 +541,7 @@ export class GameSession implements SimServices {
 
   /**
    * `exit:reached`, once per exit per room build, while the player is alive and touching its zone. An exit that leads somewhere
-   * also starts the room transition. A way that is shut (`requires`) does nothing; and nothing starts while another transition
+   * also starts the room transition; one marked `end` (the way out of the world) also completes the adventure (`adventure:ended`). A way that is shut (`requires`) does nothing; and nothing starts while another transition
    * runs or while the defeat flow brings the player back — the zone is not spent then, so a hero still standing in it afterwards
    * goes through.
    */
@@ -554,6 +555,11 @@ export class GameSession implements SimServices {
       if (x.to && (this.transition.active || this.death.active)) continue;
       this.exitsTouched.add(x.id);
       this.bus.emit('exit:reached', { roomId: this.current.id, exitId: x.id, ...(x.to ? { to: x.to } : {}) });
+      if (x.end) {
+        // the way out of the world: the game remembers it was taken to its end (saved with the rest of the flags) before anything is told
+        this.flags.set(COMPLETED_FLAG);
+        this.bus.emit('adventure:ended', { roomId: this.current.id, exitId: x.id });
+      }
       if (!x.to) continue;
       if (this.canEnter(x.to)) {
         this.transition.begin(this.current.id, x.id, x.to);

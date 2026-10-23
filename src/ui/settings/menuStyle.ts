@@ -120,6 +120,8 @@ ${mapCss()}
 .troid-settings .saves-head { display:flex; align-items:center; gap:8px; justify-content:space-between; }
 .troid-settings .saves-head b { font-weight:500; letter-spacing:0.06em; }
 .troid-settings .saves-chip { font-size:0.68rem; letter-spacing:0.14em; text-transform:uppercase; padding:1px 8px; border:1px solid ${rgba(PALETTE.energyCore, 0.55)}; border-radius:10px; color:${glow}; }
+.troid-settings .saves-chips { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+.troid-settings .saves-chip[data-kind="completed"] { border-color:${rgba(PALETTE.whiteHot, 0.7)}; color:${white}; background:${rgba(PALETTE.energyCore, 0.16)}; }
 .troid-settings .saves-info { margin:6px 0 8px; font-size:0.84rem; line-height:1.45; opacity:0.82; font-variant-numeric:tabular-nums; }
 .troid-settings .saves-info[data-tone="warn"] { color:${violet}; opacity:1; }
 .troid-settings .saves-actions, .troid-settings .saves-more, .troid-settings .saves-confirm-buttons { display:flex; flex-wrap:wrap; gap:7px; }
@@ -164,6 +166,25 @@ ${mapCss()}
 .troid-touch-editor .te-actions .settings-button { flex:1 1 auto; min-height:38px; font-size:0.86rem; padding:0 10px; }
 .troid-touch-editor .te-save { border-color:${glow}; box-shadow:0 0 10px ${rgba(PALETTE.energyGlow, 0.4)}; }
 @media (max-height:430px) { .troid-touch-editor .te-panel { gap:3px; padding:6px 10px 8px; } .troid-touch-editor .te-reserved { display:none; } .troid-touch-editor .te-actions .settings-button { min-height:34px; } }
+
+/* ---- the closing of the adventure ---- */
+.troid-settings .ending-title { font-size:2.1rem; letter-spacing:0.5em; padding-left:0.5em; margin-bottom:4px; }
+.troid-settings .ending-lead { margin:0 0 14px; text-align:center; font-size:0.95rem; letter-spacing:0.04em; opacity:0.8; }
+.troid-settings .ending-credits { margin-top:18px; padding-top:16px; border-top:1px solid ${rgba(PALETTE.energyCore, 0.25)}; text-align:center; }
+.troid-settings .credits-title { margin:0 0 14px; font-size:0.9rem; font-weight:400; letter-spacing:0.3em; text-transform:uppercase; opacity:0.75; }
+.troid-settings .credits-section { margin:0 0 16px; }
+.troid-settings .credits-section h4 { margin:0 0 6px; font-size:0.72rem; font-weight:400; letter-spacing:0.22em; text-transform:uppercase; opacity:0.55; }
+.troid-settings .credits-section ul { list-style:none; margin:0; padding:0; }
+.troid-settings .credits-section li { display:flex; flex-direction:column; align-items:center; gap:1px; margin:0 0 8px; }
+.troid-settings .credits-name { font-size:1rem; letter-spacing:0.04em; }
+.troid-settings .credits-role { font-size:0.78rem; line-height:1.35; opacity:0.65; }
+.troid-settings .credits-thanks { margin:22px 0 6px; font-size:0.95rem; letter-spacing:0.08em; text-shadow:0 0 12px ${core}88; }
+.troid-settings .ending-actions { flex:none; display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.troid-settings .ending-actions .settings-button { flex:1 1 11rem; }
+.troid-settings .ending-actions .settings-button:first-child { border-color:${glow}; box-shadow:0 0 10px ${rgba(PALETTE.energyGlow, 0.4)}; }
+.troid-settings .ending-actions .settings-button[hidden] { display:none; }
+@media (max-height:430px) { .troid-settings .ending-title { font-size:1.35rem; letter-spacing:0.4em; margin-bottom:0; } .troid-settings .ending-lead { margin-bottom:6px; font-size:0.85rem; } .troid-settings .ending-actions { margin-top:6px; } .troid-settings .ending-actions .settings-button { min-height:40px; } .troid-settings .ending-credits { margin-top:10px; padding-top:10px; } }
+@media (prefers-reduced-motion: no-preference) { .troid-settings.ending-fade { animation:troid-ending-in 0.9s ease both; } @keyframes troid-ending-in { from { opacity:0; } to { opacity:1; } } }
 
 /* ---- the profile ---- */
 .troid-settings .profile-grid { display:grid; grid-template-columns:1fr auto; gap:9px 16px; align-items:baseline; margin:0 0 12px; }

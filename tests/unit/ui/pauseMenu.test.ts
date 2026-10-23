@@ -376,6 +376,82 @@ describe('the pause menu', () => {
     });
   });
 
+  describe('the closing of the adventure (docs/PROMPT20-LOG.md)', () => {
+    it('the game can open the menu on it, in the main panel, in the place of the map — and the column of options stays', () => {
+      menu.open('ending');
+      expect(menu.isOpen).toBe(true);
+      expect(menu.screen).toBe('ending');
+      expect(menu.root.dataset['screen']).toBe('ending');
+      expect(q(menu.root, 'ending-screen').dataset['open']).toBe('1');
+      expect(q(menu.root, 'pause-stage').contains(q(menu.root, 'ending-screen'))).toBe(true);
+      expect(q(menu.root, 'pause-map-panel').hidden, 'the map makes way').toBe(true);
+      expect(q(menu.root, 'pause-side').contains(q(menu.root, 'pause-resume'))).toBe(true);
+      expect(document.activeElement, 'the focus is on the way on').toBe(q(menu.root, 'ending-continue'));
+      expect([...menu.root.querySelectorAll('.pm-entry[aria-current="page"]')], 'no option is the one shown').toEqual([]);
+    });
+
+    it('is not an entry of the list (nobody chooses to end the game from the pause menu) and costs nothing until the hero gets there', () => {
+      menu.open();
+      expect([...menu.root.querySelectorAll('.pm-entry')].map((e) => (e as HTMLElement).dataset['id'])).toEqual(['resume', 'map', 'controls', 'sound', 'settings', 'saves', 'profile']);
+      expect(q(menu.root, 'ending-screen')).toBeNull();
+    });
+
+    it('the key that leaves it goes straight back into the world (back() says there is no step to take), where a screen of the list goes back to the map', () => {
+      menu.open('ending');
+      expect(menu.back()).toBe(false);
+      expect(menu.screen).toBe('ending');
+    });
+
+    it('Keep exploring resumes the game through the host, and the menu opens on the map the next time', () => {
+      menu.open('ending');
+      probe.clock.now += 1000; // (the ways on wait a moment after the closing opens)
+      q(menu.root, 'ending-continue').click();
+      expect(probe.calls).toEqual(['resume']);
+      menu.close();
+      expect(q(menu.root, 'ending-screen').dataset['open']).toBe('0');
+      menu.open();
+      expect(menu.screen).toBe('main');
+      expect(q(menu.root, 'ending-screen').dataset['open']).toBe('0');
+      expect(q(menu.root, 'pause-map-panel').hidden).toBe(false);
+    });
+
+    it('Saved games takes the player to the saved games, as the option of the list does — a new game is begun there, asking first', async () => {
+      menu.open('ending');
+      probe.clock.now += 1000;
+      q(menu.root, 'ending-saves').click();
+      await flush();
+      expect(menu.screen).toBe('saves');
+      expect(q(menu.root, 'ending-screen').dataset['open']).toBe('0');
+      expect(q(menu.root, 'saves-screen').dataset['open']).toBe('1');
+      expect(q(menu.root, 'pause-saves').getAttribute('aria-current')).toBe('page');
+      q(menu.root, 'saves-back').click();
+      expect(menu.screen).toBe('main');
+    });
+
+    it('where nothing is saved (a playground) there is no saved games to go to', () => {
+      make({ playground: true });
+      menu.open('ending');
+      expect(q(menu.root, 'ending-saves').hidden).toBe(true);
+    });
+
+    it('a page that has no closing opens the map instead of nothing', () => {
+      menu.dispose();
+      const bare = pauseProbe();
+      delete bare.host.ending;
+      menu = new PauseMenu(parent, tr, bare.host);
+      menu.open('ending');
+      expect(menu.screen).toBe('main');
+      expect(q(menu.root, 'ending-screen')).toBeNull();
+    });
+
+    it('opens again on it when the game asks again, and only one screen is open', () => {
+      menu.open('ending');
+      menu.close();
+      menu.open('ending');
+      expect([...menu.root.querySelectorAll('.troid-settings[data-open="1"]')].map((e) => (e as HTMLElement).dataset['testid'])).toEqual(['ending-screen']);
+    });
+  });
+
   describe('where nothing is saved (a playground)', () => {
     beforeEach(() => make({ playground: true }));
 

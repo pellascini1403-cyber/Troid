@@ -72,6 +72,17 @@ describe('the profile screen', () => {
     expect(text('kills')).toBe('31');
   });
 
+  it('says whether the adventure has been taken to its end: a fact the world remembers, not a percentage', () => {
+    screen.open();
+    expect(q(parent, 'profile-status').textContent).toBe('En curso');
+    data = profileData({ completed: true });
+    screen.open();
+    expect(q(parent, 'profile-status').textContent).toBe('Completada');
+    tr.setLocale('en');
+    expect(q(parent, 'profile-status').textContent).toBe('Completed');
+    expect(q(parent, 'profile-grid').textContent).not.toMatch(/%/);
+  });
+
   it('what the hero does not have yet is "ninguna", not a blank and not a zero', () => {
     data = profileData({ abilities: [], cards: [] });
     screen.open();

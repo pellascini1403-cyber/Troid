@@ -1,6 +1,7 @@
 import { ABILITIES, BOSSES, ROOMS, WORLD } from '@/content';
 import { CARDS } from '@/content/resources';
 import type { GameSession } from '@/gameplay/GameSession';
+import { isCompleted } from '@/progression/adventure';
 import type { PlayStatsData } from '@/save/ProgressData';
 
 /**
@@ -33,6 +34,8 @@ export interface ProfileData {
   /** Text keys of the bosses the hero has beaten, and how many the world has. */
   bosses: { beaten: string[]; total: number };
   lifeMax: number;
+  /** The game has been taken to the end of the adventure (the world remembers it: `completed:adventure`). */
+  completed: boolean;
 }
 
 /** The profile of the game being played, from the session and what was counted. Pure: the same session and counts always give the same profile. */
@@ -51,5 +54,6 @@ export function buildProfile(session: GameSession, stats: PlayStatsData, slot: n
     bottles: { slots: session.bottles.slots.length, max: session.bottles.maxSlots },
     bosses: { beaten: bosses.filter((b) => session.flags.has(b.defeatFlag)).flatMap((b) => (BOSSES[b.guardian] ? [BOSSES[b.guardian]!.nameKey] : [])), total: bosses.length },
     lifeMax: session.player.health.max,
+    completed: isCompleted((f) => session.flags.has(f)),
   };
 }

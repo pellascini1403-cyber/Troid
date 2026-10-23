@@ -59,6 +59,24 @@ export interface WorldIssue {
 export interface WorldRefs {
   /** The player's standing body (default 0.35 × 1.7 m): an entry must not drop it inside a way out. */
   player?: { halfWidth: number; height: number };
+  /** The world is a whole campaign: it must have a way out marked `end`, and one the hero can reach with what the world gives (a world of a test or a lab need not). */
+  requireEnd?: boolean;
+}
+
+/** A way out of the WORLD (an exit marked `end`): where it is and what it asks for. */
+export interface WorldEnd {
+  room: string;
+  exit: string;
+  requires?: string;
+}
+
+/** The ways out of the world the world has (`ExitDef.end`), in the order its rooms are listed. */
+export function worldEnds(world: WorldDefinition, rooms: RoomRegistry): WorldEnd[] {
+  const out: WorldEnd[] = [];
+  for (const id of world.rooms) {
+    for (const x of rooms[id]?.exits ?? []) if (x.end) out.push({ room: id, exit: x.id, ...(x.requires ? { requires: x.requires } : {}) });
+  }
+  return out;
 }
 
 /** The flags a room can set. */
@@ -257,6 +275,14 @@ export function validateWorld(world: WorldDefinition, rooms: RoomRegistry, refs:
       }
       if (id !== world.start.room && routeBetween(graph, id, world.start.room, progress.flags).length === 0) {
         add('room-trapped', `room "${id}" has no way back to the start`);
+      }
+    }
+    // a whole campaign can be FINISHED: it has a way out of the world, in a room the hero reaches, that asks for nothing the world does not give
+    if (refs.requireEnd) {
+      const ends = worldEnds(world, rooms);
+      if (ends.length === 0) add('world-no-end', 'the world has no way out marked `end`: the adventure cannot be finished');
+      else if (!ends.some((e) => progress.order.includes(e.room) && (e.requires === undefined || progress.flags.has(e.requires)))) {
+        add('end-unreachable', `the way out of the world (${ends.map((e) => `${e.room}/${e.exit}`).join(', ')}) cannot be reached with what the world gives: the adventure cannot be finished`);
       }
     }
   }

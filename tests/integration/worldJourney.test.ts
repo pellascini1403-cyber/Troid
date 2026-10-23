@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { WORLD } from '@/content';
+import { COMPLETED_FLAG, isCompleted } from '@/progression/adventure';
 import type { GameEvents } from '@/gameplay/events';
 import { freshWorld, playWorld } from '../helpers/journey';
 import type { Driver } from '../helpers/sim';
@@ -37,9 +38,25 @@ describe('the world from front to back', () => {
     expect(d.session.room.id).toBe('r4_sanctum');
     expect(d.session.transition.active).toBe(false);
     expect(d.p.health.dead).toBe(false);
-    expect(d.session.flags.list().sort()).toEqual(['broken:r3_seal', 'defeated:r1_slime', 'defeated:r2_slime', 'defeated:r4_boss', 'taken:air_dash', 'taken:card_spirit_bolt']);
+    expect(d.session.flags.list().sort()).toEqual(['broken:r3_seal', COMPLETED_FLAG, 'defeated:r1_slime', 'defeated:r2_slime', 'defeated:r4_boss', 'taken:air_dash', 'taken:card_spirit_bolt']);
     expect(d.session.abilities.has('air_dash'), 'the Warden left the Air Dash').toBe(true);
     expect(d.session.flags.list().some((f) => f.startsWith('~')), 'no volatile flag is left behind').toBe(false);
+  });
+
+  it('the way out of the world COMPLETES the adventure: once, at the last exit, with the game remembering it and nothing earlier having told it', () => {
+    const d = freshWorld();
+    d.settle();
+    const ended: string[] = [];
+    d.session.bus.on('adventure:ended', (e) => void ended.push(`${d.session.now} ${e.roomId}/${e.exitId}`));
+    const completedAt: number[] = [];
+    d.session.bus.on('flag:set', (e) => e.flag === COMPLETED_FLAG && completedAt.push(d.session.now));
+    d.session.bus.on('room:entered', (e) => {
+      if (e.roomId !== 'r4_sanctum') expect(d.session.flags.has(COMPLETED_FLAG), `not completed on entering ${e.roomId}`).toBe(false);
+    });
+    playWorld(d);
+    expect(ended, 'the adventure ended once, at the way out of R4').toEqual([`${d.session.now} r4_sanctum/east`]);
+    expect(completedAt, 'the flag was set on that very tick, once').toEqual([d.session.now]);
+    expect(isCompleted((f) => d.session.flags.has(f))).toBe(true);
   });
 
   it('R3 is where the hero gets the Spirit Bolt and uses it: the card is taken on the ledge, one bolt breaks the seal, and the sword never could', () => {

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { captureProgress } from '@/gameplay/progress';
+import { COMPLETED_FLAG } from '@/progression/adventure';
 import { DEFAULT_TOUCH } from '@/input/gestures/TouchConfig';
 import type { TouchLayout } from '@/ui/touch/layout';
 import { freshWorld, playWorld } from '../../../tests/helpers/journey';
@@ -20,14 +21,16 @@ import { TouchScreen } from '../touch';
  *    through three room transitions and a boss.
  *  - **What the page SAVED** on the way is, field by field, what the simulation knows (flags, abilities, the card, the bottles, the checkpoint and where the
  *    hero is): the saved game is the one that was played.
+ *  - **The way out of the world COMPLETES the adventure** (docs/PROMPT20-LOG.md): the moment the replay touches it the game is saved as completed, the world is held and the closing is on screen — the end, what
+ *    the game counted of the whole journey (the four rooms, the guardian, the time) and the credits.
  *  - **A reload** continues that game where the game puts the hero: in R4, with the Warden gone for good, the doors open, the Air Dash taken, the Spirit
- *    Bolt equipped and the checkpoint still the start of the world (nobody rested) — and **the TOUCH screen** (real touches by the DevTools protocol) takes the
- *    hero from the vestibule to the way out of the world, which is where the world ends.
+ *    Bolt equipped, the game still completed and the checkpoint still the start of the world (nobody rested) — and **the TOUCH screen** (real touches by the DevTools protocol) takes the
+ *    hero from the vestibule to the way out of the world, which is where the world ends: the closing again, and a tap on "keep exploring" gives the world back.
  *
  * Along the way: the interface follows (the card slot, the Ability button), the console stays clean (the runner fails the scenario otherwise) and the draw
  * calls stay ≤ 60.
  */
-const WANT_FLAGS = ['broken:r3_seal', 'defeated:r1_slime', 'defeated:r2_slime', 'defeated:r4_boss', 'taken:air_dash', 'taken:card_spirit_bolt'];
+const WANT_FLAGS = ['broken:r3_seal', COMPLETED_FLAG, 'defeated:r1_slime', 'defeated:r2_slime', 'defeated:r4_boss', 'taken:air_dash', 'taken:card_spirit_bolt'];
 const ROOM_ORDER = ['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum'];
 
 /** What a save says that the simulation also knows, in one comparable text (the lists in order: they are sets). */
@@ -87,7 +90,13 @@ export const finale: Scenario = {
     s = await ctx.state();
     assert.equal(s.room, 'r4_sanctum');
     assert.ok(s.exits?.includes('east'), `the way out of the world was reached (${s.exits})`);
-    assert.deepEqual([...(s.flags ?? [])].sort(), WANT_FLAGS, 'every flag the world gives, and no volatile one');
+    assert.deepEqual([...(s.flags ?? [])].sort(), WANT_FLAGS, 'every flag the world gives, the memory of the end, and no volatile one');
+    assert.equal(s.menuOpen, true, 'the way out of the world holds the world and opens the closing');
+    await ctx.page.waitForSelector('[data-testid="pause-menu"][data-screen="ending"][data-open="1"]', { timeout: 15000 });
+    // (the page speaks the browser's language here: "4 of 4" or "4 de 4")
+    assert.match((await ctx.page.locator('[data-testid="ending-rooms"]').textContent()) ?? '', /^4 \D+ 4$/, 'the closing counts the four rooms of the journey');
+    assert.match((await ctx.page.locator('[data-testid="ending-bosses"]').textContent()) ?? '', /^1 \D+ 1$/, 'and the guardian');
+    assert.equal(await ctx.page.locator('[data-testid="ending-deaths"]').textContent(), '0', 'and that the hero never fell');
     assert.equal(s.card, 'card_spirit_bolt', 'the Spirit Bolt is equipped');
     assert.ok((s.health ?? 0) > 0, 'alive');
     assert.equal(s.device, 'gamepad', 'the last device is the gamepad');
@@ -140,9 +149,20 @@ export const finale: Scenario = {
     await screen.lift(1);
     assert.ok(s.exits?.includes('east'), `the touch screen reached the way out of the world (${s.exits}, x ${s.x.toFixed(1)}, ${ticks} ticks)`);
     assert.equal(s.device, 'touch', 'by touch');
-    assert.ok(s.x > 95 && (s.health ?? 0) > 0, `alive at the end (x ${s.x.toFixed(1)})`);
+    assert.ok(s.x > 94.6 && (s.health ?? 0) > 0, `alive at the end, where the way out begins (x ${s.x.toFixed(2)}): the world is held the moment it is touched`);
+    assert.equal(s.menuOpen, true, 'the closing is on screen again, for the game that was loaded');
+    await ctx.page.waitForSelector('[data-testid="pause-menu"][data-screen="ending"][data-open="1"]', { timeout: 15000 });
     await frames(page, 40);
     await ctx.shot('c-the-end-by-touch');
+    // a tap on "keep exploring" (the ways on wait a moment after the closing opens) gives the world back
+    await page.waitForTimeout(900);
+    const keep = await page.locator('[data-testid="ending-continue"]').boundingBox();
+    assert.ok(keep, 'the way on is on screen');
+    await screen.tap(2, keep.x + keep.width / 2, keep.y + keep.height / 2);
+    await page.waitForFunction('!window.__troid.state().menuOpen', undefined, { timeout: 15000 });
+    const resumedAt = (await ctx.state()).now!;
+    await ctx.step(10);
+    assert.ok(((await ctx.state()).now ?? 0) > resumedAt, 'the world runs again');
 
     assert.ok(worst <= 60, `draw calls stay within the budget (worst ${worst})`);
     console.log(`  finale: new game → keyboard (R1, R2) → gamepad (R3, R4, the Warden, the Air Dash) → saved exactly as played → reloaded in R4 → touch to the way out · worst ${worst} draw calls (budget 60)`);

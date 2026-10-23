@@ -1,4 +1,5 @@
 import { ROOMS } from '@/content';
+import { COMPLETED_FLAG } from '@/progression/adventure';
 import { parseProgress, serializeProgress } from '@/save/ProgressData';
 import { isSlot } from '@/save/SaveSlots';
 import { AUTOSAVE, type GameSavesOptions, type ImportResult, type SlotCard } from './gameSaves';
@@ -46,6 +47,7 @@ export class SaveActions {
       zoneKey: s.progress ? (ROOMS[s.progress.at.room]?.nameKey ?? null) : null,
       ticks: s.progress?.stats.ticks ?? 0,
       savedAt: s.progress?.savedAt ?? 0,
+      completed: s.progress?.flags.includes(COMPLETED_FLAG) ?? false,
     }));
   }
 

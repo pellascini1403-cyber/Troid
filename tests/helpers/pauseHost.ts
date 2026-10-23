@@ -1,4 +1,5 @@
 import type { ProfileData } from '@/app/profile';
+import type { CreditSection } from '@/presentation/credits';
 import { ROOMS, WORLD } from '@/content';
 import { DEFAULT_BINDINGS } from '@/input/bindings';
 import { controlsReference } from '@/input/controlsReference';
@@ -17,6 +18,13 @@ export function shippedScene(visited: readonly string[] = ['r1_gate'], flags: re
   return mapScene(LAYOUT, { visited, flag: (f) => set.has(f), room, hero: { x: 4, y: 0 }, checkpoint: { room: 'r1_gate', entry: 'start' } });
 }
 
+/** Credits with something in every kind of section: people, a thing with no role and a section with no lines (which is not shown). */
+export const TEST_CREDITS: readonly CreditSection[] = [
+  { titleKey: 'credits.team', lines: [{ name: 'Ada Lovelace' }, { name: 'Alan Turing', roleKey: 'credits.roleSound' }] },
+  { titleKey: 'credits.sound', lines: [] },
+  { titleKey: 'credits.software', lines: [{ name: 'PixiJS', roleKey: 'credits.roleRenderer' }] },
+];
+
 /** The data a profile of a game in progress has: some of everything, so a test sees each line. */
 export function profileData(over: Partial<ProfileData> = {}): ProfileData {
   return {
@@ -31,12 +39,13 @@ export function profileData(over: Partial<ProfileData> = {}): ProfileData {
     bottles: { slots: 3, max: 4 },
     bosses: { beaten: [], total: 1 },
     lifeMax: 5,
+    completed: false,
     ...over,
   };
 }
 
 export function slotCard(slot: number, over: Partial<SlotCardView> = {}): SlotCardView {
-  return { slot, state: 'empty', active: false, zoneKey: null, ticks: 0, savedAt: 0, ...over };
+  return { slot, state: 'empty', active: false, zoneKey: null, ticks: 0, savedAt: 0, completed: false, ...over };
 }
 
 /** What a host of the saved-games screen was asked, in order, and what each ask answers (change `answers` to make one fail). */
@@ -132,6 +141,8 @@ export interface PauseProbe {
   map: { scene: MapScene; asked: number };
   /** The sounds the menu asked for, in order. */
   sounds: string[];
+  /** The clock the closing of the adventure sees (its buttons wait a moment after it opens: a test moves the clock past it). */
+  clock: { now: number };
 }
 
 /** A whole host for the pause menu: settings, saved games, profile and resume, recording what it is asked. */
@@ -142,12 +153,14 @@ export function pauseProbe(over: { playground?: boolean } = {}): PauseProbe {
   const map = { scene: shippedScene(['r1_gate']), asked: 0 };
   const calls = settings.calls;
   const sounds: string[] = [];
+  const clock = { now: 1000 };
   return {
     host: {
       settings: settings.host,
       saves: over.playground ? null : saves.host,
       profile: () => profile.data,
       map: () => (map.asked++, map.scene),
+      ending: { credits: TEST_CREDITS, rolls: false, now: () => clock.now },
       resume: () => void calls.push('resume'),
       sound: (kind) => void sounds.push(kind),
     },
@@ -156,5 +169,6 @@ export function pauseProbe(over: { playground?: boolean } = {}): PauseProbe {
     profile,
     map,
     sounds,
+    clock,
   };
 }

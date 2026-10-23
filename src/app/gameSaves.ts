@@ -67,6 +67,8 @@ export interface SlotCard {
   ticks: number;
   /** When it was last written (milliseconds since 1970; 0: not known). */
   savedAt: number;
+  /** The game was taken to the end of the adventure. */
+  completed: boolean;
 }
 
 /** A quiet save is made when the hero has played this long since the last one (30 seconds of simulation), checked this often. */
