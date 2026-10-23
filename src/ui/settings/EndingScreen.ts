@@ -117,6 +117,17 @@ export class EndingScreen {
     return this.rolling;
   }
 
+  /** Do the ways on answer yet? (Not in the first instants: see `ENDING_GRACE_MS`.) */
+  get armed(): boolean {
+    return this.now() >= this.armedAt;
+  }
+
+  /** The credits moved by hand (a pad's stick has no wheel): the roll gives them up, as it does at the first wheel, finger or key. */
+  scrollBy(dy: number): void {
+    this.stopRolling();
+    this.body.scrollTop += dy;
+  }
+
   /** Shows the closing with the game as it is NOW, the credits at their start. */
   open(): void {
     this.render();
@@ -184,7 +195,7 @@ export class EndingScreen {
     b.className = 'settings-button';
     b.dataset['testid'] = testid;
     onPress(this.store, b, () => {
-      if (this.now() >= this.armedAt) run();
+      if (this.armed) run();
     });
     return b;
   }

@@ -30,7 +30,7 @@ export function mapCss(): string {
 .map-stub { stroke:${rgba(PALETTE.energyCore, 0.65)}; stroke-width:2.2px; stroke-dasharray:3 4; vector-effect:non-scaling-stroke; }
 .map-stub[data-state="locked"] { stroke:${rgba(PALETTE.violetCore, 0.85)}; }
 .map-name { fill:${white}; font:600 12px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; letter-spacing:0.05em; paint-order:stroke; stroke:${rgba(PALETTE.worldVoid, 0.9)}; stroke-width:3px; pointer-events:none; }
-.map-region { fill:${rgba(PALETTE.energyCore, 0.78)}; font:500 10.5px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; letter-spacing:0.22em; text-transform:uppercase; paint-order:stroke; stroke:${rgba(PALETTE.worldVoid, 0.9)}; stroke-width:3px; pointer-events:none; }
+.map-region { fill:${rgba(PALETTE.energyCore, 0.78)}; font:500 11px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; letter-spacing:0.22em; text-transform:uppercase; paint-order:stroke; stroke:${rgba(PALETTE.worldVoid, 0.9)}; stroke-width:3px; pointer-events:none; }
 .map-door { color:${core}; }
 .map-door[data-state="locked"] { color:${violet}; }
 .map-door-dot { fill:${core}; }
@@ -51,6 +51,8 @@ export function mapCss(): string {
 .map-key { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
 .map-key svg { flex:none; }
 .map-key-rest { color:${glow}; } .map-key-boss, .map-key-seal, .map-key-lock { color:${violet}; } .map-key-hero { color:${white}; }
+/* the violet of the marks is too dark to be READ on the black of the legend (4.2 : 1 at this size): the words are the lighter violet of the same family, the marks keep theirs */
+.map-key-boss > span, .map-key-seal > span, .map-key-lock > span { color:${violetGlow}; }
 .map-key-hero i { display:block; width:12px; height:12px; box-sizing:border-box; border-radius:50%; border:1.6px solid ${glow}; background:radial-gradient(circle, ${white} 0 30%, ${rgba(PALETTE.energyGlow, 0.2)} 31%); }
 `;
 }

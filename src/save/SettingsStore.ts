@@ -23,6 +23,8 @@ export interface SettingsStoreOptions {
   key?: string;
   /** Where problems are reported (never thrown): the platform wires it to the log. */
   warn?: (message: string) => void;
+  /** The settings of a player who has not chosen anything yet (the platform's own: what the system asks for). Never applied over what was saved. */
+  defaults?: () => SettingsData;
 }
 
 /**
@@ -34,8 +36,10 @@ export class SettingsStore {
   readonly changed: Observable<Readonly<SettingsData>>;
   private state: SettingsData = defaultSettings();
   private readonly safe: SafeStore<SettingsData>;
+  private readonly defaults: () => SettingsData;
 
   constructor(storage: StorageAdapter, options: SettingsStoreOptions = {}) {
+    this.defaults = options.defaults ?? defaultSettings;
     this.safe = new SafeStore(storage, { key: options.key ?? 'troid.settings', label: 'settings', parse: parseSettings, ...(options.warn ? { warn: options.warn } : {}) });
     this.changed = new Observable<Readonly<SettingsData>>(this.state);
   }
@@ -46,7 +50,7 @@ export class SettingsStore {
 
   /** Reads what is saved. Resolves to the settings now in force; never rejects. */
   async load(): Promise<Readonly<SettingsData>> {
-    return this.adopt((await this.safe.load()) ?? defaultSettings());
+    return this.adopt((await this.safe.load()) ?? this.defaults());
   }
 
   /** Applies a change at once (the interface follows it) and saves it. Resolves to whether it reached the storage. */

@@ -8,10 +8,12 @@ import type { Translator } from '@/i18n/translator';
 import { EMPTY_SCENE, type MapScene } from '@/world/worldMap';
 import { MapView } from '../map/MapView';
 import { mapIconSvg } from '../map/mapIcons';
+import { ZOOM_STEP } from '../map/viewport';
 import { EndingScreen } from './EndingScreen';
 import { createMenuIcon, type MenuIconId } from './menuIcons';
 import { formatClock } from './menuFormat';
 import { ensureMenuStyle } from './menuStyle';
+import { neighbour, PAD_SETTLE, PadStepper, sliderStep, type PadDirection, type PadReading } from './padNav';
 import { ProfileScreen } from './ProfileScreen';
 import { SavesScreen, type SavesHost } from './SavesScreen';
 import { SettingsMenu, type SettingsMenuHost } from './SettingsMenu';
@@ -89,6 +91,7 @@ export class PauseMenu {
   readonly root: HTMLDivElement;
   private readonly store = new DisposableStore();
   private readonly title: HTMLElement;
+  private readonly side: HTMLElement;
   private readonly entries = new Map<Entry['id'], HTMLButtonElement>();
   private readonly stage: HTMLElement;
   private readonly mapPanel: HTMLElement;
@@ -102,6 +105,11 @@ export class PauseMenu {
   private current: PauseScreen | null = null;
   /** The entry the player came from, so the focus returns to it. */
   private lastEntry: Entry['id'] = 'resume';
+  private readonly stepper = new PadStepper();
+  /** When the pad starts to be heard after the menu opened (`null`: it has not been looked at yet). */
+  private padFrom: number | null = null;
+  /** The entry of the column the pad last moved from. */
+  private padEntry: Entry['id'] | null = null;
 
   constructor(
     parent: HTMLElement,
@@ -143,6 +151,7 @@ export class PauseMenu {
     const body = doc.createElement('div');
     body.className = 'pm-map-body';
     this.map = new MapView(body, translator);
+    this.map.root.dataset['padStop'] = ''; // the pad reaches the map as one thing: its stick moves it
     const foot = doc.createElement('footer');
     foot.className = 'pm-map-foot';
     foot.dataset['testid'] = 'pause-map-legend';
@@ -163,6 +172,7 @@ export class PauseMenu {
 
     // ---- the column of options
     const side = doc.createElement('nav');
+    this.side = side;
     side.className = 'pm-side';
     side.dataset['testid'] = 'pause-side';
     this.title = doc.createElement('h2');
@@ -189,6 +199,8 @@ export class PauseMenu {
     this.root.appendChild(frame);
     parent.appendChild(this.root);
     listen(this.store, side, 'keydown', (e) => this.onListKey(e));
+    // the focus is drawn for the pad even where the browser would not (a mouse used a moment ago): until a finger or a mouse touches the menu again
+    listen(this.store, this.root, 'pointerdown', () => delete this.root.dataset['pad']);
     // the sound of the whole menu, from its root: every screen is a child of it, so none of them has to know there is sound (the handlers of the controls run first — they bubble up to this — so a switch is read as it was left)
     listen(this.store, this.root, 'click', (e) => this.pressed(e));
     listen(this.store, this.root, 'input', (e) => {
@@ -215,6 +227,9 @@ export class PauseMenu {
   /** Shows the menu on the map, with the game as it is NOW and the map seen as it opens (everything discovered, or the hero's surroundings) — or, when the game asks, on the closing of the adventure. */
   open(screen: PauseScreen = 'main'): void {
     this.lastEntry = 'resume';
+    this.padFrom = null;
+    this.padEntry = null;
+    this.stepper.reset();
     this.root.dataset['open'] = '1';
     this.show(screen, true);
   }
@@ -226,6 +241,7 @@ export class PauseMenu {
     this.hideScreens();
     this.current = null;
     this.root.dataset['open'] = '0';
+    delete this.root.dataset['pad'];
     (this.root.ownerDocument.activeElement as HTMLElement | null)?.blur?.();
   }
 
@@ -254,6 +270,113 @@ export class PauseMenu {
     this.map.dispose();
     for (const s of [this.screens.sound, this.screens.settings, this.screens.controls, this.screens.saves, this.screens.profile, this.screens.ending]) s?.dispose();
     this.root.remove();
+  }
+
+  /**
+   * THE PAD IN THE MENU (docs/PROMPT20-LOG.md): the stick or the D-pad goes to the nearest control in a direction (the two panels and the rows of a screen are crossed as a console's menus are), A presses what has the
+   * focus, B steps back, and on the map the stick moves it, A centres it on the hero and X and Y bring it closer and farther; on a slider left and right are its own. Answers `'back'` when the player asked to go back one
+   * step — the page does it (a screen to the map, the map to the game), the same as for the pause key. It listens only while the last thing the player used was the pad, never in the first moments after the menu opens
+   * (a press made for the game must not press the first thing here), and never presses the ways on of the closing of the adventure before they answer.
+   */
+  pad(f: PadReading, now: number): 'back' | null {
+    if (f.device !== 'gamepad' || this.current === null || !this.isOpen) return null;
+    this.padFrom ??= now + PAD_SETTLE;
+    const dir = this.stepper.step(f.move.x, f.move.y, now); // (read even while it waits: a direction held as the menu opened is not a step when it starts to listen)
+    if (now < this.padFrom) return null;
+    if (this.root.dataset['aside'] === '1') return f.dashPressed ? 'back' : null; // the editor of the touch buttons has the screen: only the way out of it
+    const at = this.padFocused();
+    if (f.dashPressed) return this.padCancel(at);
+    if (f.jumpPressed) this.padConfirm(at);
+    if (this.current === 'main' && (f.attackPressed || f.abilityPressed)) {
+      this.root.dataset['pad'] = '1';
+      if (f.attackPressed) this.map.zoomBy(ZOOM_STEP);
+      if (f.abilityPressed) this.map.zoomBy(1 / ZOOM_STEP);
+    }
+    if (dir) this.padStep(dir, at);
+    return null;
+  }
+
+  /** What has the focus in the menu, if anything does (the player may have clicked on nothing, or the focus may have gone with a screen that closed). */
+  private padFocused(): HTMLElement | null {
+    const active = this.root.ownerDocument.activeElement;
+    return active instanceof HTMLElement && this.root.contains(active) ? active : null;
+  }
+
+  /** The controls a pad can reach now: those of the screen being shown (the map is one) and the column. */
+  private padControls(): HTMLElement[] {
+    const surface = this.current === 'main' ? this.map.root : this.current ? this.screens[this.current]?.root : undefined;
+    const found: HTMLElement[] = [];
+    for (const scope of [surface, this.side]) {
+      if (!scope || !reachable(scope, scope)) continue;
+      if (scope === this.map.root) found.push(scope);
+      else for (const el of scope.querySelectorAll<HTMLElement>('button, input[type="range"]')) if (reachable(el, scope)) found.push(el);
+    }
+    return found;
+  }
+
+  private padFocus(el: HTMLElement | undefined): void {
+    if (!el) return;
+    this.root.dataset['pad'] = '1';
+    el.focus({ preventScroll: true });
+    el.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }
+
+  /** The control the focus goes to when it is nowhere, or comes back to from the map: the entry of the column the pad was last on, else the one the player came from. */
+  private padHome(): HTMLElement | undefined {
+    return this.entries.get(this.visible(this.padEntry ?? this.lastEntry));
+  }
+
+  private padStep(dir: PadDirection, at: HTMLElement | null): void {
+    const controls = this.padControls();
+    if (at === null || !controls.includes(at)) return this.padFocus(this.padHome() ?? controls[0]);
+    this.root.dataset['pad'] = '1';
+    const id = at.closest('.pm-side') ? (at.dataset['id'] as Entry['id'] | undefined) : undefined;
+    if (id) this.padEntry = id; // where it left the column from: B on the map comes back there
+    if (at === this.map.root) return this.map.nudge(dir);
+    if (at instanceof HTMLInputElement && at.type === 'range' && (dir === 'left' || dir === 'right')) {
+      // a slider takes the sides as its own, and says it moved the way a hand on it would
+      const value = sliderStep(Number(at.value), Number(at.min || 0), Number(at.max || 100), Number(at.step), dir);
+      if (value !== null) {
+        at.value = String(value);
+        at.dispatchEvent(new Event('input', { bubbles: true }));
+        at.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      return;
+    }
+    const from = at.getBoundingClientRect();
+    const to = neighbour(from, controls.filter((c) => c !== at).map((c) => ({ item: c, box: c.getBoundingClientRect() })), dir);
+    if (to) return this.padFocus(to);
+    // nothing that way: a screen taller than its window scrolls
+    if (dir === 'up' || dir === 'down') this.padScroll(dir === 'down' ? 1 : -1);
+  }
+
+  private padScroll(sign: 1 | -1): void {
+    const screen = this.current === null || this.current === 'main' ? undefined : this.screens[this.current];
+    const body = screen?.root.querySelector<HTMLElement>('.settings-body');
+    if (!body || !screen) return;
+    const dy = sign * Math.max(40, body.clientHeight * 0.6);
+    if (screen instanceof EndingScreen) screen.scrollBy(dy);
+    else body.scrollTop += dy;
+  }
+
+  private padConfirm(at: HTMLElement | null): void {
+    const controls = this.padControls();
+    if (at === null || !controls.includes(at)) return this.padFocus(this.padHome() ?? controls[0]);
+    this.root.dataset['pad'] = '1';
+    if (at === this.map.root) this.map.recentre();
+    else if (at instanceof HTMLButtonElement) at.click();
+  }
+
+  private padCancel(at: HTMLElement | null): 'back' | null {
+    this.root.dataset['pad'] = '1';
+    // from the map the column is one step back: Escape on the keyboard leaves the map for the game, but a pad has the column to go to
+    if (this.current === 'main' && at === this.map.root) {
+      this.padFocus(this.padHome());
+      return null;
+    }
+    // the closing of the adventure does not answer a button that was pressed for the game in its first instants
+    if (this.current === 'ending' && !this.screens.ending?.armed) return null;
+    return 'back';
   }
 
   // ----------------------------------------------------------------------------------------------- internals
@@ -388,4 +511,15 @@ export class PauseMenu {
       }),
     );
   }
+}
+
+/** Is a control on the screen, and one a hand can press: not disabled, and neither it nor anything between it and `within` is hidden. */
+function reachable(el: HTMLElement, within: HTMLElement): boolean {
+  if ((el as HTMLButtonElement | HTMLInputElement).disabled) return false;
+  const view = el.ownerDocument.defaultView;
+  for (let n: HTMLElement | null = el; n; n = n.parentElement) {
+    if (n.hidden || view?.getComputedStyle(n).display === 'none') return false;
+    if (n === within) break;
+  }
+  return true;
 }

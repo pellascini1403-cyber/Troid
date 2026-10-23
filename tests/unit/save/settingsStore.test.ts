@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultSettings, serializeSettings } from '@/save/SettingsData';
+import { defaultsFor, defaultSettings, serializeSettings } from '@/save/SettingsData';
 import { SettingsStore } from '@/save/SettingsStore';
 import { MemoryStorage } from '@/save/StorageAdapter';
 import { FlakyStorage } from '../../helpers/storage';
@@ -24,6 +24,33 @@ describe('loading', () => {
     const store = new SettingsStore(storage);
     expect(await store.load()).toEqual(defaultSettings());
     expect(storage.keys()).toEqual([]);
+  });
+
+  it('a player who has chosen nothing gets what the system asks for — a system that wants less motion: no camera shake, no flashes — and nothing is written for it', async () => {
+    const storage = new MemoryStorage();
+    const store = new SettingsStore(storage, { defaults: () => defaultsFor({ reducedMotion: true }) });
+    const s = await store.load();
+    expect(s.accessibility).toEqual({ reduceFlashes: true, reduceShake: true, hudScale: 1 });
+    expect(storage.keys()).toEqual([]);
+    expect(defaultsFor({ reducedMotion: false })).toEqual(defaultSettings());
+  });
+
+  it('…but never over what the player saved: a game that was set to flash and shake stays so on a system that asks for less', async () => {
+    const storage = new MemoryStorage();
+    await storage.set(KEY, serializeSettings({ ...defaultSettings(), language: 'es', accessibility: { reduceFlashes: false, reduceShake: false, hudScale: 1.2 } }));
+    const store = new SettingsStore(storage, { defaults: () => defaultsFor({ reducedMotion: true }) });
+    const s = await store.load();
+    expect(s.accessibility).toEqual({ reduceFlashes: false, reduceShake: false, hudScale: 1.2 });
+    expect(s.language).toBe('es');
+  });
+
+  it('…and a file that cannot be read is the system\'s defaults (the unreadable one is kept aside, as ever), not the plain ones', async () => {
+    const storage = new MemoryStorage();
+    await storage.set(KEY, '{"version":');
+    const w = warnings();
+    const store = new SettingsStore(storage, { warn: w.warn, defaults: () => defaultsFor({ reducedMotion: true }) });
+    expect((await store.load()).accessibility.reduceShake).toBe(true);
+    expect(await storage.get(`${KEY}.corrupt`)).toBe('{"version":');
   });
 
   it('a saved value is the one in force', async () => {

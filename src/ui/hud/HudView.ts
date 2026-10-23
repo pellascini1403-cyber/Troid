@@ -7,7 +7,7 @@ import { placeBar } from './barLayout';
 import type { Insets } from '../touch/layout';
 import { NO_INSETS } from '../touch/layout';
 import type { BarState, HudState } from './HudModel';
-import { computeHudLayout, HUD_DESIGN, type HudLayout } from './layout';
+import { computeHudLayout, HUD_DESIGN, hudBottom, type HudLayout } from './layout';
 
 /** How the HUD tells the touch layer that a finger touched a bottle (the touch source owns every finger). */
 export interface HudPointerSink {
@@ -149,6 +149,11 @@ export class HudView {
   /** The block as laid out right now (the tests and the E2E read it). */
   get current(): Readonly<HudLayout> {
     return this.layout;
+  }
+
+  /** Where the HUD ends on the screen (px), the touch areas of its bottles included: what is put under it goes below this. */
+  get bottom(): number {
+    return hudBottom(this.layout);
   }
 
   /** Places the HUD for a window of `width × height` css px with the given safe insets. Call on start and on every resize. */

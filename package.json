@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "vite",
     "dev:lan": "vite --host",
-    "build": "tsc --noEmit && npm run assets:check && npm run hud:check && vite build",
+    "build": "tsc --noEmit && npm run assets:check && npm run hud:check && npm run licenses:check && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -27,6 +27,8 @@
     "art:build": "tsx tools/art/build.ts",
     "hud:cut": "tsx tools/hud/cli.ts",
     "hud:check": "tsx tools/hud/cli.ts --check",
+    "licenses": "tsx tools/licenses.ts",
+    "licenses:check": "tsx tools/licenses.ts --check",
     "audio:build": "tsx tools/audio/cli.ts build",
     "audio:spec": "tsx tools/audio/cli.ts spec",
     "audio:balance": "tsx tools/audio/cli.ts balance",

@@ -53,3 +53,13 @@ export function computeHudLayout(width: number, height: number, insets: Readonly
     height: block.height,
   };
 }
+
+/**
+ * Where the HUD ends on the screen (px): the lowest edge of the block or of the touch areas of the bottles, which are taller than the bottles and hang a little below the picture of the block. Whatever is put under
+ * the HUD goes below this, so that it never covers a finger's target.
+ */
+export function hudBottom(layout: Readonly<HudLayout>): number {
+  const hit = HUD_DESIGN.vial.hitH / HUD_DP_PER_PX; // the touch area, in pixels of the canvas
+  const reach = (HUD_PX.bottle.y - HUD_PX.block.y + (HUD_PX.bottle.h + hit) / 2) * HUD_DP_PER_PX; // its lower edge, dp from the top of the block
+  return layout.y + Math.max(layout.height, reach) * layout.scale;
+}

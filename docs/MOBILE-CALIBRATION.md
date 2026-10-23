@@ -259,3 +259,27 @@ El audio se ha verificado **solo en un Chromium 141 sin cabeza** (escena E2E `au
 | Android — *sin medir* | | | | | | | |
 | Android de gama baja — *sin medir* | | | | | | | |
 | Escritorio (Chrome, Firefox, Safari) — *sin medir* | | | | | | | |
+
+## 11. Lo que añadió el Prompt 20 y hay que ver en un dispositivo — **SIN MEDIR**
+
+> Detalle y razones: [PROMPT20-LOG §6, §7](PROMPT20-LOG.md); la lista completa para publicar, con los dispositivos que hacen falta: [PUBLISHING §6.3](PUBLISHING.md#63-comprobaciones-en-dispositivo-lo-que-no-se-ha-podido-hacer).
+
+| Qué | Qué se comprobó (en Chromium, con toques CDP y ventanas emuladas) | Qué mirar en un dispositivo | Qué sería un fallo |
+|---|---|---|---|
+| **El toque que cierra un menú** | un dedo en «Continuar» ya no ataca (los eventos de ratón que el navegador fabrica tras un toque, en los 700 ms siguientes a levantarse el dedo, no son un clic) | tocar «Continuar», «Seguir explorando» y «Jugar así» en un teléfono real, varias veces | el héroe da un espadazo al reanudar |
+| **El aviso de girar el dispositivo** | en un móvil y en una tableta verticales (muesca simulada) queda bajo el HUD, dentro de la zona segura, sin tocar el botón de pausa ni los táctiles; «Jugar así» lo cierra; girar lo cierra; volver a vertical lo repite | sujetar el teléfono en vertical y girarlo: con la muesca real, con la isla dinámica, con un plegable | el aviso tapa el HUD o un botón, no se va al girar, o se queda tras «Jugar así» |
+| **Perder el foco / segundo plano** | `blur` y `visibilitychange` abren la pausa; ninguna tecla ni dedo queda pulsado; el mundo no avanza | llamada entrante, pantalla de bloqueo, cambiar de aplicación, el centro de control de iOS, la sombra de notificaciones de Android | el héroe sigue corriendo al volver, o hay una ráfaga de simulación |
+| **El botón Atrás de Android** | contrato probado con un doble del *plugin* `@capacitor/app` | con la cáscara de Capacitor: Atrás en el juego (abre la pausa), en el mapa, en una pantalla (vuelve al mapa), en el cierre (sigue explorando) | cierra la aplicación |
+| **Guardado nativo** | contrato probado con un doble de `@capacitor/preferences`; el juego comprueba que funciona antes de fiarse | ganar algo, matar la aplicación desde el selector, reabrirla | la partida no está |
+| **Mando Bluetooth en los menús** | un mando abstracto recorre todas las pantallas (alcanzabilidad medida sobre la disposición real a 1280×720 y 844×390) | un mando real: cruceta y stick, A, B, deslizadores, el mapa; desconectarlo en pleno juego | un control inalcanzable, una pulsación doble, el foco perdido |
+| **Legibilidad** | contraste WCAG ≥ 4,5 : 1 y letra ≥ 11 px medidos en 16 pantallas, en los dos idiomas | leer las pantallas a la distancia de un teléfono en exteriores | algo que no se lee |
+| **Audio con el interruptor de silencio de iOS** | no comprobable en este entorno | un iPhone con el interruptor puesto y sin él | silencio con el interruptor puesto (ver PUBLISHING §6.3) |
+
+### Resultados en dispositivo — **SIN MEDIR**
+
+| Dispositivo | Toque que cierra el menú | Aviso de girar | Foco y segundo plano | Atrás | Guardado nativo | Mando | Notas |
+|---|---|---|---|---|---|---|---|
+| iPhone — *sin medir* | | | | — | | | |
+| iPad — *sin medir* | | | | — | | | |
+| Android — *sin medir* | | | | | | | |
+| Android de gama baja — *sin medir* | | | | | | | |

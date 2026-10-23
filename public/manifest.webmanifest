@@ -1,7 +1,7 @@
 {
   "name": "Troid",
   "short_name": "Troid",
-  "description": "Stylized 3D side-scrolling metroidvania",
+  "description": "Troid: a 2D side-scrolling action-exploration metroidvania. / Metroidvania 2D de acción y exploración.",
   "start_url": "./",
   "display": "fullscreen",
   "orientation": "landscape",

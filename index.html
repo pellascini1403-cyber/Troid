@@ -13,6 +13,7 @@
     <link rel="icon" type="image/svg+xml" href="./icon.svg" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <title>Troid</title>
+    <meta name="description" content="Troid: a 2D side-scrolling action-exploration metroidvania. Metroidvania 2D de acción y exploración." />
     <style>
       html,
       body {
@@ -83,17 +84,71 @@
           opacity: 0.6;
         }
       }
+      /* A game that cannot begin (its code does not arrive, no drawing context, a download that never ends) says so on the curtain instead of leaving the page black: <html data-boot> says what happened — "failed" (src/app/curtain.ts, and the
+         listener below when a script does not arrive) or "stalled" (the timer below, when nothing has begun after 20 s) — and the game lifts the curtain as usual if it arrives after all. Plain HTML and CSS: it needs nothing of the game. */
+      #boot-curtain .boot-fail {
+        display: none;
+        max-width: 360px;
+        padding: 0 20px;
+        text-align: center;
+        color: #f7faff;
+      }
+      html[data-boot='failed'] #boot-curtain i,
+      html[data-boot='stalled'] #boot-curtain i {
+        display: none;
+      }
+      html[data-boot='failed'] #boot-curtain .boot-fail,
+      html[data-boot='stalled'] #boot-curtain .boot-fail {
+        display: block;
+      }
+      html[data-ui='es'] .boot-fail [lang='en'],
+      html:not([data-ui='es']) .boot-fail [lang='es'] {
+        display: none;
+      }
+      .boot-msg {
+        margin: 0 0 16px;
+        font-size: 15px;
+        line-height: 1.45;
+        opacity: 0.9;
+      }
+      .boot-retry {
+        min-height: 44px;
+        padding: 0 22px;
+        font: inherit;
+        color: #f7faff;
+        background: #0b1220;
+        border: 1px solid #c1f0fc;
+        border-radius: 6px;
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>
     <div id="app"></div>
     <div id="ui"></div>
-    <div id="boot-curtain" aria-hidden="true"><i></i></div>
+    <div id="boot-curtain">
+      <i aria-hidden="true"></i>
+      <div class="boot-fail" role="alert">
+        <p class="boot-msg" lang="en">Troid could not start. Check your connection and that your browser supports WebGL, then try again.</p>
+        <p class="boot-msg" lang="es">No se ha podido iniciar Troid. Comprueba la conexi&oacute;n y que tu navegador admita WebGL, y vuelve a intentarlo.</p>
+        <button type="button" class="boot-retry" onclick="location.reload()"><span lang="en">Try again</span><span lang="es">Reintentar</span></button>
+      </div>
+    </div>
     <script>
-      // Whatever happens to the game (a script that never arrives, a download that hangs), the player is never kept behind the curtain for good.
+      // The language of what the page can say before the game exists (or when it cannot begin at all).
+      document.documentElement.dataset.ui = /^es/i.test(navigator.language || '') ? 'es' : 'en';
+      // A script of the game that does not arrive (offline, a file gone) is said at once, not after 20 s…
+      addEventListener(
+        'error',
+        function (e) {
+          if (e.target && e.target.tagName === 'SCRIPT' && !document.documentElement.dataset.boot) document.documentElement.dataset.boot = 'failed';
+        },
+        true,
+      );
+      // …and whatever else happens to the game (a download that hangs), the player is never kept behind a curtain that says nothing: when nothing has begun after 20 s the curtain says so — and the game lifts it as usual
+      // if it arrives after all.
       setTimeout(function () {
-        var c = document.getElementById('boot-curtain');
-        if (c) c.remove();
+        if (document.getElementById('boot-curtain') && !document.documentElement.dataset.boot) document.documentElement.dataset.boot = 'stalled';
       }, 20000);
     </script>
     <script type="module" src="/src/app/main.ts"></script>

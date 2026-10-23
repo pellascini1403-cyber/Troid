@@ -1,8 +1,12 @@
+import { existsSync } from 'node:fs';
 import { chromium, type Browser, type BrowserContext, type Page, type ConsoleMessage } from 'playwright-core';
 import { createServer, preview, type PreviewServer, type ViteDevServer } from 'vite';
 
-/** Chromium preinstalled in the cloud container (override with TROID_CHROMIUM). */
-export const CHROMIUM_PATH = process.env.TROID_CHROMIUM ?? '/opt/pw-browsers/chromium';
+/**
+ * The Chromium to drive: `TROID_CHROMIUM` when it is set; the one preinstalled in the cloud container when it is there; else the one Playwright installed (`npx playwright-core install chromium`, which is what
+ * the CI job does) — `undefined` lets `chromium.launch` find it.
+ */
+export const CHROMIUM_PATH: string | undefined = process.env.TROID_CHROMIUM ?? (existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined);
 
 export interface DevServer {
   url: string;
@@ -34,7 +38,7 @@ export async function startPreview(): Promise<DevServer> {
 
 export async function launchBrowser(): Promise<Browser> {
   return chromium.launch({
-    executablePath: CHROMIUM_PATH,
+    ...(CHROMIUM_PATH ? { executablePath: CHROMIUM_PATH } : {}),
     args: [
       '--use-gl=angle',
       '--use-angle=swiftshader',

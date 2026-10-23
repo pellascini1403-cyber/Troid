@@ -1,3 +1,4 @@
+import { Game2D } from './Game2D';
 import { liftCurtain } from './curtain';
 
 const host = document.getElementById('app');
@@ -35,16 +36,17 @@ if (lab === 'sprites') {
   const { startStressLab } = await import('./labs/stressLab');
   await startStressLab(host, params);
 } else {
-  const { Game2D } = await import('./Game2D');
-  // a game that cannot be made (no WebGL, a broken build) must not stay behind the curtain: the page says what it can
-  const game = await Game2D.create(host, params).catch((err: unknown) => {
-    liftCurtain('failed', true);
-    throw err;
-  });
-  game.start();
+  try {
+    const game = await Game2D.create(host, params);
+    game.start();
 
-  // Hot-reload friendliness: dispose the previous instance so GPU resources and listeners never stack up.
-  if (import.meta.hot) {
-    import.meta.hot.dispose(() => game.dispose());
+    // Hot-reload friendliness: dispose the previous instance so GPU resources and listeners never stack up.
+    if (import.meta.hot) {
+      import.meta.hot.dispose(() => game.dispose());
+    }
+  } catch (err) {
+    // a game that cannot be made (no drawing context at all, a broken build) must not leave the page black: the curtain stays and says so (a script that does not arrive is said by index.html itself)
+    liftCurtain('failed');
+    throw err;
   }
 }

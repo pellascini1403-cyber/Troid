@@ -39,6 +39,7 @@ import type { ProgressData } from '@/save/ProgressData';
 import type { ProgressStore } from '@/save/ProgressStore';
 import type { Inspection } from '@/save/SafeStore';
 import { SaveSlots } from '@/save/SaveSlots';
+import { defaultsFor } from '@/save/SettingsData';
 import { SettingsStore } from '@/save/SettingsStore';
 import type { AccessibilitySettings, TouchSettings } from '@/save/SettingsData';
 import type { LightFrame, LightHero } from '@/presentation/lighting';
@@ -71,6 +72,7 @@ import { TouchControls } from '@/ui/touch/TouchControls';
 import type { Insets } from '@/ui/touch/layout';
 import { listen } from './dom';
 import { isDurable, openStorage } from './storage';
+import type { CapacitorGlobal } from './nativeStorage';
 import { browserPlatform, GameSaves } from './gameSaves';
 import type { DevTools } from './devTools';
 import { GameLoop } from './GameLoop';
@@ -97,6 +99,9 @@ export interface ArrivalRecord {
   outcome: ArrivalOutcome | null;
   indicator: boolean;
 }
+
+/** How many frames in a row may fail before the game gives up (two seconds of them at 60 a second). */
+const FRAME_FAILURES_LIMIT = 120;
 
 /**
  * Composition root of the 2D game (`?view=2d`): wires the deterministic simulation to PixiJS. Nothing here decides
@@ -211,7 +216,8 @@ export class Game2D {
     // what the player chose last time (the language, the volume, the quality, the keys, the touch controls): read before anything is drawn, so the
     // first frame is already right — the quality is the profile the renderer is built with
     const storage = await openStorage();
-    const settings = new SettingsStore(storage, { warn: (message) => log.scope('save').warn(message) });
+    // (a system that asks for less motion gets the camera that does not shake and the effects that do not flash, until the player chooses otherwise)
+    const settings = new SettingsStore(storage, { warn: (message) => log.scope('save').warn(message), defaults: () => defaultsFor({ reducedMotion: typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches }) });
     await settings.load();
     const renderer = await Renderer2D.create({ host, viewHeight: options.camera.viewHeight ?? CAMERA_2D.viewHeight ?? 13.5, quality: settings.value.quality });
     // Sprites load asynchronously (a placeholder atlas is drawn, final art would be fetched), so the game is built only
@@ -539,6 +545,7 @@ export class Game2D {
     this.loop = new GameLoop({
       tick: () => this.tick(),
       frame: (alpha, dt) => this.render(alpha, dt),
+      failed: (error, streak) => this.frameFailed(error, streak),
     });
     this.lifecycle.add(() => this.loop.stop());
     if (options.paused) {
@@ -572,6 +579,24 @@ export class Game2D {
         this.loop.start();
       }
     });
+    // The window loses the focus (another window comes in front, the address bar, a notification): nobody is looking at the hero — it waits at the menu, like a page that went to the background (which lets go of every key and finger as it opens)
+    listen(this.lifecycle, window, 'blur', () => {
+      if (!this.veiled) this.openMenu();
+    });
+    // the pad in use is pulled out (or its battery dies): the source has already let go of everything it held; the game waits instead of leaving the hero standing in a fight
+    listen(this.lifecycle, window, 'gamepaddisconnected', () => {
+      if (this.input.device === 'gamepad' && !this.veiled) this.openMenu();
+    });
+    // inside a native shell (a chunk of its own, fetched only there): the Back button of an Android phone is the pause key, and the app going to the background is the pause
+    const shell = (window as { Capacitor?: CapacitorGlobal }).Capacitor;
+    if (shell) {
+      void import('./nativeApp').then(
+        (m) => {
+          if (!this.closed) this.lifecycle.add(m.attachNativeApp(shell, { back: () => this.toggleMenu(), background: () => !this.veiled && this.openMenu() }));
+        },
+        () => undefined,
+      );
+    }
     this.renderer.resize();
     this.layoutUi();
     // a game that was recovered from its last good copy, one that could not be read, a browser that keeps nothing: the player hears it once, as the game begins
@@ -645,6 +670,14 @@ export class Game2D {
     this.session.tick(frame);
   }
 
+  /** A tick or a frame threw (the loop skipped it and goes on): it is written down — the first of a run and every 60th, not one line a frame — and when `FRAME_FAILURES_LIMIT` in a row have, there is nothing left to try: the game stops and says so. */
+  private frameFailed(error: unknown, streak: number): void {
+    if (streak % 60 === 1) log.scope('app').error(`a frame failed (${streak} in a row): ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
+    if (streak < FRAME_FAILURES_LIMIT) return;
+    this.loop.stop();
+    void import('./crash').then((m) => m.showCrash());
+  }
+
   /** Runs exactly one tick with the current input (debug "step" and E2E tests). */
   stepOnce(): void {
     this.tick();
@@ -659,6 +692,9 @@ export class Game2D {
     o?.prompt.place(width, height, insets, this.touchControls.gestureScale);
     o?.pause.place(width, height, insets, this.touchControls.gestureScale, this.settings.value.accessibility.hudScale);
     o?.notice.place(width, height, insets, this.touchControls.gestureScale, this.settings.value.accessibility.hudScale);
+    // a touch screen held upright (taller than wide): the line that asks to turn it, under the HUD
+    o?.rotate.place(o.hud.bottom, this.touchControls.gestureScale);
+    o?.rotate.want(this.touchControls.isVisible && this.renderer.viewport.aspect < 1);
     this.placeBossBar(width, height, insets);
   }
 
@@ -904,7 +940,8 @@ export class Game2D {
     this.loop.paused = this.debug.get('paused') || this.menuOpen || this.veiled || this.arrival.blocking;
     // the game is paused, so no tick samples the input: the menu watches for the pause key / button itself
     if (this.menuOpen) {
-      if (this.input.sample().pausePressed) this.menuBack();
+      const f = this.input.sample();
+      if (f.pausePressed || this.menu?.pad(f, performance.now()) === 'back') this.menuBack();
     } else if (this.arrival.blocking || this.veiled) {
       // …and so does a world that is held (at the black of a change of zone, behind the boot curtain): no tick runs, so nobody would see the pause key — only that press is taken, the rest wait for the ticks
       const pressed = this.input.takePause();

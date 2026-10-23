@@ -127,4 +127,108 @@ describe('GameLoop', () => {
     driver.frame(16);
     expect(driver.active).toBe(0);
   });
+
+  describe('a frame that throws (docs/PROMPT20-LOG.md)', () => {
+    /** A loop whose tick or frame throws while `broken.on` is set, and a record of what the loop told. */
+    function broken(where: 'tick' | 'frame', withHook = true) {
+      const driver = new ManualDriver();
+      const seen = { ticks: 0, frames: 0, failures: [] as Array<{ error: unknown; streak: number }> };
+      const state = { on: false };
+      const loop = new GameLoop(
+        {
+          tick: () => {
+            seen.ticks++;
+            if (state.on && where === 'tick') throw new Error('tick broke');
+          },
+          frame: () => {
+            seen.frames++;
+            if (state.on && where === 'frame') throw new Error('frame broke');
+          },
+          ...(withHook ? { failed: (error: unknown, streak: number) => void seen.failures.push({ error, streak }) } : {}),
+        },
+        undefined,
+        driver,
+      );
+      return { driver, seen, state, loop };
+    }
+
+    for (const where of ['tick', 'frame'] as const) {
+      it(`a ${where} that throws is skipped: the next frame is asked for, and the loop goes on`, () => {
+        const { driver, seen, state, loop } = broken(where);
+        loop.start();
+        driver.frame(0);
+        state.on = true;
+        driver.frame(16.667);
+        expect(driver.active, 'the next frame was requested').toBe(1);
+        expect(loop.isRunning).toBe(true);
+        expect(seen.failures).toHaveLength(1);
+        expect((seen.failures[0]!.error as Error).message).toBe(`${where} broke`);
+        state.on = false;
+        const before = seen.frames;
+        driver.frame(16.667);
+        driver.frame(16.667);
+        expect(seen.frames, 'frames are drawn again').toBeGreaterThan(before);
+      });
+    }
+
+    it('counts the frames that fail in a row and starts again from one after a good one', () => {
+      const { driver, seen, state, loop } = broken('frame');
+      loop.start();
+      driver.frame(0);
+      state.on = true;
+      for (let i = 0; i < 4; i++) driver.frame(16.667);
+      expect(seen.failures.map((f) => f.streak)).toEqual([1, 2, 3, 4]);
+      state.on = false;
+      driver.frame(16.667);
+      state.on = true;
+      driver.frame(16.667);
+      expect(seen.failures.at(-1)!.streak, 'a good frame in between starts the count again').toBe(1);
+    });
+
+    it('whoever is told can stop the loop: it asks for no more frames then', () => {
+      const driver = new ManualDriver();
+      let loop!: GameLoop;
+      let told = 0;
+      loop = new GameLoop(
+        {
+          tick: () => undefined,
+          frame: () => {
+            throw new Error('always');
+          },
+          failed: (_error, streak) => {
+            told = streak;
+            if (streak >= 3) loop.stop();
+          },
+        },
+        undefined,
+        driver,
+      );
+      loop.start();
+      for (let i = 0; i < 3; i++) driver.frame(16.667);
+      expect(told).toBe(3);
+      expect(loop.isRunning).toBe(false);
+      expect(driver.active, 'and there is no frame left asked for').toBe(0);
+    });
+
+    it('the time a failed frame owed is not paid back in a burst by the next one', () => {
+      const { driver, seen, state, loop } = broken('tick');
+      loop.start();
+      driver.frame(0);
+      state.on = true;
+      driver.frame(200); // a long frame whose ticks throw
+      state.on = false;
+      const ticks = seen.ticks;
+      driver.frame(16.667);
+      expect(seen.ticks - ticks, 'one tick for one frame, not the backlog of the failed one').toBeLessThanOrEqual(1);
+    });
+
+    it('without anyone to tell, the error is not swallowed: it reaches the browser — after the next frame was asked for', () => {
+      const { driver, state, loop } = broken('frame', false);
+      loop.start();
+      driver.frame(0);
+      state.on = true;
+      expect(() => driver.frame(16.667)).toThrow('frame broke');
+      expect(driver.active, 'the loop did not die of it').toBe(1);
+    });
+  });
 });

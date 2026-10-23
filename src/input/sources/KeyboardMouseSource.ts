@@ -6,6 +6,8 @@ import type { InputManager } from '../InputManager';
 
 const SOURCE = 'keyboard';
 const MOUSE = 'mouse';
+/** How long after a finger lifts a mouse press is still the echo of its tap (the browser makes it within a few milliseconds; this is the margin for a busy page). */
+export const TOUCH_ECHO_MS = 700;
 
 /** True when the event came from UI that handles its own pointer input (event targets may be window/document). */
 function fromBlockedUi(target: EventTarget | null): boolean {
@@ -65,7 +67,12 @@ export function attachKeyboardMouse(
     const b = bindings().mouse;
     return ACTIONS.filter((a) => b[a]?.includes(button));
   };
+  // A tap is followed by MOUSE events — mousedown, mouseup, click — that the browser makes after the finger lifts, at whatever is under it THEN. When what was tapped has just gone (the pause menu's "Continue", a notice's
+  // "Play anyway"), that is the game: a tap that closes a menu would be a sword stroke. A mouse press right after a finger or a pen lifted is that echo, not a player's click.
+  let touchedAt = Number.NEGATIVE_INFINITY;
+  listen(store, target, 'pointerup', (e) => void (e.pointerType !== 'mouse' && (touchedAt = e.timeStamp)), { capture: true });
   listen(store, target, 'mousedown', (e) => {
+    if (e.timeStamp - touchedAt < TOUCH_ECHO_MS) return;
     const actions = mouseActions(e.button);
     if (actions.length === 0) return;
     // Only game-surface clicks: UI buttons / the debug panel keep their own mouse handling.

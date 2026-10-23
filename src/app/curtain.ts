@@ -4,7 +4,8 @@
  * waiting for it costs the cold start nothing (the first JavaScript is the same); what it buys is a first picture that is the game's.
  *
  * It is DOM only (no Pixi, no simulation) and it can never hold the player: it lifts when the art is in, when there is no art to wait for, when the art fails, after `CURTAIN_TIMEOUT_MS` whatever happens, and a
- * test, a lab or a paused page never has one. What lifted it is left on the page (`<html data-boot="…">`) for whoever must check.
+ * test, a lab or a paused page never has one. What lifted it is left on the page (`<html data-boot="…">`) for whoever must check. The one thing it does not do is lift for a game that could not begin: then it stays, and
+ * says so (`failed`; and `stalled`, which the page's own inline script sets when nothing has begun after 20 s and the game lifts as usual if it arrives after all).
  */
 
 export const CURTAIN_ID = 'boot-curtain';
@@ -36,6 +37,11 @@ export function liftCurtain(reason: CurtainReason, instant = false, doc: Documen
   const el = doc.getElementById(CURTAIN_ID);
   if (!el || el.dataset['state'] === 'lifting') return false;
   doc.documentElement.dataset['boot'] = reason;
+  if (reason === 'failed') {
+    // the game could not begin: the curtain stays, carrying what the page says of it (index.html) — a black page that says nothing is the worst way to fail
+    el.dataset['state'] = 'failed';
+    return true;
+  }
   if (instant) {
     el.remove();
     return true;

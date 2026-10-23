@@ -4,7 +4,7 @@ import { DisposableStore } from '@/core/lifecycle';
 import { InputManager } from '@/input/InputManager';
 import { DEFAULT_BINDINGS, type Bindings } from '@/input/bindings';
 import { applyKeyMap, assignKey, type KeyMap } from '@/input/remap';
-import { attachKeyboardMouse } from '@/input/sources/KeyboardMouseSource';
+import { attachKeyboardMouse, TOUCH_ECHO_MS } from '@/input/sources/KeyboardMouseSource';
 
 const key = (type: 'keydown' | 'keyup', code: string, init: KeyboardEventInit = {}) => {
   const e = new KeyboardEvent(type, { code, bubbles: true, cancelable: true, ...init });
@@ -64,6 +64,33 @@ describe('keyboard + mouse source', () => {
     const ctx = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
     window.dispatchEvent(ctx);
     expect(ctx.defaultPrevented).toBe(true);
+  });
+
+  it('the mouse events a tap leaves behind are not a click on the game: a tap that closes a menu is not a sword stroke', () => {
+    // the browser makes mousedown / mouseup / click after the finger lifts, at what is under it by then — the game, when the button that was tapped has just closed its menu
+    const at = (type: string, init: MouseEventInit | PointerEventInit, timeStamp: number): Event => {
+      const e = type.startsWith('pointer') ? new PointerEvent(type, { bubbles: true, ...init }) : new MouseEvent(type, { bubbles: true, ...init });
+      Object.defineProperty(e, 'timeStamp', { value: timeStamp });
+      window.dispatchEvent(e);
+      return e;
+    };
+    for (const pointerType of ['touch', 'pen']) {
+      at('pointerup', { pointerType }, 1000);
+      at('mousedown', { button: 0 }, 1004);
+      at('mouseup', { button: 0 }, 1005);
+      expect(input.sample().attackPressed, `${pointerType}: the echo of a tap`).toBe(false);
+      expect(input.isHeld('attack')).toBe(false);
+    }
+    // a real click, later, is a click
+    at('pointerup', { pointerType: 'touch' }, 2000);
+    at('mousedown', { button: 0 }, 2000 + TOUCH_ECHO_MS + 1);
+    expect(input.sample().attackPressed).toBe(true);
+    at('mouseup', { button: 0 }, 2000 + TOUCH_ECHO_MS + 40);
+    // a mouse's own pointer events never count as a tap (a click has pointerup too)
+    at('pointerup', { pointerType: 'mouse' }, 5000);
+    at('mousedown', { button: 0 }, 5001);
+    expect(input.sample().attackPressed).toBe(true);
+    at('mouseup', { button: 0 }, 5050);
   });
 
   it('clicks on UI marked data-ui-block never reach the game', () => {

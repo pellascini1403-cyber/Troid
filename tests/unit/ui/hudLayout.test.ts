@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { uiScale } from '@/input/gestures/TouchConfig';
 import { HUD_BLOCK_DP, HUD_DP_PER_PX, HUD_PX } from '@/ui/hud/artGeometry';
-import { computeHudLayout, HUD_DESIGN, hudBlockSize } from '@/ui/hud/layout';
+import { computeHudLayout, HUD_DESIGN, hudBlockSize, hudBottom } from '@/ui/hud/layout';
 import { computeTouchLayout, type Insets, NO_INSETS } from '@/ui/touch/layout';
 
 /**
@@ -116,5 +116,24 @@ describe('hud placement', () => {
   it('a degenerate window does not give NaN', () => {
     const l = computeHudLayout(0, 0);
     expect(Number.isFinite(l.x) && Number.isFinite(l.y) && Number.isFinite(l.scale)).toBe(true);
+  });
+});
+
+describe('where the HUD ends', () => {
+  it('is below the block — the bottles\' touch areas hang under the picture — and moves with the scale and the safe area', () => {
+    for (const [name, w, h] of SCREENS) {
+      for (const [inset, insets] of INSETS) {
+        const l = computeHudLayout(w, h, insets);
+        const bottom = hudBottom(l);
+        expect(bottom, `${name} · ${inset}`).toBeGreaterThan(l.y + l.height * l.scale);
+        // …by what the touch area is taller than the bottle's picture, each side of it: a few dp
+        expect((bottom - l.y) / l.scale - l.height, `${name} · ${inset}`).toBeLessThan(HUD_DESIGN.vial.hitH);
+      }
+    }
+    const small = computeHudLayout(844, 390);
+    const big = computeHudLayout(844, 390, NO_INSETS, 1.5);
+    expect(hudBottom(big)).toBeGreaterThan(hudBottom(small));
+    const notch = computeHudLayout(390, 844, { top: 47, right: 0, bottom: 34, left: 0 });
+    expect(hudBottom(notch) - hudBottom(computeHudLayout(390, 844))).toBeCloseTo(47, 6);
   });
 });

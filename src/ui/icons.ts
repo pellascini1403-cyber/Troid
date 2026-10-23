@@ -18,6 +18,8 @@ export const ICONS = {
   bottle: [{ d: 'M-3 -10 L3 -10 M-2.5 -10 L-2.5 -6 L-7 0 L-7 8 Q-7 11 -4 11 L4 11 Q7 11 7 8 L7 0 L2.5 -6 L2.5 -10', width: 1.9 }],
   /** The pause / settings entry: two bars. */
   pause: [{ d: 'M-4 -8 V8', width: 3 }, { d: 'M4 -8 V8', width: 3 }],
+  /** Turn the device: a phone and the arrow that turns it. */
+  rotate: [{ d: 'M-9 -2 H-1 V10 H-9 Z', width: 1.8 }, { d: 'M-1 -6 A8 8 0 0 1 8 -3 M8 -3 L8 -9 M8 -3 L2 -3', width: 1.8 }],
   /** The interaction icons (one per kind of thing, a generic one for the rest): take something, pull a lever, anything else. */
   pickup: [{ d: 'M-6 -9 H6 V9 H-6 Z', width: 1.8 }, { d: 'M0 5 V-3 M-3.5 0 L0 -3.5 L3.5 0', width: 1.8 }],
   activate: [{ d: 'M-8 9 H8', width: 2 }, { d: 'M-1 9 L5 -6', width: 2.2 }, { d: 'M5 -11 L8 -8 L5 -5 L2 -8 Z', fill: true }],

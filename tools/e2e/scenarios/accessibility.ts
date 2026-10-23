@@ -307,6 +307,31 @@ export const accessibility: Scenario = {
     const withChoices = await fight(ctx);
     assert.deepEqual(withChoices, plain, 'the same inputs gave the same fight: position, life, magic, bottles, the dummy, the slime and the clock are identical');
     assert.ok(((plain as { dummies: unknown[][] }).dummies[0]?.[4] as number) > 0, `and it was a fight: the dummy was hit (${JSON.stringify(plain)})`);
-    console.log('  accessibility: no camera shake (and the shake it had stops) · fewer flashes (the white rectangle of the HUD does not stretch and nothing of it blinks, the glow of a vial drunk and the wave of light of a real heal softened, the pulses of the screen, kept across a rebuild of the effects) · interface size (the HUD, the pause button and the touch buttons make way) · saved, kept after a reload, reversible');
+    // ================================================================================================ a system that asks for less motion: the game begins with the camera still and the effects calm — until the player chooses
+    await ctx.open('new=1', { width: 1280, height: 720, dpr: 1 });
+    page = ctx.page;
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.reload();
+    await ready(page);
+    assert.equal(await page.evaluate(`localStorage.getItem(${JSON.stringify(KEY)})`), null, 'nothing was saved for a player who has chosen nothing');
+    assert.equal((await ctx.state()).screen?.calm, true, 'the effects were built with the softened pulses');
+    assert.equal(await attr(page, 'hud', 'data-calm'), '1', 'the HUD does not flash');
+    await hooks(page, 'shake(0.8)');
+    assert.equal((await ctx.state()).trauma, 0, 'the camera does not shake');
+    await openSettings(page);
+    assert.equal(await attr(page, 'settings-flashes', 'aria-checked'), 'true', 'the menu shows both choices on, as the game has them');
+    assert.equal(await attr(page, 'settings-shake', 'aria-checked'), 'true');
+    // the player chooses the other way: that is what is kept, over what the system asked
+    await q(page, 'settings-shake').click();
+    await savedAccessibility(page, (a) => a['reduceShake'] === false && a['reduceFlashes'] === true, 'the choice was saved');
+    await closeMenu(page);
+    await page.reload();
+    await ready(page);
+    await hooks(page, 'shake(0.8)');
+    assert.ok((await ctx.state()).trauma! > 0.7, 'after a reload the camera shakes: the player\'s choice is stronger than the system\'s');
+    assert.equal(await attr(page, 'hud', 'data-calm'), '1', 'while the flashes stay calm, as it was left');
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+
+    console.log('  accessibility: no camera shake (and the shake it had stops) · fewer flashes (the white rectangle of the HUD does not stretch and nothing of it blinks, the glow of a vial drunk and the wave of light of a real heal softened, the pulses of the screen, kept across a rebuild of the effects) · interface size (the HUD, the pause button and the touch buttons make way) · saved, kept after a reload, reversible · a system that asks for less motion starts the game calm, and the player\'s own choice wins');
   },
 };

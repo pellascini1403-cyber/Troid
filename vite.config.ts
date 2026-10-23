@@ -8,6 +8,9 @@ const artIndex = existsSync(fileURLToPath(new URL('./public/art/index.json', imp
 /** The sound the game ships is whatever `npm run audio:build` wrote to `public/audio` (docs/PROMPT18-LOG.md): no index, no sound files — and the game plays with none. */
 const audioIndex = existsSync(fileURLToPath(new URL('./public/audio/index.json', import.meta.url))) ? 'audio/index.json' : '';
 
+/** The game's own sources, as a module id writes the path. */
+const SRC = fileURLToPath(new URL('./src/', import.meta.url)).replaceAll('\\', '/');
+
 export default defineConfig({
   // Relative base: the same build runs from a web server, file:// and inside
   // a Capacitor (iOS / Android) WebView.
@@ -28,5 +31,14 @@ export default defineConfig({
     target: 'es2022',
     sourcemap: true,
     chunkSizeWarningLimit: 900,
+    rolldownOptions: {
+      output: {
+        // Everything the first frame needs lives in ONE file (docs/PROMPT20-LOG.md): the game's own modules that the page imports statically. Left to itself the bundler cuts out of them a chunk for each module that
+        // a lazy chunk (the menu, the overlays, the art…) also uses — three dozen files a cold start fetches, each with its own header and none compressed together: 9 KB gz more than the same code in one.
+        codeSplitting: {
+          groups: [{ name: 'app', tags: ['$initial'], test: (id: string) => id.replaceAll('\\', '/').startsWith(SRC), includeDependenciesRecursively: false }],
+        },
+      },
+    },
   },
 });

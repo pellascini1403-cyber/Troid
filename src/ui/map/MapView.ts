@@ -172,6 +172,15 @@ export class MapView {
     this.setView(panBy(this.current, dx, dy), true);
   }
 
+  /** One step of the view in a direction — the arrow keys' and the pad's: what the player looks at moves that way, so the map goes the other. */
+  nudge(dir: 'left' | 'right' | 'up' | 'down'): void {
+    const { width, height } = this.size;
+    if (dir === 'left') this.panBy(width * PAN_STEP, 0);
+    else if (dir === 'right') this.panBy(-width * PAN_STEP, 0);
+    else if (dir === 'up') this.panBy(0, height * PAN_STEP);
+    else this.panBy(0, -height * PAN_STEP);
+  }
+
   dispose(): void {
     this.store.dispose();
     this.root.remove();
@@ -439,20 +448,18 @@ export class MapView {
 
   private onKey(e: KeyboardEvent): void {
     if (e.altKey || e.ctrlKey || e.metaKey) return;
-    const { width, height } = this.size;
-    const step = PAN_STEP;
     switch (e.key) {
       case 'ArrowLeft':
-        this.panBy(width * step, 0);
+        this.nudge('left');
         break;
       case 'ArrowRight':
-        this.panBy(-width * step, 0);
+        this.nudge('right');
         break;
       case 'ArrowUp':
-        this.panBy(0, height * step);
+        this.nudge('up');
         break;
       case 'ArrowDown':
-        this.panBy(0, -height * step);
+        this.nudge('down');
         break;
       case '+':
       case '=':

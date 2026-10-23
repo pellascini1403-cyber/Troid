@@ -52,6 +52,19 @@ describe('the curtain', () => {
     expect(document.documentElement.dataset['boot']).toBe('hooks');
   });
 
+  it('does not lift for a game that could not begin: it stays, marked as failed — it carries what the page says', () => {
+    const el = put();
+    expect(liftCurtain('failed')).toBe(true);
+    expect(el.dataset['state']).toBe('failed');
+    expect(document.documentElement.dataset['boot']).toBe('failed');
+    vi.advanceTimersByTime(CURTAIN_FADE_MS + 5000);
+    expect(document.getElementById(CURTAIN_ID), 'it was not removed by a timer, instantly or otherwise').toBe(el);
+    expect(curtainUp(), 'it is still a curtain that is up').toBe(true);
+    // …and if the game arrives after all, it lifts as ever
+    expect(liftCurtain('art')).toBe(true);
+    expect(el.dataset['state']).toBe('lifting');
+  });
+
   it('is lifted once: the first reason is the one that stays, and lifting what is gone does nothing', () => {
     put();
     expect(liftCurtain('art')).toBe(true);

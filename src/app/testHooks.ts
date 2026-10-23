@@ -119,6 +119,8 @@ export interface HookHost {
   shake(amount: number): void;
   /** The main key of each action as the game has it now. */
   keys(): Record<string, string>;
+  /** The next `n` frames drawn throw (the loop must skip them, say so, and — when they are enough in a row — stop and show the page for a game that cannot go on). */
+  failFrames(n: number): void;
 }
 
 const NO_EFFECTS = { particles: 0, sprites: 0, spawned: 0, dropped: 0, unplayed: 0, peakParticles: 0, poolCreated: 0 };
@@ -191,6 +193,17 @@ function hostOf(game: Game2D, shared: HookShared): HookHost {
     settleCamera: (seconds) => game.settleCamera(seconds),
     keys: () => ({ ...shared.effectiveKeys(game['settings'].value.keys) }),
     shake: (amount) => game['shake'](amount),
+    failFrames: (n) => {
+      const renderer = game['renderer'];
+      const real = renderer.render;
+      let left = n;
+      renderer.render = function (this: typeof renderer) {
+        if (left-- > 0) throw new Error('E2E: a frame that fails');
+        renderer.render = real; // (back to the prototype's own)
+        delete (renderer as { render?: unknown }).render;
+        real.call(this);
+      };
+    },
   };
 }
 
@@ -275,6 +288,8 @@ export function createTestHooks(game: Game2D, shared: HookShared) {
     worldToScreen: (x: number, y: number) => h.renderer.worldToScreen(x, y),
     /** Test hook: the HUD as the model computed it and as laid out (px). */
     hud: () => ({ state: h.hudModel.state, layout: h.hud()?.current ?? null }),
+    /** Test hook: the next `n` frames drawn throw. */
+    failFrames: (n: number) => h.failFrames(n),
     /** Test hook: the abstract gamepad, in the Gamepad API's own terms (+y of the stick is DOWN); `pressed` = held button indices. */
     pad: {
       set: (x: number, y: number, pressed: number[] = []) => {

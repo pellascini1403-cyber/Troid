@@ -1,7 +1,9 @@
+import { OVERLAY_CATALOGS } from '@/i18n/overlayCatalogs';
 import type { Translator } from '@/i18n/translator';
 import { ArrivalIndicator } from '@/ui/overlays/ArrivalIndicator';
 import { HudView, type HudPointerSink } from '@/ui/hud/HudView';
 import { DeathOverlay } from '@/ui/overlays/DeathOverlay';
+import { RotateNotice } from '@/ui/overlays/RotateNotice';
 import { SaveNotice } from '@/ui/overlays/SaveNotice';
 import { TransitionOverlay } from '@/ui/overlays/TransitionOverlay';
 import { InteractionPrompt } from '@/ui/prompt/InteractionPrompt';
@@ -22,6 +24,8 @@ export interface Overlays {
   prompt: InteractionPrompt;
   pause: PauseButton;
   notice: SaveNotice;
+  /** The line that asks the player to turn the device (a touch screen held upright). */
+  rotate: RotateNotice;
 }
 
 /** What the overlays need of the game: where a finger on a bottle icon or on the interaction icon goes, what the pause button does, and the accessibility choices the HUD is made with. */
@@ -34,6 +38,8 @@ export interface OverlayHost {
 }
 
 export function createOverlays(ui: HTMLElement, translator: Translator, host: OverlayHost): Overlays {
+  // its words come with it: the first frame does not carry them
+  for (const [lang, entries] of Object.entries(OVERLAY_CATALOGS)) translator.extend(lang, entries);
   const hud = new HudView(ui, translator, host.hudSink, { size: host.hud.size });
   hud.setCalm(host.hud.calm);
   return {
@@ -44,9 +50,10 @@ export function createOverlays(ui: HTMLElement, translator: Translator, host: Ov
     prompt: new InteractionPrompt(ui, translator, host.promptSink),
     pause: new PauseButton(ui, translator, host.onPause),
     notice: new SaveNotice(ui, translator),
+    rotate: new RotateNotice(ui, translator),
   };
 }
 
 export function disposeOverlays(o: Overlays): void {
-  for (const part of [o.hud, o.death, o.transition, o.arrival, o.prompt, o.pause, o.notice]) part.dispose();
+  for (const part of [o.hud, o.death, o.transition, o.arrival, o.prompt, o.pause, o.notice, o.rotate]) part.dispose();
 }

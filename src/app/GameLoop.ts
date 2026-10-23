@@ -19,6 +19,11 @@ export interface LoopHooks {
    * simulation states (for interpolation); `realDt` is unscaled wall time (camera, VFX, UI).
    */
   frame(alpha: number, realDt: number): void;
+  /**
+   * A tick or a frame threw: `streak` frames in a row have. The loop has skipped it and asks for the next one — a frame that fails is not the end of the game, and a loop that stopped asking would leave the last picture on a
+   * screen that answers nothing. Whoever is told can say it and stop the loop (`stop()`) when it is plain that it will not recover. Without one, the error is left for the browser to report once the next frame is asked for.
+   */
+  failed?(error: unknown, streak: number): void;
 }
 
 /**
@@ -28,6 +33,7 @@ export interface LoopHooks {
  * - `paused` stops ticks but keeps rendering, so menus and camera effects stay alive.
  * - `resetClock()` drops the accumulated time; call it when the page becomes visible again so the
  *   first frame back does not try to simulate the whole time spent in the background.
+ * - A tick or a frame that throws never ends the loop: it is skipped and the next one is asked for (see `LoopHooks.failed`).
  */
 export class GameLoop {
   timeScale = 1;
@@ -37,6 +43,7 @@ export class GameLoop {
   private running = false;
   private last = -1;
   private alpha = 0;
+  private streak = 0;
 
   constructor(
     private readonly hooks: LoopHooks,
@@ -73,11 +80,23 @@ export class GameLoop {
     if (!this.running) return;
     const realDt = this.last < 0 ? 0 : (timeMs - this.last) / 1000;
     this.last = timeMs;
-    if (!this.paused) {
-      this.alpha = this.stepper.advance(realDt * this.timeScale, this.hooks.tick);
+    let failure: { error: unknown } | null = null;
+    try {
+      if (!this.paused) {
+        this.alpha = this.stepper.advance(realDt * this.timeScale, this.hooks.tick);
+      }
+      this.hooks.frame(this.alpha, realDt);
+      this.streak = 0;
+    } catch (error) {
+      // the time this frame owed is dropped, not paid back in a burst once the next one works
+      this.stepper.reset();
+      this.streak++;
+      failure = { error };
     }
-    this.hooks.frame(this.alpha, realDt);
     // The hooks may have called stop(); only keep going if we are still running.
     if (this.running) this.handle = this.driver.request(this.onFrame);
+    if (failure === null) return;
+    if (this.hooks.failed) this.hooks.failed(failure.error, this.streak);
+    else throw failure.error;
   };
 }

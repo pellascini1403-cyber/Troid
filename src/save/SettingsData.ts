@@ -92,6 +92,15 @@ export function defaultSettings(): SettingsData {
   };
 }
 
+/**
+ * What the settings are before the player has chosen anything, on a system that has said what it needs: one that asks for less motion gets the game with the camera that does not shake and the effects that do not flash —
+ * the nearest the game has to what the system asked for, and the player's own choice replaces it the moment they make one. (Settings that were saved are never touched by this.)
+ */
+export function defaultsFor(system: { reducedMotion: boolean }): SettingsData {
+  const base = defaultSettings();
+  return system.reducedMotion ? { ...base, accessibility: { ...base.accessibility, reduceFlashes: true, reduceShake: true } } : base;
+}
+
 /** A position or a size as it is kept: four decimals (a tenth of a pixel on any screen), so what is saved is tidy and what was saved is what comes back. */
 const tidy = (v: number): number => Math.round(v * 1e4) / 1e4;
 

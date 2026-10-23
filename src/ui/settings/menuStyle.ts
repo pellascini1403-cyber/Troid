@@ -61,11 +61,11 @@ function menuCss(): string {
 .troid-pausemenu .pm-map { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; gap:10px; }
 .troid-pausemenu .pm-map[hidden] { display:none; }
 .troid-pausemenu .pm-where { flex:none; display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 22px; }
-.troid-pausemenu .pm-where-head { flex:0 0 100%; font-size:0.68rem; letter-spacing:0.18em; text-transform:uppercase; opacity:0.55; }
+.troid-pausemenu .pm-where-head { flex:0 0 100%; font-size:0.7rem; letter-spacing:0.18em; text-transform:uppercase; opacity:0.55; }
 .troid-pausemenu .pm-zone { font-size:1.2rem; font-weight:300; letter-spacing:0.05em; line-height:1.25; text-shadow:0 0 12px ${core}88; margin-right:auto; }
 .troid-pausemenu .pm-where dl { margin:0; display:flex; flex-wrap:wrap; gap:0 18px; }
 .troid-pausemenu .pm-where dl > * { display:inline; }
-.troid-pausemenu .pm-where dt { display:inline; font-size:0.68rem; letter-spacing:0.18em; text-transform:uppercase; opacity:0.55; margin-right:6px; }
+.troid-pausemenu .pm-where dt { display:inline; font-size:0.7rem; letter-spacing:0.18em; text-transform:uppercase; opacity:0.55; margin-right:6px; }
 .troid-pausemenu .pm-where dd { display:inline; margin:0 12px 0 0; font-size:0.98rem; font-variant-numeric:tabular-nums; }
 .troid-pausemenu .pm-map-body { position:relative; flex:1 1 auto; min-height:0; overflow:hidden; border:1px solid ${rgba(PALETTE.energyCore, 0.3)}; border-radius:4px; background:${rgba(PALETTE.worldVoid, 0.6)}; box-shadow:inset 0 0 24px ${rgba(PALETTE.worldVoid, 0.8)}; }
 .troid-pausemenu .pm-map-foot { flex:none; display:flex; flex-wrap:wrap; align-items:center; gap:4px 18px; font-size:0.76rem; letter-spacing:0.04em; opacity:0.85; }
@@ -80,6 +80,9 @@ function menuCss(): string {
 .troid-pausemenu .pm-entry > span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .troid-pausemenu .pm-entry svg { color:${core}; }
 .troid-pausemenu .pm-entry:hover, .troid-pausemenu .pm-entry:focus-visible { outline:none; background:${rgba(PALETTE.energyCore, 0.12)}; border-left-color:${glow}; box-shadow:0 0 14px ${rgba(PALETTE.energyGlow, 0.22)}; text-shadow:0 0 10px ${core}99; }
+.troid-pausemenu[data-pad="1"] :focus { outline:2px solid ${glow}; outline-offset:2px; }
+.troid-pausemenu[data-pad="1"] .pm-entry:focus { outline:none; background:${rgba(PALETTE.energyCore, 0.12)}; border-left-color:${glow}; box-shadow:0 0 14px ${rgba(PALETTE.energyGlow, 0.22)}; text-shadow:0 0 10px ${core}99; }
+.troid-pausemenu[data-pad="1"] .map-view:focus { outline-offset:-3px; }
 .troid-pausemenu .pm-entry[data-primary="1"] { border-color:${rgba(PALETTE.energyCore, 0.5)}; border-left-color:${glow}; background:${rgba(PALETTE.energyCore, 0.1)}; }
 .troid-pausemenu .pm-entry[aria-current="page"] { border-color:${rgba(PALETTE.energyCore, 0.55)}; border-left-color:${glow}; background:${rgba(PALETTE.energyCore, 0.16)}; text-shadow:0 0 10px ${core}99; }
 .troid-pausemenu .pm-entry::after { content:""; width:7px; height:7px; border-top:1.6px solid ${rgba(PALETTE.energyCore, 0.6)}; border-right:1.6px solid ${rgba(PALETTE.energyCore, 0.6)}; transform:rotate(45deg); }
@@ -119,7 +122,7 @@ ${mapCss()}
 .troid-settings .saves-card[data-state="damaged"] { border-left-color:${violet}; }
 .troid-settings .saves-head { display:flex; align-items:center; gap:8px; justify-content:space-between; }
 .troid-settings .saves-head b { font-weight:500; letter-spacing:0.06em; }
-.troid-settings .saves-chip { font-size:0.68rem; letter-spacing:0.14em; text-transform:uppercase; padding:1px 8px; border:1px solid ${rgba(PALETTE.energyCore, 0.55)}; border-radius:10px; color:${glow}; }
+.troid-settings .saves-chip { font-size:0.7rem; letter-spacing:0.14em; text-transform:uppercase; padding:1px 8px; border:1px solid ${rgba(PALETTE.energyCore, 0.55)}; border-radius:10px; color:${glow}; }
 .troid-settings .saves-chips { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
 .troid-settings .saves-chip[data-kind="completed"] { border-color:${rgba(PALETTE.whiteHot, 0.7)}; color:${white}; background:${rgba(PALETTE.energyCore, 0.16)}; }
 .troid-settings .saves-info { margin:6px 0 8px; font-size:0.84rem; line-height:1.45; opacity:0.82; font-variant-numeric:tabular-nums; }
