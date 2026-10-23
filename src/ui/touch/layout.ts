@@ -109,14 +109,11 @@ export function pauseOrigin(width: number, insets: Readonly<Insets>, scale = 1, 
   const { size, margin } = PAUSE_FOOTPRINT;
   const half = (size / 2) * scale;
   const centre = width - insets.right - margin * scale - half;
-  // the HUD is drawn at the window's scale times the size the player chose for it
-  const hudEnd = insets.left + (HUD_FOOTPRINT.margin + HUD_FOOTPRINT.width) * scale * hudScale + HUD_FOOTPRINT.gap * scale;
-  const hudBottom = insets.top + (HUD_FOOTPRINT.margin + HUD_FOOTPRINT.height) * scale * hudScale + HUD_FOOTPRINT.gap * scale;
-  const under = centre - half < hudEnd;
-  const edge = under ? hudBottom : insets.top + margin * scale;
-  // scaling grows the button up and down by half the difference: the box starts there so that, once scaled, its top edge is `edge` (under the HUD it is rounded down the screen, never up into it)
-  const top = edge + (size / 2) * (scale - 1);
-  return { left: Math.round(centre - size / 2), top: under ? Math.ceil(top) : Math.round(top) };
+  const hud = (extent: number): number => (HUD_FOOTPRINT.margin + extent) * scale * hudScale + HUD_FOOTPRINT.gap * scale;
+  // too narrow for the HUD and the button side by side: the button goes under the HUD
+  const under = centre - half < insets.left + hud(HUD_FOOTPRINT.width);
+  // scaling grows the button up and down by half the difference: the box starts there so that, once scaled, its top edge is the one wanted (rounded down the screen, never up into the HUD)
+  return { left: Math.round(centre - size / 2), top: Math.ceil(insets.top + (under ? hud(HUD_FOOTPRINT.height) : margin * scale) + half - size / 2) };
 }
 
 /** The pause button as it is on screen: the box, scaled about its centre, in px. */

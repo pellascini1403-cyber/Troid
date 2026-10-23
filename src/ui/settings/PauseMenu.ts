@@ -1,4 +1,5 @@
 import { listen } from '@/app/dom';
+import { onPress } from '@/app/press';
 import type { ProfileData } from '@/app/profile';
 import { DisposableStore } from '@/core/lifecycle';
 import { MENU_CATALOGS } from '@/i18n/menuCatalogs';
@@ -175,7 +176,8 @@ export class PauseMenu {
       icon.setAttribute('aria-hidden', 'true');
       const label = doc.createElement('span');
       b.append(icon, label);
-      listen(this.store, b, 'click', () => this.choose(e.id));
+      // a finger that lifts over an entry presses it: the browser makes no click of a tap that follows a drag or a pinch on the map (docs/PROMPT19-LOG.md §7)
+      onPress(this.store, b, () => this.choose(e.id));
       this.entries.set(e.id, b);
       side.appendChild(b);
     }
@@ -216,6 +218,7 @@ export class PauseMenu {
   /** Hides the menu and every screen of it. */
   close(): void {
     this.host.interrupt?.();
+    this.map.cancelGestures();
     this.hideScreens();
     this.current = null;
     this.root.dataset['open'] = '0';
@@ -286,6 +289,7 @@ export class PauseMenu {
       this.entries.get(this.visible(this.lastEntry))?.focus({ preventScroll: true });
       return;
     }
+    this.map.cancelGestures(); // the map is put away: a finger that is still on it is not a finger on the map any more
     const back = (): void => void this.show('main');
     if (screen === 'sound' || screen === 'settings' || screen === 'controls') {
       const menu = (this.screens[screen] ??= new SettingsMenu(this.stage, this.translator, { ...this.host.settings, close: back }, { screen }));

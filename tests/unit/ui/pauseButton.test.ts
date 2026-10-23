@@ -53,7 +53,9 @@ describe('pause button', () => {
     expect(drawn().x1).toBe(844 - 94 - 8);
     button.place(844, 390, none, 1.4);
     expect(drawn().x1).toBeCloseTo(844 - 8 * 1.4, 0);
-    expect(drawn().y0).toBeCloseTo(8 * 1.4, 0);
+    // the top is rounded DOWN the screen (never up: under the HUD that keeps the button off it, and everywhere else it is a pixel at most)
+    expect(drawn().y0).toBeGreaterThanOrEqual(8 * 1.4 - 1e-9);
+    expect(drawn().y0 - 8 * 1.4).toBeLessThan(1);
   });
 
   it('what is drawn is what the geometry function says (the touch buttons keep clear of that box)', () => {

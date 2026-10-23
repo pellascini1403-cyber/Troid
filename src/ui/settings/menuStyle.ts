@@ -53,9 +53,9 @@ function menuCss(): string {
 .troid-settings .settings-touchline span { opacity:0.7; font-size:0.78rem; line-height:1.35; }
 
 /* ---- the pause menu: the map in the main panel, the column of options at its side ---- */
-.troid-pausemenu { position:absolute; inset:0; z-index:44; display:none; pointer-events:auto; align-items:center; justify-content:center; background:radial-gradient(ellipse at 50% 38%, ${rgba(PALETTE.worldVoid, 0.7)}, ${rgba(PALETTE.worldVoid, 0.92)}); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:${white}; user-select:none; -webkit-user-select:none; }
+.troid-pausemenu { position:absolute; inset:0; z-index:44; display:none; pointer-events:auto; align-items:center; justify-content:center; box-sizing:border-box; padding:var(--safe-top-px, env(safe-area-inset-top, 0px)) var(--safe-right-px, env(safe-area-inset-right, 0px)) var(--safe-bottom-px, env(safe-area-inset-bottom, 0px)) var(--safe-left-px, env(safe-area-inset-left, 0px)); background:radial-gradient(ellipse at 50% 38%, ${rgba(PALETTE.worldVoid, 0.7)}, ${rgba(PALETTE.worldVoid, 0.92)}); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:${white}; user-select:none; -webkit-user-select:none; }
 .troid-pausemenu[data-open="1"] { display:flex; }
-.troid-pausemenu .pm-frame { display:grid; grid-template-columns:minmax(0, 1fr) clamp(200px, 25vw, 270px); gap:18px; width:min(1120px, 96vw); height:min(660px, 92vh); box-sizing:border-box; padding:18px 20px 20px; overflow:hidden; border:1px solid ${rim}; border-radius:6px; background:linear-gradient(180deg, ${rgba(PALETTE.uiPanel, 0.96)}, ${rgba(PALETTE.worldVoid, 0.97)}); box-shadow:0 0 34px ${rgba(PALETTE.energyGlow, 0.2)}, inset 0 1px 0 ${rgba(PALETTE.whiteHot, 0.1)}; }
+.troid-pausemenu .pm-frame { display:grid; grid-template-columns:minmax(0, 1fr) clamp(200px, 25vw, 270px); gap:18px; width:min(1120px, 96%); height:min(660px, 92%); box-sizing:border-box; padding:18px 20px 20px; overflow:hidden; border:1px solid ${rim}; border-radius:6px; background:linear-gradient(180deg, ${rgba(PALETTE.uiPanel, 0.96)}, ${rgba(PALETTE.worldVoid, 0.97)}); box-shadow:0 0 34px ${rgba(PALETTE.energyGlow, 0.2)}, inset 0 1px 0 ${rgba(PALETTE.whiteHot, 0.1)}; }
 /* the main panel: the map, or the screen of the option that was chosen in its place */
 .troid-pausemenu .pm-stage { position:relative; min-width:0; min-height:0; display:flex; flex-direction:column; }
 .troid-pausemenu .pm-map { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; gap:10px; }
@@ -87,7 +87,7 @@ function menuCss(): string {
 .troid-pausemenu .pm-entry[hidden] { display:none; }
 /* a phone held upright: the map on top, the options under it in two columns */
 @media (max-width:700px) {
-  .troid-pausemenu .pm-frame { grid-template-columns:minmax(0, 1fr); grid-template-rows:minmax(0, 1fr) auto; gap:10px; width:100vw; height:min(100vh, 100dvh); padding:12px 12px 14px; border-radius:0; border-left:0; border-right:0; }
+  .troid-pausemenu .pm-frame { grid-template-columns:minmax(0, 1fr); grid-template-rows:minmax(0, 1fr) auto; gap:10px; width:100%; height:100%; padding:12px 12px 14px; border-radius:0; border-left:0; border-right:0; }
   .troid-pausemenu .pm-side { display:grid; grid-template-columns:1fr 1fr; gap:6px; overflow:visible; padding:0; }
   .troid-pausemenu .pm-title { display:none; }
   .troid-pausemenu .pm-entry { min-height:44px; padding:0 10px 0 9px; gap:8px; grid-template-columns:22px 1fr; }
@@ -98,7 +98,7 @@ function menuCss(): string {
 }
 /* a phone held sideways, or a window that is not tall: the options go two to a row, still a finger tall each (44 px), and the legend of the map goes (its marks have names for a screen reader) */
 @media (max-height:430px) {
-  .troid-pausemenu .pm-frame { grid-template-columns:minmax(0, 1fr) 252px; gap:12px; height:96vh; padding:10px 12px 12px; }
+  .troid-pausemenu .pm-frame { grid-template-columns:minmax(0, 1fr) 252px; gap:12px; height:96%; padding:10px 12px 12px; }
   .troid-pausemenu .pm-title { grid-column:1 / -1; font-size:1rem; margin-bottom:0; padding-bottom:6px; letter-spacing:0.28em; }
   .troid-pausemenu .pm-side { display:grid; grid-template-columns:1fr 1fr; grid-auto-rows:min-content; align-content:start; gap:6px; }
   .troid-pausemenu .pm-entry { min-height:44px; font-size:0.88rem; line-height:1.1; padding:0 8px 0 8px; gap:7px; grid-template-columns:20px 1fr; }

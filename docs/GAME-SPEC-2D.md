@@ -645,6 +645,24 @@ Secreto: tras el muro de R2, una **cuarta ranura de botella**. Recompensa del je
 
 ---
 
+### 14.5 El mapa del mundo (Prompt 19)
+
+> **Implementado en el Prompt 19** ([PROMPT19-LOG](PROMPT19-LOG.md)). **La pausa se abre sobre el mapa del mundo**: no hay un botón de mapa aparte; el botón de pausa de siempre (arriba a la derecha, §17.1) abre el menú y **la primera vista es el mapa**, en el panel principal a la izquierda, con la **columna de opciones** a la derecha (Reanudar, Mapa, Controles, Sonido, Ajustes, Partidas, Perfil). El mundo está parado de verdad mientras tanto (el reloj de la simulación, los enemigos, los proyectiles, los temporizadores y las animaciones no avanzan: lo comprueba la escena E2E `pauseMap`).
+
+El mapa **no es un segundo mundo**: sale de las mismas salas, salidas, compuertas, santuarios, sellos y guardianes de los que está hecho el juego (`WORLD`, `ROOMS`), y de lo que el juego ya cuenta y guarda.
+
+| Regla | Detalle |
+|---|---|
+| **Una sala existe para el mapa cuando el héroe ha estado en ella** | la lista de salas visitadas es la que el juego ya guarda (`stats.rooms` del progreso) y la que lee el perfil; **el mapa no tiene un registro propio**, de modo que **guardar y cargar lo conserva sin código nuevo** y no hay forma de que se desincronice. Lo que no se ha visitado no se dibuja ni se cuenta |
+| **Las puertas** | una puerta que pide una bandera que aún no está puesta se dibuja **cerrada** (candado); una que lleva a una sala que **no está en el mapa** termina en un **tramo discontinuo hacia lo desconocido**; entre dos salas conocidas hay una **conexión**, de otro trazo si alguna de sus puertas sigue cerrada |
+| **Lo que cambia con el progreso** | la compuerta de piedra de R1 se dibuja cerrada hasta que cae el limo; el sello de R3, intacto o roto; el guardián de R4, en pie o caído; el santuario del que se volverá tras una derrota, marcado. Se vuelve a calcular **cada vez que se abre el menú** |
+| **La posición** | la del héroe, exacta, dentro de su sala |
+| **El plano** | las salas se colocan por sus puertas (cada una contra el muro de su salida, con la puerta de vuelta a la misma altura), una vez y siempre igual; un mundo nuevo se dibuja sin tocar código mientras sus salidas lleven a otras salas |
+| **Zoom y desplazamiento** | arrastrar con un dedo o el ratón; **dos dedos** (el medio arrastra, la distancia amplía); rueda; teclado (flechas, `+`, `-`, `0`); tres botones (más, menos, centrar). Las marcas (nombres, puertas, puntos de interés, héroe) **conservan su tamaño** al ampliar; el mapa **no se puede perder fuera del panel**; la vista que el jugador movió se conserva al abrir una opción y volver |
+| **Las opciones** | cada una abre su pantalla **en el panel principal**, en el lugar del mapa; la columna sigue donde está con la abierta marcada; **«Mapa» (o la tecla de pausa) vuelve**; «Reanudar» cierra. Nada de lo que se teclea o toca en el menú llega al juego |
+
+**Lo que no hay.** *«Salir al menú principal»* no existe porque el juego **no tiene menú principal** (la página es el juego; se guarda al ocultarse): no se añadió un botón que no hiciera nada. *Niebla dentro de una sala:* una sala visitada se ve entera (el juego cuenta salas, no celdas). *Puntos de interés por separado:* un santuario, un sello o un guardián se ven con su sala, no cuando el jugador los «encuentra» (el juego no lo registra aparte; sí sigue al progreso su estado).
+
 ## 15. Enemigos
 
 ### 15.1 Primer enemigo: «Ink Slime» (baba de tinta; nombre de trabajo, `enemy.inkSlime.name`) — DC-33
@@ -729,6 +747,8 @@ Los campos 3D de `CameraConfig` (`projection`, `fovDeg`, `pitchDeg`, `swayDeg`, 
 | **Botellas** | cada una **su** imagen clara (lista) o oscura (recargando o vacía) | `bottles[i].state` | se oscurece la que se bebe; las demás no se tocan; vuelve a la clara cuando el juego la recarga (60 s, de una en una) |
 
 Los números **nunca se animan**: son los del juego en ese fotograma; solo se anima la imagen. No hay tarjeta del poder en el HUD (queda el botón táctil de Habilidad), ni teclas, ni segundos de recarga. Cada barra es un `progressbar` accesible (con los puntos reales) y cada botella un botón (un dedo sobre ella la bebe). Con «menos destellos» el rectángulo no se estira. La pausa detiene las imágenes con el mundo. Medidas, piezas y comportamiento: [PROMPT17-LOG](PROMPT17-LOG.md) y [los PNG](../src/ui/hud/png/README.md).
+
+> **El botón de pausa, a la derecha (Prompt 19, [PROMPT19-LOG](PROMPT19-LOG.md)).** El icono de pausa deja de estar arriba al centro: está en la **esquina superior derecha** del área segura (`ui/touch/layout.pauseOrigin`, función pura), a la distancia del borde que fija el margen de la interfaz, **sin tocar el HUD** (arriba a la izquierda) **ni los tres botones táctiles** (a la derecha, más abajo). En una ventana tan estrecha que el HUD y el botón no caben uno junto al otro, el botón se queda en el borde derecho y **baja por debajo del HUD**; el aviso de guardado cuelga justo debajo. Misma función, mismo estilo, mismo tamaño táctil (≥ 44 px) y mismas teclas (`Esc`, `P`, `Start`); lo que abre es **el mapa** (§14.5).
 
 ### 17.2 El HUD anterior (Prompts 5 y 14) — reemplazado
 

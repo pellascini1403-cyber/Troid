@@ -5,7 +5,7 @@ import { frames } from '../frames';
 import { centreOf } from '../touch';
 
 /**
- * The language and the settings (docs/PROMPT5-LOG.md S18, GAME-SPEC-2D §18): the menu is one small icon at the top centre, it is
+ * The language and the settings (docs/PROMPT5-LOG.md S18, GAME-SPEC-2D §18): the menu is one small icon in the top right corner, it is
  * not even downloaded until asked for, it pauses the game, and the language the player picks is applied at once and SURVIVES a
  * reload, a second tab, a new browser session and a change of scene; `?lang=` overrides without overwriting; the touch controls'
  * size and opacity are kept too; and a damaged saved value never stops the game from starting.
@@ -65,9 +65,9 @@ export const language: Scenario = {
       'and its code is not requested by a normal load',
     );
 
-    // ---- the entry: ONE small icon at the TOP CENTRE, not on the right
+    // ---- the entry: ONE small icon in the TOP RIGHT corner (it was at the top centre until the pause menu opened on the map: docs/PROMPT19-LOG.md)
     const pb = await centreOf(page, 'pause-button');
-    assert.ok(Math.abs(pb.x - 422) < 2, `centred (${pb.x})`);
+    assert.ok(844 - (pb.x + pb.w / 2) <= 24 && pb.x + pb.w / 2 <= 844, `at the right edge (${pb.x})`);
     assert.ok(pb.y < 60, `at the top (${pb.y})`);
     assert.ok(pb.w >= 44 && pb.h >= 44, 'a finger-sized target');
     assert.equal(await page.locator('[data-testid="pause-button"]').getAttribute('tabindex'), '-1', 'never focusable: Space would click it');

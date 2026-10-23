@@ -1,3 +1,4 @@
+import { onPress } from '@/app/press';
 import { listen } from '@/app/dom';
 import { DisposableStore } from '@/core/lifecycle';
 import type { Translator } from '@/i18n/translator';
@@ -92,7 +93,7 @@ export class MapView {
       b.className = 'map-tool';
       b.dataset['testid'] = testid;
       b.appendChild(mapIconSvg(doc, icon, 18));
-      listen(this.store, b, 'click', act);
+      onPress(this.store, b, act); // (a tap right after a drag or a pinch on the map makes no click: the button acts when the finger lifts)
       this.tools.appendChild(b);
       return b;
     };
@@ -405,6 +406,25 @@ export class MapView {
     };
     listen(this.store, this.root, 'pointerup', release);
     listen(this.store, this.root, 'pointercancel', release);
+    // the capture is let go of whatever the reason (the lift, a cancel, the map put away under a finger): the finger is not on the map any more
+    listen(this.store, this.root, 'lostpointercapture', release);
+  }
+
+  /**
+   * Forgets the fingers that are on the map: the menu has put the map away or closed while one was down, and a finger that is lifted out of sight must not stay as a ghost that turns the next drag into a
+   * pinch.
+   */
+  cancelGestures(): void {
+    for (const id of this.pointers.keys()) {
+      try {
+        this.root.releasePointerCapture(id);
+      } catch {
+        // gone already
+      }
+    }
+    this.pointers.clear();
+    this.pinch = null;
+    this.root.dataset['dragging'] = '0';
   }
 
   private pinchNow(): { distance: number; middle: Point } {

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import type { Page } from 'playwright-core';
 import type { Ctx, GameState, Scenario } from '../scenario';
+import { cardState } from '../hud';
 import { TouchScreen } from '../touch';
 
 /**
@@ -296,57 +297,54 @@ export const pauseMap: Scenario = {
     await q(page, 'pause-resume').click();
     await menuIs(page, false);
 
-    // ================================================================================================ G · a phone held sideways, and one held upright
-    for (const [name, size] of [['landscape', { width: 844, height: 390 }], ['portrait', { width: 390, height: 844 }]] as const) {
-      await ctx.open('touch=1&new=1', { ...size, dpr: 1, touch: true }); // (one device pixel per CSS pixel, as the other phone scenes: software rendering at two would make every frame a quarter of a second)
+    // ================================================================================================ G · a phone held sideways, and one held upright — on a plain screen and under a notch
+    const NOTCH = { top: 44, right: 47, bottom: 21, left: 47 }; // the one the other phone scenes use (`?safe=44,47,21,47`)
+    const NO_NOTCH = { top: 0, right: 0, bottom: 0, left: 0 };
+    const phones = [
+      { name: 'landscape', size: { width: 844, height: 390 }, safe: NO_NOTCH },
+      { name: 'portrait', size: { width: 390, height: 844 }, safe: NO_NOTCH },
+      { name: 'landscape with a notch', size: { width: 844, height: 390 }, safe: NOTCH },
+      { name: 'portrait with a notch', size: { width: 390, height: 844 }, safe: NOTCH },
+    ] as const;
+    for (const { name, size, safe } of phones) {
+      const slug = name.replace(/ /g, '-');
+      const upright = size.height > size.width;
+      const query = safe === NOTCH ? `touch=1&new=1&safe=${safe.top},${safe.right},${safe.bottom},${safe.left}` : 'touch=1&new=1';
+      await ctx.open(query, { ...size, dpr: 1, touch: true }); // (one device pixel per CSS pixel, as the other phone scenes: software rendering at two would make every frame a quarter of a second)
       page = ctx.page;
       const screen = await new TouchScreen(page).init();
       await page.evaluate('window.__troid.resume()');
       await waitFor(page, 'window.__troid.state().now > 20', `${name}: the game runs`);
+      // A finger lands where the element is and lifts: nothing more. (The browser makes no click of a tap that comes straight after a drag or a pinch on the map — docs/PROMPT19-LOG.md §7 — so the
+      // menu acts when the finger lifts; the taps below follow the gestures with no wait at all, the worst case, and have to work.)
       const tap = async (id: string): Promise<void> => {
         const c = centre(await box(page, id));
-        // The touches run on their own clock: a finger cannot land the very instant another one left, and Chromium drops a
-        // tap stamped at the same time as the end of the gesture before it (no click comes) — so a moment passes first.
-        screen.rest(400);
         await screen.tap(1, c.x, c.y);
-      };
-      /**
-       * The first tap after a gesture. Under software rendering a frame can last longer than the browser's long press, and a finger that
-       * lands soon after a pinch is then taken for the end of it: the touch events arrive (the target is right) and no click is made. That
-       * is the browser's gesture recogniser, not the game — so such a tap is repeated, three times at most, until it had its effect.
-       */
-      const tapUntil = async (id: string, done: () => Promise<boolean>): Promise<void> => {
-        for (let attempt = 1; ; attempt++) {
-          await tap(id);
-          const t0 = Date.now();
-          while (Date.now() - t0 < 2500) {
-            if (await done()) return;
-            await page.waitForTimeout(60);
-          }
-          assert.ok(attempt < 3, `${name}: ${attempt} taps on ${id} and none had an effect`);
-        }
       };
       const button = await box(page, 'pause-button');
       const hudBox = await box(page, 'hud-block');
-      assert.ok(size.width - button.x1 <= 24 && button.x1 <= size.width, `${name}: the pause button is at the right edge (${JSON.stringify(button)})`);
+      assert.ok(size.width - safe.right - button.x1 <= 24 && button.x1 <= size.width - safe.right, `${name}: the pause button is at the right edge of what is usable (${JSON.stringify(button)})`);
+      assert.ok(button.y0 >= safe.top - 0.5, `${name}: and under the notch`);
       assert.ok(button.w >= 44 && button.h >= 44, `${name}: and a finger`);
       assert.ok(!overlap(button, hudBox), `${name}: clear of the HUD`);
       for (const id of ['touch-attack', 'touch-dash', 'touch-ability']) {
         const b = await q(page, id).first().boundingBox();
         if (b && (await q(page, id).first().isVisible())) assert.ok(!overlap(button, { x0: b.x, y0: b.y, x1: b.x + b.width, y1: b.y + b.height, w: b.width, h: b.height }), `${name}: nor on ${id}`);
       }
-      await ctx.shot(`g-0${name === 'landscape' ? 1 : 3}-${name}-button`);
+      await ctx.shot(`g-${slug}-button`);
       const t0 = (await stateOf(page)).now ?? 0;
       await tap('pause-button');
       await menuIs(page, true);
       await screenIs(page, 'main');
-      const win: Box = { x0: 0, y0: 0, x1: size.width, y1: size.height, w: size.width, h: size.height };
+      const win: Box = { x0: safe.left, y0: safe.top, x1: size.width - safe.right, y1: size.height - safe.bottom, w: size.width - safe.left - safe.right, h: size.height - safe.top - safe.bottom };
+      const frame = (await page.locator('.pm-frame').boundingBox())!;
+      assert.ok(inside({ x0: frame.x, y0: frame.y, x1: frame.x + frame.width, y1: frame.y + frame.height, w: frame.width, h: frame.height }, win), `${name}: the menu is inside what the notch leaves (${JSON.stringify(frame)} in ${JSON.stringify(win)})`);
       const mapBox = await box(page, 'map');
       const side = await box(page, 'pause-side');
       assert.ok(inside(mapBox, win), `${name}: the map is on the screen`);
       assert.ok(inside(side, win), `${name}: and so are the options`);
       assert.ok(mapBox.w >= 240 && mapBox.h >= 150, `${name}: the map is big enough to read (${mapBox.w.toFixed(0)} × ${mapBox.h.toFixed(0)})`);
-      if (name === 'landscape') assert.ok(mapBox.x1 <= side.x0 + 0.5, `${name}: map on the left, options on the right`);
+      if (!upright) assert.ok(mapBox.x1 <= side.x0 + 0.5, `${name}: map on the left, options on the right`);
       else assert.ok(mapBox.y1 <= side.y0 + 0.5, `${name}: held upright the options go under the map`);
       assert.ok(mapBox.w * mapBox.h > side.w * side.h, `${name}: the map has the larger area`);
       for (const id of ['pause-resume', 'pause-map', 'pause-controls', 'pause-sound', 'pause-settings', 'pause-saves', 'pause-profile']) {
@@ -364,7 +362,7 @@ export const pauseMap: Scenario = {
         assert.ok(!overlap(door, tool), `${name}: the shut door is not behind ${id}`);
         assert.ok(!overlap({ x0: stub.x, y0: stub.y, x1: stub.x + stub.width, y1: stub.y + stub.height, w: stub.width, h: stub.height }, tool), `${name}: nor is the stub it leads out by`);
       }
-      await ctx.shot(`g-0${name === 'landscape' ? 2 : 4}-${name}-menu`);
+      await ctx.shot(`g-${slug}-menu`);
       // a finger drags the map, two fingers zoom it — and nothing reaches the game
       const hero0 = await stateOf(page);
       const view0 = await viewOf(page);
@@ -385,15 +383,93 @@ export const pauseMap: Scenario = {
       assert.equal(hero1.x, hero0.x, `${name}: the hero did not move`);
       assert.equal(hero1.combat?.attack, null, `${name}: and nothing was pressed`);
       assert.equal(hero1.now, hero0.now, `${name}: the world is stopped`);
-      // an option, and back
-      await tapUntil('pause-sound', () => q(page, 'sound-screen').isVisible());
+      // straight from the pinch to the zoom button, and from there to an option: no click may come after any of these taps, and each still acts
+      const pinched = (await viewOf(page)).scale;
+      await tap('map-zoom-in');
+      assert.ok((await viewOf(page)).scale > pinched * 1.2, `${name}: the zoom button answers a finger straight after a pinch (${pinched} → ${(await viewOf(page)).scale})`);
+      // a thumb resting on the map while another finger presses the zoom button, and then an option: the browser makes no click at all of a tap that is one of two fingers on the screen
+      // (docs/PROMPT15-LOG.md §6.4), which is why every entry and every button of the map acts when the finger lifts — and each press still has to act
+      await screen.touch(2, c.x, c.y);
+      const resting = (await viewOf(page)).scale;
+      await tap('map-zoom-in');
+      assert.ok((await viewOf(page)).scale > resting * 1.2, `${name}: the zoom button answers a finger while another rests on the map (${resting} → ${(await viewOf(page)).scale})`);
+      await tap('pause-sound');
+      await q(page, 'sound-screen').waitFor({ state: 'visible', timeout: 15000 });
       assert.ok(inside(await box(page, 'sound-screen'), win), `${name}: the sound screen is all on the screen`);
-      await ctx.shot(`g-0${name === 'landscape' ? 5 : 6}-${name}-sound`);
+      await ctx.shot(`g-${slug}-sound`);
+      await screen.lift(2); // the thumb lifts with the map out of sight
       await tap('pause-map');
       await q(page, 'map').waitFor({ state: 'visible', timeout: 15000 });
+      // no finger was left behind on the map: one finger drags it, and does not zoom it
+      const back0 = await viewOf(page);
+      await screen.touch(1, c.x, c.y);
+      await screen.drag(1, 30, 0, 3);
+      await screen.lift(1);
+      const back1 = await viewOf(page);
+      assert.ok(Math.abs(back1.scale - back0.scale) < 1e-6, `${name}: one finger drags the map and does not zoom it — no finger left behind (${back0.scale} → ${back1.scale})`);
+      assert.ok(Math.abs(back1.x - back0.x) > 1 || Math.abs(back1.y - back0.y) > 1, `${name}: and it moved`);
       await tap('pause-resume');
       await menuIs(page, false);
       await waitFor(page, `window.__troid.state().now > ${t0 + 5}`, `${name}: the game goes on`);
     }
+
+    // ================================================================================================ H · the world is stopped for real: the foe, the bolt, the timers, the animations
+    await ctx.open('new=1', DESKTOP); // R1, a new game, the world stepped by the test
+    page = ctx.page;
+    await sess(page, 's.loadout.acquire("card_spirit_bolt");');
+    await ctx.teleport(88, 0); // within 8 m of the slime: it wakes
+    await ctx.step(10);
+    await page.keyboard.down('KeyK');
+    await ctx.step(1);
+    await page.keyboard.up('KeyK');
+    await ctx.step(11); // the cast, its release, and three ticks of the bolt in the air
+    const live = await stateOf(page);
+    assert.equal(live.projectiles?.length, 1, 'a bolt is in flight');
+    assert.ok((live.enemies?.[0]?.ticks ?? 0) > 0 && live.enemies?.[0]?.state !== 'idle', `and a foe is awake (${live.enemies?.[0]?.state})`);
+    assert.equal(await cardState(page), 'cooldown', 'and the card is in its cooldown');
+    assert.ok((live.magic ?? 100) < 100, `and the magic is being spent (${live.magic})`);
+    /** Everything of the world that moves: the clock, the hero and how it is drawn, each foe with its own clock, each bolt, the magic, the bottles. */
+    const worldOf = async (): Promise<string> => {
+      const w = await stateOf(page);
+      return JSON.stringify({
+        now: w.now, tick: w.tick, hero: [w.x, w.y, w.vx, w.anim, w.sprite?.frame], camera: w.camera?.x, magic: w.magic, health: w.health, bottles: w.bottles, card: await cardState(page),
+        foes: w.enemies?.map((e) => [e.id, e.state, e.ticks, e.x, e.y, e.vx, e.hp, e.anim, e.phase, e.phaseT]),
+        bolts: w.projectiles?.map((b) => [b.id, b.x, b.y]),
+      });
+    };
+    await q(page, 'pause-button').click();
+    await menuIs(page, true);
+    await screenIs(page, 'main');
+    const stopped = await worldOf();
+    await page.evaluate('window.__troid.resume()'); // the loop is let go: only the menu holds the world
+    for (let i = 0; i < 8; i++) {
+      await page.waitForTimeout(150);
+      assert.equal(await worldOf(), stopped, `behind the menu nothing of the world moves: no foe, no bolt, no timer, no animation (sample ${i})`);
+    }
+    await page.keyboard.press('Escape'); // the pause key goes back into the game from the map
+    await menuIs(page, false);
+    await waitFor(page, `window.__troid.state().now > ${live.now ?? 0} + 20`, 'the world goes on from where it stopped');
+    assert.notEqual(await worldOf(), stopped, 'and then it does move: what was held was held by the menu');
+    assert.equal(await cardState(page), 'ready', 'the cooldown ran out once the world was let go');
+
+    // ================================================================================================ I · a place with no map says so, and the menu still works
+    await ctx.open('room=movement_test', DESKTOP);
+    page = ctx.page;
+    await page.evaluate('window.__troid.resume()');
+    await waitFor(page, 'window.__troid.state().now > 20', 'the playground runs');
+    await q(page, 'pause-button').click();
+    await menuIs(page, true);
+    await screenIs(page, 'main');
+    assert.equal(await q(page, 'map-empty').isVisible(), true, 'the map says there is none of this place');
+    assert.equal(await q(page, 'map-empty').textContent(), 'There is no map of this place.');
+    assert.equal(await q(page, 'map-zoom-in').isVisible(), false, 'and offers no zoom');
+    assert.equal(await page.locator('[data-testid^="map-room-"]').count(), 0, 'nor any room');
+    await q(page, 'pause-sound').click();
+    await q(page, 'sound-screen').waitFor({ state: 'visible', timeout: 15000 });
+    await q(page, 'sound-back').click();
+    await screenIs(page, 'main');
+    assert.equal(await q(page, 'map-empty').isVisible(), true, 'the way back is the same empty map');
+    await q(page, 'pause-resume').click();
+    await menuIs(page, false);
   },
 };

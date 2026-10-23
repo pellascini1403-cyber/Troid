@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { CATALOGS, createTranslator } from '@/i18n';
 import { MENU_CATALOGS } from '@/i18n/menuCatalogs';
 import { MapView } from '@/ui/map/MapView';
-import { fitView, FIT_PAD, TOOLS_RESERVE, toScreen, ZOOM } from '@/ui/map/viewport';
+import { fitView, FIT_PAD, TOOLS_RESERVE, toScreen, ZOOM, ZOOM_STEP } from '@/ui/map/viewport';
 import { EMPTY_SCENE, type MapScene } from '@/world/worldMap';
 import { shippedScene } from '../../helpers/pauseHost';
 
@@ -200,6 +200,34 @@ describe('the map view', () => {
       expect(view.view.x).toBeCloseTo(x0 + 40, 6);
     });
 
+    it('forgets the fingers that are on it when asked — the menu put it away, or closed, under a finger — so the next drag is a drag and not a pinch with a ghost', () => {
+      const s0 = view.view.scale;
+      view.root.dispatchEvent(pointer('pointerdown', 1, 300, 200)); // a finger rests on the map…
+      expect(view.root.dataset['dragging']).toBe('1');
+      view.cancelGestures(); // …and the map is put away
+      expect(view.root.dataset['dragging']).toBe('0');
+      const x0 = view.view.x;
+      view.root.dispatchEvent(pointer('pointerdown', 2, 500, 200)); // with the ghost of the first this would be two fingers, and a pinch
+      view.root.dispatchEvent(pointer('pointermove', 2, 540, 200));
+      expect(view.view.scale).toBeCloseTo(s0, 9);
+      expect(view.view.x).toBeCloseTo(x0 + 40, 6);
+      view.root.dispatchEvent(pointer('pointerup', 1, 300, 200)); // the first finger, lifting out of sight, changes nothing
+      view.root.dispatchEvent(pointer('pointermove', 2, 560, 200));
+      expect(view.view.scale).toBeCloseTo(s0, 9);
+      expect(view.view.x).toBeCloseTo(x0 + 60, 6);
+    });
+
+    it('a capture that is lost is a finger that is gone (whatever the reason: the lift, a cancel, an element taken away under it)', () => {
+      view.root.dispatchEvent(pointer('pointerdown', 1, 300, 200));
+      view.root.dispatchEvent(pointer('pointerdown', 2, 400, 200));
+      view.root.dispatchEvent(pointer('lostpointercapture', 1, 300, 200));
+      view.root.dispatchEvent(pointer('lostpointercapture', 2, 400, 200));
+      expect(view.root.dataset['dragging']).toBe('0');
+      const x0 = view.view.x;
+      view.root.dispatchEvent(pointer('pointermove', 1, 340, 200)); // nobody is holding: nothing moves
+      expect(view.view.x).toBe(x0);
+    });
+
     it('never lets the map be dragged out of the panel altogether', () => {
       view.root.dispatchEvent(pointer('pointerdown', 1, 100, 100));
       view.root.dispatchEvent(pointer('pointermove', 1, 100 + 50_000, 100));
@@ -303,6 +331,23 @@ describe('the map view', () => {
       for (let i = 0; i < 80; i++) view.zoomBy(1.4);
       expect((q(view.root, 'map-zoom-in') as HTMLButtonElement).disabled).toBe(true);
       expect((q(view.root, 'map-zoom-out') as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it('a finger presses a button when it LIFTS — the browser makes no click of a tap that follows a drag or a pinch on the map (docs/PROMPT15-LOG.md §6.4) — and the click that does come is not a second press', () => {
+      const s0 = view.view.scale;
+      const zoomIn = q(view.root, 'map-zoom-in');
+      // a drag on the map, then straight to the button: down and up on it, and no click
+      view.root.dispatchEvent(pointer('pointerdown', 1, 300, 200));
+      view.root.dispatchEvent(pointer('pointermove', 1, 340, 215));
+      view.root.dispatchEvent(pointer('pointerup', 1, 340, 215));
+      zoomIn.dispatchEvent(pointer('pointerdown', 2, 700, 350));
+      zoomIn.dispatchEvent(pointer('pointerup', 2, 700, 350));
+      expect(view.view.scale).toBeCloseTo(s0 * ZOOM_STEP, 6);
+      zoomIn.click(); // the click of that same tap, if the browser makes it
+      expect(view.view.scale).toBeCloseTo(s0 * ZOOM_STEP, 6);
+      // a mouse, a pen and the keyboard still act on the click
+      q(view.root, 'map-zoom-out').click();
+      expect(view.view.scale).toBeCloseTo(s0, 6);
     });
 
     it('pressing a button does not begin a drag of the map', () => {

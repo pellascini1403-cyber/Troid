@@ -610,7 +610,7 @@ async function remembering(ctx: Ctx): Promise<string> {
   assert.ok(a.engine.recent.includes('ui.slider'), 'a slider that moves is heard');
   assert.ok(a.engine.recent.includes('ui.pause.open'), 'and so was the menu opening');
   await q(page, 'sound-back').click();
-  await q(page, 'pause-settings').click(); // (a press of a button taps)
+  await q(page, 'pause-sound').click(); // (a press of a button taps; and the sound screen is where the next steps expect to be)
   await page.waitForTimeout(150);
   assert.ok((await audioOf(page)).engine.recent.includes('ui.tap'), 'a press of a button is heard');
   const gains = ((await ctx.state()).volume?.gains ?? {}) as Record<string, number>;

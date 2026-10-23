@@ -321,6 +321,50 @@ describe('the pause menu', () => {
       expect(q(menu.root, 'pause-map-legend').textContent).toContain('Guardian');
     });
 
+    it('a finger acts on an option when it LIFTS: the browser makes no click of a tap that follows a drag or a pinch on the map (docs/PROMPT15-LOG.md §6.4, docs/PROMPT19-LOG.md §7) — and the click that does come is not a second press', () => {
+      menu.open();
+      const touch = (type: string, id: number, target: Element): boolean => target.dispatchEvent(new PointerEvent(type, { pointerId: id, pointerType: 'touch', clientX: 0, clientY: 0, bubbles: true, cancelable: true }));
+      const tap = (id: number, target: Element): void => {
+        touch('pointerdown', id, target);
+        touch('pointerup', id, target);
+      };
+      // a finger on the map, then straight to Sound: no click comes after that tap
+      const map = q(menu.root, 'map');
+      touch('pointerdown', 1, map);
+      touch('pointerup', 1, map);
+      tap(2, q(menu.root, 'pause-sound'));
+      expect(menu.screen, 'the tap opened the sound screen').toBe('sound');
+      tap(3, q(menu.root, 'pause-map'));
+      expect(menu.screen, 'and the next one took it back to the map').toBe('main');
+      // Continue asks the host once, however many events the one tap makes
+      tap(4, q(menu.root, 'pause-resume'));
+      q(menu.root, 'pause-resume').click(); // the click of that same tap, if the browser makes it
+      expect(probe.calls).toEqual(['resume']);
+      // a mouse, a pen and the keyboard still act on the click
+      q(menu.root, 'pause-controls').click();
+      expect(menu.screen).toBe('controls');
+    });
+
+    it('a finger that is on the map when an option puts it away is not left on it: the drag that comes after is a drag, not a pinch with a ghost', () => {
+      menu.mapView.resize(800, 400);
+      menu.open();
+      const touch = (type: string, id: number, target: Element, x = 0, y = 0): boolean => target.dispatchEvent(new PointerEvent(type, { pointerId: id, pointerType: 'touch', clientX: x, clientY: y, bubbles: true, cancelable: true }));
+      const map = q(menu.root, 'map');
+      touch('pointerdown', 1, map, 300, 200); // a thumb rests on the map…
+      touch('pointerdown', 2, q(menu.root, 'pause-sound')); // …and another finger presses Sound
+      touch('pointerup', 2, q(menu.root, 'pause-sound'));
+      expect(menu.screen).toBe('sound');
+      // (the thumb lifts with the map out of sight, and a map out of sight need not be told)
+      touch('pointerdown', 3, q(menu.root, 'pause-map'));
+      touch('pointerup', 3, q(menu.root, 'pause-map'));
+      expect(menu.screen).toBe('main');
+      const before = { ...menu.mapView.view };
+      touch('pointerdown', 4, map, 500, 200);
+      touch('pointermove', 4, map, 540, 200);
+      expect(menu.mapView.view.scale).toBeCloseTo(before.scale, 9);
+      expect(menu.mapView.view.x).toBeCloseTo(before.x + 40, 6);
+    });
+
     it('a press on the map (a drag, a zoom button) is a press of the menu: the game\'s input leaves it alone and nothing closes', () => {
       menu.open();
       expect(menu.root.hasAttribute('data-ui-block')).toBe(true);

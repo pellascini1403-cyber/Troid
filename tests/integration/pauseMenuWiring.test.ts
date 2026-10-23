@@ -5,6 +5,7 @@ import { GameSaves, type SaveNotice, type SavePlatform } from '@/app/gameSaves';
 import { BOSSES, ROOMS } from '@/content';
 import { CATALOGS, createTranslator } from '@/i18n';
 import { PlayStats } from '@/gameplay/PlayStats';
+import { DEFAULT_TRANSITION } from '@/gameplay/RoomTransition';
 import { DEFAULT_BINDINGS } from '@/input/bindings';
 import { applyKeyMap } from '@/input/remap';
 import { parseProgress } from '@/save/ProgressData';
@@ -55,7 +56,7 @@ describe('the pause menu over the real game', () => {
   let suspended: boolean[];
   const tr = createTranslator(CATALOGS, 'es');
 
-  async function build(over: { playground?: boolean; touch?: boolean; keyboard?: boolean } = {}): Promise<void> {
+  async function build(over: { playground?: boolean; touch?: boolean; keyboard?: boolean; room?: string; entry?: string } = {}): Promise<void> {
     storage = new MemoryStorage();
     const slots = new SaveSlots(storage);
     settings = new SettingsStore(storage);
@@ -63,7 +64,7 @@ describe('the pause menu over the real game', () => {
     platform = fakePlatform();
     notices = [];
     stats = new PlayStats();
-    d = driver({ room: ROOMS.r2_hall!, entry: 'west', unlocked: ['dash'], extra: { rooms: ROOMS } });
+    d = driver({ room: ROOMS[over.room ?? 'r2_hall']!, entry: over.entry ?? 'west', unlocked: ['dash'], extra: { rooms: ROOMS } });
     d.settle();
     stats.attach(d.session.bus, d.session.room.id);
     saves = over.playground ? null : new GameSaves({ slots, settings, slot: 1, stats, durable: true, platform, notify: (n) => void notices.push(n) });
@@ -457,6 +458,67 @@ describe('the pause menu over the real game', () => {
       menu.open();
       q(parent, 'pause-resume').click();
       expect(resumed).toBe(1);
+    });
+  });
+
+  describe('the map it opens on (docs/PROMPT19-LOG.md)', () => {
+    const roomsOnMap = (): string[] => [...parent.querySelectorAll('[data-testid^="map-room-"]')].map((e) => (e as HTMLElement).dataset['room'] ?? '');
+    const T = DEFAULT_TRANSITION;
+    /** Walks into an exit of the room the hero is in and lets the whole change of room play. */
+    const through = (exitId: string): void => {
+      const r = d.session.room.exits!.find((e) => e.id === exitId)!.rect;
+      d.teleport((r.x0 + r.x1) / 2, r.y0);
+      d.step(1);
+      d.until(() => !d.session.transition.active, T.fadeOut + T.hold + T.fadeIn + 20);
+      d.settle();
+    };
+
+    it('is the world the game holds: the rooms it has counted — here only the one the hero is in — and the hero where the session has them', async () => {
+      await build();
+      menu.open();
+      expect(menu.screen).toBe('main');
+      expect(roomsOnMap()).toEqual(['r2_hall']);
+      expect(q(parent, 'map-room-r2_hall').dataset['current']).toBe('1');
+      expect(q(parent, 'map-hero').dataset['room']).toBe('r2_hall');
+      expect(q(parent, 'map-door-r2_hall:west').dataset['known']).toBe('0'); // R1 is not on the map: the way back to it ends in a stub
+      expect(q(parent, 'map-summary').textContent).toContain('1 de 4');
+    });
+
+    it('a room the hero walks into is on the map the next time the menu opens — the counts are the game\'s own, the very ones the profile reads', async () => {
+      await build();
+      menu.open();
+      menu.close();
+      through('west'); // into R1
+      expect(d.session.room.id).toBe('r1_gate');
+      menu.open();
+      expect(roomsOnMap()).toEqual(['r1_gate', 'r2_hall']);
+      expect(q(parent, 'map-room-r1_gate').dataset['current']).toBe('1');
+      expect(q(parent, 'map-room-r2_hall').dataset['current']).toBe('0');
+      expect(parent.querySelectorAll('.map-link')).toHaveLength(1); // the way between them, now that both are known
+      expect(q(parent, 'map-door-r2_hall:west').dataset['known']).toBe('1');
+      expect(q(parent, 'pause-zone').textContent).toBe('Puerta de las Ruinas');
+      q(parent, 'pause-profile').click();
+      expect(q(parent, 'profile-rooms').textContent).toMatch(/2/);
+    });
+
+    it('a way the world has opened is open on the map: the flags are the session\'s, read again each time the menu opens', async () => {
+      await build({ room: 'r3_chamber', entry: 'west' });
+      menu.open();
+      expect(q(parent, 'map-door-r3_chamber:east').dataset['state']).toBe('locked');
+      expect(parent.querySelector('[data-kind="seal"]')?.getAttribute('data-done')).toBe('0');
+      menu.close();
+      d.session.flags.set('broken:r3_seal');
+      menu.open();
+      expect(q(parent, 'map-door-r3_chamber:east').dataset['state']).toBe('open');
+      expect(parent.querySelector('[data-kind="seal"]')?.getAttribute('data-done')).toBe('1');
+    });
+
+    it('a playground has no map of its own: it says so, and the options are all still there', async () => {
+      await build({ playground: true, room: 'movement_test', entry: undefined });
+      menu.open();
+      expect(q(parent, 'map-empty').hidden).toBe(false);
+      expect(roomsOnMap()).toEqual([]);
+      expect(q(parent, 'pause-sound').hidden).toBe(false);
     });
   });
 });
