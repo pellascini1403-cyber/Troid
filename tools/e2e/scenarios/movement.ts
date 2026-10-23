@@ -78,10 +78,14 @@ export const movement: Scenario = {
       await ctx.step(40);
     }
 
-    // a stuck key must not survive a window blur
+    // a stuck key must not survive a window blur: the blur lets go of everything AND pauses the game (docs/PROMPT20-LOG.md §6: nobody is looking), so the world waits with the menu open; back in the game by the pause
+    // key, the key that is still down on the keyboard is not pressed any more and the hero comes to rest
     await page.keyboard.down('KeyA');
     await ctx.step(10);
     await page.evaluate("window.dispatchEvent(new Event('blur'))");
+    await page.waitForFunction('window.__troid.state().menuOpen', undefined, { timeout: 15000 });
+    await page.keyboard.press('Escape');
+    await page.waitForFunction('!window.__troid.state().menuOpen', undefined, { timeout: 15000 });
     await ctx.step(60);
     s = await ctx.state();
     assert.ok(Math.abs(s.vx) < 0.1, 'blur released the held key');

@@ -18,6 +18,8 @@ interface Pkg {
   license: string;
   repository: string;
   text: string | null;
+  /** Type declarations only (no `main`, `module` or `exports`): they travel with PixiJS's own, and none of their code is in the distributed JavaScript. */
+  typesOnly: boolean;
 }
 
 function read(dir: string): { json: Record<string, unknown>; dir: string } {
@@ -45,6 +47,7 @@ function closure(): Pkg[] {
       license: String(licenseField ?? 'UNKNOWN'),
       repository: repository.replace(/^git\+/, '').replace(/^git:\/\//, 'https://').replace(/\.git$/, '').replace(/^([\w.-]+\/[\w.-]+)$/, 'https://github.com/$1'),
       text: file ? readFileSync(join(dir, file), 'utf8').trim() : null,
+      typesOnly: !json['main'] && !json['module'] && !json['exports'] && !json['browser'],
     });
     for (const dep of Object.keys((json['dependencies'] as Record<string, string> | undefined) ?? {})) todo.push(dep);
   }
@@ -61,12 +64,13 @@ export function notices(packages: readonly Pkg[] = closure()): string {
     'This file is written by `npm run licenses` from what is installed; do not edit it by hand.',
     '',
     `${packages.length} packages:`,
-    ...packages.map((p) => `  - ${p.name} ${p.version} (${p.license})`),
+    ...packages.map((p) => `  - ${p.name} ${p.version} (${p.license})${p.typesOnly ? ' — type definitions only' : ''}`),
+    ...(packages.some((p) => p.typesOnly) ? ['', 'A package marked "type definitions only" has no code: it comes with PixiJS\'s declarations, none of it is in the distributed JavaScript, and it is listed here for completeness.'] : []),
   ];
   const body = packages.flatMap((p) => [
     '',
     RULE,
-    `${p.name} ${p.version} — ${p.license}`,
+    `${p.name} ${p.version} — ${p.license}${p.typesOnly ? ' (type definitions only)' : ''}`,
     p.repository,
     RULE,
     '',

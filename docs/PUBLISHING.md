@@ -31,7 +31,7 @@
 | Fugas en sesión larga | E2E `resilience` (listeners, temporizadores, DOM, *heap*) | ✅ en Chromium |
 | Privacidad: todo lo que sale y todo lo que se guarda | E2E `privacy` | ✅ ([§4](#4--privacidad-y-cumplimiento)) |
 | Legibilidad (contraste WCAG ≥ 4,5 : 1, letra ≥ 11 px) | E2E `readable` | ✅ en las 16 pantallas medidas |
-| Navegadores mínimos | Análisis **estático** del JS construido (`esbuild` a `safari15`, `chrome98`, `firefox100`) y de las APIs usadas | mínimo derivado: **iOS/Safari 15.4, Chrome/WebView 98, Firefox 100** — *no ejecutado en ellos* |
+| Navegadores mínimos | Análisis **estático** del JS construido (`esbuild` a `safari15`, `chrome98`, `firefox100`) y de las APIs usadas | mínimo derivado: **iOS/Safari 15.4, Chrome/WebView 98, Firefox 100** — *no ejecutado en ellos*. Una degradación conocida en Safari < 16: `overscroll-behavior` (lo usan el cuerpo de la página y los paneles con desplazamiento del menú) no existe y se ignora —el menú puede «rebotar» al final de su desplazamiento—; el juego en sí no depende de ello (`touch-action: none`) |
 | **Safari / iOS, Firefox, Android WebView reales** | **No hay** esos navegadores ni dispositivos en el entorno | ❌ sin comprobar |
 | **Rendimiento en un móvil de gama baja** | El render por software de este entorno no sirve como cifra | ❌ sin medir (hay presupuestos que el E2E vigila: ≤ 60 llamadas de dibujo, ≤ 400 partículas) |
 | **Audio con el interruptor de silencio de iOS** | No comprobable aquí | ⚠️ a comprobar en un iPhone ([§6.3](#63-comprobaciones-en-dispositivo-lo-que-no-se-ha-podido-hacer)) |
@@ -51,7 +51,7 @@
 
 | Cuestión | Hecho |
 |---|---|
-| Peticiones de red | **590 peticiones en una sesión de juego, todas al propio origen** (el JS, el arte, el audio y los JSON del juego). Ninguna a un tercero. |
+| Peticiones de red | **Todas al propio origen** (el JS, el arte, el audio y los JSON del juego): 125 en una sesión completa contra el *build* de producción (590 en desarrollo, donde cada módulo se pide por separado). Ninguna a un tercero. |
 | *Beacons*, *sockets* a terceros | ninguno |
 | Cookies | ninguna (`document.cookie` vacío, ninguna en el contexto) |
 | Almacenamiento | solo `localStorage` con claves `troid.*` (`troid.settings`, `troid.progress`, `troid.progress.2`, `.3`, y sus copias `.bak`/`.corrupt`). Sin IndexedDB, sin *cache storage*, sin *service worker*, sin `sessionStorage` |

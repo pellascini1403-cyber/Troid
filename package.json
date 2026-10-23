@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "tsx tools/e2e/run.ts",
+    "test:engines": "tsx tools/e2e/engines.ts",
     "shot": "tsx tools/e2e/shot.ts",
     "bench:bundle": "tsx tools/bench/bundle.ts",
     "assets:pack": "tsx tools/assets/cli.ts",

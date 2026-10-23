@@ -5,8 +5,8 @@ This file is written by `npm run licenses` from what is installed; do not edit i
 
 12 packages:
   - @pixi/colord 2.9.6 (MIT)
-  - @types/earcut 3.0.0 (MIT)
-  - @webgpu/types 0.1.74 (BSD-3-Clause)
+  - @types/earcut 3.0.0 (MIT) — type definitions only
+  - @webgpu/types 0.1.74 (BSD-3-Clause) — type definitions only
   - @xmldom/xmldom 0.8.15 (MIT)
   - earcut 3.2.4 (ISC)
   - eventemitter3 5.0.4 (MIT)
@@ -17,6 +17,8 @@ This file is written by `npm run licenses` from what is installed; do not edit i
   - pixi.js 8.22.0 (MIT)
   - tiny-lru 11.4.7 (BSD-3-Clause)
 
+A package marked "type definitions only" has no code: it comes with PixiJS's declarations, none of it is in the distributed JavaScript, and it is listed here for completeness.
+
 ==============================================================================
 @pixi/colord 2.9.6 — MIT
 https://github.com/omgovich/colord
@@ -25,7 +27,7 @@ https://github.com/omgovich/colord
 Licensed under MIT. The package ships no licence file; its terms are those of the standard MIT licence, held by the authors named in its repository above.
 
 ==============================================================================
-@types/earcut 3.0.0 — MIT
+@types/earcut 3.0.0 — MIT (type definitions only)
 https://github.com/DefinitelyTyped/DefinitelyTyped
 ==============================================================================
 
@@ -52,7 +54,7 @@ MIT License
     SOFTWARE
 
 ==============================================================================
-@webgpu/types 0.1.74 — BSD-3-Clause
+@webgpu/types 0.1.74 — BSD-3-Clause (type definitions only)
 https://github.com/gpuweb/types
 ==============================================================================
 

@@ -175,22 +175,94 @@ Un *heap* que crece ~35 KB por vuelta **no se dio por bueno sin saber de qué er
 
 ## 9 · Pilar 7 — Monetización y preparación para publicar
 
-*(se rellena al cerrar el pilar)*
+**Qué había.** Una sola dependencia de producción (`pixi.js`), ningún SDK de anuncios, compras, analítica ni cuentas, ningún proyecto nativo, ningún aviso de licencias de terceros, ninguna declaración de privacidad, una descripción de manifiesto que todavía decía «3D» (del primer encargo) y un `icon.svg` que es un marcador de posición (un triángulo y un círculo), no el arte del juego.
+
+**Decisión sobre la monetización: no hay, y por eso no hay código.** El encargo pide una capa de monetización *real*, sin dependencias ficticias. Ninguna decisión de negocio está tomada en el repositorio (ni precio, ni anuncios, ni compras), y un SDK de anuncios o de compras sin cuenta de editor, sin identificadores de producto y sin una tienda que lo valide sería exactamente la dependencia ficticia que el encargo prohíbe: compilaría, no haría nada y obligaría a declarar en las tiendas datos que el juego no recoge. Un juego de pago se vende por la tienda sin que el código intervenga. Queda dicho en [PUBLISHING §3](PUBLISHING.md) qué hay que hacer **antes** de escribir código si se decide otra cosa (elegir modelo, actualizar la declaración de privacidad, pedir consentimiento donde la ley lo exija y volver a pasar la prueba `privacy`, que fallará con razón en cuanto salga una petición a un tercero). **Estado: no aplica por decisión — no es «pendiente por hacer» ni «hecho».**
+
+**Qué se hizo.**
+
+| Pieza | Qué es | Dónde / prueba |
+|---|---|---|
+| **Avisos de software de terceros** | `public/THIRD_PARTY_NOTICES.txt`, generado de lo **instalado** (la clausura de producción de `package.json`: 12 paquetes —PixiJS y lo que lo compone—, MIT / ISC / BSD-3-Clause) con el texto de licencia de cada uno; se copia a `dist/` y viaja con el juego. `npm run licenses` lo escribe; `npm run licenses:check` forma parte de `npm run build` y **falla** si está desactualizado: no se puede añadir ni subir de versión una dependencia sin que su aviso la siga. | `tools/licenses.ts`, `tests/unit/app/webMetadata.test.ts` (el aviso existe y nombra lo que el juego lleva) |
+| **Privacidad verificada, no declarada** | Una sesión completa (partida nueva, paseo, el menú de pausa con todas sus pantallas, un ajuste, un guardado, el final de la aventura, una recarga) se graba petición a petición y se lista el almacenamiento al terminar. **Todas** las peticiones son al propio origen (**590** en desarrollo, donde cada módulo se pide por separado; **125** contra el *build* de producción); ningún *beacon*; ningún *socket* a terceros; ninguna cookie; ni IndexedDB, ni *cache storage*, ni *service worker*, ni `sessionStorage`; en `localStorage` solo claves `troid.*`. Es lo que sostiene las declaraciones de tienda de [PUBLISHING §4](PUBLISHING.md). | E2E `privacy` (desarrollo y producción) |
+| **Ningún secreto en el repositorio ni en el *build*** | Búsqueda de claves, *tokens*, URL con credenciales y cadenas de configuración de servicios en `src`, `public`, `tools`, `index.html`, las configuraciones y el `dist/` construido: ninguna. Tampoco hay `@font-face` (la tipografía es la del sistema): ningún fichero de fuente de otros que licenciar. | revisión a mano con expresiones regulares (no se conserva el *script*) |
+| **Puentes nativos** | `nativeStorage` (las partidas y los ajustes en `UserDefaults` / `SharedPreferences` por `@capacitor/preferences`, **probando** que funcionan antes de fiarse) y `nativeApp` (el botón Atrás de Android es la tecla de pausa; pasar a segundo plano abre la pausa; por `@capacitor/app`). Se enlazan **por nombre** desde `window.Capacitor` (no hay ninguna dependencia nueva en `package.json`) y viajan en *chunks* que una página web nunca descarga. | `nativeStorage.test.ts` (14), `nativeApp.test.ts` (8): contra **dobles** del contrato documentado de cada *plugin*. **Nunca se ejecutaron en un dispositivo.** |
+| **Metadatos de la página** | La descripción del manifiesto ya no dice «3D»; la página tiene `<meta name="description">`, título, enlace al manifiesto, `viewport-fit=cover` (zonas de seguridad), y los colores del manifiesto son los de la cortina de arranque. Cada icono que el manifiesto nombra es un fichero de la página. | `webMetadata.test.ts` (8) |
+| **CI con navegador real** | Un trabajo `e2e` que, tras `check`, construye el juego, mide el arranque en frío (`bench:bundle`, que **falla** por encima del techo) y juega contra el *build* de producción las escenas que prueban el camino de un jugador: arranque, movimiento, combate, sala, mundo completo, pausa y mapa, mando, foco, final, recorrido final, resiliencia, privacidad y legibilidad. La suite entera (`npm run test:e2e`, desarrollo y `-- --prod`) tarda más de lo que un *push* debe esperar y se corre a mano antes de cada versión. | `.github/workflows/ci.yml` |
+| **Guía para quien publica** | [PUBLISHING.md](PUBLISHING.md): qué hay, qué se comprobó y qué no (tabla honesta), monetización, privacidad con plantilla de política y declaraciones de tienda que se derivan, lo que decide el editor, pasos de Capacitor (orientación, notch, iconos, firma), la lista de comprobación **en dispositivo** (diez puntos que nadie ha hecho), escritorio y la lista de lanzamiento. | `docs/PUBLISHING.md` |
+
+**Lo que este pilar NO hace, y quién lo hace** (todo ello, en la [§12](#12--lo-que-queda-y-quién-lo-hace)): no existe proyecto Xcode ni Android Studio; no hay instaladores de escritorio; no hay icono, pantalla de arranque ni capturas definitivos (decisión de quien conoce la marca: no se inventa); no hay cuentas, firma ni envío; los créditos no llevan nombres del equipo (los rellena quien publica). **Nada de esto se presenta como publicado, aprobado ni probado en un dispositivo.**
 
 ---
 
 ## 10 · Pilar 8 — Pruebas de principio a fin y resultados
 
-*(se rellena al cerrar el encargo)*
+**Qué prueba cada tipo de verificación, y qué no** (esta tabla no se lee saltándose la última columna):
+
+| Tipo | Qué es | Demuestra | NO demuestra |
+|---|---|---|---|
+| **Unitaria** | `vitest`; funciones y clases puras, o con un DOM simulado (`happy-dom`) | que la regla hace lo que dice, con entradas límite | que el navegador la use bien |
+| **Integración** | `GameSession` completa con un jugador de guion, guardados reales sobre un almacenamiento simulado, mundos enteros y *soaks* con semilla | que los sistemas juntos cumplen sus invariantes (nada se pierde, nada se duplica, nada se bloquea) a lo largo de una partida entera | un navegador |
+| **E2E en navegador real** | Chromium con teclado, ratón y toques reales (protocolo DevTools) y un mando abstracto, contra el servidor de desarrollo y contra el *build* de producción | que la página arranca, dibuja, responde y no se rompe; que lo que ve el jugador es lo que dice la simulación | otro motor, ni un dispositivo |
+| **Humo en otros motores** | Firefox y WebKit (Playwright, Linux), en la CI | que arranca, dibuja, mueve, pausa, guarda y recarga | un iPhone o un Android: el WebKit de Linux **no es** el Safari de iOS |
+| **Construcción** | `tsc` estricto, `assets:check`, `hud:check`, `licenses:check`, `bench:bundle` | que lo que se publica es coherente y cabe en su presupuesto | rendimiento |
+| **Dispositivo** | — | — | **Nadie lo ha hecho** ([PUBLISHING §6.3](PUBLISHING.md)) |
+| **Humana** | — | — | **Ninguna persona ha jugado esta versión**: el balance, la comprensión y la comodidad se juzgaron con simulaciones e instrumentos |
+
+**Los recorridos de jugador** (de una partida nueva hasta el final, de tres maneras, y siempre con un jugador de guion —nunca una persona—):
+
+| Recorrido | Qué recorre | Dónde |
+|---|---|---|
+| **El mundo entero, en la simulación** | R1 → R2 → R3 (carta, sello) → R4 (guardián, Air Dash) → la salida del mundo, que completa la aventura | `worldJourney.test.ts`, `slice.test.ts` |
+| **El mismo, con cierre y reapertura** | en cada entrada a una sala y cada 37 ticks se guarda, se vuelve a leer como lo haría un arranque en frío y se sigue con la partida reabierta; se compara con la viva | `saveJourney.test.ts` |
+| **El mismo, en un navegador, con teclado real** | grabado en Node y reproducido tick a tick por el teclado de Chromium, comparando un resumen de toda la simulación cada 50 ticks (tres cambios de sala y el guardián) | E2E `world`, `world-art` |
+| **El mismo, por tres dispositivos** | teclado en R1–R2, **mando** hasta el final y, tras recargar, **dedos** de la antesala al final; lo guardado es lo jugado; la partida queda completada | E2E `finale` |
+| **El final** | la salida, el cierre sin que nada llegue al mundo, la partida completada, Escape, el segundo paso, partida nueva en otra ranura; móvil con dedos; movimiento reducido | E2E `ending` |
+| **Menús** | pausa y mapa con teclado, dedo y mando; alcanzabilidad de cada control; foco y orientación | E2E `pause`, `pauseMap`, `pauseZone`, `focus`, `gamepad`, `touch`, `mobile` |
+| **Una sesión larga** | miles de acciones aleatorias; 30 vueltas de menús, salas, peleas y derrotas sin fugas | E2E `soak`, `resilience` |
+| **Lo que sale y lo que se guarda** | una sesión completa, petición a petición | E2E `privacy` |
+| **Si se puede leer** | contraste y tamaño de letra de 16 pantallas en dos idiomas | E2E `readable` |
+
+**Resultados.** *(Se escriben al cerrar el encargo, con las cifras de las regresiones completas en desarrollo y en producción, de las pruebas unitarias y de integración y de la CI. Hasta entonces, esta sección solo dice qué prueba cada cosa.)*
 
 ---
 
 ## 11 · Estado final por pilar
 
-*(se rellena al cerrar el encargo)*
+*Terminado* = hecho, probado en el navegador o en la simulación según corresponda, y sin nada pendiente que dependa de este repositorio. *Parcial* = lo que se podía hacer aquí está hecho y probado, y queda algo que este entorno no permite comprobar o decidir. *Bloqueado* = no se puede avanzar desde aquí sin algo externo. Ninguna fila se marca *terminado* porque exista código o una interfaz: se marca por lo que las pruebas miran.
+
+| # | Pilar | Estado | Qué lo sostiene | Qué lo limita |
+|---|---|---|---|---|
+| 1 | **Combate, mecánicas y progresión** | **Terminado** (en el contenido que existe) | Cada acción tiene una mecánica real y probada; *soaks* de cientos de peleas con invariantes por tick y resultado idéntico con la misma semilla; **un bloqueo real encontrado y corregido** (el enemigo caído a un foso); recompensas que se conceden una sola vez; progresión guardada y cargada ([§5](#5--pilar-1--combate-enemigos-jefes-y-progresión)) | El contenido es el de la porción vertical (cuatro salas, un enemigo, un guardián). El balance se juzgó con simulaciones, **no con jugadores**; no se cambió ningún valor |
+| 2 | **Mapa, exploración y final real** | **Terminado** | La salida del mundo completa la aventura, guarda la partida como completada **antes** de enseñar nada, abre el cierre y créditos con dos caminos; el mundo no valida sin un final alcanzable; el mapa sale de los datos reales ([§3](#3--pilar-2--el-final-real-de-la-aventura)) | Los créditos no llevan nombres (los rellena quien publica); no hay pantalla de título (el juego arranca en la partida; las partidas están en la pausa) |
+| 3 | **Controles, compatibilidad y multiplataforma** | **Parcial** | Teclado, ratón, táctil y mando con la misma abstracción; el mando recorre todos los menús (alcanzabilidad medida); foco, pausa por pérdida de foco, aviso de orientación; un defecto real corregido (el dedo que cerraba un menú atacaba); humo en Firefox y WebKit en la CI ([§6](#6--pilar-3--controles-foco-orientación-y-compatibilidad)) | **Ningún dispositivo real, ningún mando físico, ningún Safari de iPhone.** No se reasignan los botones del mando ni los gestos táctiles; no hay vibración. Los puentes de Capacitor están probados solo contra dobles |
+| 4 | **Guardado, carga y protección** | **Terminado en la web · parcial en nativo** | Escritura serializada que lee de vuelta, copias, lo ilegible apartado y no borrado, una versión más nueva nunca se sobrescribe; recorridos que cierran y reabren **en cada sala y en cualquier tick**; fallos inyectados (cuota llena, escritura que no vuelve) ([§4](#4--pilar-4--guardado-carga-y-protección)) | El almacenamiento nativo (`@capacitor/preferences`) está probado contra un doble, **nunca en un dispositivo**. Es un guardado local: sin nube y sin protección contra quien edite sus propios datos (un juego de un jugador, sin red) |
+| 5 | **Rendimiento y estabilidad** | **Estabilidad: terminada · rendimiento: parcial** | Un fotograma que falla no congela el juego; un arranque que falla lo dice; sin WebGL se juega en *canvas*; pérdida de contexto superada; 30 vueltas sin fugas (instantáneas del *heap*); arranque en frío bajo su techo y vigilado por la CI ([§7](#7--pilar-5--estabilidad-errores-y-sesión-larga)) | **Ninguna medida en un dispositivo.** Las cifras de fotogramas y de coste de JavaScript son de un Chromium con dibujo por software: sirven para comparar versiones y para saber dónde mirar primero, no dicen nada de un teléfono |
+| 6 | **Accesibilidad, configuración y comodidad** | **Terminado, con límites declarados** | Cada opción hace algo y se prueba que lo hace; legibilidad **medida** (contraste ≥ 4,5 : 1 y letra ≥ 11 px en 16 pantallas y dos idiomas); movimiento reducido del sistema respetado; los cuatro métodos de entrada llegan a todos los controles ([§8](#8--pilar-6--accesibilidad-configuración-y-comodidad)) | **No se ha probado con un lector de pantalla ni con simuladores de daltonismo.** Sin reasignación de mando ni de gestos táctiles; sin vibración; el HUD (arte aprobado) no se midió |
+| 7 | **Monetización y preparación para publicar** | **Preparación: terminada · publicación: bloqueada (externo)** · monetización: **no aplica por decisión** | Avisos de terceros generados y exigidos por el *build*; privacidad **medida** (todo al propio origen; sin cookies, analítica ni almacenamiento ajeno); sin secretos; guía [PUBLISHING.md](PUBLISHING.md); CI con navegador real ([§9](#9--pilar-7--monetización-y-preparación-para-publicar)) | Sin proyecto nativo, sin instaladores de escritorio, sin cuentas, firma ni envío, sin icono ni capturas definitivos: **[§12](#12--lo-que-queda-y-quién-lo-hace)** |
+| 8 | **Pruebas de principio a fin** | **Terminado en lo automático · bloqueado en lo humano y en dispositivos** | Recorridos de jugador de guion del principio al final (simulación, navegador con teclado, mando y dedos), sesión larga, privacidad y legibilidad; regresión completa en desarrollo y en producción ([§10](#10--pilar-8--pruebas-de-principio-a-fin-y-resultados)) | **Ninguna persona ha jugado esta versión** y nada se ha ejecutado en un dispositivo físico |
+
+**Lectura honesta de la tabla.** El juego, tal como existe, es **completo y estable como página web** y está **preparado** para empaquetarse; lo que separa este repositorio de una publicación en tiendas no es código del juego sino lo que exige un dispositivo, una cuenta o una decisión de marca. Ningún pilar se declara *terminado* en lo que depende de esas tres cosas.
 
 ---
 
 ## 12 · Lo que queda y quién lo hace
 
-*(se rellena al cerrar el encargo)*
+| # | Qué falta | Quién | Por qué no se hizo aquí |
+|---|---|---|---|
+| 1 | **Probar en dispositivos reales**: un iPhone, un Android de gama media y uno de gama baja, con la lista de [PUBLISHING §6.3](PUBLISHING.md) (táctil con varios dedos, muesca, orientación, Atrás, segundo plano, guardado tras cerrar, memoria, 60 fps en la pelea con el guardián) | QA / quien publica | No hay dispositivos |
+| 2 | **Safari de iOS en particular**: el audio con el interruptor de silencio puesto, el desbloqueo del audio con el primer toque, la decodificación de MP3 | QA | No hay iPhone; el WebKit de Playwright no es Safari de iOS |
+| 3 | **Un mando físico** (Bluetooth o USB): menús con la cruceta, A pulsa, B retrocede, desenchufarlo en plena pelea | QA | No hay mando; se probó con uno abstracto |
+| 4 | **Crear la cáscara de Capacitor** (iOS y Android): identificador, orientación, `@capacitor/preferences` y `@capacitor/app`, `npx cap sync` ([PUBLISHING §6.1](PUBLISHING.md)) | Desarrollador con Xcode y Android Studio | No hay Xcode ni Android SDK |
+| 5 | **Cuentas, firma y envío** (Apple Developer, Google Play Console; certificados y *keystore* fuera del repositorio) y las **declaraciones de privacidad y de edad** con las respuestas de [PUBLISHING §4](PUBLISHING.md) | Editor | Cuentas y credenciales |
+| 6 | **Icono, pantalla de arranque, capturas, textos de ficha y la URL de la política de privacidad**; `public/icon.svg` es un marcador de posición del primer encargo | Editor / diseño | Decisión de marca: no se inventa |
+| 7 | **Nombres del equipo en los créditos** (`src/content/credits.ts`) | Editor | No hay ninguno que el repositorio sepa |
+| 8 | **Escritorio**: decidir el envoltorio (Electron, Tauri, itch.io, Steam), firmarlo, y probar | Editor / desarrollador | Decisión de distribución; sin cuentas |
+| 9 | **Jugar con personas**: comprensión del primer minuto, balance de las peleas y del guardián, comodidad de los controles táctiles, lector de pantalla, daltonismo | Producto / QA | No hay jugadores |
+| 10 | **Rendimiento en gama baja**: si no llega a 60 fotogramas, afinar «Calidad» y los presupuestos con el dispositivo delante (hoy «Automática» es el perfil equilibrado y no mide el dispositivo) | Desarrollador | Sin dispositivo |
+| 11 | **Los seis dibujos que faltan del protagonista** (segundo golpe, golpe en el aire, agachado, gateo, golpe agachado, beber: `art/player/requests/`) y **el arte definitivo** de salas, enemigo y guardián (hoy pintado por código, provisional) | Arte | Decisión y trabajo de arte: no se sustituye lo aprobado |
+| 12 | **El audio definitivo** (hoy es síntesis determinista del repositorio, de pre-producción; nadie lo ha oído con oídos) | Audio | Decisión y trabajo de audio |
+| 13 | **Más contenido** (salas, enemigos, guardianes, habilidades): los sistemas son genéricos y el contenido son datos; hace falta diseño | Diseño | Fuera del alcance del encargo |
+| 14 | **Decisiones de producto abiertas**: pantalla de título / menú principal, reasignación del mando y de los gestos, vibración, un modo de 30 fotogramas, la nube | Producto | No se piden en el encargo y cada una cambia lo aprobado o la política de datos |
+
+**Qué hacer primero** si se retoma: 1, 2 y 3 (nada de lo demás se puede dar por bueno sin ellos), después 4–7 en paralelo, y 9 con la primera versión instalable en la mano.
