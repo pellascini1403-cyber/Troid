@@ -121,6 +121,8 @@ export interface HookHost {
   keys(): Record<string, string>;
   /** The next `n` frames drawn throw (the loop must skip them, say so, and — when they are enough in a row — stop and show the page for a game that cannot go on). */
   failFrames(n: number): void;
+  /** Every frame drawn from now on takes at least `ms` (0: back to normal): a device that cannot keep up. */
+  slowFrames(ms: number): void;
 }
 
 const NO_EFFECTS = { particles: 0, sprites: 0, spawned: 0, dropped: 0, unplayed: 0, peakParticles: 0, poolCreated: 0 };
@@ -193,6 +195,19 @@ function hostOf(game: Game2D, shared: HookShared): HookHost {
     settleCamera: (seconds) => game.settleCamera(seconds),
     keys: () => ({ ...shared.effectiveKeys(game['settings'].value.keys) }),
     shake: (amount) => game['shake'](amount),
+    slowFrames: (ms) => {
+      const renderer = game['renderer'];
+      delete (renderer as { render?: unknown }).render; // (back to the prototype's own, whatever was in front of it)
+      if (!(ms > 0)) return;
+      const real = renderer.render;
+      renderer.render = function (this: typeof renderer) {
+        const until = performance.now() + ms;
+        while (performance.now() < until) {
+          // a device that is slow
+        }
+        real.call(this);
+      };
+    },
     failFrames: (n) => {
       const renderer = game['renderer'];
       const real = renderer.render;
@@ -290,6 +305,8 @@ export function createTestHooks(game: Game2D, shared: HookShared) {
     hud: () => ({ state: h.hudModel.state, layout: h.hud()?.current ?? null }),
     /** Test hook: the next `n` frames drawn throw. */
     failFrames: (n: number) => h.failFrames(n),
+    /** Test hook: every frame takes at least `ms` to draw (0 puts it back): a device that cannot keep up. */
+    slowFrames: (ms: number) => h.slowFrames(ms),
     /** Test hook: the abstract gamepad, in the Gamepad API's own terms (+y of the stick is DOWN); `pressed` = held button indices. */
     pad: {
       set: (x: number, y: number, pressed: number[] = []) => {

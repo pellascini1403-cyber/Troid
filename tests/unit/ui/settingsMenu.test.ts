@@ -328,11 +328,11 @@ describe('settings menu', () => {
       expect(calls).toEqual(['quality:low', 'quality:high', 'quality:auto']);
     });
 
-    it('does not pretend to measure anything: the note says Auto is the balanced profile and the device is not measured yet', () => {
+    it('says what Auto does and no more: it starts balanced and lowers itself if the game runs slowly (it does not claim to know the device)', () => {
       menu.open();
-      expect(q(host, 'settings-quality-note').textContent).toContain('Todavía no mide');
+      expect(q(host, 'settings-quality-note').textContent).toContain('empieza equilibrada y baja sola');
       tr.setLocale('en');
-      expect(q(host, 'settings-quality-note').textContent).toContain('does not measure');
+      expect(q(host, 'settings-quality-note').textContent).toContain('starts balanced and lowers itself');
     });
   });
 

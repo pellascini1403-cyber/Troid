@@ -62,3 +62,13 @@ export const log = {
     onceKeys.clear();
   },
 };
+
+/**
+ * An error as one text that says WHAT it was and where: Chromium's `stack` begins with the name and the message, but Firefox's and Safari's list only the places — a report from them would say where and not why.
+ */
+export function describeError(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  const head = `${error.name}: ${error.message}`;
+  if (!error.stack) return head;
+  return error.stack.startsWith(error.name) ? error.stack : `${head}\n${error.stack}`;
+}

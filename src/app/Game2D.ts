@@ -24,7 +24,7 @@ import { restoreFromProgress } from '@/gameplay/progress';
 import type { Seal } from '@/gameplay/Seal';
 import { GameSession } from '@/gameplay/GameSession';
 import { createPlayerStatus } from '@/gameplay/PlayerStatus';
-import { log } from '@/core/log';
+import { describeError, log } from '@/core/log';
 import { DEFAULT_TOUCH } from '@/input/gestures/TouchConfig';
 import type { AudioCategory } from '@/presentation/audioMix';
 import { DEFAULT_BINDINGS, type Bindings } from '@/input/bindings';
@@ -44,6 +44,7 @@ import { SettingsStore } from '@/save/SettingsStore';
 import type { AccessibilitySettings, TouchSettings } from '@/save/SettingsData';
 import type { LightFrame, LightHero } from '@/presentation/lighting';
 import type { QualitySetting } from '@/presentation/viewport';
+import { DEFAULT_GOVERNOR, QualityGovernor } from '@/presentation/qualityGovernor';
 import { ARRIVAL, ArrivalGate, roomAhead, type ArrivalOutcome } from '@/presentation/arrival';
 import { MEMORY_BUDGET_MIB, MIB } from '@/presentation/stressModel';
 import { lackedClips } from '@/presentation/visualSource';
@@ -142,6 +143,8 @@ export class Game2D {
   private veiled = false;
   /** Builds the effects again with the budgets of the profile in force (set once their chunk has arrived). */
   private rebuildEffects: (() => void) | null = null;
+  /** Auto quality that measures (docs/PROMPT20-LOG.md §7): watches how long the frames take and steps down to the low profile when the game cannot keep up. `null` where it is off (`?adaptive=0`, and `?hooks=1` without `?adaptive=1`). */
+  private readonly governor: QualityGovernor | null;
   /** What the lights of the world read each frame (made once, filled in place: nothing is allocated while the game runs). */
   private readonly lightHero: LightHero = { x: 0, y: 0, dead: false, magic: 0 };
   private readonly lightFrame: LightFrame = { alpha: 1, hero: this.lightHero, bodies: [] };
@@ -262,6 +265,7 @@ export class Game2D {
     durable: boolean,
   ) {
     this.settings = settings;
+    this.governor = options.adaptive ? new QualityGovernor() : null;
     this.arrival = new ArrivalGate({ maxWaitMs: options.arrivalWait ?? ARRIVAL.maxWaitMs, warmFrames: ARRIVAL.warmFrames });
     this.bindings = applyKeyMap(DEFAULT_BINDINGS, settings.value.keys);
     // A new game starts the vertical slice (room R1, with the starting abilities). `?room=` opens a playground instead and
@@ -672,7 +676,7 @@ export class Game2D {
 
   /** A tick or a frame threw (the loop skipped it and goes on): it is written down — the first of a run and every 60th, not one line a frame — and when `FRAME_FAILURES_LIMIT` in a row have, there is nothing left to try: the game stops and says so. */
   private frameFailed(error: unknown, streak: number): void {
-    if (streak % 60 === 1) log.scope('app').error(`a frame failed (${streak} in a row): ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
+    if (streak % 60 === 1) log.scope('app').error(`a frame failed (${streak} in a row): ${describeError(error)}`);
     if (streak < FRAME_FAILURES_LIMIT) return;
     this.loop.stop();
     void import('./crash').then((m) => m.showCrash());
@@ -887,6 +891,7 @@ export class Game2D {
 
   private render(alpha: number, realDt: number): void {
     this.fps.push(realDt);
+    this.judgeQuality(realDt);
     // The view of a new room is made when the art it is dressed with is in — whole, in this very step. Under the black of a change of zone it waits for that (the world is held meanwhile);
     // its first frames are then drawn out of sight, so that what the GPU takes on the first draw is taken before anyone looks.
     if (this.roomDirty && this.arrivalAdmits()) {
@@ -955,6 +960,22 @@ export class Game2D {
     this.renderer.render();
     this.counter.endFrame();
     this.finishArrivalFrame();
+  }
+
+  /**
+   * `Auto` measures: when the frames of several seconds in a row are mostly slow, the game steps down to the low profile — once, for this session. It is the game's doing, not the player's choice: the setting stays `Auto`
+   * and nothing is saved, so the next visit starts balanced again. It judges only frames that say something about the device (not with the menu up, the page hidden, or the world held at black while a room's art arrives).
+   */
+  private judgeQuality(realDt: number): void {
+    const governor = this.governor;
+    if (!governor || this.settings.value.quality !== 'auto' || this.renderer.qualityTier === 'low') return;
+    const counts = !this.menuOpen && !this.veiled && !this.arrival.blocking && !document.hidden;
+    if (!governor.frame(realDt * 1000, counts)) return;
+    const { frames, slow, ms } = governor.summary;
+    log.scope('quality').info(`Auto stepped down to Low: ${slow} of the last ${frames} frames (${ms} ms) took longer than ${DEFAULT_GOVERNOR.slowMs} ms`);
+    this.renderer.setTier('low');
+    this.rebuildEffects?.();
+    this.layoutUi();
   }
 
   /** The loading indicator follows the wait: nothing until it has lasted a moment, then the real share of what is arriving (or a light that waits, when that cannot be measured). */
@@ -1190,11 +1211,12 @@ export class Game2D {
 
   /**
    * The quality profile (Auto / Low / High): the renderer takes the resolution ceiling of the profile and the effects are built again with its
-   * budgets, at once. `auto` is the balanced profile: it measures nothing.
+   * budgets, at once. `auto` is the balanced profile, which steps down to the low one by itself if the game cannot keep up (`judgeQuality`).
    */
   private setQuality(quality: QualitySetting): void {
     void this.settings.update({ quality });
     this.renderer.setQuality(this.settings.value.quality);
+    this.governor?.reset(); // (Auto chosen again measures afresh; another profile is not the governor's to judge)
     this.rebuildEffects?.();
     this.layoutUi();
   }

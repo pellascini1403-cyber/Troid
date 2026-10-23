@@ -17,7 +17,7 @@
   "settings.qualityAuto": "Auto",
   "settings.qualityLow": "Low",
   "settings.qualityHigh": "High",
-  "settings.qualityNote": "Auto is the balanced profile. It does not measure your device yet.",
+  "settings.qualityNote": "Auto starts balanced and lowers itself if the game runs slowly on your device.",
   "settings.controls": "Keyboard controls",
   "settings.controlsHint": "Press an action, then the key you want for it. Esc cancels.",
   "settings.listening": "Press a key…",

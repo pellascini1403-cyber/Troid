@@ -49,6 +49,13 @@ export const readable: Scenario = {
   async run(ctx) {
     const seen: string[] = [];
     const audit = async (page: Page, label: string, root: string): Promise<void> => {
+      // nothing is measured halfway through a fade or a transition (the colour a text is drawn with is its colour at that moment): the audit waits until what moves under `root` has stopped, however long this machine takes
+      await waitFor(
+        page,
+        `(() => { const base = document.querySelector(${JSON.stringify(root)}); return !base || base.getAnimations({ subtree: true }).every((a) => a.playState !== 'running' || a.effect?.getComputedTiming().iterations === Infinity); })()`,
+        `${label}: what moves has stopped`,
+        400,
+      );
       const { checked, failures } = await contrastAudit(page, root);
       assert.ok(checked > 0, `${label}: there is text to read`);
       assert.deepEqual(failures.map(describe), [], `${label}: every text reaches its contrast`);
@@ -77,7 +84,8 @@ export const readable: Scenario = {
     let page = ctx.page;
     await page.evaluate(`window.__troid.session.bus.emit('adventure:ended', { roomId: 'r4_sanctum', exitId: 'east' })`);
     await screenIs(page, 'ending');
-    await page.waitForTimeout(400);
+    // the closing fades in (0.9 s): what is measured is the text as it is read, not halfway through the fade — however long the machine takes to draw it
+    await waitFor(page, `(() => { const e = document.querySelector('.ending-fade'); return !!e && getComputedStyle(e).opacity === '1'; })()`, 'the closing has faded in', 400);
     await audit(page, 'en · ending', '[data-testid="pause-menu"]');
 
     // ================================================================================================ a phone held sideways (the menu's own layout) and the notice to turn it

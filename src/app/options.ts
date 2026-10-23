@@ -31,6 +31,8 @@ export interface GameOptions {
   arrivalWait?: number;
   /** `?audio=on|off`: whether the game makes sound. On by default; off by default under `?hooks=1` (a test does not want a sound it cannot hear to depend on a gesture), where `?audio=on` turns it on (docs/PROMPT18-LOG.md). */
   audio: 'on' | 'off';
+  /** `?adaptive=1|0`: whether Auto quality measures the frames and steps down when the game cannot keep up (docs/PROMPT20-LOG.md §7). On for a player; off under `?hooks=1` (software drawing is slow by nature and a test must not have its quality change under it) unless `?adaptive=1` asks for it. */
+  adaptive: boolean;
   /** `?light=off` takes away the light the energy casts on the world (the hero's, the bolt's, the enemies'): the game as it was before phase I, to compare and to see what it adds; anything else (the default) has it. */
   light: 'auto' | 'off';
   camera: Partial<CameraConfig>;
@@ -67,6 +69,7 @@ export function optionsFromQuery(q: URLSearchParams): GameOptions {
     visual: (VISUAL_MODES as readonly string[]).includes(q.get('visual') ?? '') ? (q.get('visual') as VisualMode) : 'auto',
     vfx: q.get('vfx') === 'procedural' ? 'procedural' : 'auto',
     light: q.get('light') === 'off' ? 'off' : 'auto',
+    adaptive: q.get('adaptive') === '1' ? true : q.get('adaptive') === '0' ? false : q.get('hooks') !== '1',
     audio: q.get('audio') === 'on' ? 'on' : q.get('audio') === 'off' || q.get('hooks') === '1' ? 'off' : 'on',
     arrivalWait: arrivalWaitFromQuery(q),
     camera: cameraConfigFromQuery(q),

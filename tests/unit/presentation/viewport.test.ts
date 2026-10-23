@@ -69,7 +69,7 @@ describe('the quality a player chooses (docs/PROMPT6-LOG.md S30)', () => {
     expect([...QUALITY_SETTINGS]).toEqual(['auto', 'low', 'high']);
   });
 
-  it('low and high are the two ends of the profiles the game has; auto is the balanced one it always had — it measures nothing', () => {
+  it('low and high are the two ends of the profiles the game has; auto STARTS on the balanced one it always had (stepping down from it is up to the governor: qualityGovernor.test.ts)', () => {
     expect(tierFor('low')).toBe('low');
     expect(tierFor('high')).toBe('high');
     expect(tierFor('auto')).toBe('medium');

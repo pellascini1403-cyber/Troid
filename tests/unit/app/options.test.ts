@@ -32,6 +32,16 @@ describe('where the art is (?art= and the build)', () => {
   });
 });
 
+describe('?adaptive (Auto quality that measures the frames)', () => {
+  it('is on for a player, off under ?hooks=1 (software drawing is slow by nature and a test must not have its quality change under it), and ?adaptive says it either way', () => {
+    expect(optionsFromQuery(new URLSearchParams('')).adaptive).toBe(true);
+    expect(optionsFromQuery(new URLSearchParams('hooks=1')).adaptive).toBe(false);
+    expect(optionsFromQuery(new URLSearchParams('hooks=1&adaptive=1')).adaptive).toBe(true);
+    expect(optionsFromQuery(new URLSearchParams('adaptive=0')).adaptive).toBe(false);
+    expect(optionsFromQuery(new URLSearchParams('adaptive=yes')).adaptive, 'anything else is the default').toBe(true);
+  });
+});
+
 describe('?light=off (the game as it was before the light of the world)', () => {
   it('takes away the light the energy casts and the atmosphere of the screen; anything else keeps them', () => {
     expect(optionsFromQuery(new URLSearchParams('light=off')).light).toBe('off');

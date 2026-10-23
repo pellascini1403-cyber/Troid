@@ -17,7 +17,7 @@
   "settings.qualityAuto": "Automática",
   "settings.qualityLow": "Baja",
   "settings.qualityHigh": "Alta",
-  "settings.qualityNote": "Automática es el perfil equilibrado. Todavía no mide tu dispositivo.",
+  "settings.qualityNote": "Automática empieza equilibrada y baja sola si el juego va lento en tu dispositivo.",
   "settings.controls": "Controles de teclado",
   "settings.controlsHint": "Pulsa una acción y luego la tecla que quieras para ella. Esc cancela.",
   "settings.listening": "Pulsa una tecla…",

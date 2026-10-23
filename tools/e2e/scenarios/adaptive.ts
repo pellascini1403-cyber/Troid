@@ -65,7 +65,7 @@ export const adaptive: Scenario = {
     await q(ctx.page, 'settings-quality-auto').click();
     s = await quality(ctx);
     assert.deepEqual([s.setting, s.tier], ['auto', 'medium'], 'Auto chosen again by hand is the balanced profile again');
-    await ctx.page.keyboard.press('Escape');
+    await q(ctx.page, 'pause-resume').click(); // (Escape would only go back from the settings to the map)
     await waitFor(ctx.page, '!window.__troid.state().menuOpen', 'the menu is closed', 15000);
 
     // ================================================================================================ the menu open: the frames say nothing
@@ -83,7 +83,7 @@ export const adaptive: Scenario = {
     await waitFor(ctx.page, 'window.__troid.state().menuOpen', 'the menu is open', 15000);
     await q(ctx.page, 'pause-settings').click();
     await q(ctx.page, 'settings-quality-high').click();
-    await ctx.page.keyboard.press('Escape');
+    await q(ctx.page, 'pause-resume').click();
     await waitFor(ctx.page, '!window.__troid.state().menuOpen', 'the menu is closed', 15000);
     s = await quality(ctx);
     assert.deepEqual([s.setting, s.tier], ['high', 'high'], 'High, chosen by hand');

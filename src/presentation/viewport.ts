@@ -80,8 +80,8 @@ export const RESOLUTION_CAP = { low: 1.25, medium: 1.75, high: 2 } as const;
 export type QualityTier = keyof typeof RESOLUTION_CAP;
 
 /**
- * What a player may choose (docs/PROMPT6-LOG.md S30). `auto` is NOT a measurement: nothing in the game measures a device yet, so it is the balanced
- * profile (`medium`) the game always had; `low` and `high` are the two ends. A measuring `auto` is for the day there is something to measure it with.
+ * What a player may choose (docs/PROMPT6-LOG.md S30). `auto` STARTS on the balanced profile (`medium`) the game always had, and steps down to `low` by itself, once, if the frames show that the game cannot keep up
+ * (`presentation/qualityGovernor.ts`, docs/PROMPT20-LOG.md §7); `low` and `high` are the two ends, and a profile chosen by hand is never touched.
  */
 export const QUALITY_SETTINGS = ['auto', 'low', 'high'] as const;
 export type QualitySetting = (typeof QUALITY_SETTINGS)[number];

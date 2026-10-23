@@ -52,7 +52,7 @@ function listen(page: Page): string[] {
 
 /** The game is up and the room that was asked for has arrived (the same wait every scenario of the E2E makes, minus the hooks that pause the clock: here the game runs in real time). */
 async function up(page: Page): Promise<void> {
-  await page.waitForFunction('window.__troid && window.__troid.ready() && !window.__troid.arrivalHeld()', undefined, { timeout: SLOW });
+  await page.waitForFunction('window.__troid && window.__troid.ready() && !window.__troid.arrival().blocking', undefined, { timeout: SLOW });
   await page.waitForFunction('!window.__troid.effectsReady || window.__troid.effectsReady()', undefined, { timeout: SLOW });
 }
 

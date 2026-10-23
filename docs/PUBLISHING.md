@@ -11,7 +11,7 @@
 | Pieza | Estado |
 |---|---|
 | **El juego** (Vite + TypeScript + PixiJS 8, 2D) | Completo en lo que el encargo define: cuatro salas, un enemigo, un guardián, habilidades, mapa, guardado, ajustes, **final real con créditos**. Contenido nuevo se añade como datos (`src/content`) sin tocar el motor. |
-| **Build de producción** | `npm ci && npm run build` → `dist/` (JS de la primera pantalla: **195 975 B gz** de un techo de 204 800; 14 ficheros). Base relativa (`./`): funciona desde un servidor, en una subcarpeta, desde `file://` y dentro de un WebView. |
+| **Build de producción** | `npm ci && npm run build` → `dist/` (JS de la primera pantalla: **195 975 B gz** de un techo de 204 800; 14 ficheros). Base relativa (`./`): funciona desde un servidor, desde una subcarpeta y dentro de un WebView que sirva los ficheros por `http(s)` o por un esquema propio (como hace Capacitor). **No se abre con doble clic desde `file://`**: el navegador bloquea los módulos de una página sin origen (comprobado en Chromium: «blocked by CORS policy»; el juego lo dice en la cortina de arranque en lugar de quedarse negro). Sirva `dist/` con cualquier servidor estático (`npm run preview`, `npx serve dist`). |
 | **Pruebas** | `npm run check` (tipos + unitarias e integración, 3 688 pruebas) y `npm run test:e2e` (Chromium real, desarrollo y `-- --prod`). Ver [PROMPT20-LOG §10](PROMPT20-LOG.md). |
 | **Cáscara nativa (iOS / Android)** | **No existe en el repositorio.** El juego está preparado para vivir dentro de Capacitor (guardado nativo, botón Atrás, pausa al pasar a segundo plano, aviso de orientación) **pero no hay proyecto Xcode ni Android Studio**: se crea con los pasos de la [§6](#6--ios-y-android-con-capacitor-pasos-externos). |
 | **Instaladores de escritorio** | **No existen.** Hoy el escritorio es el navegador (o una página alojada). Ver [§8](#8--escritorio). |
@@ -30,6 +30,8 @@
 | Pérdida de contexto WebGL | E2E (`WEBGL_lose_context`) | ✅ |
 | Fugas en sesión larga | E2E `resilience` (listeners, temporizadores, DOM, *heap*) | ✅ en Chromium |
 | Privacidad: todo lo que sale y todo lo que se guarda | E2E `privacy` | ✅ ([§4](#4--privacidad-y-cumplimiento)) |
+| Abrir `dist/index.html` con doble clic (`file://`) | Chromium real | ❌ **no arranca** (CORS de los módulos desde `file://`); el juego lo dice en la cortina de arranque. Se sirve con cualquier servidor estático ([§7](#7--web-alojar-dist)) |
+| Política de seguridad de contenido (CSP) | Chromium real, con tres políticas | ✅ con `'unsafe-eval'` (y el script en línea por *hash* o `'unsafe-inline'`); ❌ sin `'unsafe-eval'` el juego no arranca y lo dice ([§7](#7--web-alojar-dist)) |
 | Legibilidad (contraste WCAG ≥ 4,5 : 1, letra ≥ 11 px) | E2E `readable` | ✅ en las 16 pantallas medidas |
 | Navegadores mínimos | Análisis **estático** del JS construido (`esbuild` a `safari15`, `chrome98`, `firefox100`) y de las APIs usadas | mínimo derivado: **iOS/Safari 15.4, Chrome/WebView 98, Firefox 100** — *no ejecutado en ellos*. Una degradación conocida en Safari < 16: `overscroll-behavior` (lo usan el cuerpo de la página y los paneles con desplazamiento del menú) no existe y se ignora —el menú puede «rebotar» al final de su desplazamiento—; el juego en sí no depende de ello (`touch-action: none`) |
 | **Safari / iOS, Firefox, Android WebView reales** | **No hay** esos navegadores ni dispositivos en el entorno | ❌ sin comprobar |
@@ -167,6 +169,18 @@ Haga esta lista en **un iPhone, un Android de gama media y uno de gama baja** an
 ## 7 · Web (alojar `dist/`)
 
 `dist/` se sirve desde cualquier alojamiento estático (una carpeta, itch.io, GitHub Pages, un CDN). Recomendaciones: **HTTPS**; ficheros con *hash* en `assets/` con caché larga (`immutable`); `index.html` sin caché larga (para que una versión nueva se vea); compresión Brotli/gzip; tipo MIME `application/manifest+json` para `manifest.webmanifest`. No hay *service worker*: **no funciona sin conexión la primera vez** (una vez cargado, el navegador lo guarda como cualquier página).
+
+**Si el alojamiento impone una política de seguridad de contenido (CSP)**, esta es la que se **midió** (Chromium, el *build* de producción: el juego arranca sin ningún error de consola):
+
+```
+Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-eval' 'sha256-<hash>'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' blob: data:; worker-src 'self' blob:; font-src 'self'; object-src 'none'; base-uri 'self'
+```
+
+- **`'unsafe-eval'` lo exige PixiJS**, que genera funciones en tiempo de ejecución. Sin él el juego **no arranca** y lo dice (la cortina de arranque o la página «Algo ha fallado»); no se queda en negro. PixiJS ofrece una versión sin `eval` (`pixi.js/unsafe-eval`), **que aquí no se usa a propósito**: cargada de forma perezosa, solo donde haga falta, sube el arranque en frío **2 429 B y de 14 a 18 ficheros** (medido: comparte código con el renderizador y el empaquetador lo parte). Si una tienda o un alojamiento exigiera una CSP sin `eval`, es la opción, y el presupuesto la admite (quedan ≈ 8 KB).
+- **`'sha256-<hash>'` es el *hash* del único script en línea de `index.html`** (el aviso de arranque fallido). Se calcula con `node -e "const s=require('fs').readFileSync('dist/index.html','utf8').match(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/)[1]; console.log('sha256-'+require('crypto').createHash('sha256').update(s).digest('base64'))"` y **cambia si ese script cambia**. Con `'unsafe-inline'` en `script-src` en su lugar también funciona. Sin ninguna de las dos cosas el script no corre y el juego solo pierde ese aviso.
+- **`style-src 'unsafe-inline'`**: el menú inserta sus estilos al abrirse.
+
+**No se abre con doble clic** (`file://`): el navegador bloquea los módulos de una página sin origen. Ver [§1](#1--qué-es-lo-que-hay).
 
 ---
 
