@@ -50,6 +50,15 @@ function listen(page: Page): string[] {
   return errors;
 }
 
+/** A wait that says what it was waiting for when it gives up (a bare «Timeout 60000ms exceeded» says nothing about which of the waits it was). */
+async function until(page: Page, expr: string, what: string): Promise<void> {
+  try {
+    await page.waitForFunction(expr, undefined, { timeout: SLOW });
+  } catch {
+    assert.fail(`${what} (${expr})`);
+  }
+}
+
 /** The game is up and the room that was asked for has arrived (the same wait every scenario of the E2E makes, minus the hooks that pause the clock: here the game runs in real time). */
 async function up(page: Page): Promise<void> {
   await page.waitForFunction('window.__troid && window.__troid.ready() && !window.__troid.arrival().blocking', undefined, { timeout: SLOW });
@@ -126,38 +135,40 @@ console.log(`${engine} ${browser.version()} · the production build at ${server.
   await step('a held key moves the hero', async () => {
     const x0 = (await hero(page)).x;
     await page.keyboard.down('KeyD');
-    await page.waitForFunction(`window.__troid.state().x > ${x0 + 1}`, undefined, { timeout: SLOW });
+    await until(page, `window.__troid.state().x > ${x0 + 1}`, 'the hero moved with the key held');
     await page.keyboard.up('KeyD');
     return `x ${x0.toFixed(1)} → ${(await hero(page)).x.toFixed(1)}`;
   });
 
   await step('a key attacks (and so does the mouse)', async () => {
     await page.keyboard.down('KeyJ');
-    await page.waitForFunction('window.__troid.state().combat && window.__troid.state().combat.attack !== null', undefined, { timeout: SLOW });
+    await until(page, 'window.__troid.state().combat && window.__troid.state().combat.attack !== null', 'the key started a blow');
     await page.keyboard.up('KeyJ');
-    await page.waitForFunction('window.__troid.state().combat.attack === null', undefined, { timeout: SLOW });
+    await until(page, 'window.__troid.state().combat.attack === null', 'the blow of the key ended');
     await page.mouse.move(640, 300);
     await page.mouse.down();
-    await page.waitForFunction('window.__troid.state().combat.attack !== null', undefined, { timeout: SLOW });
+    await until(page, 'window.__troid.state().combat.attack !== null', 'the mouse started a blow');
     await page.mouse.up();
-    await page.waitForFunction('window.__troid.state().combat.attack === null', undefined, { timeout: SLOW });
+    await until(page, 'window.__troid.state().combat.attack === null', 'the blow of the mouse ended');
   });
 
-  await step('Escape opens the pause menu, a button changes the language, Escape closes it', async () => {
+  await step('Escape opens the pause menu, a button changes the language, Escape goes back and Continue closes it', async () => {
     await page.keyboard.press('Escape');
     await page.waitForSelector('[data-testid="pause-menu"][data-open="1"]', { timeout: SLOW });
     await q(page, 'pause-settings').click();
     await q(page, 'settings-lang-es').click();
-    await page.waitForFunction("document.documentElement.lang === 'es'", undefined, { timeout: SLOW });
+    await until(page, "document.documentElement.lang === 'es'", 'the language of the page became Spanish');
     await q(page, 'settings-lang-en').click();
-    await page.waitForFunction("document.documentElement.lang === 'en'", undefined, { timeout: SLOW });
-    await page.keyboard.press('Escape');
-    await page.waitForFunction("!window.__troid.state().menuOpen && document.querySelector('[data-testid=\"pause-menu\"]')?.dataset.open !== '1'", undefined, { timeout: SLOW });
+    await until(page, "document.documentElement.lang === 'en'", 'and English again');
+    await page.keyboard.press('Escape'); // (from a screen of the menu: back to the map, the menu stays)
+    await until(page, "document.querySelector('[data-testid=\"pause-menu\"]')?.dataset.screen === 'main'", 'Escape went back to the map of the menu');
+    await page.keyboard.press('Escape'); // (from the map: into the game)
+    await until(page, "!window.__troid.state().menuOpen && document.querySelector('[data-testid=\"pause-menu\"]')?.dataset.open !== '1'", 'the second Escape closed the menu');
   });
 
   await step('what the hero wins is saved, and a reload continues from it', async () => {
     await page.evaluate('window.__troid.session.flags.set("defeated:r1_slime")');
-    await page.waitForFunction(`(localStorage.getItem('troid.progress') ?? '').includes('defeated:r1_slime')`, undefined, { timeout: SLOW });
+    await until(page, `(localStorage.getItem('troid.progress') ?? '').includes('defeated:r1_slime')`, 'what the hero won was written to the storage');
     await page.reload({ waitUntil: 'load' });
     await up(page);
     const flags = (await hero(page)).flags ?? [];
@@ -183,9 +194,9 @@ console.log(`${engine} ${browser.version()} · the production build at ${server.
     await page.goto(`${server.url}/?hooks=1&audio=on&new=1&lang=en`, { waitUntil: 'load' });
     await up(page);
     await page.keyboard.press('KeyD'); // a gesture: before it there is no audio context at all
-    await page.waitForFunction('window.__troid.state().audio != null', undefined, { timeout: SLOW });
+    await until(page, 'window.__troid.state().audio != null', 'the audio engine woke after the first key');
     await page.keyboard.down('KeyJ');
-    await page.waitForFunction('window.__troid.state().combat && window.__troid.state().combat.attack !== null', undefined, { timeout: SLOW });
+    await until(page, 'window.__troid.state().combat && window.__troid.state().combat.attack !== null', 'a blow started with the sound on');
     await page.keyboard.up('KeyJ');
     const { audio } = await state<{ audio: { engine: { state: string; played: number }; formats: string[]; sounds: number; loader: { groups: Record<string, { state: string; failed: number }> } } }>(page);
     assert.ok(audio.formats.length > 0, 'the browser plays none of the formats the game ships (Opus, MP3): the game would be silent');
@@ -223,7 +234,7 @@ console.log(`${engine} ${browser.version()} · the production build at ${server.
     await page.waitForSelector('[data-testid="pause-menu"][data-open="1"]', { timeout: SLOW });
     const back = await centre('pause-resume');
     await page.touchscreen.tap(back.x, back.y);
-    await page.waitForFunction("document.querySelector('[data-testid=\"pause-menu\"]')?.dataset.open !== '1'", undefined, { timeout: SLOW });
+    await until(page, "document.querySelector('[data-testid=\"pause-menu\"]')?.dataset.open !== '1'", 'the tap on «Continue» closed the menu');
     // the browser's own echo of a touch (mousedown / mouseup / click on whatever is under the finger) arrives within a moment: the hero must not strike with it
     for (let i = 0; i < 20; i++) {
       assert.equal((await hero(page)).combat?.attack ?? null, null, 'the hero attacked after a tap on «Continue»');

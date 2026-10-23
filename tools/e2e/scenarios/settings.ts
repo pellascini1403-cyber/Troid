@@ -5,8 +5,8 @@ import type { Ctx, GameState, Scenario } from '../scenario';
 import { TouchScreen } from '../touch';
 
 /**
- * THE SETTINGS in a real browser (docs/PROMPT6-LOG.md S30, docs/PROMPT14-LOG.md, docs/PROMPT18-LOG.md): the four volumes (the general one and the music's, the effects' and the ambience's), the quality profile (Auto / Low / High — which
- * measures nothing), the keys of the main actions and the side and position of the touch controls. Each one is changed through the pause menu the way a person
+ * THE SETTINGS in a real browser (docs/PROMPT6-LOG.md S30, docs/PROMPT14-LOG.md, docs/PROMPT18-LOG.md): the four volumes (the general one and the music's, the effects' and the ambience's), the quality profile (Auto / Low / High — Auto starts balanced and
+ * steps down by itself only when the game cannot keep up: the E2E `adaptive` proves that, and `?hooks=1` leaves it off here), the keys of the main actions and the side and position of the touch controls. Each one is changed through the pause menu the way a person
  * does — the pause button, the entry of the list, a slider, a click, a real key — and then three things are looked at: it is IN FORCE at once (the game answers to it), it is
  * SAVED (the file the game writes), and it SURVIVES a reload (the first frame after it is already right). Also: a game saved by the first version of
  * the settings still loads (and keeps what it held), a damaged file is repaired and never stops the game, and the console stays clean.
@@ -132,7 +132,7 @@ export const settings: Scenario = {
     for (const id of ['settings-languages', 'settings-quality', 'settings-accessibility']) assert.equal(await q(page, id).isVisible(), true, `${id} is there`);
     assert.equal(await q(page, 'settings-controls').count(), 0, 'the keys are on the controls screen, not on this one');
     assert.equal(await q(page, 'settings-volume-section').count(), 0, 'and the sound has its own screen');
-    assert.match(await text(page, 'settings-quality-note'), /does not measure your device yet/, 'and that Auto measures nothing');
+    assert.match(await text(page, 'settings-quality-note'), /Auto starts balanced and lowers itself if the game runs slowly on your device/, 'and it says what Auto does: starts balanced, steps down by itself if the game cannot keep up (the E2E `adaptive` proves it does)');
     assert.equal(await attr(page, 'settings-quality-auto', 'aria-pressed'), 'true');
     await changeScreen(page, 'settings', 'sound');
     assert.equal(await text(page, 'settings-volume-note'), 'A volume at zero mutes its category. Your choice is saved.', 'it says what zero means');
@@ -173,7 +173,7 @@ export const settings: Scenario = {
     await setRange(page, 'settings-volume-music', 0.25);
     await changeScreen(page, 'sound', 'settings');
 
-    // ================================================================================================ the quality: the picture and the effects follow, and nothing is measured
+    // ================================================================================================ the quality: the picture and the effects follow (here nothing is measured: `?hooks=1` leaves the measuring of Auto off)
     const profile = async (name: 'low' | 'high' | 'auto', want: { tier: string; resolution: number; particles: number; sprites: number }): Promise<void> => {
       await q(page, `settings-quality-${name}`).click();
       const t = await state();

@@ -33,10 +33,17 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright-core install --with-deps chromium
+      # (the download of a browser and its system libraries sometimes stalls for many minutes: each attempt has its time, and there are three)
+      - name: Install Chromium
+        run: |
+          for attempt in 1 2 3; do
+            timeout 420 npx playwright-core install --with-deps chromium && exit 0
+            echo "attempt $attempt did not finish; trying again"
+          done
+          exit 1
       - run: npm run build
       - run: npm run bench:bundle
-      - run: npm run test:e2e -- --prod --only=boot,movement,combat,room,world,pause,pauseMap,gamepad,focus,ending,finale,resilience,privacy,readable
+      - run: npm run test:e2e -- --prod --only=boot,movement,combat,room,world,pause,pauseMap,gamepad,focus,ending,finale,resilience,privacy,readable,adaptive
 
   # The game in the other two engines (docs/PROMPT20-LOG.md §6): Firefox and WebKit — the engine of Safari, on Linux: NOT an iPhone — start the production build, draw it, move the hero, pause, save and bring the game back,
   # and a phone-sized page takes a real tap without the hero striking. Chromium has the whole suite above. A pass is evidence about the engines, not about any device.
@@ -55,6 +62,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright-core install --with-deps ${{ matrix.browser }}
+      - name: Install ${{ matrix.browser }}
+        run: |
+          for attempt in 1 2 3; do
+            timeout 420 npx playwright-core install --with-deps ${{ matrix.browser }} && exit 0
+            echo "attempt $attempt did not finish; trying again"
+          done
+          exit 1
       - run: npm run build
       - run: npm run test:engines -- --browser=${{ matrix.browser }}
