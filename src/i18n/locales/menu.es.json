@@ -154,5 +154,22 @@
   "ability.dash": "Esquiva",
   "ability.magicAttack": "Proyectil espiritual",
   "ability.airDash": "Esquiva aérea",
-  "settings.back": "Volver"
+  "settings.back": "Volver",
+  "pause.map": "Mapa",
+  "pause.sound": "Sonido",
+  "map.label": "Mapa del mundo",
+  "map.summary": "Estás en {room}. Salas descubiertas: {found} de {total}.",
+  "map.youAreIn": "Estás en {room}",
+  "map.empty": "No hay mapa de este lugar.",
+  "map.zoomIn": "Acercar el mapa",
+  "map.zoomOut": "Alejar el mapa",
+  "map.center": "Centrar el mapa en tu posición",
+  "map.hint": "Arrastra para mover el mapa · rueda o pellizco para acercar",
+  "map.legendHero": "Tu posición",
+  "map.legendRest": "Descanso",
+  "map.legendSeal": "Sello",
+  "map.legendBoss": "Guardián",
+  "map.legendLocked": "Camino cerrado",
+  "region.ruins.name": "Ruinas del bosque antiguo",
+  "region.sanctum.name": "Santuario"
 }

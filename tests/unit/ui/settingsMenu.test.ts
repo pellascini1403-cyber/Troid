@@ -644,13 +644,36 @@ describe('settings menu', () => {
       return new SettingsMenu(second, tr, hostApi(), { screen: which });
     };
 
-    it('the settings screen has the language, the sound, the quality and accessibility — and none of the controls', () => {
+    it('the settings screen has the language, the graphics quality and accessibility — and neither the sound nor the controls', () => {
       const m = screen('settings');
       m.open();
       expect(q(second, 'settings-screen')).toBeTruthy();
       expect(q(second, 'settings-screen-title').textContent).toBe('Ajustes');
-      for (const id of ['settings-languages', 'settings-volume-section', 'settings-quality', 'settings-accessibility']) expect(q(second, id), id).toBeTruthy();
-      for (const id of ['settings-controls', 'settings-touch', 'settings-controls-body', 'settings-reference-keyboard']) expect(q(second, id), id).toBeNull();
+      for (const id of ['settings-languages', 'settings-quality', 'settings-accessibility']) expect(q(second, id), id).toBeTruthy();
+      for (const id of ['settings-volume-section', 'settings-controls', 'settings-touch', 'settings-controls-body', 'settings-reference-keyboard']) expect(q(second, id), id).toBeNull();
+      m.dispose();
+    });
+
+    it('the sound screen has the four volumes — and nothing else — and each slider still reports its own category', () => {
+      const m = screen('sound');
+      m.open();
+      expect(q(second, 'sound-screen')).toBeTruthy();
+      expect(q(second, 'sound-screen-title').textContent).toBe('Sonido');
+      expect(q(second, 'settings-volume-section')).toBeTruthy();
+      expect(q(second, 'settings-volume-section')!.querySelector('.settings-label'), 'the title says "Sonido": the section does not say it again').toBeNull();
+      for (const id of ['settings-volume', 'settings-volume-music', 'settings-volume-sfx', 'settings-volume-ambience']) expect(q(second, id), id).toBeTruthy();
+      for (const id of ['settings-languages', 'settings-quality', 'settings-accessibility', 'settings-controls', 'settings-touch', 'settings-controls-body']) expect(q(second, id), id).toBeNull();
+      const music = q(second, 'settings-volume-music') as HTMLInputElement;
+      music.value = '0.3';
+      music.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(calls).toContain('volume:music:0.3');
+      m.dispose();
+    });
+
+    it('the whole panel, where there is no title of its own for the sound, still names the section', () => {
+      const m = screen('all');
+      m.open();
+      expect(q(second, 'settings-volume-section')!.querySelector('.settings-label')?.textContent).toBe('Sonido');
       m.dispose();
     });
 
@@ -668,16 +691,22 @@ describe('settings menu', () => {
       const a = screen('settings');
       const aRoot = second;
       const b = screen('controls');
+      const bRoot = second;
+      const c = screen('sound');
       a.open();
       q(aRoot, 'settings-back').click();
       b.open();
-      q(second, 'controls-back').click();
-      expect(calls).toEqual(['close', 'close']);
+      q(bRoot, 'controls-back').click();
+      c.open();
+      q(second, 'sound-back').click();
+      expect(calls).toEqual(['close', 'close', 'close']);
       expect(q(aRoot, 'settings-back').textContent).toBe('Volver');
       tr.setLocale('en');
-      expect(q(second, 'controls-back').textContent).toBe('Back');
+      expect(q(bRoot, 'controls-back').textContent).toBe('Back');
+      expect(q(second, 'sound-back').textContent).toBe('Back');
       a.dispose();
       b.dispose();
+      c.dispose();
     });
 
     it('both can exist at once without a repeated test id (the pause menu holds one of each)', () => {

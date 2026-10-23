@@ -69,8 +69,8 @@ async function reload(ctx: Ctx): Promise<GameState> {
   return ctx.state();
 }
 /** The screens of the pause menu that hold settings, and what their way back is called. */
-type MenuScreen = 'settings' | 'controls';
-const BACK: Record<MenuScreen, string> = { settings: 'settings-back', controls: 'controls-back' };
+type MenuScreen = 'sound' | 'settings' | 'controls';
+const BACK: Record<MenuScreen, string> = { sound: 'sound-back', settings: 'settings-back', controls: 'controls-back' };
 /** The pause button, as a person presses it: the menu opens on its list. */
 async function openMenu(page: Page): Promise<void> {
   await q(page, 'pause-button').click();
@@ -125,15 +125,18 @@ export const settings: Scenario = {
     await openMenu(page);
     s = await state();
     assert.equal(s.menuOpen, true, 'the pause button opens it and pauses the game');
-    for (const id of ['pause-resume', 'pause-settings', 'pause-controls', 'pause-saves', 'pause-profile']) assert.equal(await q(page, id).isVisible(), true, `${id} is on the list`);
+    for (const id of ['pause-resume', 'pause-map', 'pause-controls', 'pause-sound', 'pause-settings', 'pause-saves', 'pause-profile']) assert.equal(await q(page, id).isVisible(), true, `${id} is on the column of options`);
+    assert.equal(await q(page, 'map').isVisible(), true, 'and the menu opened on the map');
     await ctx.shot('a-01-the-menu');
     await enterScreen(page, 'settings');
-    for (const id of ['settings-volume-section', 'settings-quality', 'settings-accessibility']) assert.equal(await q(page, id).isVisible(), true, `${id} is there`);
+    for (const id of ['settings-languages', 'settings-quality', 'settings-accessibility']) assert.equal(await q(page, id).isVisible(), true, `${id} is there`);
     assert.equal(await q(page, 'settings-controls').count(), 0, 'the keys are on the controls screen, not on this one');
-    assert.equal(await text(page, 'settings-volume-note'), 'A volume at zero mutes its category. Your choice is saved.', 'it says what zero means');
-    for (const id of ['settings-volume', 'settings-volume-music', 'settings-volume-sfx', 'settings-volume-ambience']) assert.equal(await q(page, id).isVisible(), true, `${id} is a slider of the sound`);
+    assert.equal(await q(page, 'settings-volume-section').count(), 0, 'and the sound has its own screen');
     assert.match(await text(page, 'settings-quality-note'), /does not measure your device yet/, 'and that Auto measures nothing');
     assert.equal(await attr(page, 'settings-quality-auto', 'aria-pressed'), 'true');
+    await changeScreen(page, 'settings', 'sound');
+    assert.equal(await text(page, 'settings-volume-note'), 'A volume at zero mutes its category. Your choice is saved.', 'it says what zero means');
+    for (const id of ['settings-volume', 'settings-volume-music', 'settings-volume-sfx', 'settings-volume-ambience']) assert.equal(await q(page, id).isVisible(), true, `${id} is a slider of the sound`);
 
     // ================================================================================================ the volume: in force at once, saved
     await setRange(page, 'settings-volume', 0.35);
@@ -168,6 +171,7 @@ export const settings: Scenario = {
     await setRange(page, 'settings-volume', 0.35);
     assert.equal(await q(page, 'settings-volume-status').isVisible(), false);
     await setRange(page, 'settings-volume-music', 0.25);
+    await changeScreen(page, 'sound', 'settings');
 
     // ================================================================================================ the quality: the picture and the effects follow, and nothing is measured
     const profile = async (name: 'low' | 'high' | 'auto', want: { tier: string; resolution: number; particles: number; sprites: number }): Promise<void> => {
@@ -268,9 +272,10 @@ export const settings: Scenario = {
     assert.ok(!s.grounded && s.vy > 0, 'H jumps after the reload');
     s = await tryKey('Space');
     assert.ok(s.combat?.attack !== null, 'and Space attacks');
-    await openScreen(page, 'settings');
+    await openScreen(page, 'sound');
     assert.equal((await q(page, 'settings-volume').inputValue()), '0.35', 'the menu shows what was saved');
     assert.deepEqual(await Promise.all(['settings-volume-music', 'settings-volume-sfx', 'settings-volume-ambience'].map((id) => q(page, id).inputValue())), ['0.25', '0.6', '0.4'], 'and the other three');
+    await changeScreen(page, 'sound', 'settings');
     assert.equal(await attr(page, 'settings-quality-low', 'aria-pressed'), 'true');
     await changeScreen(page, 'settings', 'controls');
     assert.deepEqual([await text(page, 'settings-key-jump'), await text(page, 'settings-key-attack')], ['H', 'Space']);
@@ -300,7 +305,7 @@ export const settings: Scenario = {
     assert.equal((await saved(page))?.['version'], 1, 'loading rewrites nothing: the old file stays as it is until something changes');
     await openMenu(page);
     assert.equal(await text(page, 'pause-title'), 'Pausa', 'the menu speaks the language that was saved, words included');
-    await enterScreen(page, 'settings');
+    await enterScreen(page, 'sound');
     assert.equal(await text(page, 'settings-volume-section').then((t) => t.includes('Volumen')), true);
     await setRange(page, 'settings-volume', 0.5);
     const upgraded = await savedWhere(page, (f) => f['version'] === 5, 'the file is version 5 from the first change (1 → 2 → 3 → 4 → 5)');
@@ -310,7 +315,7 @@ export const settings: Scenario = {
     assert.equal(upgraded['language'], 'es');
     assert.deepEqual([upgraded['touch'].scale, upgraded['touch'].opacity], [1.2, 0.8], 'and what version 1 held is still in it');
     assert.deepEqual(upgraded['touch'].buttons, {}, 'and no button was placed: each is where the design has it');
-    await closeMenu(ctx, 'settings');
+    await closeMenu(ctx, 'sound');
 
     // ================================================================================================ a damaged file is repaired, never fatal
     const damaged = { version: 2, language: 'xx-YY', volume: { master: 'loud' }, quality: 'ultra', keys: { attack: 'KeyD', dash: 'Escape', jump: 'KeyH', bogus: 'KeyZ' }, touch: { side: 'up', offsetX: 9, offsetY: -3, scale: 'big' } };

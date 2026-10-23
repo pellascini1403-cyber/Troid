@@ -24,10 +24,10 @@ function pauseCss(): string {
 }
 
 /**
- * The entry to the pause / settings menu (DOM): one small icon at the TOP CENTRE of the screen (beside the HUD, in a window narrower than it is wide) — not on
- * the right, where the three fixed controls live, and not a gameplay control. Pressing it (or Escape / P / the pad's Start) pauses the game and opens
- * the menu. It never takes keyboard focus (a Space press that jumps must not also "click" it) and, like the other overlays, a
- * click on it is never an attack (`data-ui-block`). Holds no text: its name is the translator's `settings.open`.
+ * The entry to the pause menu (DOM): one small icon in the TOP RIGHT corner of the screen (clear of the HUD at the top left and of the three fixed controls, which live lower on the right; where a window is too
+ * narrow for the HUD and the button side by side it goes under the HUD) — and not a gameplay control. Pressing it (or Escape / P / the pad's Start) pauses the game and opens the menu, which opens on the map. It
+ * never takes keyboard focus (a Space press that jumps must not also "click" it) and, like the other overlays, a click on it is never an attack (`data-ui-block`). Holds no text: its name is the translator's
+ * `settings.open`.
  */
 export class PauseButton {
   readonly root: HTMLDivElement;
@@ -77,7 +77,7 @@ export class PauseButton {
     this.store.add(translator.changed.subscribe(() => this.refreshLabel()));
   }
 
-  /** The window and its safe area: the button is centred in what is usable, below the top inset. Call on start and on every resize. */
+  /** The window and its safe area: the button is in the top right corner of what is usable, below the top inset. Call on start and on every resize. */
   place(width: number, height: number, insets: Insets, scale = 1, hudScale = 1): void {
     this.width = width;
     this.height = height;

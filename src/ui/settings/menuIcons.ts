@@ -10,6 +10,8 @@ export const MENU_ICONS = {
   controls: [{ d: 'M-9 -5 H9 V5 H-9 Z', width: 1.7 }, { d: 'M-5 -2 V2 M-7 0 H-3', width: 1.7 }, { d: 'M4 -1.5 L5.5 0 L4 1.5 L2.5 0 Z', fill: true }],
   saves: [{ d: 'M0 -9 L9 0 L0 9 L-9 0 Z', width: 1.7 }, { d: 'M0 -3.5 L3.5 0 L0 3.5 L-3.5 0 Z', fill: true }],
   profile: [{ d: 'M0 -9 a4 4 0 1 1 0 8 a4 4 0 1 1 0 -8', width: 1.7 }, { d: 'M-8 10 Q0 0 8 10', width: 1.7 }],
+  map: [{ d: 'M-9 -6 L-3 -8.5 L3 -6 L9 -8.5 V6.5 L3 9 L-3 6.5 L-9 9 Z', width: 1.6 }, { d: 'M-3 -8.5 V6.5 M3 -6 V9', width: 1.4 }],
+  sound: [{ d: 'M-9 -3 H-5 L0 -7.5 V7.5 L-5 3 H-9 Z', fill: true }, { d: 'M3.5 -4 a5.5 5.5 0 0 1 0 8', width: 1.7 }, { d: 'M6.5 -7.5 a10 10 0 0 1 0 15', width: 1.7 }],
   back: [{ d: 'M5 -8 L-4 0 L5 8', width: 2.2 }],
 } as const satisfies Record<string, readonly IconStroke[]>;
 

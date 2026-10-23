@@ -219,18 +219,20 @@ describe('the touch controls, on every class of window, at every size and in eve
 });
 
 describe('the pause button and the boss\'s bar', () => {
-  it('the pause button is a finger, inside the safe area, at the top centre, and clear of the HUD and of every button', () => {
+  it('the pause button is a finger, inside the safe area, in the top right corner, and clear of the HUD and of every button', () => {
     eachPlacement(LANDSCAPE, [1], (name, w, h, insets, l) => {
-      const p = pauseBox(w, insets, computeHudLayout(w, h, insets).scale);
+      const scale = computeHudLayout(w, h, insets).scale;
+      const p = pauseBox(w, insets, scale);
       expect(p.x1 - p.x0, `${name}: pause`).toBeGreaterThanOrEqual(44);
       expect(inside(p, safeRect(w, h, insets)), `${name}: pause inside`).toBe(true);
-      expect(Math.abs((p.x0 + p.x1) / 2 - (insets.left + (w - insets.left - insets.right) / 2)), `${name}: centred`).toBeLessThan(1);
+      expect(Math.abs(p.x1 - (w - insets.right - 8 * scale)), `${name}: at the right edge of the safe area`).toBeLessThan(1);
+      expect(Math.abs(p.y0 - (insets.top + 8 * scale)), `${name}: at the top edge of the safe area`).toBeLessThan(1);
       expect(rectsOverlap(p, inflate(hudRect(w, h, insets), 2)), `${name}: pause / HUD`).toBe(false);
       for (const b of BUTTONS) expect(discHitsRect(l[b], p), `${name}: pause / ${b}`).toBe(false);
     });
   });
 
-  it('…also in portrait, where the HUD is wider than half the window: the pause button goes beside it, not over its bottles', () => {
+  it('…also in portrait, where the HUD takes most of the width: the pause button stays at the right edge, and under the HUD where the two would meet — never over its bottles', () => {
     eachPlacement(PORTRAIT, [1], (name, w, h, insets, l) => {
       const p = pauseBox(w, insets, computeHudLayout(w, h, insets).scale);
       expect(inside(p, safeRect(w, h, insets)), `${name}: pause inside`).toBe(true);

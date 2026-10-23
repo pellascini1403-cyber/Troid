@@ -655,7 +655,7 @@ export class Game2D {
     o?.hud.place(width, height, insets);
     o?.prompt.place(width, height, insets, this.touchControls.gestureScale);
     o?.pause.place(width, height, insets, this.touchControls.gestureScale, this.settings.value.accessibility.hudScale);
-    o?.notice.place(width, height, insets, this.touchControls.gestureScale);
+    o?.notice.place(width, height, insets, this.touchControls.gestureScale, this.settings.value.accessibility.hudScale);
     this.placeBossBar(width, height, insets);
   }
 
@@ -989,7 +989,7 @@ export class Game2D {
             down: (id, x, y, t) => this.touchSource.down(id, 'interact', x, y, t),
             up: (id) => this.touchSource.up(id),
           },
-          // the entry to the pause / settings menu: one small icon at the top centre (the right side belongs to Attack, Dash and Ability)
+          // the entry to the pause menu (it opens on the map): one small icon in the top right corner
           onPause: () => this.toggleMenu(),
         });
         this.lifecycle.add(() => disposeOverlays(made));

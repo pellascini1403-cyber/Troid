@@ -3,6 +3,9 @@ import type { ProfileData } from '@/app/profile';
 import { DisposableStore } from '@/core/lifecycle';
 import { MENU_CATALOGS } from '@/i18n/menuCatalogs';
 import type { Translator } from '@/i18n/translator';
+import { EMPTY_SCENE, type MapScene } from '@/world/worldMap';
+import { MapView } from '../map/MapView';
+import { mapIconSvg } from '../map/mapIcons';
 import { createMenuIcon, type MenuIconId } from './menuIcons';
 import { formatClock } from './menuFormat';
 import { ensureMenuStyle } from './menuStyle';
@@ -10,8 +13,8 @@ import { ProfileScreen } from './ProfileScreen';
 import { SavesScreen, type SavesHost } from './SavesScreen';
 import { SettingsMenu, type SettingsMenuHost } from './SettingsMenu';
 
-/** The screens of the pause menu: its list, and the four it opens. */
-export type PauseScreen = 'main' | 'settings' | 'controls' | 'saves' | 'profile';
+/** The screens of the pause menu: the map (`main`, the one it opens on) and the five it can show in its place. */
+export type PauseScreen = 'main' | 'sound' | 'settings' | 'controls' | 'saves' | 'profile';
 
 /** What the menu can ask the page to make heard: a press, a slider moving, a switch turned on or off, a game saved. Which sound each one is, is the page's. */
 export type MenuSound = 'tap' | 'slider' | 'on' | 'off' | 'save';
@@ -24,8 +27,10 @@ export interface PauseHost {
   settings: Omit<SettingsMenuHost, 'close'>;
   /** The saved games. `null` where nothing is saved (a playground: `?room=`): the menu offers neither the games nor the profile there. */
   saves: Omit<SavesHost, 'back'> | null;
-  /** The data of the game being played, now: the summary beside the list and the profile screen read it each time they are shown. */
+  /** The data of the game being played, now: the summary above the map and the profile screen read it each time they are shown. */
   profile(): ProfileData;
+  /** The map of the world as the player has discovered it, now (read each time the menu opens). Absent where the page has none: the map then says so. */
+  map?(): MapScene;
   /** Closes the menu and lets the game go on. */
   resume(): void;
   /** Something has the screen over the menu (the editor of the touch buttons): asks it to give up. Answers whether there was one to give up. */
@@ -35,7 +40,7 @@ export interface PauseHost {
 }
 
 interface Entry {
-  id: Exclude<PauseScreen, 'main'> | 'resume';
+  id: Exclude<PauseScreen, 'main'> | 'resume' | 'map';
   icon: MenuIconId;
   /** The translator key of its name. */
   label: string;
@@ -43,34 +48,52 @@ interface Entry {
   needsSaves?: boolean;
 }
 
-/** The list, in order: the way back into the game first, then what can be looked at or changed. */
+/** The column of options, in order: the way back into the game first, then the map (the view the menu opens on), then what can be changed or looked at. */
 const ENTRIES: readonly Entry[] = [
   { id: 'resume', icon: 'resume', label: 'settings.resume' },
-  { id: 'settings', icon: 'settings', label: 'pause.settings' },
+  { id: 'map', icon: 'map', label: 'pause.map' },
   { id: 'controls', icon: 'controls', label: 'pause.controls' },
+  { id: 'sound', icon: 'sound', label: 'pause.sound' },
+  { id: 'settings', icon: 'settings', label: 'pause.settings' },
   { id: 'saves', icon: 'saves', label: 'pause.saves', needsSaves: true },
   { id: 'profile', icon: 'profile', label: 'pause.profile', needsSaves: true },
 ];
 
+/** What the legend of the map names, in order: the icon (or `hero`, drawn by the style sheet) and the translator key. */
+const LEGEND = [
+  { icon: 'hero', label: 'map.legendHero' },
+  { icon: 'rest', label: 'map.legendRest' },
+  { icon: 'seal', label: 'map.legendSeal' },
+  { icon: 'boss', label: 'map.legendBoss' },
+  { icon: 'lock', label: 'map.legendLocked' },
+] as const;
+
 /**
- * THE PAUSE MENU (DOM, docs/PROMPT14-LOG.md): what the game shows while it waits. A short list — Continue, Settings, Controls, Saved games, Profile — beside a card that says where the hero is, for how
- * long they have played and in which saved game; each entry opens a screen of its own, and the way out of every screen is the way back to the list. The game is already stopped when this opens (the loop
- * runs no tick while the menu is up); the menu itself decides nothing, owns no data and no text: every word is a translator key and every choice is the host's.
+ * THE PAUSE MENU (DOM, docs/PROMPT14-LOG.md, docs/PROMPT19-LOG.md): what the game shows while it waits. Two panels side by side — the MAP of the world on the left, the main one, and the column of options on the
+ * right (Continue, Map, Controls, Sound, Settings, Saved games, Profile) — and the map is what the menu opens on. Each option opens its screen in the main panel, in the place of the map (which keeps where the
+ * player had it: it is hidden, not closed), the column stays where it is with the open one marked, and the way out of every screen — the button of the screen, the Map entry, Escape — is the way back to the map. The
+ * game is already stopped when this opens (the loop runs no tick while the menu is up); the menu itself decides nothing, owns no data and no text: every word is a translator key and every choice is the host's.
  *
  * There is no "main menu" and no "quit" here on purpose: a web page has neither a title screen to go back to nor a process to end (the page IS the game; closing the tab is leaving it, and the game is saved
  * when the page is hidden). The screens are built the first time they are opened, so the menu costs nothing until it is used.
  *
- * Keyboard: Tab and Shift+Tab move through the controls of a screen; ↑ ↓ (and Home / End) move through the list; Enter or Space press. Escape — the game's pause key — goes back one screen, and resumes from the list.
+ * Keyboard: Tab and Shift+Tab move through the controls of a screen; ↑ ↓ (and Home / End) move through the column; Enter or Space press. Escape — the game's pause key — goes back to the map from a screen, and resumes
+ * from the map. The map itself moves with the arrows, + and −, and 0 (centre) once it has the focus.
  */
 export class PauseMenu {
   readonly root: HTMLDivElement;
   private readonly store = new DisposableStore();
   private readonly title: HTMLElement;
   private readonly entries = new Map<Entry['id'], HTMLButtonElement>();
+  private readonly stage: HTMLElement;
+  private readonly mapPanel: HTMLElement;
+  private readonly map: MapView;
   private readonly head: HTMLElement;
   private readonly zone: HTMLElement;
   private readonly facts: HTMLElement;
-  private readonly screens: { settings?: SettingsMenu; controls?: SettingsMenu; saves?: SavesScreen; profile?: ProfileScreen } = {};
+  private readonly legend: Array<{ label: HTMLElement; key: string }> = [];
+  private readonly hint: HTMLElement;
+  private readonly screens: { sound?: SettingsMenu; settings?: SettingsMenu; controls?: SettingsMenu; saves?: SavesScreen; profile?: ProfileScreen } = {};
   private current: PauseScreen | null = null;
   /** The entry the player came from, so the focus returns to it. */
   private lastEntry: Entry['id'] = 'resume';
@@ -94,12 +117,53 @@ export class PauseMenu {
     frame.className = 'pm-frame';
     frame.setAttribute('role', 'dialog');
     frame.setAttribute('aria-modal', 'true');
-    const main = doc.createElement('nav');
-    main.className = 'pm-main';
+
+    // ---- the main panel: the map, with where the hero is above it and what its marks mean below it (the screens of the options are put in the same place)
+    this.stage = doc.createElement('section');
+    this.stage.className = 'pm-stage';
+    this.stage.dataset['testid'] = 'pause-stage';
+    this.mapPanel = doc.createElement('div');
+    this.mapPanel.className = 'pm-map';
+    this.mapPanel.dataset['testid'] = 'pause-map-panel';
+    const where = doc.createElement('header');
+    where.className = 'pm-where';
+    where.dataset['testid'] = 'pause-where';
+    this.head = doc.createElement('div');
+    this.head.className = 'pm-where-head';
+    this.zone = doc.createElement('div');
+    this.zone.className = 'pm-zone';
+    this.zone.dataset['testid'] = 'pause-zone';
+    this.facts = doc.createElement('dl');
+    where.append(this.head, this.zone, this.facts);
+    const body = doc.createElement('div');
+    body.className = 'pm-map-body';
+    this.map = new MapView(body, translator);
+    const foot = doc.createElement('footer');
+    foot.className = 'pm-map-foot';
+    foot.dataset['testid'] = 'pause-map-legend';
+    for (const item of LEGEND) {
+      const wrap = doc.createElement('span');
+      wrap.className = `map-key map-key-${item.icon}`;
+      wrap.appendChild(item.icon === 'hero' ? doc.createElement('i') : mapIconSvg(doc, item.icon, 16));
+      const label = doc.createElement('span');
+      wrap.appendChild(label);
+      foot.appendChild(wrap);
+      this.legend.push({ label, key: item.label });
+    }
+    this.hint = doc.createElement('span');
+    this.hint.className = 'map-hint';
+    foot.appendChild(this.hint);
+    this.mapPanel.append(where, body, foot);
+    this.stage.appendChild(this.mapPanel);
+
+    // ---- the column of options
+    const side = doc.createElement('nav');
+    side.className = 'pm-side';
+    side.dataset['testid'] = 'pause-side';
     this.title = doc.createElement('h2');
     this.title.className = 'pm-title';
     this.title.dataset['testid'] = 'pause-title';
-    main.appendChild(this.title);
+    side.appendChild(this.title);
     for (const e of ENTRIES) {
       const b = doc.createElement('button');
       b.type = 'button';
@@ -113,22 +177,12 @@ export class PauseMenu {
       b.append(icon, label);
       listen(this.store, b, 'click', () => this.choose(e.id));
       this.entries.set(e.id, b);
-      main.appendChild(b);
+      side.appendChild(b);
     }
-    const where = doc.createElement('aside');
-    where.className = 'pm-where';
-    where.dataset['testid'] = 'pause-where';
-    this.head = doc.createElement('div');
-    this.head.className = 'pm-where-head';
-    this.zone = doc.createElement('div');
-    this.zone.className = 'pm-zone';
-    this.zone.dataset['testid'] = 'pause-zone';
-    this.facts = doc.createElement('dl');
-    where.append(this.head, this.zone, this.facts);
-    frame.append(main, where);
+    frame.append(this.stage, side);
     this.root.appendChild(frame);
     parent.appendChild(this.root);
-    listen(this.store, main, 'keydown', (e) => this.onListKey(e));
+    listen(this.store, side, 'keydown', (e) => this.onListKey(e));
     // the sound of the whole menu, from its root: every screen is a child of it, so none of them has to know there is sound (the handlers of the controls run first — they bubble up to this — so a switch is read as it was left)
     listen(this.store, this.root, 'click', (e) => this.pressed(e));
     listen(this.store, this.root, 'input', (e) => {
@@ -142,16 +196,21 @@ export class PauseMenu {
     return this.root.dataset['open'] === '1';
   }
 
-  /** The screen being shown (`null`: the menu is closed). */
+  /** The screen being shown (`null`: the menu is closed). `main` is the map. */
   get screen(): PauseScreen | null {
     return this.current;
   }
 
-  /** Shows the menu on its list, with the game as it is NOW. */
+  /** The map of the menu (the tests and the E2E look at where it is seen from). */
+  get mapView(): MapView {
+    return this.map;
+  }
+
+  /** Shows the menu on the map, with the game as it is NOW and the map seen as it opens (everything discovered, or the hero's surroundings). */
   open(): void {
     this.lastEntry = 'resume';
     this.root.dataset['open'] = '1';
-    this.show('main');
+    this.show('main', true);
   }
 
   /** Hides the menu and every screen of it. */
@@ -164,7 +223,7 @@ export class PauseMenu {
   }
 
   /**
-   * One step back: from a screen to the list. Answers whether it took the step; from the list (or closed) it does nothing and answers false — the caller closes the menu then, which is resuming the game.
+   * One step back: from a screen to the map. From the map (or closed) it does nothing and answers false — the caller closes the menu then, which is resuming the game.
    */
   back(): boolean {
     if (this.host.interrupt?.()) return true; // what has the screen over the menu gives way first
@@ -184,7 +243,8 @@ export class PauseMenu {
 
   dispose(): void {
     this.store.dispose();
-    for (const s of [this.screens.settings, this.screens.controls, this.screens.saves, this.screens.profile]) s?.dispose();
+    this.map.dispose();
+    for (const s of [this.screens.sound, this.screens.settings, this.screens.controls, this.screens.saves, this.screens.profile]) s?.dispose();
     this.root.remove();
   }
 
@@ -203,49 +263,60 @@ export class PauseMenu {
       return;
     }
     this.lastEntry = id;
-    this.show(id);
+    this.show(id === 'map' ? 'main' : id);
   }
 
-  /** Shows one screen and hides the others; the focus goes to the screen's way out, or — on the list — to the entry the player came from. */
-  private show(screen: PauseScreen): void {
+  /**
+   * Shows one screen in the main panel and hides the others (the map is hidden, not closed: it keeps the view the player gave it); the focus goes to the entry of the column the player came from. Coming back to
+   * the map draws it again from the game as it is — `fresh` (the menu has just opened) also sets it to its opening view.
+   */
+  private show(screen: PauseScreen, fresh = false): void {
     this.hideScreens();
     this.current = screen;
     this.root.dataset['screen'] = screen;
+    this.mapPanel.hidden = screen !== 'main';
+    for (const [id, b] of this.entries) {
+      if (id !== 'resume' && (id === 'map' ? screen === 'main' : id === screen)) b.setAttribute('aria-current', 'page');
+      else b.removeAttribute('aria-current');
+    }
     if (screen === 'main') {
       this.refreshTexts();
+      this.map.remeasure(); // it has a size now
+      this.map.update(this.host.map?.() ?? EMPTY_SCENE, { recentre: fresh });
       this.entries.get(this.visible(this.lastEntry))?.focus({ preventScroll: true });
       return;
     }
     const back = (): void => void this.show('main');
-    if (screen === 'settings' || screen === 'controls') {
-      const menu = (this.screens[screen] ??= new SettingsMenu(this.root, this.translator, { ...this.host.settings, close: back }, { screen }));
+    if (screen === 'sound' || screen === 'settings' || screen === 'controls') {
+      const menu = (this.screens[screen] ??= new SettingsMenu(this.stage, this.translator, { ...this.host.settings, close: back }, { screen }));
       menu.open();
     } else if (screen === 'saves') {
       const saves = this.host.saves;
       if (!saves) return this.show('main');
-      const view = (this.screens.saves ??= new SavesScreen(this.root, this.translator, { ...saves, back }));
+      const view = (this.screens.saves ??= new SavesScreen(this.stage, this.translator, { ...saves, back }));
       void view.open();
     } else {
-      const profile = (this.screens.profile ??= new ProfileScreen(this.root, this.translator, { profile: () => this.host.profile(), back }));
+      const profile = (this.screens.profile ??= new ProfileScreen(this.stage, this.translator, { profile: () => this.host.profile(), back }));
       profile.open();
     }
   }
 
   private hideScreens(): void {
+    this.screens.sound?.close();
     this.screens.settings?.close();
     this.screens.controls?.close();
     this.screens.saves?.close();
     this.screens.profile?.close();
   }
 
-  /** The entry the focus can go to: the one asked for if the list has it, else the way back into the game. */
+  /** The entry the focus can go to: the one asked for if the column has it, else the way back into the game. */
   private visible(id: Entry['id']): Entry['id'] {
     const b = this.entries.get(id);
     return b && !b.hidden ? id : 'resume';
   }
 
   private onListKey(e: KeyboardEvent): void {
-    if (this.current !== 'main' || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
     const shown = ENTRIES.filter((x) => !this.entries.get(x.id)?.hidden);
     const at = shown.findIndex((x) => this.entries.get(x.id) === this.root.ownerDocument.activeElement);
     let next = -1;
@@ -259,7 +330,7 @@ export class PauseMenu {
     if (target) this.entries.get(target.id)?.focus({ preventScroll: true });
   }
 
-  /** Every word, from the translator (the language may have changed), and the summary card from the game as it is now. */
+  /** Every word, from the translator (the language may have changed), and the summary above the map from the game as it is now. */
   private refreshTexts(): void {
     const t = this.translator;
     const doc = this.root.ownerDocument;
@@ -273,6 +344,8 @@ export class PauseMenu {
       const label = b.lastElementChild;
       if (label) label.textContent = t.t(e.label);
     }
+    for (const item of this.legend) item.label.textContent = t.t(item.key);
+    this.hint.textContent = t.t('map.hint');
     const p = this.host.profile();
     this.head.textContent = t.t('pause.where');
     this.zone.textContent = p.zoneKey ? t.t(p.zoneKey) : '';

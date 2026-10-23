@@ -1,4 +1,5 @@
 import type { ProfileData } from '@/app/profile';
+import { ROOMS, WORLD } from '@/content';
 import { DEFAULT_BINDINGS } from '@/input/bindings';
 import { controlsReference } from '@/input/controlsReference';
 import { defaultSettings } from '@/save/SettingsData';
@@ -6,6 +7,15 @@ import type { PauseHost } from '@/ui/settings/PauseMenu';
 import type { ImportOutcome, PickedFile, SaveOutcome, SavesHost, SlotCardView } from '@/ui/settings/SavesScreen';
 import type { SettingsMenuHost } from '@/ui/settings/SettingsMenu';
 import { computeTouchLayout } from '@/ui/touch/layout';
+import { buildMapLayout, mapScene, type MapScene } from '@/world/worldMap';
+
+const LAYOUT = buildMapLayout(WORLD, ROOMS);
+
+/** The map of the shipped world as a player sees it who has been in these rooms and has these flags set (standing in `room`, by default the last one). */
+export function shippedScene(visited: readonly string[] = ['r1_gate'], flags: readonly string[] = [], room: string = visited[visited.length - 1] ?? 'r1_gate'): MapScene {
+  const set = new Set(flags);
+  return mapScene(LAYOUT, { visited, flag: (f) => set.has(f), room, hero: { x: 4, y: 0 }, checkpoint: { room: 'r1_gate', entry: 'start' } });
+}
 
 /** The data a profile of a game in progress has: some of everything, so a test sees each line. */
 export function profileData(over: Partial<ProfileData> = {}): ProfileData {
@@ -118,6 +128,8 @@ export interface PauseProbe {
   calls: string[];
   saves: SavesProbe;
   profile: { data: ProfileData };
+  /** The map the host gives (change `scene` to change what the menu shows) and how many times the menu asked for it. */
+  map: { scene: MapScene; asked: number };
   /** The sounds the menu asked for, in order. */
   sounds: string[];
 }
@@ -127,6 +139,7 @@ export function pauseProbe(over: { playground?: boolean } = {}): PauseProbe {
   const settings = settingsProbe();
   const saves = savesProbe();
   const profile = { data: profileData(over.playground ? { slot: null } : {}) };
+  const map = { scene: shippedScene(['r1_gate']), asked: 0 };
   const calls = settings.calls;
   const sounds: string[] = [];
   return {
@@ -134,12 +147,14 @@ export function pauseProbe(over: { playground?: boolean } = {}): PauseProbe {
       settings: settings.host,
       saves: over.playground ? null : saves.host,
       profile: () => profile.data,
+      map: () => (map.asked++, map.scene),
       resume: () => void calls.push('resume'),
       sound: (kind) => void sounds.push(kind),
     },
     calls,
     saves,
     profile,
+    map,
     sounds,
   };
 }

@@ -1,3 +1,4 @@
+import { ROOMS, WORLD } from '@/content';
 import type { Bindings } from '@/input/bindings';
 import { controlsReference } from '@/input/controlsReference';
 import { SUPPORTED_LOCALES, type Translator } from '@/i18n';
@@ -13,6 +14,7 @@ import type { SavesHost } from '@/ui/settings/SavesScreen';
 import type { Insets } from '@/ui/touch/layout';
 import { TouchEditor } from '@/ui/touch/TouchEditor';
 import type { TouchPreviewData } from '@/ui/touch/TouchPreview';
+import { buildMapLayout, mapScene, type MapLayout } from '@/world/worldMap';
 import { downloadText, pickTextFile } from './files';
 import { AUTOSAVE, type GameSaves } from './gameSaves';
 import { buildProfile } from './profile';
@@ -80,6 +82,9 @@ function savesHost(saves: GameSaves, sound: MenuDeps['sound']): Omit<SavesHost, 
   };
 }
 
+/** The layout of the world's map: built from the rooms the game is made of, once, the first time the menu is made. */
+let layout: MapLayout | null = null;
+
 export function createPauseMenu(d: MenuDeps): PauseMenu {
   const { saves } = d;
   let editor: TouchEditor | null = null;
@@ -117,6 +122,12 @@ export function createPauseMenu(d: MenuDeps): PauseMenu {
     // a playground (`?room=`) saves nothing: it has no saved games to show and no profile to keep
     saves: saves ? savesHost(saves, d.sound) : null,
     profile: () => buildProfile(d.session, d.stats.snapshot(d.session.now), saves ? saves.slot : null),
+    // the map is the world the hero has been through: the rooms counted as visited (the same list the save keeps and the profile reads), the flags of the world, and where the hero is now
+    map: () => {
+      layout ??= buildMapLayout(WORLD, ROOMS);
+      const hero = d.session.player.body;
+      return mapScene(layout, { visited: d.stats.snapshot(d.session.now).rooms, flag: (f) => d.session.flags.has(f), room: d.session.room.id, hero: { x: hero.x, y: hero.y }, checkpoint: d.session.checkpoint });
+    },
     resume: d.resume,
     sound: d.sound,
     interrupt: () => {

@@ -46,6 +46,7 @@ import { fallbacks } from './scenarios/fallbacks';
 import { finale } from './scenarios/finale';
 import { movement } from './scenarios/movement';
 import { pause } from './scenarios/pause';
+import { pauseMap } from './scenarios/pauseMap';
 import { pauseZone } from './scenarios/pauseZone';
 import { r1 } from './scenarios/r1';
 import { room } from './scenarios/room';
@@ -66,7 +67,7 @@ import { vfx } from './scenarios/vfx';
 import { vfxArt } from './scenarios/vfxArt';
 import { world, worldArt } from './scenarios/world';
 
-const ALL: Scenario[] = [assets, playerArt, playerAnim, playerLab, playerR1, audioCues, audio, environment, artPerformance, roomArt, movement, crouch, combat, slime, r1, room, death, render, camera, sprites, vfx, vfxArt, lighting, fallbacks, boot, stress, touch, touchEditor, gamepad, hud, magic, bolt, bottles, bottle4, progression, interaction, devtools, language, vertical, transition, arrival, world, worldArt, boss, bossDeath, checkpoint, save, settings, pause, pauseZone, slots, tabs, accessibility, hazard, mobile, finale, soak];
+const ALL: Scenario[] = [assets, playerArt, playerAnim, playerLab, playerR1, audioCues, audio, environment, artPerformance, roomArt, movement, crouch, combat, slime, r1, room, death, render, camera, sprites, vfx, vfxArt, lighting, fallbacks, boot, stress, touch, touchEditor, gamepad, hud, magic, bolt, bottles, bottle4, progression, interaction, devtools, language, vertical, transition, arrival, world, worldArt, boss, bossDeath, checkpoint, save, settings, pause, pauseMap, pauseZone, slots, tabs, accessibility, hazard, mobile, finale, soak];
 const filter = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice('--only='.length).split(',').filter((n) => n !== '');
 const prod = process.argv.includes('--prod');
@@ -133,6 +134,8 @@ for (const scenario of selected) {
   } catch (e) {
     failed++;
     console.error(`✗ ${scenario.name}\n  ${(e as Error).message}`);
+    // `TROID_E2E_STACK=1` says WHERE in the scenario it stood (the message alone names the assertion, not the line)
+    if (process.env['TROID_E2E_STACK'] === '1') console.error(((e as Error).stack ?? '').split('\n').filter((l) => l.includes('/tools/e2e/scenarios/')).slice(0, 4).join('\n'));
   }
   await opened.current?.page.context().close();
 }

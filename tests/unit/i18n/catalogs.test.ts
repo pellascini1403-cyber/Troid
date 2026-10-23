@@ -93,10 +93,10 @@ describe('the words of the settings menu travel apart (docs/PROMPT6-LOG.md S30: 
     }
   });
 
-  it('what the menu brings is only its own — the settings, the actions, the pause list, the controls, the saved games, the profile and the abilities it names — and no key is in both halves', () => {
+  it('what the menu brings is only its own — the settings, the actions, the pause list, the map and the names of its zones, the controls, the saved games, the profile and the abilities it names — and no key is in both halves', () => {
     for (const lang of Object.keys(MENU_CATALOGS)) {
       for (const key of Object.keys(MENU_CATALOGS[lang]!)) {
-        expect(/^(settings|action|pause|controls|saves|profile|ability)\./.test(key), `${lang}:${key}`).toBe(true);
+        expect(/^(settings|action|pause|map|region|controls|saves|profile|ability)\./.test(key), `${lang}:${key}`).toBe(true);
         expect(CATALOGS[lang]![key], `${lang}:${key} is in the game's catalog too`).toBeUndefined();
       }
     }

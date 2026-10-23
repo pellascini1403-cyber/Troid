@@ -149,8 +149,7 @@ export const accessibility: Scenario = {
 
     // ================================================================================================ the screen offers three choices, each saying what it does
     await openSettings(page);
-    // the screen has the four sliders of the sound now (Prompt 18), so it asks for about 800 px of panel — the panel is at most 90 % of the window: a 720 px desktop window scrolls it, and says so with the same fade as the
-    // phone; a taller window shows it whole and shows no fade. Whichever the window, the fade must be the truth: drawn when there is something below and only then
+    // the fade that says "there is more below" must be the truth whatever the window: drawn when there is something to scroll to, and only then — also when the window changes size under it (the page looks again)
     const fadeIsTrue = (a: { more: string | undefined; masked: boolean; room: number }, where: string): void =>
       assert.deepEqual([a.more, a.masked], a.room > 1 ? ['1', true] : ['0', false], `${where}: the fade is drawn when there is something to scroll to, and only then (${JSON.stringify(a)})`);
     // (the page takes note of the size of the window on its next frame: wait for what it says to agree with what the geometry is, and then judge it)

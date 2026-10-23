@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { CATALOGS, createTranslator } from '@/i18n';
 import { NOTICE_FADE, NOTICE_HOLD, NoticeModel } from '@/ui/overlays/saveNoticeModel';
 import { SaveNotice } from '@/ui/overlays/SaveNotice';
+import { touchFrame } from '@/ui/touch/layout';
 
 /**
  * WHAT BECAME OF THE SAVED GAME, TOLD DISCREETLY (docs/PROMPT14-LOG.md): "saved" is a blink that must never ask for attention in a fight; what the player has to know stays long enough to read, and is
@@ -145,9 +146,22 @@ describe('the notice on the page', () => {
     expect(notice.current.kind).toBeNull();
   });
 
-  it('hangs from the top right corner, inside the safe area', () => {
-    expect(el().style.transform).toContain(`translate(${844 - 20 - 16}px, ${10 + 16}px)`);
-    notice.place(844, 390, { top: 0, right: 0, bottom: 0, left: 0 }, 1.5);
-    expect(el().style.transform).toContain(`translate(${844 - 24}px, ${24}px)`);
+  it('hangs from the right edge of the safe area, just UNDER the pause button (which has the corner), and under the HUD too in a window too narrow to hold the two', () => {
+    const at = (w: number, h: number, insets: { top: number; right: number; bottom: number; left: number }, scale = 1, hud = 1): { right: number; top: number } => {
+      notice.place(w, h, insets, scale, hud);
+      const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(el().style.transform)!;
+      return { right: Number(m[1]), top: Number(m[2]) };
+    };
+    const insets = { top: 10, right: 20, bottom: 0, left: 0 };
+    const wide = at(844, 390, insets);
+    expect(wide.right).toBe(844 - 20 - 16);
+    expect(wide.top, 'under the pause button, not over it').toBeGreaterThanOrEqual(touchFrame(844, 390, insets).pause.y1);
+    expect(wide.top, 'and close under it').toBeLessThan(touchFrame(844, 390, insets).pause.y1 + 12);
+    expect(at(844, 390, { top: 0, right: 0, bottom: 0, left: 0 }, 1.5).right).toBe(844 - 24);
+    // a phone held upright with the HUD at its biggest: the longest notice would reach the HUD, so it goes under the HUD
+    const none = { top: 0, right: 0, bottom: 0, left: 0 };
+    const narrow = at(340, 740, none, 0.9, 1.35);
+    expect(narrow.top).toBeGreaterThanOrEqual(touchFrame(340, 740, none, 1.35).hud.y1);
+    expect(el().style.transform).toContain('translateX(-100%)'); // anchored by its right edge: it grows to the left with its words
   });
 });

@@ -1,6 +1,6 @@
 import type { Translator } from '@/i18n/translator';
 import { cssHex, PALETTE } from '@/presentation/palette';
-import type { Insets } from '../touch/layout';
+import { touchFrame, type Insets } from '../touch/layout';
 import { NoticeModel, type NoticeKind } from './saveNoticeModel';
 
 const STYLE_ID = 'troid-notice-style';
@@ -34,7 +34,7 @@ function noticeCss(): string {
 }
 
 /**
- * The discreet line that tells the player what became of their saved game (DOM, docs/PROMPT14-LOG.md): a small mark and a few words at the top right, for a moment — "saved" is a blink that does not
+ * The discreet line that tells the player what became of their saved game (DOM, docs/PROMPT14-LOG.md): a small mark and a few words at the top right, under the pause button, for a moment — "saved" is a blink that does not
  * ask for attention in a fight; a warning (the save did not reach the storage, a game was recovered, one could not be read, nothing can be kept) stays long enough to read. It never takes a touch
  * (`pointer-events: none`), has `role="status"` so a screen reader says it politely, and every word comes from the translator.
  */
@@ -78,11 +78,17 @@ export class SaveNotice {
     return this.model.state;
   }
 
-  /** The window and its safe area: the notice hangs from the top right corner, inside it. */
-  place(width: number, _height: number, insets: Insets, scale = 1): void {
+  /**
+   * The window and its safe area: the notice hangs from the right edge, just UNDER the pause button (which has the top right corner), growing to the left with its words. Where a window is so narrow that the
+   * longest it can be would reach the HUD, it goes under the HUD as well.
+   */
+  place(width: number, height: number, insets: Insets, scale = 1, hudScale = 1): void {
     const margin = 16 * scale;
-    // anchored by its right edge: the box grows to the left with the words
-    this.root.style.transform = `translate(${Math.round(width - insets.right - margin)}px, ${Math.round(insets.top + margin)}px) translateX(-100%) scale(${scale})`;
+    const right = Math.round(width - insets.right - margin);
+    const frame = touchFrame(width, height, insets, hudScale);
+    const longest = Math.min(300, width * 0.6) * scale;
+    const top = Math.round(Math.max(frame.pause.y1 + 2, right - longest < frame.hud.x1 ? frame.hud.y1 + 2 : 0));
+    this.root.style.transform = `translate(${right}px, ${top}px) translateX(-100%) scale(${scale})`;
   }
 
   show(kind: NoticeKind, slot: number): void {

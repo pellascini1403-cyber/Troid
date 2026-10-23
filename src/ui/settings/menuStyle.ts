@@ -1,4 +1,5 @@
 import { cssHex, PALETTE } from '@/presentation/palette';
+import { mapCss } from '../map/mapStyle';
 
 const STYLE_ID = 'troid-menu-style';
 export const rgba = (hex: number, a: number): string => `rgba(${(hex >> 16) & 255},${(hex >> 8) & 255},${hex & 255},${a})`;
@@ -51,30 +52,64 @@ function menuCss(): string {
 .troid-settings .settings-touchline { display:flex; flex-direction:column; gap:1px; padding:5px 0; border-bottom:1px solid ${rgba(PALETTE.energyCore, 0.12)}; font-size:0.85rem; }
 .troid-settings .settings-touchline span { opacity:0.7; font-size:0.78rem; line-height:1.35; }
 
-/* ---- the list of the pause menu ---- */
+/* ---- the pause menu: the map in the main panel, the column of options at its side ---- */
 .troid-pausemenu { position:absolute; inset:0; z-index:44; display:none; pointer-events:auto; align-items:center; justify-content:center; background:radial-gradient(ellipse at 50% 38%, ${rgba(PALETTE.worldVoid, 0.7)}, ${rgba(PALETTE.worldVoid, 0.92)}); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:${white}; user-select:none; -webkit-user-select:none; }
 .troid-pausemenu[data-open="1"] { display:flex; }
-.troid-pausemenu .pm-frame { display:flex; gap:22px; align-items:stretch; width:min(640px, 94vw); max-height:92vh; overflow:auto; box-sizing:border-box; padding:20px 22px 22px; border:1px solid ${rim}; border-radius:6px; background:linear-gradient(180deg, ${rgba(PALETTE.uiPanel, 0.96)}, ${rgba(PALETTE.worldVoid, 0.97)}); box-shadow:0 0 34px ${rgba(PALETTE.energyGlow, 0.2)}, inset 0 1px 0 ${rgba(PALETTE.whiteHot, 0.1)}; }
-.troid-pausemenu .pm-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:7px; }
-.troid-pausemenu .pm-title { font-size:1.25rem; font-weight:300; letter-spacing:0.34em; text-transform:uppercase; margin:0 0 6px; padding-bottom:10px; background:linear-gradient(90deg, ${core}, transparent) bottom/100% 1px no-repeat; text-shadow:0 0 14px ${core}88; }
-.troid-pausemenu .pm-entry { position:relative; display:grid; grid-template-columns:28px 1fr auto; align-items:center; gap:10px; min-height:48px; box-sizing:border-box; padding:0 14px 0 12px; font:inherit; font-size:1rem; letter-spacing:0.04em; text-align:left; color:${white}; cursor:pointer; background:${rgba(PALETTE.uiPanel, 0.62)}; border:1px solid ${rgba(PALETTE.energyCore, 0.18)}; border-left:3px solid ${rgba(PALETTE.energyCore, 0.25)}; border-radius:3px; }
+.troid-pausemenu .pm-frame { display:grid; grid-template-columns:minmax(0, 1fr) clamp(200px, 25vw, 270px); gap:18px; width:min(1120px, 96vw); height:min(660px, 92vh); box-sizing:border-box; padding:18px 20px 20px; overflow:hidden; border:1px solid ${rim}; border-radius:6px; background:linear-gradient(180deg, ${rgba(PALETTE.uiPanel, 0.96)}, ${rgba(PALETTE.worldVoid, 0.97)}); box-shadow:0 0 34px ${rgba(PALETTE.energyGlow, 0.2)}, inset 0 1px 0 ${rgba(PALETTE.whiteHot, 0.1)}; }
+/* the main panel: the map, or the screen of the option that was chosen in its place */
+.troid-pausemenu .pm-stage { position:relative; min-width:0; min-height:0; display:flex; flex-direction:column; }
+.troid-pausemenu .pm-map { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; gap:10px; }
+.troid-pausemenu .pm-map[hidden] { display:none; }
+.troid-pausemenu .pm-where { flex:none; display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 22px; }
+.troid-pausemenu .pm-where-head { flex:0 0 100%; font-size:0.68rem; letter-spacing:0.18em; text-transform:uppercase; opacity:0.55; }
+.troid-pausemenu .pm-zone { font-size:1.2rem; font-weight:300; letter-spacing:0.05em; line-height:1.25; text-shadow:0 0 12px ${core}88; margin-right:auto; }
+.troid-pausemenu .pm-where dl { margin:0; display:flex; flex-wrap:wrap; gap:0 18px; }
+.troid-pausemenu .pm-where dl > * { display:inline; }
+.troid-pausemenu .pm-where dt { display:inline; font-size:0.68rem; letter-spacing:0.18em; text-transform:uppercase; opacity:0.55; margin-right:6px; }
+.troid-pausemenu .pm-where dd { display:inline; margin:0 12px 0 0; font-size:0.98rem; font-variant-numeric:tabular-nums; }
+.troid-pausemenu .pm-map-body { position:relative; flex:1 1 auto; min-height:0; overflow:hidden; border:1px solid ${rgba(PALETTE.energyCore, 0.3)}; border-radius:4px; background:${rgba(PALETTE.worldVoid, 0.6)}; box-shadow:inset 0 0 24px ${rgba(PALETTE.worldVoid, 0.8)}; }
+.troid-pausemenu .pm-map-foot { flex:none; display:flex; flex-wrap:wrap; align-items:center; gap:4px 18px; font-size:0.76rem; letter-spacing:0.04em; opacity:0.85; }
+.troid-pausemenu .map-hint { margin-left:auto; opacity:0.6; }
+/* the screens of the options are put in the main panel: they fill it instead of floating over the screen */
+.troid-pausemenu .pm-stage > .troid-settings { position:absolute; inset:0; z-index:auto; align-items:stretch; justify-content:stretch; background:transparent; }
+.troid-pausemenu .pm-stage > .troid-settings .settings-panel { width:100%; max-height:none; height:100%; box-shadow:none; border-radius:4px; background:${rgba(PALETTE.worldVoid, 0.5)}; }
+/* the column of options */
+.troid-pausemenu .pm-side { min-width:0; min-height:0; display:flex; flex-direction:column; gap:7px; overflow-y:auto; overscroll-behavior:contain; padding:2px 2px 2px 0; }
+.troid-pausemenu .pm-title { flex:none; font-size:1.25rem; font-weight:300; letter-spacing:0.34em; text-transform:uppercase; margin:0 0 6px; padding-bottom:10px; background:linear-gradient(90deg, ${core}, transparent) bottom/100% 1px no-repeat; text-shadow:0 0 14px ${core}88; }
+.troid-pausemenu .pm-entry { position:relative; flex:none; display:grid; grid-template-columns:28px 1fr auto; align-items:center; gap:10px; min-height:46px; box-sizing:border-box; padding:0 14px 0 12px; font:inherit; font-size:1rem; letter-spacing:0.04em; text-align:left; color:${white}; cursor:pointer; background:${rgba(PALETTE.uiPanel, 0.62)}; border:1px solid ${rgba(PALETTE.energyCore, 0.18)}; border-left:3px solid ${rgba(PALETTE.energyCore, 0.25)}; border-radius:3px; }
+.troid-pausemenu .pm-entry > span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .troid-pausemenu .pm-entry svg { color:${core}; }
 .troid-pausemenu .pm-entry:hover, .troid-pausemenu .pm-entry:focus-visible { outline:none; background:${rgba(PALETTE.energyCore, 0.12)}; border-left-color:${glow}; box-shadow:0 0 14px ${rgba(PALETTE.energyGlow, 0.22)}; text-shadow:0 0 10px ${core}99; }
 .troid-pausemenu .pm-entry[data-primary="1"] { border-color:${rgba(PALETTE.energyCore, 0.5)}; border-left-color:${glow}; background:${rgba(PALETTE.energyCore, 0.1)}; }
+.troid-pausemenu .pm-entry[aria-current="page"] { border-color:${rgba(PALETTE.energyCore, 0.55)}; border-left-color:${glow}; background:${rgba(PALETTE.energyCore, 0.16)}; text-shadow:0 0 10px ${core}99; }
 .troid-pausemenu .pm-entry::after { content:""; width:7px; height:7px; border-top:1.6px solid ${rgba(PALETTE.energyCore, 0.6)}; border-right:1.6px solid ${rgba(PALETTE.energyCore, 0.6)}; transform:rotate(45deg); }
-.troid-pausemenu .pm-entry[data-primary="1"]::after { display:none; }
-.troid-pausemenu .pm-where { flex:0 0 190px; display:flex; flex-direction:column; gap:12px; padding:14px 14px; box-sizing:border-box; border:1px solid ${rgba(PALETTE.energyCore, 0.2)}; border-radius:4px; background:${rgba(PALETTE.worldVoid, 0.55)}; align-self:center; }
+.troid-pausemenu .pm-entry[data-primary="1"]::after, .troid-pausemenu .pm-entry[aria-current="page"]::after { display:none; }
 .troid-pausemenu .pm-entry[hidden] { display:none; }
-.troid-pausemenu .pm-where-head { font-size:0.68rem; letter-spacing:0.18em; text-transform:uppercase; opacity:0.55; margin-bottom:-8px; }
-.troid-pausemenu .pm-zone { font-size:1.12rem; font-weight:300; letter-spacing:0.05em; line-height:1.25; text-shadow:0 0 12px ${core}88; }
-.troid-pausemenu .pm-where dl { margin:0; display:flex; flex-direction:column; gap:10px; }
-/* a screen of the menu replaces the list (it is not drawn over it) and lets the menu's own backdrop dim the world */
-.troid-pausemenu[data-screen]:not([data-screen="main"]) .pm-frame { display:none; }
-.troid-pausemenu > .troid-settings { background:transparent; }
-.troid-pausemenu .pm-where dt { font-size:0.68rem; letter-spacing:0.18em; text-transform:uppercase; opacity:0.55; }
-.troid-pausemenu .pm-where dd { margin:2px 0 0; font-size:0.98rem; font-variant-numeric:tabular-nums; }
-@media (max-width:620px), (max-height:430px) { .troid-pausemenu .pm-frame { flex-direction:column; gap:10px; padding:14px 16px 16px; } .troid-pausemenu .pm-where { flex:none; align-self:stretch; flex-direction:row; flex-wrap:wrap; align-items:baseline; gap:4px 14px; padding:8px 12px; } .troid-pausemenu .pm-where-head { margin-bottom:0; } .troid-pausemenu .pm-where dl { flex-direction:row; flex-wrap:wrap; gap:6px 18px; } .troid-pausemenu .pm-entry { min-height:44px; } }
-@media (max-height:430px) { .troid-pausemenu .pm-main { display:grid; grid-template-columns:1fr 1fr; } .troid-pausemenu .pm-title { grid-column:1 / -1; } .troid-pausemenu .pm-entry[data-id="resume"] { grid-column:1 / -1; } }
+/* a phone held upright: the map on top, the options under it in two columns */
+@media (max-width:700px) {
+  .troid-pausemenu .pm-frame { grid-template-columns:minmax(0, 1fr); grid-template-rows:minmax(0, 1fr) auto; gap:10px; width:100vw; height:min(100vh, 100dvh); padding:12px 12px 14px; border-radius:0; border-left:0; border-right:0; }
+  .troid-pausemenu .pm-side { display:grid; grid-template-columns:1fr 1fr; gap:6px; overflow:visible; padding:0; }
+  .troid-pausemenu .pm-title { display:none; }
+  .troid-pausemenu .pm-entry { min-height:44px; padding:0 10px 0 9px; gap:8px; grid-template-columns:22px 1fr; }
+  .troid-pausemenu .pm-entry::after { display:none; }
+  .troid-pausemenu .pm-entry[data-id="resume"] { grid-column:1 / -1; }
+  .troid-pausemenu .pm-zone { font-size:1.05rem; }
+  .troid-pausemenu .map-hint { display:none; }
+}
+/* a phone held sideways, or a window that is not tall: the options go two to a row, still a finger tall each (44 px), and the legend of the map goes (its marks have names for a screen reader) */
+@media (max-height:430px) {
+  .troid-pausemenu .pm-frame { grid-template-columns:minmax(0, 1fr) 252px; gap:12px; height:96vh; padding:10px 12px 12px; }
+  .troid-pausemenu .pm-title { grid-column:1 / -1; font-size:1rem; margin-bottom:0; padding-bottom:6px; letter-spacing:0.28em; }
+  .troid-pausemenu .pm-side { display:grid; grid-template-columns:1fr 1fr; grid-auto-rows:min-content; align-content:start; gap:6px; }
+  .troid-pausemenu .pm-entry { min-height:44px; font-size:0.88rem; line-height:1.1; padding:0 8px 0 8px; gap:7px; grid-template-columns:20px 1fr; }
+  .troid-pausemenu .pm-entry > span { white-space:normal; overflow-wrap:anywhere; }
+  .troid-pausemenu .pm-entry::after { display:none; }
+  .troid-pausemenu .pm-entry[data-id="resume"] { grid-column:1 / -1; }
+  .troid-pausemenu .pm-map-foot { display:none; }
+  .troid-pausemenu .pm-zone { font-size:1rem; }
+  .troid-pausemenu .pm-where-head { display:none; }
+}
+${mapCss()}
 
 /* ---- the saved games ---- */
 .troid-settings .saves-list { display:flex; flex-direction:column; gap:10px; }

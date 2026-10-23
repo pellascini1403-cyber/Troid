@@ -149,8 +149,11 @@ async function audit(ctx: Ctx, label: string, c: WindowClass, placement?: { scal
   const pause = await rectOf(page, 'pause-button');
   assert.ok(inside(pause, safeRect), `${label}: the pause button is inside the safe area (${JSON.stringify(pause)})`);
   assert.ok(side(pause) >= 44 - 0.5, `${label}: and a finger (${side(pause).toFixed(1)} px)`);
-  if (width >= height) assert.ok(Math.abs(centre(pause).x - (safe.left + (width - safe.left - safe.right) / 2)) < 1.5, `${label}: at the top centre`);
-  else assert.ok(pause.x0 >= hud.x1 - 0.5, `${label}: held upright the window is narrower than the HUD is wide: the pause button is beside the HUD, not over it`);
+  // in the top right corner: its edge a few px from the right edge of the safe area, and — where the window holds the HUD and the button side by side — its top a few px from the top of it; held upright the HUD
+  // can fill the width, and then the button stays at the right edge and goes under the HUD
+  assert.ok(width - safe.right - pause.x1 < 24 && pause.x1 <= width - safe.right + 0.5, `${label}: at the right edge of the safe area (${JSON.stringify(pause)})`);
+  if (width >= height) assert.ok(pause.y0 - safe.top < 24, `${label}: and at its top (${pause.y0})`);
+  else assert.ok(pause.y0 - safe.top < 24 || pause.y0 >= hud.y1 - 0.5, `${label}: held upright it is at the top, or under the HUD where the HUD fills the width`);
   assert.ok(!rectsOverlap(pause, hud), `${label}: clear of the HUD`);
   for (const b of BUTTONS) {
     assert.ok(!circleHits(buttons[b], hud), `${label}: ${b} is clear of the HUD`);

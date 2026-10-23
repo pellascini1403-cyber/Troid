@@ -582,15 +582,15 @@ const savedVolume = async (page: Page): Promise<Record<string, number> | null> =
 };
 const SLIDERS = { master: 'settings-volume', music: 'settings-volume-music', sfx: 'settings-volume-sfx', ambience: 'settings-volume-ambience' } as const;
 
-/** The pause button and the settings screen, as a person presses them. */
+/** The pause button and the sound screen (the four sliders), as a person presses them. */
 async function openSettings(page: Page): Promise<void> {
   await q(page, 'pause-button').click();
   await page.waitForSelector('[data-testid="pause-menu"][data-open="1"]', { timeout: 15000 });
-  await q(page, 'pause-settings').click();
-  await page.waitForSelector('[data-testid="settings-screen"][data-open="1"]', { timeout: 15000 });
+  await q(page, 'pause-sound').click();
+  await page.waitForSelector('[data-testid="sound-screen"][data-open="1"]', { timeout: 15000 });
 }
 async function closeMenu(page: Page): Promise<void> {
-  await q(page, 'settings-back').click();
+  await q(page, 'sound-back').click();
   await q(page, 'pause-resume').click();
   await page.waitForSelector('[data-testid="pause-menu"][data-open="0"]', { state: 'attached', timeout: 15000 });
 }
@@ -609,7 +609,7 @@ async function remembering(ctx: Ctx): Promise<string> {
   assert.deepEqual(a.levels, want, 'the engine has the four levels the sliders were moved to');
   assert.ok(a.engine.recent.includes('ui.slider'), 'a slider that moves is heard');
   assert.ok(a.engine.recent.includes('ui.pause.open'), 'and so was the menu opening');
-  await q(page, 'settings-back').click();
+  await q(page, 'sound-back').click();
   await q(page, 'pause-settings').click(); // (a press of a button taps)
   await page.waitForTimeout(150);
   assert.ok((await audioOf(page)).engine.recent.includes('ui.tap'), 'a press of a button is heard');

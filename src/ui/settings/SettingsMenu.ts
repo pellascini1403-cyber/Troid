@@ -39,10 +39,10 @@ export interface SettingsMenuHost {
 }
 
 /**
- * Which part of the settings a menu shows. `all` is everything in one panel (what the menu was before the pause menu had screens of its own); the pause menu uses `settings` (the language, the
- * sound, the quality, accessibility) and `controls` (the keys, the touch layout and the list of what each control does).
+ * Which part of the settings a menu shows. `all` is everything in one panel (what the menu was before the pause menu had screens of its own); the pause menu uses `sound` (the four volumes), `settings` (the
+ * language, the graphics quality, accessibility) and `controls` (the keys, the touch layout and the list of what each control does).
  */
-export type SettingsScreen = 'all' | 'settings' | 'controls';
+export type SettingsScreen = 'all' | 'settings' | 'sound' | 'controls';
 
 export interface SettingsMenuOptions {
   screen?: SettingsScreen;
@@ -53,6 +53,7 @@ export interface SettingsMenuOptions {
 const SCREEN_IDS: Readonly<Record<SettingsScreen, { root: string; title: string; back: string }>> = {
   all: { root: 'settings-menu', title: 'settings-title', back: 'settings-resume' },
   settings: { root: 'settings-screen', title: 'settings-screen-title', back: 'settings-back' },
+  sound: { root: 'sound-screen', title: 'sound-screen-title', back: 'sound-back' },
   controls: { root: 'controls-screen', title: 'controls-screen-title', back: 'controls-back' },
 };
 
@@ -151,7 +152,6 @@ export class SettingsMenu {
     options: SettingsMenuOptions = {},
   ) {
     this.screen = options.screen ?? 'all';
-    const sectionsOf = (name: 'settings' | 'controls'): boolean => this.screen === 'all' || this.screen === name;
     // its words come with it: a player who never opens the menu never downloads them
     for (const [lang, entries] of Object.entries(MENU_CATALOGS)) translator.extend(lang, entries);
     const doc = parent.ownerDocument;
@@ -193,7 +193,8 @@ export class SettingsMenu {
 
     // ---- sound: the general volume and one for each kind of sound; zero is silence ----
     const volume = el('div', 'settings-section', 'settings-volume-section');
-    volume.appendChild(this.label(doc, 'settings.sound'));
+    // the screen that is only the sound already says so in its title: its section does not say it again
+    if (this.screen !== 'sound') volume.appendChild(this.label(doc, 'settings.sound'));
     const volumes = {} as Record<AudioCategory, { input: HTMLInputElement; output: HTMLOutputElement }>;
     for (const category of AUDIO_CATEGORIES) {
       volumes[category] = this.slider(
@@ -304,11 +305,9 @@ export class SettingsMenu {
     // the title and the way out stay where they are; what lies between them scrolls
     const body = el('div', 'settings-body');
     this.hint = this.store.add(new ScrollHint(body));
-    const parts: HTMLElement[] = [];
-    if (sectionsOf('settings')) parts.push(language, volume, quality, access);
     // the controls screen is laid out by `placeGroups` (the device in use first); the single panel keeps the keys and the touch layout, in that order
-    if (this.screen === 'controls') parts.push(this.controlsBody);
-    else if (sectionsOf('controls')) parts.push(this.keysSection, this.touchSection);
+    const parts: HTMLElement[] =
+      this.screen === 'sound' ? [volume] : this.screen === 'settings' ? [language, quality, access] : this.screen === 'controls' ? [this.controlsBody] : [language, volume, quality, access, this.keysSection, this.touchSection];
     body.append(...parts);
     panel.append(this.title, body, this.resume);
     this.root.appendChild(panel);
@@ -603,7 +602,7 @@ export class SettingsMenu {
   /** Every word, from the translator: the language may have changed. */
   private refreshTexts(): void {
     const t = this.translator;
-    const title = t.t(this.screen === 'settings' ? 'pause.settings' : this.screen === 'controls' ? 'pause.controls' : 'settings.title');
+    const title = t.t(this.screen === 'settings' ? 'pause.settings' : this.screen === 'sound' ? 'pause.sound' : this.screen === 'controls' ? 'pause.controls' : 'settings.title');
     this.title.textContent = title;
     this.root.setAttribute('aria-label', title);
     this.resume.textContent = t.t(this.screen === 'all' ? 'settings.resume' : 'settings.back');

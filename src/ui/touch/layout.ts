@@ -100,19 +100,23 @@ const FIT_FLOOR = 0.72;
 const SLACK = 1e-4;
 
 /**
- * Where the pause button's box (its `PAUSE_FOOTPRINT.size` square, before it is scaled) starts for a window `width` px wide with the given safe insets at `scale`: centred in what is usable, below the top
- * inset. In a window narrower than the HUD is wide (a phone held upright, S31: the audit found the button over the fourth bottle) it goes right next to the HUD, as long as it still fits inside the safe area.
- * The HUD counts at its widest (its box does not change when a fourth bottle is found), so the button does not move when a bottle is found.
+ * Where the pause button's box (its `PAUSE_FOOTPRINT.size` square, before it is scaled) starts for a window `width` px wide with the given safe insets at `scale`: in the TOP RIGHT corner of what is usable,
+ * `margin` from the safe area (the scaled button grows about its centre, so the box is placed by what it measures once scaled). In a window too narrow to hold the HUD and the button side by side (a phone held
+ * upright with the HUD at its biggest) it stays at the right edge and goes down, under the HUD, instead of over it. The HUD counts at its widest (its box does not change when a fourth bottle is found), so the
+ * button does not move when a bottle is found.
  */
 export function pauseOrigin(width: number, insets: Readonly<Insets>, scale = 1, hudScale = 1): { left: number; top: number } {
   const { size, margin } = PAUSE_FOOTPRINT;
   const half = (size / 2) * scale;
-  const middle = insets.left + (width - insets.left - insets.right) / 2;
+  const centre = width - insets.right - margin * scale - half;
   // the HUD is drawn at the window's scale times the size the player chose for it
-  const beside = insets.left + (HUD_FOOTPRINT.margin + HUD_FOOTPRINT.width) * scale * hudScale + HUD_FOOTPRINT.gap * scale + half;
-  const centre = beside > middle && beside + half <= width - insets.right ? beside : middle;
-  // scaling grows the button up and down by half the difference: the box comes down by that much, or at a large `uiScale` its top would be off the window (S31)
-  return { left: Math.round(centre - size / 2), top: Math.round(insets.top + margin * scale + (size / 2) * Math.max(0, scale - 1)) };
+  const hudEnd = insets.left + (HUD_FOOTPRINT.margin + HUD_FOOTPRINT.width) * scale * hudScale + HUD_FOOTPRINT.gap * scale;
+  const hudBottom = insets.top + (HUD_FOOTPRINT.margin + HUD_FOOTPRINT.height) * scale * hudScale + HUD_FOOTPRINT.gap * scale;
+  const under = centre - half < hudEnd;
+  const edge = under ? hudBottom : insets.top + margin * scale;
+  // scaling grows the button up and down by half the difference: the box starts there so that, once scaled, its top edge is `edge` (under the HUD it is rounded down the screen, never up into it)
+  const top = edge + (size / 2) * (scale - 1);
+  return { left: Math.round(centre - size / 2), top: under ? Math.ceil(top) : Math.round(top) };
 }
 
 /** The pause button as it is on screen: the box, scaled about its centre, in px. */

@@ -154,5 +154,22 @@
   "ability.dash": "Dash",
   "ability.magicAttack": "Spirit Bolt",
   "ability.airDash": "Air Dash",
-  "settings.back": "Back"
+  "settings.back": "Back",
+  "pause.map": "Map",
+  "pause.sound": "Sound",
+  "map.label": "World map",
+  "map.summary": "You are in {room}. Rooms discovered: {found} of {total}.",
+  "map.youAreIn": "You are in {room}",
+  "map.empty": "There is no map of this place.",
+  "map.zoomIn": "Zoom the map in",
+  "map.zoomOut": "Zoom the map out",
+  "map.center": "Centre the map on your position",
+  "map.hint": "Drag to move the map · wheel or pinch to zoom",
+  "map.legendHero": "Your position",
+  "map.legendRest": "Rest",
+  "map.legendSeal": "Seal",
+  "map.legendBoss": "Guardian",
+  "map.legendLocked": "Shut way",
+  "region.ruins.name": "Ruins of the ancient forest",
+  "region.sanctum.name": "Sanctum"
 }
