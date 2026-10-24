@@ -3,5 +3,6 @@
  * cosmetic and the first room has no boss, so they travel in a chunk of their own — fetched with the effects, once the first frame is up — and
  * the cold start of R1 does not carry them. The boss itself (its simulation) is in the main chunk: it never waits for its picture.
  */
+export { BossView, type BossLike } from '@/render/BossView';
 export { GuardianView, type GuardianLike } from '@/render/GuardianView';
 export { BossBarView } from '@/ui/hud/BossBarView';

@@ -2,7 +2,9 @@ import type { AttackDefinition } from '@/combat/AttackDefinition';
 import type { EnemyDefinition } from '@/enemies/EnemyDefinition';
 import { CREATURES } from './creatures';
 import { INK_SLIME } from './inkSlime';
+import type { BossDefinition } from '@/enemies/boss/BossDefinition';
 import type { GuardianDefinition } from '@/enemies/GuardianDefinition';
+import { ENGINE_BOSSES } from './bosses';
 
 export { INK_SLIME, SLIME_LUNGE } from './inkSlime';
 
@@ -86,6 +88,7 @@ export const INK_WARDEN: GuardianDefinition = {
 };
 
 /** The guardians a room's `bosses` may name, by id. */
-export const BOSSES: Readonly<Record<string, GuardianDefinition>> = {
+export const BOSSES: Readonly<Record<string, GuardianDefinition | BossDefinition>> = {
+  ...ENGINE_BOSSES,
   [INK_WARDEN.id]: INK_WARDEN,
 };

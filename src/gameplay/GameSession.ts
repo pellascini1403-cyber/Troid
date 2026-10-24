@@ -12,6 +12,8 @@ import { Rng } from '@/core/rng';
 import { Scheduler } from '@/core/scheduler';
 import { Enemy } from '@/enemies/Enemy';
 import type { EnemyDefinition } from '@/enemies/EnemyDefinition';
+import { Boss } from '@/enemies/boss/Boss';
+import type { BossDefinition } from '@/enemies/boss/BossDefinition';
 import { Guardian } from '@/enemies/Guardian';
 import type { GuardianDefinition } from '@/enemies/GuardianDefinition';
 import { InteractionSystem } from '@/interaction/InteractionSystem';
@@ -60,7 +62,7 @@ export interface SessionOptions {
   /** The enemy definitions that `RoomDefinition.spawns` refer to, by id. */
   enemies?: Readonly<Record<string, EnemyDefinition>>;
   /** The guardians that `RoomDefinition.bosses` refer to, by id (docs/PROMPT6-LOG.md S29). */
-  bosses?: Readonly<Record<string, GuardianDefinition>>;
+  bosses?: Readonly<Record<string, GuardianDefinition | BossDefinition>>;
   /** World flags set from the start (tests, loading a save). */
   flags?: readonly string[];
   /** The flags that make the hero's life and magic bars bigger (docs/PROMPT21-LOG.md): derived from the flags whenever they change, never saved on their own. */
@@ -531,7 +533,8 @@ export class GameSession implements SimServices {
       if (this.flags.has(b.defeatFlag)) continue;
       const def = this.opts.bosses?.[b.guardian];
       if (!def) throw new Error(`room "${room.id}": boss "${b.id}" places the unknown guardian "${b.guardian}"`);
-      const boss = new Guardian(this.ids.next(def.id), def, { x: b.x, y: b.y, facing: b.facing }, b.arena);
+      // the Warden is the class written for it; the guardians after it are the data-driven engine (`phases` is what tells them apart)
+      const boss = 'phases' in def ? new Boss(this.ids.next(def.id), def, { x: b.x, y: b.y, facing: b.facing }, b.arena) : new Guardian(this.ids.next(def.id), def, { x: b.x, y: b.y, facing: b.facing }, b.arena);
       this.defeatFlags.set(boss.id, b.defeatFlag);
       this.fightFlags.set(boss.id, b.fightFlag);
       this.addEntity(boss);
@@ -745,7 +748,7 @@ export class GameSession implements SimServices {
   private rescueFallenGuardians(): void {
     const killY = this.current.killY ?? this.current.bounds.y0 - 10;
     for (const e of this.live) {
-      if (!(e instanceof Enemy) && !(e instanceof Guardian)) continue;
+      if (!(e instanceof Enemy) && !(e instanceof Guardian) && !(e instanceof Boss)) continue;
       if (e.body.y >= killY || e.health.dead) continue;
       e.teleport(e.home.x, e.home.y, e.facing);
       this.collision.probeGround(e.body);

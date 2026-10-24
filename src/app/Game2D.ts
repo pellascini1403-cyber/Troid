@@ -16,6 +16,7 @@ import { DrawCallCounter } from '@/debug/DrawCallCounter';
 import { FpsMeter } from '@/debug/FpsMeter';
 import { CATALOGS, chooseLocale, createTranslator, FALLBACK_LOCALE, SUPPORTED_LOCALES, type Translator } from '@/i18n';
 import { Enemy } from '@/enemies/Enemy';
+import type { Boss } from '@/enemies/boss/Boss';
 import type { Guardian } from '@/enemies/Guardian';
 import type { EnemyDefinition } from '@/enemies/EnemyDefinition';
 import { TrainingDummy } from '@/enemies/TrainingDummy';
@@ -53,6 +54,7 @@ import { PlayerVisualSwitch } from '@/render/PlayerVisual';
 import { CameraAdapter2D } from '@/render/CameraAdapter2D';
 import { DummyView, type DummyLike } from '@/render/DummyView';
 import { EntityViews, type EntityView } from '@/render/EntityViews';
+import type { BossLike } from '@/render/BossView';
 import type { GuardianArt, GuardianLike } from '@/render/GuardianView';
 import { LateView } from '@/render/LateView';
 import { EnemyShotView, type EnemyShotLike } from '@/render/EnemyShotView';
@@ -419,9 +421,13 @@ export class Game2D {
       guardian: (e) => {
         const make = (m: BossViews) => (): EntityView => {
           const look = this.vfxArt?.atlas ?? vfxAtlas;
+          const def = (e as Guardian | Boss).def;
+          // the guardians of the engine (docs/PROMPT21-LOG.md) are drawn from the look their definition names; the Warden has its column
+          const procedural = 'phases' in def ? PROCEDURAL_LOOKS[def.view.lookId] : undefined;
+          if (procedural) return new m.BossView(e as unknown as BossLike, procedural, { glow: vfxAtlas.frames.glow, marks: look });
           const view = new m.GuardianView(e as unknown as GuardianLike, { glow: vfxAtlas.frames.glow, marks: look });
           // the art of the zone may already be in memory (a boss that wakes after the room was dressed): it takes the parts at once
-          const art = this.roomArtCover?.guardians.get((e as Guardian).def.view.lookId);
+          const art = this.roomArtCover?.guardians.get(def.view.lookId);
           if (art) view.dress(art);
           return view;
         };
@@ -833,7 +839,7 @@ export class Game2D {
     // the boss is an entity too: its own view takes the parts of the art (or keeps its shapes when the art has none for it). Its code may still be on the way (a `LateView`): it is dressed when it arrives
     this.entityViews.each('guardian', (entity, view) => {
       const inner = view instanceof LateView ? view.view : view;
-      (inner as unknown as { dress(art: GuardianArt | null): void } | null)?.dress(cover.guardians.get((entity as Guardian).def.view.lookId) ?? null);
+      (inner as unknown as { dress(art: GuardianArt | null): void } | null)?.dress(cover.guardians.get((entity as Guardian | Boss).def.view.lookId) ?? null);
     });
     // a developer is told what the art got wrong (a strip too short for the camera); a player's console stays quiet
     if (import.meta.env.DEV) for (const n of cover.notes) log.scope('art').warn(n);

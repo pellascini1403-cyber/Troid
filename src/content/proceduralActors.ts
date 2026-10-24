@@ -85,6 +85,8 @@ function creature(o: { id: string; width: number; height: number; colors: Colors
       // asleep as a puddle / sinking into one
       crouch: { scaleX: [1.5, 1.6], scaleY: [0.2, 0.14], eyeGlow: [0.1, 0.1], squint: [1, 1] },
       death: { scaleX: [1, 1.7], scaleY: [1, 0.08], eyeGlow: [0.5, 0], squint: [0.2, 1], ease: 'out' },
+      // the roar between the phases of a boss: it swells, shakes and burns
+      phaseTransition: { scaleX: [1, 1.22], scaleY: [1, 1.22], eyeGlow: [1.2, 1.8], aura: [0.9, 0.6], auraScale: [1.8, 2.6], tremble: 0.05, ease: 'out' },
     },
     phases: { recovery: { scaleX: [1.2, 1], scaleY: [0.78, 1], eyeGlow: [0.2, 0.3], ease: 'out' } },
   };
@@ -108,9 +110,17 @@ export const FLOOR_LEECH_LOOK = creature({ id: 'floor_leech', width: 1.2, height
 export const INK_WEAVER_LOOK = creature({ id: 'ink_weaver', width: 1.0, height: 1.6, colors: colors(PALETTE.worldDeep, PALETTE.violetGlow, PALETTE.violetCore, PALETTE.violetCore), eyes: { ...EYES, y: 0.78, forward: 0.1, spread: 0.36 }, windup: 'swell', wobble: 1.2 });
 export const VEIL_SHADE_LOOK = creature({ id: 'veil_shade', width: 0.9, height: 1.7, colors: colors(PALETTE.worldVoid, PALETTE.violetCore, PALETTE.violetDeep, PALETTE.violetCore), eyes: { width: 0.12, height: 0.3, y: 0.78, forward: 0.2, spread: 0.3 }, windup: 'rise', wobble: 1.8 });
 
+// the guardians: the same body language at the size of a room, over the colours of the place they keep
+export const ROOT_TYRANT_LOOK = creature({ id: 'boss_root_tyrant', width: 3, height: 4.2, colors: colors(PALETTE.worldNight, PALETTE.worldSlate, PALETTE.worldDeep, PALETTE.violetCore), eyes: { width: 0.3, height: 0.2, y: 0.78, forward: 0.12, spread: 0.45 }, windup: 'rise', spikes: 7, wobble: 0.4 });
+export const MIRE_MATRIARCH_LOOK = creature({ id: 'boss_mire_matriarch', width: 2.8, height: 2.4, colors: colors(PALETTE.worldNight, PALETTE.violetGlow, PALETTE.violetCore, PALETTE.violetGlow), eyes: { width: 0.4, height: 0.36, y: 0.8, forward: 0.1, spread: 0.6 }, windup: 'squash', wobble: 1.4 });
+export const CRYSTAL_COLOSSUS_LOOK = creature({ id: 'boss_colossus', width: 3.2, height: 4.6, colors: colors(PALETTE.worldHaze, PALETTE.whiteHot, PALETTE.worldGlow, PALETTE.violetGlow), eyes: { width: 0.3, height: 0.4, y: 0.7, forward: 0.1, spread: 0.3 }, windup: 'rise', spikes: 9, wobble: 0.3 });
+export const BELL_WARDEN_LOOK = creature({ id: 'boss_bell_warden', width: 2.4, height: 2.2, colors: colors(PALETTE.worldMist, PALETTE.worldGlow, PALETTE.worldHaze, PALETTE.violetGlow), eyes: { width: 0.3, height: 0.3, y: 0.55, forward: 0, spread: 0.35 }, windup: 'rise', shape: 'orb', wobble: 0.8 });
+export const FOUNDRY_ENGINE_LOOK = creature({ id: 'boss_engine', width: 3.6, height: 3.4, colors: colors(PALETTE.worldDusk, PALETTE.accentWarm, PALETTE.worldSlate, PALETTE.accentWarm, PALETTE.accentWarm), eyes: { width: 0.5, height: 0.2, y: 0.66, forward: 0.18, spread: 0.3 }, windup: 'squash', spikes: 4, wobble: 0.3 });
+export const INKHEART_SOVEREIGN_LOOK = creature({ id: 'boss_sovereign', width: 2.2, height: 3, colors: colors(PALETTE.enemyInk, PALETTE.violetCore, PALETTE.violetDeep, PALETTE.violetGlow, PALETTE.whiteHot), eyes: { width: 0.2, height: 0.5, y: 0.72, forward: 0.1, spread: 0.4 }, windup: 'swell', spikes: 7, wobble: 1.2 });
+
 export const PROCEDURAL_LOOKS: Readonly<Record<string, ProceduralLook>> = {
   [INK_SLIME_LOOK.id]: INK_SLIME_LOOK,
   ...Object.fromEntries(
-    [BRAMBLE_CRAWLER_LOOK, MIRE_TOAD_LOOK, STONEBACK_LOOK, GLOW_SPORE_LOOK, INK_SPITTER_LOOK, CAVE_BAT_LOOK, LANTERN_WISP_LOOK, BELL_TOLLER_LOOK, SHARDLING_LOOK, CRYSTAL_SHARD_LOOK, PISTON_DRONE_LOOK, FLOOR_LEECH_LOOK, INK_WEAVER_LOOK, VEIL_SHADE_LOOK].map((l) => [l.id, l]),
+    [BRAMBLE_CRAWLER_LOOK, MIRE_TOAD_LOOK, STONEBACK_LOOK, GLOW_SPORE_LOOK, INK_SPITTER_LOOK, CAVE_BAT_LOOK, LANTERN_WISP_LOOK, BELL_TOLLER_LOOK, SHARDLING_LOOK, CRYSTAL_SHARD_LOOK, PISTON_DRONE_LOOK, FLOOR_LEECH_LOOK, INK_WEAVER_LOOK, VEIL_SHADE_LOOK, ROOT_TYRANT_LOOK, MIRE_MATRIARCH_LOOK, CRYSTAL_COLOSSUS_LOOK, BELL_WARDEN_LOOK, FOUNDRY_ENGINE_LOOK, INKHEART_SOVEREIGN_LOOK].map((l) => [l.id, l]),
   ),
 };
