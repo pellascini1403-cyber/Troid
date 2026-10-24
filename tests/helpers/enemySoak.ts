@@ -267,7 +267,9 @@ function stateBound(e: Enemy | Guardian): number | null {
     }
   }
   const n = e as Enemy;
-  const p = ENEMIES[n.def.id]!.ai.params;
+  const ai = ENEMIES[n.def.id]!.ai;
+  if (ai.archetype !== 'slime') return null; // (this soak is of slimes)
+  const p = ai.params;
   const attack = n.def.attacks[p.attack]!;
   switch (n.state) {
     case 'idle':

@@ -106,7 +106,7 @@ export const AUDIO_CONTRACT: Readonly<Record<AudioCueId, AudioCueSpec>> = {
   bottleReady: { family: 'resource', events: ['bottle:changed'], positional: false, intensity: '1', variant: 'the slot that finished recharging' },
   gate: { family: 'world', events: ['gate:changed'], positional: false, intensity: '1', variant: '"open" or "close"' },
   checkpoint: { family: 'world', events: ['checkpoint:set'], positional: true, intensity: '1', variant: 'the room' },
-  sealRejected: { family: 'world', events: ['seal:rejected'], positional: true, intensity: 'the jolt of the blow, 0–1', variant: 'the attack the seal turned away' },
+  sealRejected: { family: 'world', events: ['seal:rejected', 'enemy:blocked'], positional: true, intensity: 'the jolt of the blow, 0–1', variant: 'the attack the seal (or the shield of an enemy) turned away' },
   sealBroken: { family: 'world', events: ['flag:set'], positional: false, intensity: '1', variant: 'the flag: broken:r3_seal' },
   hazardHit: { family: 'world', events: ['hazard:hit'], positional: true, intensity: 'the damage over 2', variant: 'the kind of hazard: spikes' },
   abilityUnlocked: { family: 'world', events: ['ability:unlocked'], positional: false, intensity: '1', variant: 'the ability: air_dash, magic_attack…' },

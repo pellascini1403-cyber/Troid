@@ -126,15 +126,17 @@ export function soundsFor(cue: Readonly<AudioCueEvent>, context: SoundContext): 
       return [{ id: STINGERS.unlock, delay: 0.35 }];
     // ---- the enemies
     case 'enemyAlert':
-      return v === 'ink_slime' ? [{ id: 'slime.alert' }] : [];
+      // every creature of ink wakes with the slime's gasp (the guardians have their own wake: `boss.wake`)
+      return isBoss(v) ? [] : [{ id: 'slime.alert' }];
     case 'enemyTelegraph':
-      // the boss's warnings are the boss's, one for each attack; the slime's is its own
-      if (v === 'slime_lunge' || v === 'ink_slime') return [{ id: 'slime.telegraph' }];
+      // the boss's warnings are the boss's, one for each attack; every creature's is the slime's (the sound of ink drawing itself in)
       if (v === 'warden_charge') return [{ id: 'boss.telegraph.charge' }];
       if (v === 'warden_rain') return [{ id: 'boss.telegraph.rain' }];
-      return [];
+      if (v === 'ink_warden' || v.startsWith('warden_')) return []; // an unknown warning of the Warden is not a slime's
+      if (v.startsWith('boss_')) return [{ id: v.endsWith('_rain') || v.endsWith('_fall') ? 'boss.telegraph.rain' : 'boss.telegraph.charge' }];
+      return [{ id: 'slime.telegraph' }];
     case 'enemyStrike':
-      return v === 'slime_lunge' ? [{ id: 'slime.lunge' }] : [];
+      return isBoss(v) ? [] : [{ id: 'slime.lunge' }];
     case 'enemyDeath':
       return [{ id: 'slime.death' }];
     // ---- the boss
@@ -143,12 +145,21 @@ export function soundsFor(cue: Readonly<AudioCueEvent>, context: SoundContext): 
     case 'bossPhase':
       return [{ id: 'boss.phase' }];
     case 'bossAttack':
-      return v === 'warden_charge' ? [{ id: 'boss.strike.charge' }] : v === 'warden_rain' ? [{ id: 'boss.strike.rain' }] : [];
+      // the strikes of the guardians that came after the Warden are one of its two: a blow that falls from above sounds like the rain, one that sweeps the ground like the charge
+      if (v === 'warden_rain') return [{ id: 'boss.strike.rain' }];
+      if (v === 'warden_charge') return [{ id: 'boss.strike.charge' }];
+      if (!v.startsWith('boss_')) return [];
+      return v.endsWith('_rain') || v.endsWith('_fall') ? [{ id: 'boss.strike.rain' }] : [{ id: 'boss.strike.charge' }];
     case 'bossDeath':
       return [{ id: 'boss.death' }, { id: STINGERS.victory, delay: 1.1 }];
     default:
       return [];
   }
+}
+
+/** A guardian's attack or name (the Warden, and the ones that came after it: their ids begin with `boss_`). */
+function isBoss(v: string): boolean {
+  return v === 'ink_warden' || v.startsWith('boss_') || v.startsWith('warden_');
 }
 
 /** Every sound id the table can name (the test reads the real manifest against it). */

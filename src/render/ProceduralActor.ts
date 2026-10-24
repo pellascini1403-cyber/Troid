@@ -109,7 +109,16 @@ export class ProceduralActor implements EntityView {
         .bezierCurveTo(-hw * 1.06 * U, -h * 0.55 * U, -hw * 0.62 * U, -h * U, 0, -h * U)
         .bezierCurveTo(hw * 0.62 * U, -h * U, hw * 1.06 * U, -h * 0.55 * U, hw * U, 0)
         .closePath();
-    dome(this.body).fill(c.fill).stroke({ width: 0.055 * U, color: c.rim });
+    // the silhouette: the dome of the creatures of the ground, or an orb for those that float (docs/PROMPT21-LOG.md)
+    const silhouette = (g: Graphics): Graphics => (look.shape === 'orb' ? g.ellipse(0, (-h / 2) * U, hw * U, (h / 2) * U) : dome(g));
+    silhouette(this.body).fill(c.fill).stroke({ width: 0.055 * U, color: c.rim });
+    // a crown of spikes along the top, as tall as a fifth of the body
+    for (let i = 0; i < (look.spikes ?? 0); i++) {
+      const t = ((i + 0.5) / look.spikes!) * 2 - 1; // −1 … 1 across the body
+      const x = t * hw * 0.78;
+      const y = -h * (look.shape === 'orb' ? 0.5 + 0.5 * Math.sqrt(Math.max(0, 1 - t * t * 0.6)) : 0.92 * Math.sqrt(Math.max(0, 1 - t * t * 0.55)));
+      this.body.poly([(x - hw * 0.1) * U, y * U + 0.04 * U, (x + hw * 0.1) * U, y * U + 0.04 * U, x * U, (y - h * 0.22) * U]).fill(c.rim);
+    }
     this.body.ellipse(-hw * 0.28 * U, -h * 0.72 * U, hw * 0.34 * U, h * 0.12 * U).fill({ color: c.sheen, alpha: 0.55 });
 
     // the eyes: two vertical capsules near the front, drawn at their full height (the squint scales them)
@@ -133,7 +142,7 @@ export class ProceduralActor implements EntityView {
     }
 
     // the hit flash: the silhouette again, additive white
-    dome(this.flash).fill(c.flash);
+    silhouette(this.flash).fill(c.flash);
     this.flash.blendMode = 'add';
     this.flash.alpha = 0;
     for (const g of [this.body, this.eyes, this.flash]) g.scale.set(1 / U);

@@ -39,6 +39,10 @@ export interface ProceduralLook {
   /** The resting blob, metres, feet-centred. */
   width: number;
   height: number;
+  /** Its silhouette: a `dome` with a flat base (the creatures of the ground, the default) or an `orb` (those that float). */
+  shape?: 'dome' | 'orb';
+  /** A crown of this many spikes along the top, in the colour of the rim. */
+  spikes?: number;
   colors: {
     /** The body. */
     fill: number;

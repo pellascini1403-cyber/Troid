@@ -55,7 +55,7 @@ export const VFX_CONTRACT: Readonly<Record<VfxTrigger, VfxCue>> = {
   // a power that is gained: the event names no place — it is the hero's, where they stand (their feet)
   abilityGained: { family: 'ability', events: ['ability:unlocked'], originY: 0, maxLife: 1.8, maxParticles: 26, maxSprites: 4, palettes: ['energy'] },
   pickup: { family: 'interaction', events: ['interaction:performed'], originY: -0.35, maxLife: 1.2, maxParticles: 26, maxSprites: 4, palettes: ['energy'] },
-  sealRejected: { family: 'seal', events: ['seal:rejected'], originY: 0, maxLife: 0.55, maxParticles: 16, maxSprites: 3, palettes: ['enemy'] },
+  sealRejected: { family: 'seal', events: ['seal:rejected', 'enemy:blocked'], originY: 0, maxLife: 0.55, maxParticles: 16, maxSprites: 3, palettes: ['enemy'] },
   // a ward that breaks (its `actor:died`: a seal is the one neutral thing that falls): the violet of the ward and the white of what broke it
   sealBroken: { family: 'seal', events: ['actor:died'], originY: 0, maxLife: 1, maxParticles: 24, maxSprites: 4, palettes: ['enemy', 'energy'] },
   bossWake: { family: 'boss', events: ['boss:started'], originY: 3.2, maxLife: 1.5, maxParticles: 40, maxSprites: 3, palettes: ['enemy'] },

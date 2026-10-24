@@ -16,4 +16,8 @@ export interface EnemyBrain {
   update(sim: SimServices): void;
   /** The enemy was hit (its health is already reduced): stagger, knock back or die. */
   onHit(hit: HitInfo, killed: boolean): void;
+  /** Nothing can hurt it right now (a puddle asleep, a body that has vanished): the combat system leaves it alone and the blow is not spent. */
+  readonly untouchable?: boolean;
+  /** Called before a blow lands: `'blocked'` turns it away (a shield, a closed shell) — nothing is hurt, the blow is spent, and the enemy says so (`enemy:blocked`). */
+  guard?(hit: HitInfo): 'blocked' | null;
 }

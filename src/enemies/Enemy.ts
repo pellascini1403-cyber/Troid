@@ -55,9 +55,9 @@ export class Enemy extends Actor implements SimEntity, Combatant {
   get stateTicks(): number {
     return this.brain?.stateTicks ?? 0;
   }
-  /** The body of a dead enemy cannot be hit again while it dissolves. */
+  /** The body of a dead enemy cannot be hit again while it dissolves; neither can one whose brain says nothing touches it now (a puddle asleep). */
   get invulnerable(): boolean {
-    return this.health.dead;
+    return this.health.dead || (this.brain?.untouchable ?? false);
   }
 
   onSpawn(sim: SimServices): void {
@@ -104,6 +104,11 @@ export class Enemy extends Actor implements SimEntity, Combatant {
 
   receiveHit(hit: HitInfo): HitOutcome {
     if (this.health.dead) return 'ignored';
+    // a shield or a shell turns the blow away: it is spent, nothing is hurt, and the enemy says so (the sparks and the sound are the effects')
+    if (this.brain?.guard?.(hit) === 'blocked') {
+      this.sim?.bus.emit('enemy:blocked', { id: this.id, defId: this.def.id, x: hit.x, y: hit.y, direction: hit.direction, attackId: hit.attackId, shake: 0.08 });
+      return 'blocked';
+    }
     this.health.damage(hit.damage);
     this.hits++;
     // The blow lands after this tick's view was published and the hit-stop freezes the next ones: show it NOW.

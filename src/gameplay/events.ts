@@ -70,6 +70,10 @@ export interface GameEvents extends CombatEvents {
   'enemy:telegraph': { id: string; defId: string; x: number; y: number; facing: 1 | -1; ticks: number; attack?: string };
   /** An enemy's attack BEGINS (its blow is in the air from now on: the lunge of a slime). The bosses raise `boss:strike` instead. */
   'enemy:struck': { id: string; defId: string; x: number; y: number; facing: 1 | -1; attack: string };
+  /** A blow was turned away by an enemy's shield or shell (nothing was hurt). `(x, y)` is where it landed; `shake` is the camera's share. */
+  'enemy:blocked': { id: string; defId: string; x: number; y: number; direction: 1 | -1; attackId: string; shake: number };
+  /** An enemy's shot ended: on the hero, on a wall, or at the end of its flight. */
+  'enemyshot:ended': { id: string; x: number; y: number; reason: 'hit' | 'wall' | 'range' | 'edge' };
   /** A world flag was set / cleared (progression memory: defeated guardians, opened doors). */
   'flag:set': { flag: string };
   'flag:cleared': { flag: string };

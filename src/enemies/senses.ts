@@ -54,3 +54,10 @@ export function sightBlocked(world: CollisionWorld, ax: number, ay: number, bx: 
   }
   return false;
 }
+
+/** Is there a SOLID within `reach` metres in front of the body, at the height of its middle? (A wall: the end of a charge is hitting it, not turning from a ledge before it.) */
+export function wallAhead(world: CollisionWorld, b: KinematicBody, dir: 1 | -1, reach = 0.45): boolean {
+  const near = b.x + dir * b.halfW;
+  const probe: Rect = { x0: Math.min(near, near + dir * reach), x1: Math.max(near, near + dir * reach), y0: b.y + 0.1, y1: b.y + Math.max(0.2, b.height * 0.6) };
+  return world.overlapsSolid(probe);
+}

@@ -1,4 +1,17 @@
 import type { AttackDefinition } from '@/combat/AttackDefinition';
+import type { BatParams } from './archetypes/bat';
+import type { CrawlerParams } from './archetypes/crawler';
+import type { LeechParams } from './archetypes/leech';
+import type { PistonParams } from './archetypes/piston';
+import type { RollerParams } from './archetypes/roller';
+import type { ShadeParams } from './archetypes/shade';
+import type { SporeParams } from './archetypes/spore';
+import type { SpitterParams } from './archetypes/spitter';
+import type { StonebackParams } from './archetypes/stoneback';
+import type { ToadParams } from './archetypes/toad';
+import type { TollerParams } from './archetypes/toller';
+import type { WeaverParams } from './archetypes/weaver';
+import type { WispParams } from './archetypes/wisp';
 
 /**
  * An enemy, as DATA (docs/ARCHITECTURE-2D.md §5.9). Everything a designer retunes lives here, in metres, seconds and
@@ -19,7 +32,7 @@ export interface EnemyDefinition {
    * feet). Omitted: the whole body is one region.
    */
   hurtboxes?: ReadonlyArray<{ x: number; y: number; w: number; h: number; multiplier?: number; part?: string }>;
-  ai: SlimeAi;
+  ai: EnemyAi;
   /** The attacks the brain can pick, by id. */
   attacks: Readonly<Record<string, AttackDefinition>>;
   hurt: {
@@ -38,8 +51,30 @@ export interface EnemyDefinition {
   view: { proceduralId: string } | { spriteSetId: string };
 }
 
-/** The archetypes with a brain. Add a member (and a brain in `enemies/archetypes/`) for each new way to behave. */
-export type EnemyAi = SlimeAi;
+/**
+ * The archetypes with a brain (docs/PROMPT21-LOG.md): fourteen ways to behave, each one a brain in `enemies/archetypes/` and the numbers it reads. Add a member (and a brain) for each new way; the compiler checks `createBrain`.
+ * What each one is, and what answers it:
+ *   slime — lunges at a short range            crawler — charges in a line, dazed by a wall   toad — leaps in an arc, shakes the floor where it lands
+ *   guard — a shield to the front              spore — armoured until its cloud thins          spitter — keeps its distance, throws ink
+ *   bat — hangs, then dives, turning           wisp — floats to you and goes off               toller — a metronome: waves along the floor
+ *   roller — a stone when curled, shards when broken   piston — follows from above and drops    leech — a puddle that springs
+ *   weaver — makes creatures                   shade — vanishes and comes back behind you
+ */
+export type EnemyAi =
+  | SlimeAi
+  | { archetype: 'crawler'; params: CrawlerParams }
+  | { archetype: 'toad'; params: ToadParams }
+  | { archetype: 'guard'; params: StonebackParams }
+  | { archetype: 'spore'; params: SporeParams }
+  | { archetype: 'spitter'; params: SpitterParams }
+  | { archetype: 'bat'; params: BatParams }
+  | { archetype: 'wisp'; params: WispParams }
+  | { archetype: 'toller'; params: TollerParams }
+  | { archetype: 'roller'; params: RollerParams }
+  | { archetype: 'piston'; params: PistonParams }
+  | { archetype: 'leech'; params: LeechParams }
+  | { archetype: 'weaver'; params: WeaverParams }
+  | { archetype: 'shade'; params: ShadeParams };
 
 export interface SlimeAi {
   archetype: 'slime';

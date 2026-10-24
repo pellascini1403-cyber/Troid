@@ -55,6 +55,7 @@ import { DummyView, type DummyLike } from '@/render/DummyView';
 import { EntityViews, type EntityView } from '@/render/EntityViews';
 import type { GuardianArt, GuardianLike } from '@/render/GuardianView';
 import { LateView } from '@/render/LateView';
+import { EnemyShotView, type EnemyShotLike } from '@/render/EnemyShotView';
 import { SealView, type SealLike } from '@/render/SealView';
 import { InteractableViews } from '@/render/InteractableViews';
 import { ProceduralActor } from '@/render/ProceduralActor';
@@ -409,6 +410,8 @@ export class Game2D {
       },
       // a skill's projectile (the Spirit Bolt) is light: it is drawn in the additive layer with the effects
       projectile: (e) => new ProjectileView(e as unknown as ProjectileLike, this.vfxArt?.atlas ?? vfxAtlas),
+      // what an enemy throws: a bead of violet light, or a low wave along the floor
+      enemyshot: (e) => new EnemyShotView(e as unknown as EnemyShotLike, this.vfxArt?.atlas ?? vfxAtlas),
       // the sigil of a seal (S28): violet light in front of the door it holds
       seal: (e) => new SealView(e as unknown as SealLike),
       // the boss (S29): an abstract column of ink with a violet crest, and the warnings of its attacks on the floor
@@ -437,6 +440,7 @@ export class Game2D {
     );
     // a blow turned away by a seal jolts the view a little (it is not a hit: nothing froze, nothing was hurt)
     this.lifecycle.add(this.session.bus.on('seal:rejected', (e) => this.shake(e.shake)));
+    this.lifecycle.add(this.session.bus.on('enemy:blocked', (e) => this.shake(e.shake)));
     // the Ground Slam striking the ground shakes the view whether or not it hit anything
     this.lifecycle.add(this.session.bus.on('player:slammed', (e) => this.shake(e.shake)));
     // the loading indicator: it exists only for a change of zone whose art is taking its time

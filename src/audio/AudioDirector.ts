@@ -67,6 +67,7 @@ export class AudioDirector {
       bus.on('gate:changed', (e) => this.raise('gate', null, null, 1, e.open ? 'open' : 'close')),
       bus.on('checkpoint:set', (e) => at('checkpoint', e.x, e.y, 1, e.room)),
       bus.on('seal:rejected', (e) => at('sealRejected', e.x, e.y, clamp01(e.shake), e.attackId)),
+      bus.on('enemy:blocked', (e) => at('sealRejected', e.x, e.y, clamp01(e.shake * 2), e.attackId)),
       bus.on('flag:set', (e) => {
         if (e.flag.startsWith('broken:')) this.raise('sealBroken', null, null, 1, e.flag);
       }),

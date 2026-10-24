@@ -101,6 +101,10 @@ export class VfxDirector {
       bus.on('seal:rejected', (e) => {
         this.fire('sealRejected', { x: e.x, y: e.y, facing: e.direction, dirX: e.direction, dirY: 0 });
       }),
+      // a blow an enemy's shield turned away: the same ring and sparks
+      bus.on('enemy:blocked', (e) => {
+        this.fire('sealRejected', { x: e.x, y: e.y, facing: e.direction, dirX: e.direction, dirY: 0 });
+      }),
       bus.on('player:hurt', (e) => {
         this.fire('playerHurt', { x: e.x, y: e.y, facing: e.direction, dirX: e.direction, dirY: 0.2 });
       }),
