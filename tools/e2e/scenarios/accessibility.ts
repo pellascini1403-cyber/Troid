@@ -12,6 +12,11 @@ const KEY = 'troid.settings';
 const q = (page: Page, id: string): ReturnType<Page['locator']> => page.locator(`[data-testid="${id}"]`);
 const attr = (page: Page, id: string, name: string): Promise<string | null> => q(page, id).getAttribute(name);
 const hooks = <T>(page: Page, expr: string): Promise<T> => page.evaluate(`window.__troid.${expr}`) as Promise<T>;
+/**
+ * Shakes the camera and reads its trauma in the same breath. The trauma decays in real time (`CameraRig`), so a reading taken a frame or two after the shake says how slow the machine was at that moment — on a loaded
+ * runner a long frame lands in between and 0.8 is 0.6 — and not whether the shake took (or, with the choice «no camera shake», whether it did not).
+ */
+const shaken = (page: Page, amount: number): Promise<number> => page.evaluate(`(() => { window.__troid.shake(${amount}); return window.__troid.state().trauma; })()`) as Promise<number>;
 
 async function waitFor(page: Page, expr: string, what: string, tries = 160): Promise<void> {
   for (let i = 0; i < tries; i++) {
@@ -143,8 +148,7 @@ export const accessibility: Scenario = {
     // a real blow as designed: the white rectangle of the life trails the picture of the bar and stretches behind it (it becomes about three times as wide as the artist drew it) before it comes back
     const bright = await lose(ctx);
     assert.ok(bright.peak > 1.5, `the white rectangle of what was just lost stretches (${bright.peak.toFixed(2)} times the artist's width; after the blow: ${bright.after})`);
-    await hooks(page, 'shake(0.8)');
-    assert.ok((await ctx.state()).trauma! > 0.7, 'a blow jolts the camera');
+    assert.ok((await shaken(page, 0.8)) > 0.7, 'a blow jolts the camera');
     await hooks(page, 'settleCamera(3)');
 
     // ================================================================================================ the screen offers three choices, each saying what it does
@@ -174,14 +178,12 @@ export const accessibility: Scenario = {
     await ctx.shot('a-01-the-choices');
 
     // ================================================================================================ no camera shake: what trembles stops, and nothing trembles after
-    await hooks(page, 'shake(0.9)');
-    assert.ok((await ctx.state()).trauma! > 0.8, 'the camera is trembling');
+    assert.ok((await shaken(page, 0.9)) > 0.8, 'the camera is trembling');
     await q(page, 'settings-shake').click();
     assert.equal(await attr(page, 'settings-shake', 'aria-checked'), 'true');
     s = await ctx.state();
     assert.equal(s.trauma, 0, 'the trembling stopped with the choice, at once');
-    await hooks(page, 'shake(0.8)');
-    assert.equal((await ctx.state()).trauma, 0, 'and a blow no longer shakes the camera');
+    assert.equal(await shaken(page, 0.8), 0, 'and a blow no longer shakes the camera');
     await savedAccessibility(page, (a) => a['reduceShake'] === true && a['reduceFlashes'] === false && a['hudScale'] === 1, 'it was saved');
     await closeMenu(page);
     // a real blow: the game counts the impact (the hit happened) and the camera stays still
@@ -251,8 +253,7 @@ export const accessibility: Scenario = {
     await page.waitForTimeout(150);
     const hud4 = await box(page, 'hud-block');
     assert.ok(Math.abs(hud4.w - hud1.w) < 1.5, `the HUD is as it was (${hud1.w.toFixed(1)} → ${hud4.w.toFixed(1)})`);
-    await hooks(page, 'shake(0.8)');
-    assert.ok((await ctx.state()).trauma! > 0.7, 'the camera shakes again');
+    assert.ok((await shaken(page, 0.8)) > 0.7, 'the camera shakes again');
     await savedAccessibility(page, (a) => a['reduceFlashes'] === false && a['reduceShake'] === false && a['hudScale'] === 1, 'and the choices were saved as off');
     await closeMenu(page);
 
@@ -327,8 +328,7 @@ export const accessibility: Scenario = {
     await closeMenu(page);
     await page.reload();
     await ready(page);
-    await hooks(page, 'shake(0.8)');
-    assert.ok((await ctx.state()).trauma! > 0.7, 'after a reload the camera shakes: the player\'s choice is stronger than the system\'s');
+    assert.ok((await shaken(page, 0.8)) > 0.7, 'after a reload the camera shakes: the player\'s choice is stronger than the system\'s');
     assert.equal(await attr(page, 'hud', 'data-calm'), '1', 'while the flashes stay calm, as it was left');
     await page.emulateMedia({ reducedMotion: 'no-preference' });
 
