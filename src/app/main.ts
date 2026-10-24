@@ -10,43 +10,53 @@ const lab = params.get('lab');
 // the boot curtain (index.html) waits for the art of the game's first room: a lab has nothing to wait for
 if (lab) liftCurtain('lab', true);
 
-if (lab === 'sprites') {
-  // Dev tooling is code-split: it never loads (nor weighs) in a normal session.
-  // Sprite-set contact sheet + live actor (docs/MIGRATION-2D.md S3).
-  const { startSpriteLab } = await import('./labs/spriteLab');
-  await startSpriteLab(host, params);
-} else if (lab === 'vfx') {
-  // VFX stage: every trigger through the real director (docs/MIGRATION-2D.md S7).
-  const { startVfxLab } = await import('./labs/vfxLab');
-  await startVfxLab(host, params);
-} else if (lab === 'player') {
-  // The protagonist's art, looked at without playing: a clip at a time with the anchors, the sword and the body of the game (docs/ART-PIPELINE-2D.md part G).
-  const { startPlayerLab } = await import('./labs/playerLab');
-  await startPlayerLab(host, params);
-} else if (lab === 'art-stress') {
-  // The budget check of the art: a crowd of sprites from art atlases and the real effects, measured (docs/ART-PIPELINE-2D.md part J).
-  const { startArtStressLab } = await import('./labs/artStressLab');
-  await startArtStressLab(host, params);
-} else if (lab === 'slime') {
-  // The Ink Slime's procedural poses and its wind-up warning (docs/MIGRATION-2D.md S9).
-  const { startSlimeLab } = await import('./labs/slimeLab');
-  await startSlimeLab(host, params);
-} else if (lab === 'stress') {
-  // Render-budget benchmark (docs/MIGRATION-2D.md S1): 800+ animated sprites, parallax layers, a filter, particles.
-  const { startStressLab } = await import('./labs/stressLab');
-  await startStressLab(host, params);
-} else {
-  try {
-    const game = await Game2D.create(host, params);
-    game.start();
+/**
+ * The start-up of the page — in a function that nothing at the top of this module waits for, NOT as top-level `await`s (docs/PROMPT20-LOG.md §7). A module that is waiting on a top-level `await` has not finished evaluating, and a chunk
+ * loaded on demand that imports from it cannot run until it has. The modules of the first screen live in ONE file together with this one (`vite.config.ts`), so every lab, and every part of the game that arrives later, is such a chunk:
+ * `await import('./labs/…')` here was a deadlock no error reports (the page loaded the lab's files and then waited on them for ever). Without the `await` at the top the module finishes at once, and what is imported later can run.
+ */
+async function start(into: HTMLElement): Promise<void> {
+  if (lab === 'sprites') {
+    // Dev tooling is code-split: it never loads (nor weighs) in a normal session.
+    // Sprite-set contact sheet + live actor (docs/MIGRATION-2D.md S3).
+    const { startSpriteLab } = await import('./labs/spriteLab');
+    await startSpriteLab(into, params);
+  } else if (lab === 'vfx') {
+    // VFX stage: every trigger through the real director (docs/MIGRATION-2D.md S7).
+    const { startVfxLab } = await import('./labs/vfxLab');
+    await startVfxLab(into, params);
+  } else if (lab === 'player') {
+    // The protagonist's art, looked at without playing: a clip at a time with the anchors, the sword and the body of the game (docs/ART-PIPELINE-2D.md part G).
+    const { startPlayerLab } = await import('./labs/playerLab');
+    await startPlayerLab(into, params);
+  } else if (lab === 'art-stress') {
+    // The budget check of the art: a crowd of sprites from art atlases and the real effects, measured (docs/ART-PIPELINE-2D.md part J).
+    const { startArtStressLab } = await import('./labs/artStressLab');
+    await startArtStressLab(into, params);
+  } else if (lab === 'slime') {
+    // The Ink Slime's procedural poses and its wind-up warning (docs/MIGRATION-2D.md S9).
+    const { startSlimeLab } = await import('./labs/slimeLab');
+    await startSlimeLab(into, params);
+  } else if (lab === 'stress') {
+    // Render-budget benchmark (docs/MIGRATION-2D.md S1): 800+ animated sprites, parallax layers, a filter, particles.
+    const { startStressLab } = await import('./labs/stressLab');
+    await startStressLab(into, params);
+  } else {
+    try {
+      const game = await Game2D.create(into, params);
+      game.start();
 
-    // Hot-reload friendliness: dispose the previous instance so GPU resources and listeners never stack up.
-    if (import.meta.hot) {
-      import.meta.hot.dispose(() => game.dispose());
+      // Hot-reload friendliness: dispose the previous instance so GPU resources and listeners never stack up.
+      if (import.meta.hot) {
+        import.meta.hot.dispose(() => game.dispose());
+      }
+    } catch (err) {
+      // a game that cannot be made (no drawing context at all, a broken build) must not leave the page black: the curtain stays and says so (a script that does not arrive is said by index.html itself)
+      liftCurtain('failed');
+      throw err;
     }
-  } catch (err) {
-    // a game that cannot be made (no drawing context at all, a broken build) must not leave the page black: the curtain stays and says so (a script that does not arrive is said by index.html itself)
-    liftCurtain('failed');
-    throw err;
   }
 }
+
+// (a failure is still an error of the page — "Uncaught (in promise)" in the console — as it was when this was a top-level await)
+void start(host);

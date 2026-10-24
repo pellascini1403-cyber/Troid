@@ -129,7 +129,7 @@ console.log(`${engine} ${browser.version()} · the production build at ${server.
     const { colours, elsewhere } = richness(await page.screenshot({ type: 'png' }));
     assert.ok(colours >= 16, `the page shows ${colours} colours: a blank or flat screen`);
     assert.ok(elsewhere >= 0.05, `${(elsewhere * 100).toFixed(1)}% of the page is not its commonest colour: nothing is drawn on it`);
-    // (which of the two renderers the game was given: a headless Firefox on a runner has no WebGL, and that is the canvas path — the one the first blow broke before docs/PROMPT20-LOG.md §6)
+    // (which of the two renderers the game was given: a headless browser on a runner may well have no WebGL, and that is the canvas path — the one the first blow broke before docs/PROMPT20-LOG.md §7)
     const { renderer } = (await state<{ quality: { renderer: string } }>(page)).quality;
     assert.ok(renderer === 'webgl' || renderer === 'canvas', `the game draws with "${renderer}"`);
     return `drawn with ${renderer} · ${colours} colours, ${(elsewhere * 100).toFixed(0)}% off the background`;

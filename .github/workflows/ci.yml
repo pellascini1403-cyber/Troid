@@ -20,8 +20,8 @@ jobs:
       - run: npm run build
 
   # The game in a real browser (docs/PROMPT20-LOG.md): the production build, driven with real keyboard, pad and touch events in Chromium — the scenes that prove a player's whole way (a first game, the
-  # pause and its map, the pad in the menus, the end of the adventure, a game that breaks, what it sends and keeps, whether it can be read). The whole suite (`npm run test:e2e`, dev and `-- --prod`) is run
-  # by hand before a release: it takes far longer than a push should wait.
+  # pause and its map, the pad in the menus, the end of the adventure, a game that breaks, what it sends and keeps, whether it can be read; `sprites` is a lab, there to prove that what the page loads on demand
+  # still starts in the bundled build). The whole suite (`npm run test:e2e`, dev and `-- --prod`) is run by hand before a release: it takes far longer than a push should wait.
   # Two jobs side by side (the runner draws with software and is ~3 times slower than a developer's machine: one after the other they went past half an hour).
   e2e:
     name: e2e (${{ matrix.group.name }})
@@ -35,7 +35,7 @@ jobs:
           - name: play
             scenes: boot,movement,combat,room,world,pause,pauseMap,gamepad,focus,ending,finale,adaptive
           - name: stability
-            scenes: resilience,privacy,readable
+            scenes: resilience,privacy,readable,sprites
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

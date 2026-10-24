@@ -66,7 +66,7 @@ export interface EffectsOptions {
 }
 
 /**
- * The particle pipe that goes with a kind of renderer (docs/PROMPT20-LOG.md §6): each draws a `ParticleContainer` its own way — the WebGL one asks the GPU's shader system for its program, which a canvas renderer does not have
+ * The particle pipe that goes with a kind of renderer (docs/PROMPT20-LOG.md §7): each draws a `ParticleContainer` its own way — the WebGL one asks the GPU's shader system for its program, which a canvas renderer does not have
  * (the first blow of a game on a page with no WebGL threw on every frame until the page said the game had failed). `Renderer2D` creates no other kind of renderer than these two (it does not let Pixi fall back to WebGPU,
  * which the game has never run on); anything else is a Pixi that changed under us, and says so.
  */

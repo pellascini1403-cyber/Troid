@@ -115,7 +115,7 @@ export const settings: Scenario = {
     let s = await state();
     assert.equal(s.room, 'r1_gate');
     assertVolume(s.volume, 0.8, 'the volume starts at 80 %');
-    assert.deepEqual(s.quality, { setting: 'auto', tier: 'medium', resolution: 1.75, particleBudget: 300, spriteBudget: 40 }, 'Auto is the balanced profile: a screen of density 2 is drawn at 1.75');
+    assert.deepEqual(s.quality, { setting: 'auto', tier: 'medium', renderer: 'webgl', resolution: 1.75, particleBudget: 300, spriteBudget: 40 }, 'Auto is the balanced profile: a screen of density 2 is drawn at 1.75');
     assert.deepEqual(s.keys, { jump: 'Space', attack: 'KeyJ', dash: 'ShiftLeft', ability: 'KeyK', bottle: 'KeyL', interact: 'KeyE', down: 'KeyS' }, 'the keys are the designed ones');
     assert.equal(s.menuOpen, false);
     assert.equal(await saved(page), null, 'a new player leaves nothing behind until they change something');

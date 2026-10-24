@@ -72,7 +72,7 @@ export class Renderer2D {
       width: size.cssWidth,
       height: size.cssHeight,
       // WebGL, and the canvas when the browser gives none: the two the game is tested on. Left to its own order Pixi would try WebGPU in between, which the game has never run on (and which a build that loads its
-      // extensions on demand would not draw with: docs/PROMPT20-LOG.md §6).
+      // extensions on demand would not draw with: docs/PROMPT20-LOG.md §7).
       preference: ['webgl', 'canvas'],
       // Pixi's default start-up also loads accessibility, DOM containers, its event system, spritesheets and filters. The game
       // draws none of them: its HUD, touch controls and text are DOM (docs/ARCHITECTURE-2D.md §8) and input is handled by `input/`.
