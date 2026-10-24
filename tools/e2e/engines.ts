@@ -129,7 +129,10 @@ console.log(`${engine} ${browser.version()} · the production build at ${server.
     const { colours, elsewhere } = richness(await page.screenshot({ type: 'png' }));
     assert.ok(colours >= 16, `the page shows ${colours} colours: a blank or flat screen`);
     assert.ok(elsewhere >= 0.05, `${(elsewhere * 100).toFixed(1)}% of the page is not its commonest colour: nothing is drawn on it`);
-    return `${colours} colours, ${(elsewhere * 100).toFixed(0)}% off the background`;
+    // (which of the two renderers the game was given: a headless Firefox on a runner has no WebGL, and that is the canvas path — the one the first blow broke before docs/PROMPT20-LOG.md §6)
+    const { renderer } = (await state<{ quality: { renderer: string } }>(page)).quality;
+    assert.ok(renderer === 'webgl' || renderer === 'canvas', `the game draws with "${renderer}"`);
+    return `drawn with ${renderer} · ${colours} colours, ${(elsewhere * 100).toFixed(0)}% off the background`;
   });
 
   await step('a held key moves the hero', async () => {
@@ -150,6 +153,10 @@ console.log(`${engine} ${browser.version()} · the production build at ${server.
     await until(page, 'window.__troid.state().combat.attack !== null', 'the mouse started a blow');
     await page.mouse.up();
     await until(page, 'window.__troid.state().combat.attack === null', 'the blow of the mouse ended');
+    // the sparks of a blow are the first thing the effects draw (a particle container: the part of the drawing that differs most between a WebGL and a canvas renderer)
+    await until(page, 'window.__troid.state().vfx.spawned > 0', 'the blows made sparks');
+    await page.waitForTimeout(600);
+    assert.equal(await q(page, 'crash').count(), 0, 'the page says the game failed after a blow');
   });
 
   await step('Escape opens the pause menu, a button changes the language, Escape goes back and Continue closes it', async () => {

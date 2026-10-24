@@ -1,4 +1,4 @@
-import { GlParticleContainerPipe, type Container } from 'pixi.js';
+import { CanvasParticleContainerPipe, GlParticleContainerPipe, RendererType, type Container } from 'pixi.js';
 import { vignetteTexture } from '@/assets/proceduralTextures';
 import type { VfxAtlas } from '@/assets/vfxAtlas';
 import { EDGE_PULSES, FIGHT_MOOD, moodFor } from '@/content/atmosphere';
@@ -66,15 +66,27 @@ export interface EffectsOptions {
 }
 
 /**
+ * The particle pipe that goes with a kind of renderer (docs/PROMPT20-LOG.md §6): each draws a `ParticleContainer` its own way — the WebGL one asks the GPU's shader system for its program, which a canvas renderer does not have
+ * (the first blow of a game on a page with no WebGL threw on every frame until the page said the game had failed). `Renderer2D` creates no other kind of renderer than these two (it does not let Pixi fall back to WebGPU,
+ * which the game has never run on); anything else is a Pixi that changed under us, and says so.
+ */
+export function particlePipeFor(type: number): new (renderer: never) => unknown {
+  if (type === RendererType.WEBGL) return GlParticleContainerPipe;
+  if (type === RendererType.CANVAS) return CanvasParticleContainerPipe;
+  throw new Error(`no particle pipe is known for a renderer of type ${type}`);
+}
+
+/**
  * Pixi builds the render pipes of a renderer WHEN IT IS CREATED, from the extensions that exist then. The particle pipe — what draws a
  * `ParticleContainer` — is in this chunk, which arrives later, so the renderer has none: the first particle would crash it. This adds
- * the WebGL one to the live renderer, the way `_addPipes` would have. (`pixi.js` is locked at 8.22.0; the E2E `vfx` and `combat`
- * scenarios draw particles through it, so a Pixi that changed this would be caught there.)
+ * the one of its kind to the live renderer, the way `_addPipes` would have. (`pixi.js` is locked at 8.22.0; the E2E `vfx` and `combat`
+ * scenarios draw particles through it, and `resilience` does it again on a page with no WebGL, so a Pixi that changed this would be caught there.)
  */
 function installParticlePipe(renderer: unknown): void {
-  const r = renderer as { renderPipes: Record<string, unknown>; runners: { destroy: { add(item: unknown): void } } };
+  const r = renderer as { type: number; renderPipes: Record<string, unknown>; runners: { destroy: { add(item: unknown): void } } };
   if (r.renderPipes['particle']) return;
-  const pipe = new GlParticleContainerPipe(r as never);
+  const Pipe = particlePipeFor(r.type);
+  const pipe = new Pipe(r as never);
   r.renderPipes['particle'] = pipe;
   r.runners.destroy.add(pipe);
 }

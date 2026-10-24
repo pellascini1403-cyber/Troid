@@ -22,10 +22,20 @@ jobs:
   # The game in a real browser (docs/PROMPT20-LOG.md): the production build, driven with real keyboard, pad and touch events in Chromium — the scenes that prove a player's whole way (a first game, the
   # pause and its map, the pad in the menus, the end of the adventure, a game that breaks, what it sends and keeps, whether it can be read). The whole suite (`npm run test:e2e`, dev and `-- --prod`) is run
   # by hand before a release: it takes far longer than a push should wait.
+  # Two jobs side by side (the runner draws with software and is ~3 times slower than a developer's machine: one after the other they went past half an hour).
   e2e:
+    name: e2e (${{ matrix.group.name }})
     needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        group:
+          - name: play
+            scenes: boot,movement,combat,room,world,pause,pauseMap,gamepad,focus,ending,finale,adaptive
+          - name: stability
+            scenes: resilience,privacy,readable
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -43,7 +53,7 @@ jobs:
           exit 1
       - run: npm run build
       - run: npm run bench:bundle
-      - run: npm run test:e2e -- --prod --only=boot,movement,combat,room,world,pause,pauseMap,gamepad,focus,ending,finale,resilience,privacy,readable,adaptive
+      - run: npm run test:e2e -- --prod --only=${{ matrix.group.scenes }}
 
   # The game in the other two engines (docs/PROMPT20-LOG.md §6): Firefox and WebKit — the engine of Safari, on Linux: NOT an iPhone — start the production build, draw it, move the hero, pause, save and bring the game back,
   # and a phone-sized page takes a real tap without the hero striking. Chromium has the whole suite above. A pass is evidence about the engines, not about any device.

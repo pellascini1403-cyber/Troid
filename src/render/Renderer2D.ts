@@ -1,4 +1,4 @@
-import { Application, Graphics, Sprite } from 'pixi.js';
+import { Application, Graphics, RendererType, Sprite } from 'pixi.js';
 import { verticalGradientTexture } from '@/assets/proceduralTextures';
 import { PALETTE } from '@/presentation/palette';
 import { computeViewport, RESOLUTION_CAP, tierFor, type QualitySetting, type QualityTier, type ViewportLayout } from '@/presentation/viewport';
@@ -71,7 +71,9 @@ export class Renderer2D {
     await app.init({
       width: size.cssWidth,
       height: size.cssHeight,
-      preference: 'webgl',
+      // WebGL, and the canvas when the browser gives none: the two the game is tested on. Left to its own order Pixi would try WebGPU in between, which the game has never run on (and which a build that loads its
+      // extensions on demand would not draw with: docs/PROMPT20-LOG.md §6).
+      preference: ['webgl', 'canvas'],
       // Pixi's default start-up also loads accessibility, DOM containers, its event system, spritesheets and filters. The game
       // draws none of them: its HUD, touch controls and text are DOM (docs/ARCHITECTURE-2D.md §8) and input is handled by `input/`.
       // Skipping them takes ≈ 16 KB gz off the cold start (docs/PROMPT5-LOG.md S12). A tool that needs one imports its module
@@ -93,6 +95,10 @@ export class Renderer2D {
   }
   get qualityTier(): QualityTier {
     return this.tier;
+  }
+  /** What the browser gave the game to draw with: WebGL, or the canvas when it has no WebGL (the E2E and the cross-engine smoke read it). */
+  get kind(): 'webgl' | 'canvas' {
+    return this.app.renderer.type === RendererType.CANVAS ? 'canvas' : 'webgl';
   }
 
   /** Re-reads the host size and the device pixel ratio (call on `resize` / orientation change). */

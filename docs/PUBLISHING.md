@@ -26,7 +26,7 @@
 | Chromium de escritorio (teclado, ratón) | E2E con Chromium real (render por software), desarrollo y producción | ✅ |
 | Móvil y tableta, **emulados** (ventanas de 667×375 a 1260×540, vertical, inserciones de seguridad simuladas, toques reales por el protocolo de Chromium, varios dedos) | E2E `mobile`, `touch`, `touchEditor`, `focus` | ✅ — **no** es un dispositivo |
 | Mando | un mando *abstracto* con la forma de `navigator.getGamepads()` (`VirtualPad`) en pruebas unitarias, de integración y E2E | ✅ — **ningún mando físico** probado |
-| Navegador sin WebGL | E2E: el juego cae al *canvas* y se juega | ✅ |
+| Navegador sin WebGL | E2E `resilience` contra el *build* de producción: el juego cae al *canvas*, el héroe corre, **golpea y las partículas se dibujan sin que falle un fotograma** (lo último lo corrigió Firefox en la CI: el primer golpe lo rompía) | ✅ |
 | Pérdida de contexto WebGL | E2E (`WEBGL_lose_context`) | ✅ |
 | Fugas en sesión larga | E2E `resilience` (listeners, temporizadores, DOM, *heap*) | ✅ en Chromium |
 | Privacidad: todo lo que sale y todo lo que se guarda | E2E `privacy` | ✅ ([§4](#4--privacidad-y-cumplimiento)) |

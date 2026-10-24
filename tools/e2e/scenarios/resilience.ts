@@ -160,6 +160,25 @@ export const resilience: Scenario = {
     await page.keyboard.up('KeyD');
     assert.ok(((await page.evaluate('window.__troid.state()')) as { x: number }).x > x0 + 2, 'the hero plays on a page with no WebGL');
     assert.equal(await page.locator('canvas').count() >= 1, true);
+    // …and the first blow — the first particle — does not break it: the effects arrive in a chunk of their own after the renderer is made, and the pipe that draws their particles has to be the canvas one (Firefox, whose headless build has no
+    // WebGL, found it in the CI: the WebGL pipe asked a canvas renderer for a shader system, every frame threw and the page said the game had failed)
+    const seen = (): Promise<{ quality: { renderer: string }; vfx: { spawned: number; particles: number } }> => page.evaluate('window.__troid.state()') as never;
+    assert.equal((await seen()).quality.renderer, 'canvas', 'with no WebGL the game draws on the canvas');
+    const complaints: string[] = [];
+    page.on('console', (m) => void (m.type() === 'error' && complaints.push(m.text())));
+    page.on('pageerror', (e) => void complaints.push(e.message));
+    await waitFor(page, 'window.__troid.effectsReady()', 'the effects arrived on the canvas page');
+    await page.evaluate('window.__troid.spawnSlime(window.__troid.state().x + 1.4, 0, -1)');
+    await page.evaluate('window.__troid.resume()');
+    await page.keyboard.down('KeyJ');
+    await waitFor(page, 'window.__troid.state().vfx.spawned > 0', 'the blow made particles on the canvas page');
+    await page.waitForTimeout(1500); // …and the frames that draw them (the particles live a fraction of a second) go on
+    await page.keyboard.up('KeyJ');
+    await page.waitForTimeout(500);
+    assert.equal(await q(page, 'crash').count(), 0, 'a blow on a page with no WebGL is not the end of the game');
+    assert.deepEqual(complaints.filter((c) => /frame failed/.test(c)), [], 'and no frame failed');
+    const sparks = (await seen()).vfx.spawned;
+    assert.ok(sparks > 0, `the effects drew (${sparks} spawned)`);
     // 2b · a browser that gives no drawing context at all cannot play, and says so — in Spanish when it is
     page = await raw(
       ctx,
@@ -208,6 +227,33 @@ export const resilience: Scenario = {
     assert.ok(Math.abs(back - drawn) < 0.15 * Math.max(drawn, 10), `it draws again, the same room (mean light ${drawn.toFixed(1)} → ${back.toFixed(1)})`);
     assert.equal(await q(page, 'crash').count(), 0);
     await ctx.shot('context-restored');
+
+    // ================================================================================================ a device that cannot draw the effects
+    // The effects are cosmetic — nothing in the rules depends on them — and the one part of the drawing the game adds to Pixi's own. A device whose GPU cannot draw one of their parts fails every frame in which it has to (here: the
+    // pipe that draws the particles throws, as the WebGL one did on a canvas renderer). A hundred and twenty frames in a row are the end of the game; a third of a second of them is the end of the effects, and the game goes on.
+    await ctx.open('room=movement_test&lang=en', DESKTOP);
+    page = ctx.page;
+    await page.evaluate('window.__troid.resume()');
+    await waitFor(page, 'window.__troid.effectsReady()', 'the effects arrived');
+    assert.ok((await ctx.state()).quality!.particleBudget !== null, 'the effects are on');
+    await page.evaluate(`window.__troid.game.renderer.app.renderer.renderPipes.particle.execute = () => { throw new Error('E2E: this device cannot draw a particle'); }`);
+    await page.keyboard.down('KeyJ'); // a blow, as a player would: sparks
+    await waitFor(page, 'window.__troid.state().quality.particleBudget === null', 'the effects were given up', 400);
+    await page.keyboard.up('KeyJ');
+    const kept = (await ctx.state()).now!;
+    await waitFor(page, `window.__troid.state().now > ${kept + 60}`, 'the simulation goes on after the effects went');
+    await page.waitForTimeout(500); // …and the frames that draw it succeed again: no new line, no page that says the game failed
+    assert.equal(await q(page, 'crash').count(), 0, 'frames that failed for the effects alone are not the end of the game');
+    said = expectErrors(ctx, /a frame failed/);
+    assert.equal(said.length, 1, `one line for the run of failures (${said.length}: ${said.map((e) => e.slice(0, 90)).join(' | ')})`);
+    assert.match(said[0]!, /1 in a row/);
+    assert.match(said[0]!, /E2E: this device cannot draw a particle/, 'with the error and where it came from');
+    assert.ok(ctx.warnings.some((w) => /effects are off for this session/.test(w)), `and the one thing that was given up is written down (${ctx.warnings.map((w) => w.slice(0, 60)).join(' | ')})`);
+    // the frames succeed again: nothing is written for the next second and a half (a failure that went on would write a line at the 61st frame, and the page would say the game failed at the 120th)
+    await page.waitForTimeout(1500);
+    assert.deepEqual(expectErrors(ctx, /a frame failed/), [], 'and no frame fails any more');
+    assert.equal(await q(page, 'crash').count(), 0);
+    await ctx.shot('effects-given-up');
 
     // ================================================================================================ a long session leaves nothing behind
     await ctx.open('lang=en&unlock=dash', { ...DESKTOP, prepare: prepareTimers });

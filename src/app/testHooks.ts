@@ -457,6 +457,7 @@ export function createTestHooks(game: Game2D, shared: HookShared) {
         quality: {
           setting: h.settings.value.quality,
           tier: h.renderer.qualityTier,
+          renderer: h.renderer.kind,
           resolution: vp.resolution,
           particleBudget: effects?.budgets.particles ?? null,
           spriteBudget: effects?.budgets.sprites ?? null,

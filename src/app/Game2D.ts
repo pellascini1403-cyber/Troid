@@ -103,6 +103,8 @@ export interface ArrivalRecord {
 
 /** How many frames in a row may fail before the game gives up (two seconds of them at 60 a second). */
 const FRAME_FAILURES_LIMIT = 120;
+/** …and how many before it gives up on the effects alone, which are cosmetic and the one part of the drawing that is not Pixi's own: a third of a second of frames that fail, and the game goes on without them. */
+const EFFECTS_FAILURES_LIMIT = 20;
 
 /**
  * Composition root of the 2D game (`?view=2d`): wires the deterministic simulation to PixiJS. Nothing here decides
@@ -136,6 +138,8 @@ export class Game2D {
   /** The effects: a separate chunk, fetched when the page is idle (or at once under `?hooks=1`). `null` until it arrives: the game needs none of them. */
   private effects: Effects | null = null;
   private effectsRequest: Promise<void> | null = null;
+  /** Set once the frames kept failing with the effects on (`frameFailed`): they are not made again in this session. */
+  private effectsOff = false;
   /** The sound: a separate chunk, fetched when the page is idle (or at once under `?hooks=1`). `null` until it arrives: the game needs none of it. */
   private audio: AudioSystem | null = null;
   private audioRequest: Promise<void> | null = null;
@@ -447,6 +451,7 @@ export class Game2D {
         if (this.closed) return;
         // built from the profile in force NOW — and again whenever the player chooses another one (its budgets are those of the profile)
         const build = (): void => {
+          if (this.effectsOff) return;
           this.effects?.dispose();
           this.effects = createEffects({
             renderer: renderer.app.renderer,
@@ -674,12 +679,30 @@ export class Game2D {
     this.session.tick(frame);
   }
 
-  /** A tick or a frame threw (the loop skipped it and goes on): it is written down — the first of a run and every 60th, not one line a frame — and when `FRAME_FAILURES_LIMIT` in a row have, there is nothing left to try: the game stops and says so. */
+  /**
+   * A tick or a frame threw (the loop skipped it and goes on): it is written down — the first of a run and every 60th, not one line a frame. When `EFFECTS_FAILURES_LIMIT` in a row have, the effects go first (nothing in the rules
+   * depends on them, and a device that cannot draw one of their parts is the likeliest reason a frame fails every time); when `FRAME_FAILURES_LIMIT` have, there is nothing left to try: the game stops and says so.
+   */
   private frameFailed(error: unknown, streak: number): void {
     if (streak % 60 === 1) log.scope('app').error(`a frame failed (${streak} in a row): ${describeError(error)}`);
+    if (streak === EFFECTS_FAILURES_LIMIT && this.effects) this.giveUpEffects();
     if (streak < FRAME_FAILURES_LIMIT) return;
     this.loop.stop();
     void import('./crash').then((m) => m.showCrash());
+  }
+
+  /** The game goes on without its effects, as it does until they arrive — and does not make them again, whatever profile the player picks next. */
+  private giveUpEffects(): void {
+    log.scope('app').warn(`the effects are off for this session: ${EFFECTS_FAILURES_LIMIT} frames in a row failed with them on`);
+    this.effectsOff = true;
+    this.rebuildEffects = null;
+    const effects = this.effects;
+    this.effects = null; // (first: a frame that comes while it is taken apart must not find it half gone)
+    try {
+      effects?.dispose();
+    } catch (error) {
+      log.scope('app').warn(`the effects could not be taken apart cleanly: ${describeError(error)}`);
+    }
   }
 
   /** Runs exactly one tick with the current input (debug "step" and E2E tests). */

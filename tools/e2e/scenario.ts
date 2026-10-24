@@ -90,7 +90,7 @@ export interface GameState {
     sounds: number;
     tracks: number;
   } | null;
-  quality?: { setting: string; tier: string; resolution: number; particleBudget: number | null; spriteBudget: number | null };
+  quality?: { setting: string; tier: string; renderer: 'webgl' | 'canvas'; resolution: number; particleBudget: number | null; spriteBudget: number | null };
   keys?: Record<string, string>;
   menuOpen?: boolean;
   /** 2D view only (docs/PROMPT14-LOG.md): the saved game being played (`null`: a playground), what the game has counted of it, and what the page is telling the player about it. */
