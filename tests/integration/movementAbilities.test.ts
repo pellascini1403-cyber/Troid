@@ -1,45 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { PLAYER } from '@/content/player';
-import { mapRoom } from '@/world/roomMap';
-import type { RoomDefinition } from '@/world/RoomDefinition';
 import { spawnSlime } from '../helpers/enemies';
+import { lab } from '../helpers/lab';
 import { driver, type Driver } from '../helpers/sim';
 
 /**
  * THE THREE MOVEMENT ABILITIES OF docs/PROMPT21-LOG.md, played through the real controller in a room drawn for the purpose: the Double Jump (one more jump in the air), the Wall Jump (hold against a wall to slide, press to kick off)
  * and the Ground Slam (in the air, down and attack). Each one is proven by what it OPENS — a ledge, a shaft, an enemy under the hero — and by what is the same without it.
  */
-const W = 44;
-const H = 26;
-
-/** A lab room: a floor, a 5 m ledge (the Double Jump's), a 4 m wide shaft 14 m deep (the Wall Jump's) and an open stretch (the slam's). */
-function lab(): RoomDefinition {
-  const grid = Array.from({ length: H }, () => Array.from({ length: W }, () => '.'));
-  const fill = (x0: number, x1: number, y0: number, y1: number, ch: string): void => {
-    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) grid[H - 1 - y]![x] = ch;
-  };
-  fill(0, W, 0, 1, '#'); // bedrock
-  fill(0, W, 1, 2, 'G'); // the floor, top at y = 2
-  fill(0, 1, 0, H, '#'); // walls of the room
-  fill(W - 1, W, 0, H, '#');
-  fill(0, W, H - 1, H, '#'); // roof
-  fill(7, 11, 2, 7, '#'); // the ledge: 5 m above the floor (a jump is 3.1)
-  fill(19, 20, 2, H - 1, '#'); // the shaft: left wall (the whole way up)…
-  fill(25, W - 1, 2, 16, '#'); // …and a block to its right, 14 m above the floor, that is the top of it
-  const mark = (x: number, y: number, ch: string): void => {
-    grid[H - 1 - y]![x] = ch;
-  };
-  mark(3, 2, 'a'); // the hero starts here
-  mark(21, 2, 'w'); // the bottom of the shaft
-  mark(26, 16, 't'); // the top of the block
-  mark(34, 2, 's'); // an Ink Slime
-  mark(14, 2, 'x'); // the slam's start
-  return mapRoom(
-    { id: 'move_lab', regionId: 'lab', name: 'Movement lab', nameKey: 'room.lab.name', art: { backdrop: 'ruins', seed: 1 }, rows: grid.map((r) => r.join('')) },
-    (m) => ({ entries: [m.entry('start', 'a', 1), m.entry('shaft', 'w', 1), m.entry('slam', 'x', 1)] }),
-  );
-}
-
 function hero(abilities: string[], entry = 'start'): Driver {
   return driver({ room: lab(), unlocked: abilities, entry });
 }

@@ -84,7 +84,8 @@ export class Seal implements SimEntity, Combatant {
   }
 
   collectHurtboxes(out: Hurtbox[]): void {
-    out.push({ rect: { x0: this.x - this.halfWidth, x1: this.x + this.halfWidth, y0: this.y, y1: this.y + this.height }, multiplier: 1, part: 'seal' });
+    const a = this.def.area;
+    out.push({ rect: a ? { ...a } : { x0: this.x - this.halfWidth, x1: this.x + this.halfWidth, y0: this.y, y1: this.y + this.height }, multiplier: 1, part: 'seal' });
   }
 
   receiveHit(hit: HitInfo): HitOutcome {

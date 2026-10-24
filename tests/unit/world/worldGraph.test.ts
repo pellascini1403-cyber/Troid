@@ -410,3 +410,71 @@ describe('the end of the world: a whole campaign can be finished', () => {
     expect(strict(world, shut)).toEqual(expect.arrayContaining(['room-unreachable', 'end-unreachable']));
   });
 });
+
+describe('abilities on paper (docs/PROMPT21-LOG.md)', () => {
+  /** A → B → C in a line; the exit of B to C asks for the Double Jump, which a pickup in A teaches (or in `where`). */
+  function gated(teachIn: 'a' | 'b' | 'c' | null): { world: WorldDefinition; rooms: RoomRegistry } {
+    const pickup = (id: string): NonNullable<RoomDefinition['interactables']> => [{ id, kind: 'pickup', verbKey: 'k', x: 10, y: 0, actions: [{ type: 'unlockAbility', abilityId: 'double_jump' }, { type: 'setFlag', flag: `taken:${id}` }] }];
+    const rooms: RoomRegistry = {
+      a: room('a', { exits: [east('b')], ...(teachIn === 'a' ? { interactables: pickup('boots') } : {}) }),
+      b: room('b', { exits: [west('a'), east('c')], needs: [{ target: 'exit:east', abilities: ['double_jump'] }], ...(teachIn === 'b' ? { interactables: pickup('boots') } : {}) }),
+      c: room('c', { exits: [west('b')], ...(teachIn === 'c' ? { interactables: pickup('boots') } : {}) }),
+    };
+    return { world: { id: 'w', start: { room: 'a', entry: 'west' }, rooms: ['a', 'b', 'c'] }, rooms };
+  }
+
+  it('an ability is a flag for the paper player: a pickup that teaches it grants `ability:<id>`, a part of a room that asks for it requires it', () => {
+    const { rooms } = gated('a');
+    expect(grantedFlags(rooms.a!)).toContain('ability:double_jump');
+    expect(requiredFlags(rooms.b!)).toContain('ability:double_jump');
+  });
+
+  it('a way that needs an ability opens when something the hero can reach has taught it: the order of the rooms in the data does not matter', () => {
+    const { world, rooms } = gated('a');
+    expect(buildWorldGraph(world, rooms).edges.find((e) => e.from === 'b' && e.exit === 'east')!.needs).toEqual(['double_jump']);
+    expect(analyzeProgression(buildWorldGraph(world, rooms), rooms).order).toEqual(['a', 'b', 'c']);
+    expect(validateWorld(world, rooms)).toEqual([]);
+  });
+
+  it('with nobody to teach it, the room behind the way is out of reach — and the validator says what waits for the ability', () => {
+    const { world, rooms } = gated(null);
+    const p = analyzeProgression(buildWorldGraph(world, rooms), rooms);
+    expect(p.order).toEqual(['a', 'b']);
+    expect(p.unreachable).toEqual(['c']);
+    const issues = validateWorld(world, rooms);
+    expect(issues.map((i) => i.code)).toEqual(expect.arrayContaining(['room-unreachable', 'flag-ungranted']));
+    expect(issues.find((i) => i.code === 'flag-ungranted')!.message).toContain('ability:double_jump');
+  });
+
+  it('an ability taught BEHIND the way that asks for it never opens it: the ability is in the room the hero cannot enter without it', () => {
+    const { world, rooms } = gated('c');
+    expect(analyzeProgression(buildWorldGraph(world, rooms), rooms).unreachable).toEqual(['c']);
+  });
+
+  it('an ability the new game gives opens the way from the first minute; and the way back is checked with the abilities in hand too', () => {
+    const { world, rooms } = gated(null);
+    expect(validateWorld(world, rooms, { startAbilities: ['dash', 'double_jump'] })).toEqual([]);
+    const graph = buildWorldGraph(world, rooms);
+    expect(routeBetween(graph, 'a', 'c', new Set(['ability:double_jump']))).toEqual(['a', 'b', 'c']);
+    expect(routeBetween(graph, 'a', 'c', new Set())).toEqual([]);
+  });
+
+  it('a pickup that asks for an ability is taken only by a hero who has it: what it grants waits too', () => {
+    const rooms: RoomRegistry = {
+      a: room('a', {
+        exits: [east('b')],
+        interactables: [
+          { id: 'boots', kind: 'pickup', verbKey: 'k', x: 10, y: 0, actions: [{ type: 'unlockAbility', abilityId: 'double_jump' }] },
+          { id: 'relic', kind: 'pickup', verbKey: 'k', x: 12, y: 0, actions: [{ type: 'setFlag', flag: 'taken:relic' }] },
+          { id: 'high', kind: 'pickup', verbKey: 'k', x: 14, y: 0, actions: [{ type: 'setFlag', flag: 'taken:high' }] },
+        ],
+        needs: [{ target: 'item:high', abilities: ['wall_jump'] }, { target: 'item:relic', abilities: ['double_jump'] }],
+      }),
+      b: room('b', { exits: [west('a')] }),
+    };
+    const world: WorldDefinition = { id: 'w', start: { room: 'a', entry: 'west' }, rooms: ['a', 'b'] };
+    const p = analyzeProgression(buildWorldGraph(world, rooms), rooms, ['ability:dash']);
+    expect(p.flags.has('taken:relic'), 'the boots are in the same room, and the relic asks for them').toBe(true);
+    expect(p.flags.has('taken:high'), 'nothing teaches the Wall Jump').toBe(false);
+  });
+});

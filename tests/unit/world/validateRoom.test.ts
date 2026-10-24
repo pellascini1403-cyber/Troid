@@ -356,3 +356,33 @@ describe('validateRoom: interactables', () => {
     });
   });
 });
+
+describe('what parts of a room ask of the hero (docs/PROMPT21-LOG.md)', () => {
+  const base = {
+    id: 'n',
+    regionId: 't',
+    name: 'n',
+    bounds: { x0: -1, y0: -12, x1: 40, y1: 18 },
+    killY: -20,
+    entries: [{ id: 'west', x: 4, y: 0, facing: 1 as const }],
+    solids: [{ id: 'g', rect: { x0: 0, y0: -6, x1: 39, y1: 0 }, kind: 'solid' as const }],
+    exits: [{ id: 'east', rect: { x0: 36, y0: 0, x1: 39, y1: 4 }, to: { room: 'x', entry: 'west' } }],
+    interactables: [{ id: 'relic', kind: 'pickup' as const, verbKey: 'k', x: 20, y: 0, actions: [{ type: 'setFlag' as const, flag: 'taken:relic' }] }],
+  };
+  const codes = (needs: NonNullable<RoomDefinition['needs']>) =>
+    validateRoom({ ...base, needs }, { enemies: {}, abilities: new Set(['double_jump', 'dash']) }).map((i) => i.code);
+
+  it('a need on an exit or an item the room has, with abilities that exist, is valid', () => {
+    expect(codes([{ target: 'exit:east', abilities: ['double_jump'] }, { target: 'item:relic', abilities: ['double_jump', 'dash'] }])).toEqual([]);
+  });
+  it('a need on a part the room does not have, on a kind of part there is none of, or twice, is named', () => {
+    expect(codes([{ target: 'exit:north', abilities: ['dash'] }])).toEqual(['need-target']);
+    expect(codes([{ target: 'item:nothing', abilities: ['dash'] }])).toEqual(['need-target']);
+    expect(codes([{ target: 'boss:warden', abilities: ['dash'] }])).toEqual(['need-target']);
+    expect(codes([{ target: 'exit:east', abilities: ['dash'] }, { target: 'exit:east', abilities: ['double_jump'] }])).toEqual(['need-duplicate']);
+  });
+  it('a need that asks for nothing, or for an ability nobody defined, is named', () => {
+    expect(codes([{ target: 'exit:east', abilities: [] }])).toEqual(['need-empty']);
+    expect(codes([{ target: 'exit:east', abilities: ['teleport'] }])).toEqual(['need-ability']);
+  });
+});

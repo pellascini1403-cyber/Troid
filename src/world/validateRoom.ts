@@ -237,6 +237,18 @@ export function validateRoom(room: RoomDefinition, refs: RoomRefs): RoomIssue[] 
     }
   }
 
+  // what parts of the room ask of the hero: a part that exists, abilities that exist, and no part named twice
+  const needTargets = new Set<string>();
+  for (const n of room.needs ?? []) {
+    const [kind, id] = n.target.split(':');
+    const exists = kind === 'exit' ? (room.exits ?? []).some((x) => x.id === id) : kind === 'item' ? (room.interactables ?? []).some((i) => i.id === id) : false;
+    if (!exists) add('need-target', `a need names "${n.target}", which the room does not have (exit:<id> or item:<id>)`);
+    if (needTargets.has(n.target)) add('need-duplicate', `"${n.target}" is named by two needs`);
+    needTargets.add(n.target);
+    if (n.abilities.length === 0) add('need-empty', `the need of "${n.target}" asks for no ability: it is not a need`);
+    for (const a of n.abilities) if (refs.abilities && !refs.abilities.has(a)) add('need-ability', `"${n.target}" needs the unknown ability "${a}"`);
+  }
+
   if (room.killY !== undefined && room.killY >= room.bounds.y1) add('bad-killy', 'killY is above the top of the room');
   return issues;
 }

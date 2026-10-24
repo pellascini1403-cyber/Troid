@@ -124,6 +124,16 @@ export interface SealDef {
   y: number;
   halfWidth?: number;
   height?: number;
+  /**
+   * The vulnerable area, when it is not a standing rectangle: a cracked FLOOR is a flat strip the blow comes down on. It replaces `x ± halfWidth`, `y … y + height` as what a blow must overlap (the view and the map still
+   * use `x` and `y`: the middle of the top of it).
+   */
+  area?: Rect;
+  /**
+   * What it looks like: the `ward` of violet ink (the default: it is not part of the world, a thing of the Ink), or a `crack` — stone that has split along its length and a blow that is heavy enough will bring down (a breakable
+   * wall or floor of the rooms). The rules are the same: it turns away what it does not accept and breaks for good on what it does.
+   */
+  style?: 'ward' | 'crack';
   /** The attacks (the ids a hit carries: a skill's id, `spirit_bolt`) that break it; anything else is turned away. */
   accepts: readonly string[];
   /** The world flag it sets when it breaks: the gate it holds opens with it. */
@@ -177,6 +187,18 @@ export interface HazardDef {
   damage?: number;
 }
 
+/**
+ * What a part of a room asks of the hero beyond what a new game gives (the dash): abilities (docs/PROMPT21-LOG.md). It is a CLAIM about the room, written next to the room and then proved twice: on paper, by the world
+ * (`analyzeProgression` plays the world with the abilities the hero has collected, so a way that needs the Double Jump opens only after something has taught it), and by physics, by the tests (the real controller, without the
+ * ability, cannot get there; with it, can: tests/helpers/reach.ts). A part of a room that is not named here must be reachable with the dash alone.
+ */
+export interface ReachNeed {
+  /** `exit:<id>` of a way out, or `item:<id>` of an interactable (a pickup, a shrine). */
+  target: string;
+  /** The abilities it takes, all of them (ids of the abilities of the game). */
+  abilities: readonly string[];
+}
+
 export interface RoomDefinition {
   id: string;
   regionId: string;
@@ -210,6 +232,8 @@ export interface RoomDefinition {
   seals?: SealDef[];
   /** Guardians that fight in an arena (docs/PROMPT6-LOG.md S29). */
   bosses?: BossDef[];
+  /** What parts of the room ask of the hero beyond the dash (see `ReachNeed`). */
+  needs?: ReachNeed[];
   /** Provisional scenery behind and in front of the action (never collision): `render/backdrops` draws it. */
   art?: { backdrop: string; seed?: number };
 }

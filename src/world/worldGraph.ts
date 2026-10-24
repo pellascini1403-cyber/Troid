@@ -20,6 +20,19 @@ export interface WorldEdge {
   to: Destination;
   /** The flag that has to be set before the exit works. */
   requires?: string;
+  /** The abilities the hero needs to get to the exit (`RoomDefinition.needs`). */
+  needs?: readonly string[];
+}
+
+/**
+ * An ability is a flag, for the world on paper: the one that says the hero has it. A pickup that teaches it grants `ability:<id>`, a part of a room that asks for it requires it, a new game begins with the ones in
+ * `WorldRefs.startAbilities`. Nothing of the sort is ever saved (the real abilities are); it is how the same fixed point that plays the doors plays the powers.
+ */
+export const abilityFlag = (id: string): string => `ability:${id}`;
+
+/** The abilities a part of a room (`exit:<id>`, `item:<id>`) asks for. */
+export function needsOf(room: RoomDefinition, target: string): string[] {
+  return (room.needs ?? []).filter((n) => n.target === target).flatMap((n) => [...n.abilities]);
 }
 
 /** What a room asks of the player and gives back, as the graph sees it. */
@@ -61,6 +74,8 @@ export interface WorldRefs {
   player?: { halfWidth: number; height: number };
   /** The world is a whole campaign: it must have a way out marked `end`, and one the hero can reach with what the world gives (a world of a test or a lab need not). */
   requireEnd?: boolean;
+  /** The abilities a new game begins with (default: the dash): what a part of a room that asks for an ability can be played with from the first minute. */
+  startAbilities?: readonly string[];
 }
 
 /** A way out of the WORLD (an exit marked `end`): where it is and what it asks for. */
@@ -83,7 +98,12 @@ export function worldEnds(world: WorldDefinition, rooms: RoomRegistry): WorldEnd
 export function grantedFlags(room: RoomDefinition): string[] {
   const out = new Set<string>();
   for (const s of room.spawns ?? []) if (s.defeatFlag) out.add(s.defeatFlag);
-  for (const i of room.interactables ?? []) for (const a of i.actions) if (a.type === 'setFlag') out.add(a.flag);
+  for (const i of room.interactables ?? []) {
+    for (const a of i.actions) {
+      if (a.type === 'setFlag') out.add(a.flag);
+      else if (a.type === 'unlockAbility') out.add(abilityFlag(a.abilityId));
+    }
+  }
   for (const sl of room.seals ?? []) out.add(sl.flag);
   for (const b of room.bosses ?? []) out.add(b.defeatFlag);
   return [...out];
@@ -96,6 +116,7 @@ export function requiredFlags(room: RoomDefinition): string[] {
   for (const g of room.gates ?? []) if (g.openWhen) out.add(g.openWhen);
   for (const i of room.interactables ?? []) if (i.whenSet) out.add(i.whenSet);
   for (const sl of room.seals ?? []) if (sl.needs) out.add(sl.needs);
+  for (const n of room.needs ?? []) for (const a of n.abilities) out.add(abilityFlag(a));
   return [...out];
 }
 
@@ -123,7 +144,11 @@ export function buildWorldGraph(world: WorldDefinition, rooms: RoomRegistry): Wo
       requires: requiredFlags(room),
       grants: grantedFlags(room),
     });
-    for (const x of room.exits ?? []) if (x.to) edges.push({ from: id, exit: x.id, to: x.to, ...(x.requires ? { requires: x.requires } : {}) });
+    for (const x of room.exits ?? []) {
+      if (!x.to) continue;
+      const needs = needsOf(room, `exit:${x.id}`);
+      edges.push({ from: id, exit: x.id, to: x.to, ...(x.requires ? { requires: x.requires } : {}), ...(needs.length > 0 ? { needs } : {}) });
+    }
   }
   return { id: world.id, start: world.start, rooms: nodes, edges };
 }
@@ -171,9 +196,12 @@ export function analyzeProgression(graph: WorldGraph, rooms: RoomRegistry, start
       }
       for (const i of room.interactables ?? []) {
         if (i.whenSet !== undefined && !flags.has(i.whenSet)) continue;
+        // a pickup on a ledge that takes the Double Jump is taken by a hero who has it, and not before
+        if (!needsOf(room, `item:${i.id}`).every((a) => flags.has(abilityFlag(a)))) continue;
         for (const a of i.actions) {
-          if (a.type === 'setFlag' && !flags.has(a.flag)) {
-            flags.add(a.flag);
+          const flag = a.type === 'setFlag' ? a.flag : a.type === 'unlockAbility' ? abilityFlag(a.abilityId) : null;
+          if (flag !== null && !flags.has(flag)) {
+            flags.add(flag);
             changed = true;
           }
         }
@@ -193,7 +221,7 @@ export function analyzeProgression(graph: WorldGraph, rooms: RoomRegistry, start
         }
       }
     }
-    for (const e of graph.edges) if (reached.has(e.from) && (!e.requires || flags.has(e.requires))) open(e.to.room);
+    for (const e of graph.edges) if (reached.has(e.from) && (!e.requires || flags.has(e.requires)) && (e.needs ?? []).every((a) => flags.has(abilityFlag(a)))) open(e.to.room);
   }
   return { order, flags, unreachable: [...graph.rooms.keys()].filter((id) => !reached.has(id)) };
 }
@@ -208,7 +236,7 @@ export function routeBetween(graph: WorldGraph, from: string, to: string, flags:
     const at = queue[head]!;
     if (at === to) break;
     for (const e of edgesFrom(graph, at)) {
-      if ((e.requires && !flags.has(e.requires)) || seen.has(e.to.room) || !graph.rooms.has(e.to.room)) continue;
+      if ((e.requires && !flags.has(e.requires)) || !(e.needs ?? []).every((a) => flags.has(abilityFlag(a))) || seen.has(e.to.room) || !graph.rooms.has(e.to.room)) continue;
       seen.add(e.to.room);
       previous.set(e.to.room, at);
       queue.push(e.to.room);
@@ -266,7 +294,7 @@ export function validateWorld(world: WorldDefinition, rooms: RoomRegistry, refs:
   // play the world on paper: every room reachable, every flag that something waits for obtainable, a way back from everywhere
   if (startRoom && listed.has(world.start.room)) {
     const graph = buildWorldGraph(world, rooms);
-    const progress = analyzeProgression(graph, rooms);
+    const progress = analyzeProgression(graph, rooms, (refs.startAbilities ?? ['dash']).map(abilityFlag));
     for (const id of progress.unreachable) add('room-unreachable', `room "${id}" cannot be reached from the start`);
     for (const id of progress.order) {
       const room = rooms[id]!;
