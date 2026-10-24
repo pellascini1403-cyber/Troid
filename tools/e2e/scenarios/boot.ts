@@ -66,7 +66,7 @@ export const boot: Scenario = {
     await ctx.page.goto('about:blank');
 
     /** A cold start of the page a player gets (no hooks, an empty browser, `prepare` to bend the network): a picture every ~130 ms until the curtain is gone or `limit` ms pass. */
-    async function coldStart(prepare: (c: BrowserContext) => Promise<void>, limit: number, lean = false): Promise<{ samples: Sample[]; page: Page; context: BrowserContext; errors: string[] }> {
+    async function coldStart(prepare: (c: BrowserContext) => Promise<void>, limit: number, lean = false): Promise<{ samples: Sample[]; presence: Array<{ t: number; curtain: boolean }>; page: Page; context: BrowserContext; errors: string[] }> {
       const context = await browser.newContext({ viewport: SIZE, deviceScaleFactor: 1 });
       await prepare(context);
       const page = await context.newPage();
@@ -77,6 +77,17 @@ export const boot: Scenario = {
       // the curtain is part of the page itself: it is there from the first paint, before one line of the game has run
       await page.waitForSelector('#boot-curtain', { state: 'attached', timeout: 20000 });
       const samples: Sample[] = [];
+      // The pictures above cost a page that draws with software seconds each (a CI runner takes ~2 s for one), so how many of them a wait gets says how slow the runner is, not whether the curtain was there. Next to them,
+      // a second and cheap sampler reads only whether the curtain is on the page, every ~80 ms, whatever the pictures cost: that is what «it was there all that time» is measured with.
+      const presence: Array<{ t: number; curtain: boolean }> = [];
+      let watching = true;
+      const watcher = (async () => {
+        while (watching) {
+          const here = (await page.evaluate("document.getElementById('boot-curtain') !== null").catch(() => null)) as boolean | null;
+          if (here !== null) presence.push({ t: Date.now() - t0, curtain: here });
+          await page.waitForTimeout(80).catch(() => undefined);
+        }
+      })();
       for (;;) {
         const t = Date.now() - t0;
         if (t > limit) break;
@@ -89,7 +100,9 @@ export const boot: Scenario = {
         }
         await page.waitForTimeout(lean ? 100 : 60);
       }
-      return { samples, page, context, errors };
+      watching = false;
+      await watcher;
+      return { samples, presence, page, context, errors };
     }
 
     const never = (samples: Sample[], what: string): void => {
@@ -124,7 +137,7 @@ export const boot: Scenario = {
 
     // ================================================================================================ a slow line: every file of the art arrives late
     {
-      const { samples, context, errors } = await coldStart(
+      const { samples, presence, context, errors } = await coldStart(
         async (c) => {
           await c.route('**/art/**', async (route) => {
             await new Promise((r) => setTimeout(r, 700));
@@ -137,7 +150,11 @@ export const boot: Scenario = {
       const last = samples[samples.length - 1]!;
       assert.equal(last.boot, 'art', `the curtain waited for the art and lifted when it came (${last.boot})`);
       assert.ok(last.t > 2500, `it waited (lifted at ${last.t} ms, with the art arriving late): the player was kept behind a dark page, not a half-made picture`);
-      assert.ok(samples.filter((s) => s.curtain).length >= 8, 'and it was seen to be there all that time');
+      const up = presence.filter((p) => p.curtain);
+      assert.ok(up.length >= 8, `and it was seen to be there all that time (${up.length} of ${presence.length} readings of the page, one every ~80 ms)`);
+      const lifted = presence.findIndex((p) => !p.curtain);
+      assert.ok(lifted === -1 || presence.slice(lifted).every((p) => !p.curtain), 'and once it was lifted it did not come back');
+      assert.ok(lifted === -1 || presence[lifted]!.t > 2500, `and no reading saw it gone before the art had come (first gone at ${presence[lifted]?.t} ms)`);
       assert.deepEqual(errors, [], 'the page threw nothing');
       console.log(`  boot: slow line — curtain waited ${last.t} ms (${samples.length} pictures, none of them the blockout)`);
       await context.close();
