@@ -11,6 +11,7 @@ import { R2_HALL_ROOM } from './rooms/r2Hall';
 import { R3_CHAMBER_ROOM } from './rooms/r3Chamber';
 import { R4_SANCTUM_ROOM } from './rooms/r4Sanctum';
 import { PROCEDURAL_ATLASES, SPRITE_SETS } from './sprites';
+import { UPGRADES } from './upgrades';
 import { WORLD } from './world';
 
 /** The game's concrete data. Only `app/` (and tests / tools) import this; the simulation receives it injected. */
@@ -31,4 +32,4 @@ export const ROOMS: Readonly<Record<string, RoomDefinition>> = {
  */
 export const START = { room: WORLD.start.room, entry: WORLD.start.entry, unlocked: ['dash'] as readonly string[] } as const;
 
-export { ABILITIES, BOSSES, ENEMIES, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, SPRITE_SETS, WORLD };
+export { ABILITIES, BOSSES, ENEMIES, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, SPRITE_SETS, UPGRADES, WORLD };

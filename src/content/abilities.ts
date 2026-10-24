@@ -12,6 +12,13 @@ export const ABILITIES: readonly AbilityDefinition[] = [
   { id: 'double_jump', name: 'Double Jump', description: 'Jump once more in mid-air.', kind: 'movement', implemented: true },
   { id: 'wall_jump', name: 'Wall Jump', description: 'Hold against a wall in the air to slide down it, and kick off it.', kind: 'movement', implemented: true },
   { id: 'ground_slam', name: 'Ground Slam', description: 'In the air, down and attack: dive and break what the ground hides.', kind: 'movement', implemented: true },
+  // the relics (docs/PROMPT21-LOG.md): passive, each one a number in `PlayerCombatDefinition.relics` and one `has(…)` where it matters
+  { id: 'relic_edge', name: 'Keen Edge', description: 'Every blow of the sword hits for one more.', kind: 'passive', implemented: true },
+  { id: 'relic_swift', name: 'Swift Sash', description: 'The dash is ready again sooner.', kind: 'passive', implemented: true },
+  { id: 'relic_siphon', name: 'Siphon Bead', description: 'A blow that lands gives magic back.', kind: 'passive', implemented: true },
+  { id: 'relic_ward', name: 'Warding Thread', description: 'You stay untouchable longer after a hit.', kind: 'passive', implemented: true },
+  { id: 'relic_pierce', name: 'Piercing Ink', description: 'The Spirit Bolt goes through two enemies.', kind: 'passive', implemented: true },
+  { id: 'relic_brew', name: 'Strong Brew', description: 'A bottle heals one point more.', kind: 'passive', implemented: true },
   { id: 'grapple', name: 'Grapple', description: 'Swing from anchor points.', kind: 'movement', implemented: false },
   // `implemented` is true since S29: the reward of the Ink Warden, one more dash in the air (`PlayerController.canDash`)
   { id: 'air_dash', name: 'Air Dash', description: 'An extra dash in mid-air.', kind: 'movement', implemented: true },

@@ -119,12 +119,13 @@ export class PlayerCombat {
           attackId: a.id, x: p.body.x, y: p.body.y, facing: p.facing, air: !p.body.grounded, combo: this._combo, rect: { ...this.rect },
         });
       }
+      const relics = p.def.combat.relics;
       sim.combat.submit({
         ownerId: p.id,
         team: 'player',
         rect: { ...this.rect },
         attackId: a.id,
-        damage: a.damage,
+        damage: a.damage + (relics && sim.abilities.has('relic_edge') ? relics.edgeBonus : 0),
         knockback: a.knockback,
         stun: a.stun,
         hitStop: a.hitStop,
@@ -133,6 +134,7 @@ export class PlayerCombat {
         alreadyHit: this.hitSet,
         onConfirm: () => {
           this._confirmed = true;
+          if (relics && sim.abilities.has('relic_siphon')) sim.magic.gain(relics.siphon);
         },
       });
     }

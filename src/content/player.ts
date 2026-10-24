@@ -15,6 +15,7 @@ export const PLAYER: PlayerDefinition = {
     crouchAttack: 'crouch_slash',
     slamDive: 'slam_dive',
     slamWave: 'slam',
+    relics: { edgeBonus: 1, siphon: 8, wardScale: 1.6, swiftScale: 0.6, brewBonus: 1, pierce: 2 },
     attackBuffer: 0.12,
     hurt: { stun: 14, invulnerability: 60, knockbackScale: 1, deathHitStop: 8 },
   },

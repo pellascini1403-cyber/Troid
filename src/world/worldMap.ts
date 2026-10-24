@@ -283,6 +283,7 @@ export function buildMapLayout(world: WorldDefinition, registry: RoomRegistry): 
       pois.push({ id: `${id}:rest:${i.id}`, kind: 'rest', room: id, x: p.x, y: p.y, area: null, doneFlag: null, entry: rest.entry });
     }
     for (const s of def.seals ?? []) {
+      if (s.style === 'crack') continue; // split stone is a secret of the room, not a ward the map marks
       const p = mapPoint(place, s.x, s.y);
       pois.push({ id: `${id}:seal:${s.id}`, kind: 'seal', room: id, x: p.x, y: p.y, area: null, doneFlag: s.flag, entry: null });
     }

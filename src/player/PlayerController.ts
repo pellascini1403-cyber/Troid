@@ -750,7 +750,8 @@ export class PlayerController {
     const m = skill.projectile.muzzle;
     const x = p.body.x + p.facing * m.x;
     const y = p.body.y + (this.crouching ? m.yCrouched : m.y);
-    sim.spawn(new Projectile(sim.newId('bolt'), skill.id, skill.projectile, p.id, x, y, p.facing));
+    const relics = p.def.combat.relics;
+    sim.spawn(new Projectile(sim.newId('bolt'), skill.id, skill.projectile, p.id, x, y, p.facing, relics && sim.abilities.has('relic_pierce') ? relics.pierce : 0));
     sim.bus.emit('skill:cast', { skillId: skill.id, x, y, facing: p.facing, cost: skill.cost });
     return true;
   }
@@ -822,7 +823,8 @@ export class PlayerController {
       this.breakDrink('full');
       return;
     }
-    const healed = effect.type === 'heal' ? p.health.heal(effect.amount) : 0;
+    const relics = p.def.combat.relics;
+    const healed = effect.type === 'heal' ? p.health.heal(effect.amount + (relics && sim.abilities.has('relic_brew') ? relics.brewBonus : 0)) : 0;
     this.drinkSlot = -1; // done: leaving the state is not an interruption
     sim.bus.emit('bottle:drunk', { slot, healed, x: p.body.x, y: p.body.y });
     this.fsm.go(this.postAttackState());
@@ -888,8 +890,10 @@ export class PlayerController {
     b.vx = hit.direction * hit.knockbackX * def.knockbackScale;
     b.vy = hit.knockbackY * def.knockbackScale;
     this.hurtTicks = hit.stun > 0 ? hit.stun : def.stun;
-    this.invulnerable = Math.max(this.invulnerable, def.invulnerability);
-    this.hurtInvuln = def.invulnerability;
+    const relics = p.def.combat.relics;
+    const guard = Math.round(def.invulnerability * (relics && this.sim?.abilities.has('relic_ward') ? relics.wardScale : 1));
+    this.invulnerable = Math.max(this.invulnerable, guard);
+    this.hurtInvuln = guard;
     this.flashTicks = FLASH_TICKS;
     this.jumping = false;
     this.animSerial++;
@@ -924,7 +928,8 @@ export class PlayerController {
     if (b.vx !== 0) b.vx = this.dashDir * t.runSpeed * t.dash.exitSpeedFactor;
     if (!b.grounded && this.dashSavedVy > 0) b.vy = this.dashSavedVy * t.dash.ascentRetention;
     this.dashSavedVy = 0;
-    this.dashCooldown = secondsToTicks(t.dash.cooldown);
+    const relics = this.player.def.combat.relics;
+    this.dashCooldown = secondsToTicks(t.dash.cooldown * (relics && this.sim.abilities.has('relic_swift') ? relics.swiftScale : 1));
     this.sim.bus.emit('player:dashEnded', { x: b.x, y: b.y });
   }
 

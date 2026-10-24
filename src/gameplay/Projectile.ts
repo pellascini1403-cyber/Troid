@@ -8,7 +8,7 @@ export type ProjectileEnd = 'hit' | 'wall' | 'range';
 
 /**
  * A skill's projectile (the Spirit Bolt): a `SimEntity` that flies straight along its facing, submits its hit area to the
- * combat system on every tick, and ends on the FIRST thing it hurts (it does not pierce), on a wall, or after `range` metres.
+ * combat system on every tick, and ends on the FIRST thing it hurts (unless the relic of the Piercing Ink lets it through a few), on a wall, or after `range` metres.
  * Deterministic: it moves a fixed distance per tick and counts whole ticks, never an accumulated float.
  *
  * It knows no VFX: it announces its end (`projectile:ended`, with why and where) and the effects layer draws what it wants.
@@ -25,6 +25,7 @@ export class Projectile implements SimEntity {
   end: ProjectileEnd | null = null;
 
   private ticks = 0;
+  private hits = 0;
   private readonly maxTicks: number;
   private readonly step: number;
   private readonly hitSet = new Set<string>();
@@ -39,6 +40,8 @@ export class Projectile implements SimEntity {
     x: number,
     y: number,
     readonly facing: 1 | -1,
+    /** How many things it goes through before it ends (the Piercing Ink relic): 0 ends it on the first. */
+    private readonly pierce = 0,
   ) {
     this.x = this.prevX = x;
     this.y = this.prevY = y;
@@ -82,8 +85,10 @@ export class Projectile implements SimEntity {
       shake: this.spec.shake,
       facing: this.facing,
       alreadyHit: this.hitSet,
-      // the first confirmed hit is its last: it does not pierce
-      onConfirm: () => this.finish('hit'),
+      // the first confirmed hit is its last, unless it pierces: then it goes on until it has hurt one more than it pierces
+      onConfirm: () => {
+        if (++this.hits > this.pierce) this.finish('hit');
+      },
     });
     if (this.ticks >= this.maxTicks && !this.expired) this.finish('range');
   }

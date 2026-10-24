@@ -192,8 +192,9 @@ export const PICKUP_VARIANTS = ['bottle', 'card', 'rune'] as const;
  * The variant of an interactable's picture: a pickup is by what it GIVES — a bottle slot is a vial (the one of the HUD), an ability a rune, anything else (a card) a card — and
  * nothing else has one (`''`). Read from the room's data, never from the art.
  */
-export function interactiveVariant(i: { kind: string; actions?: ReadonlyArray<{ type: string }> }): string {
+export function interactiveVariant(i: { kind: string; variant?: string; actions?: ReadonlyArray<{ type: string }> }): string {
   if (i.kind !== 'pickup') return '';
+  if (i.variant !== undefined) return i.variant;
   const types = (i.actions ?? []).map((a) => a.type);
   return types.includes('addBottleSlot') ? 'bottle' : types.includes('unlockAbility') ? 'rune' : 'card';
 }
@@ -204,7 +205,7 @@ export interface EnvRoomLike {
   solids: ReadonlyArray<{ id: string; kind?: 'solid' | 'oneway'; material?: string }>;
   gates?: ReadonlyArray<{ id: string; solid: string }>;
   hazards?: ReadonlyArray<{ kind: string }>;
-  interactables?: ReadonlyArray<{ kind: string; actions?: ReadonlyArray<{ type: string }> }>;
+  interactables?: ReadonlyArray<{ kind: string; variant?: string; actions?: ReadonlyArray<{ type: string }> }>;
   seals?: ReadonlyArray<unknown>;
   exits?: ReadonlyArray<unknown>;
   art?: { backdrop: string };

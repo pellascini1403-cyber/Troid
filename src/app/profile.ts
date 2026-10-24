@@ -15,6 +15,12 @@ export const ABILITY_KEYS: Readonly<Record<string, string>> = {
   double_jump: 'ability.doubleJump',
   wall_jump: 'ability.wallJump',
   ground_slam: 'ability.groundSlam',
+  relic_edge: 'ability.relicEdge',
+  relic_swift: 'ability.relicSwift',
+  relic_siphon: 'ability.relicSiphon',
+  relic_ward: 'ability.relicWard',
+  relic_pierce: 'ability.relicPierce',
+  relic_brew: 'ability.relicBrew',
 };
 
 /** What the profile shows, as plain data: every number is something the game counted or the simulation holds (docs/PROMPT14-LOG.md). */

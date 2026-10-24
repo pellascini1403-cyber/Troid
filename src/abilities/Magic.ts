@@ -34,7 +34,7 @@ const MILLI = 1000;
  */
 export class Magic {
   private milli: number;
-  private readonly maxMilli: number;
+  private maxMilli: number;
   private delayTicks = 0;
   /** Thousandths still owed to the next tick (rates that are not a multiple of 60 / s). */
   private carry = 0;
@@ -92,6 +92,27 @@ export class Magic {
     this.delayTicks = 0;
     this.carry = 0;
     if (this.milli !== before) this.emit((this.milli - before) / MILLI, 'restore');
+  }
+
+  /**
+   * A bar of another size (a vessel of magic was found; docs/PROMPT21-LOG.md). `fill` puts the current value at the new maximum (a loaded game); otherwise what the bar GAINED is added to what it holds (a bigger bar
+   * comes with its new part full) and a smaller one clamps.
+   */
+  setMax(max: number, fill = false): void {
+    const next = Math.max(0, Math.round(max * MILLI));
+    if (next === this.maxMilli) return;
+    const before = this.milli;
+    this.milli = fill ? next : Math.min(next, next > this.maxMilli ? this.milli + (next - this.maxMilli) : this.milli);
+    this.maxMilli = next;
+    this.emit((this.milli - before) / MILLI, 'set');
+  }
+
+  /** Adds up to `units` (a blow that landed gives some back: the Siphon Bead). It does not restart the delay nor touch the regeneration. */
+  gain(units: number): void {
+    if (!(units > 0) || this.milli >= this.maxMilli) return;
+    const before = this.milli;
+    this.milli = Math.min(this.maxMilli, this.milli + Math.round(units * MILLI));
+    this.emit((this.milli - before) / MILLI, 'regen');
   }
 
   /** Sets the bar to `units`, clamped to 0 … max (tests, debug, loading a save). */

@@ -20,6 +20,7 @@ import { Player } from '@/player/Player';
 import type { PlayerDefinition } from '@/player/PlayerDefinition';
 import { AbilitySystem, type AbilityDefinition } from '@/progression/AbilitySystem';
 import { COMPLETED_FLAG } from '@/progression/adventure';
+import { upgradeTotals, type UpgradeDef } from '@/progression/upgrades';
 import { WorldFlags } from '@/progression/WorldFlags';
 import { bodyRect, CollisionWorld } from '@/world/collision';
 import type { Destination, RoomDefinition } from '@/world/RoomDefinition';
@@ -62,6 +63,8 @@ export interface SessionOptions {
   bosses?: Readonly<Record<string, GuardianDefinition>>;
   /** World flags set from the start (tests, loading a save). */
   flags?: readonly string[];
+  /** The flags that make the hero's life and magic bars bigger (docs/PROMPT21-LOG.md): derived from the flags whenever they change, never saved on their own. */
+  upgrades?: readonly UpgradeDef[];
   /** Where the hero comes back after a defeat (a loaded game's last checkpoint). Without it: the entry the session starts at. A place the session does not have is ignored. */
   checkpoint?: Place;
   /** What a loaded game gives back besides the flags and the abilities (`gameplay/progress.ts` builds it from the saved progress). */
@@ -224,16 +227,38 @@ export class GameSession implements SimServices {
       const fight = this.fightFlags.get(id);
       if (fight !== undefined) this.flags.set(fight);
     });
-    this.bus.on('flag:set', () => this.applyGates(true));
+    this.bus.on('flag:set', () => {
+      this.applyGates(true);
+      this.applyUpgrades(true);
+    });
     this.bus.on('flag:cleared', () => this.applyGates(true));
     // a loaded game: the cards and the bottle slots the hero had (the flags and the abilities come through their own options)
     if (opts.restore?.cards) this.loadout.restore(opts.restore.cards);
     const wanted = opts.restore?.bottleSlots ?? 0;
     for (let i = this.bottles.slots.length; i < wanted; i++) if (!this.bottles.addSlot(opts.resources.bottles.initial[0] ?? '')) break;
+    this.applyUpgrades(false);
     this.current = this.requireRoom(opts.startRoom);
     this.buildRoom(this.current, opts.startEntry);
     this.origin = { ...this._arrival };
     this._checkpoint = opts.checkpoint && this.canEnter(opts.checkpoint) ? { ...opts.checkpoint } : { ...this._arrival };
+  }
+
+  /**
+   * The bars are the size the flags say (docs/PROMPT21-LOG.md): the life and the magic the hero was made with, plus what every upgrade whose flag is set adds. A game that begins with its flags (a loaded one) has the bars full at
+   * their size; a vessel taken in play fills the part it added (`announce`).
+   */
+  private applyUpgrades(announce: boolean): void {
+    const defs = this.opts.upgrades;
+    if (!defs || defs.length === 0) return;
+    const total = upgradeTotals(defs, (f) => this.flags.has(f));
+    const hp = this.opts.player.combat.maxHealth + total.maxHealth;
+    const health = this.player.health;
+    if (hp !== health.max) {
+      const gained = hp - health.max;
+      health.setMax(hp, !announce);
+      if (announce && gained > 0) health.heal(gained);
+    }
+    this.magic.setMax(this.opts.resources.magic.max + total.maxMagic, !announce);
   }
 
   /** Simulation ticks elapsed; frozen while hit-stop holds the world still. */

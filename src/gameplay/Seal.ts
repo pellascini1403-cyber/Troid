@@ -60,6 +60,14 @@ export class Seal implements SimEntity, Combatant {
   get broken(): boolean {
     return this.health.dead;
   }
+  /** `ward` (violet ink) or `crack` (split stone): how it looks; the rules are the same. */
+  get style(): 'ward' | 'crack' {
+    return this.def.style ?? 'ward';
+  }
+  /** The vulnerable rectangle: the one the room gave, or the one standing on `(x, y)`. */
+  get area(): { x0: number; y0: number; x1: number; y1: number } {
+    return this.def.area ?? { x0: this.x - this.halfWidth, x1: this.x + this.halfWidth, y0: this.y, y1: this.y + this.height };
+  }
   /** A broken seal cannot be hit again while it dissolves. */
   get invulnerable(): boolean {
     return this.health.dead;
@@ -84,8 +92,7 @@ export class Seal implements SimEntity, Combatant {
   }
 
   collectHurtboxes(out: Hurtbox[]): void {
-    const a = this.def.area;
-    out.push({ rect: a ? { ...a } : { x0: this.x - this.halfWidth, x1: this.x + this.halfWidth, y0: this.y, y1: this.y + this.height }, multiplier: 1, part: 'seal' });
+    out.push({ rect: { ...this.area }, multiplier: 1, part: 'seal' });
   }
 
   receiveHit(hit: HitInfo): HitOutcome {

@@ -46,6 +46,8 @@ export interface InteractableDef {
   reach?: InteractReach;
   /** Tie-breaker between two at the same distance: the higher one wins. */
   priority?: number;
+  /** What its picture is (`bottle`, `card`, `rune`) when it is not what the actions say: a vessel of life is a vial although all it does is set a flag. */
+  variant?: 'bottle' | 'card' | 'rune';
   /** Available only while this world flag is set / only while it is NOT set (a pickup that was taken writes the flag its `whenClear` reads). */
   whenSet?: string;
   whenClear?: string;

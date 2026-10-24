@@ -5,7 +5,7 @@ import { createVfxAtlas, type VfxAtlas } from '@/assets/vfxAtlas';
 import { CAMERA_2D } from '@/camera/camera2d';
 import { resolveCameraView, type CameraView } from '@/camera/cameraZones';
 import type { CameraTarget } from '@/camera/CameraRig';
-import { ABILITIES, BOSSES, ENEMIES, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, ROOMS, SPRITE_SETS, START, WORLD } from '@/content';
+import { ABILITIES, BOSSES, ENEMIES, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, ROOMS, SPRITE_SETS, START, UPGRADES, WORLD } from '@/content';
 import { BOTTLE_DEFINITIONS, BOTTLES, CARDS, MAGIC } from '@/content/resources';
 import { PLAYER_VISUAL } from '@/content/visuals';
 import { SKILLS } from '@/content/skills';
@@ -285,6 +285,7 @@ export class Game2D {
       resources: { magic: MAGIC, bottles: { definitions: BOTTLE_DEFINITIONS, initial: BOTTLES.initial, rules: BOTTLES.rules }, cards: CARDS, skills: SKILLS },
       enemies: ENEMIES,
       bosses: BOSSES,
+      upgrades: UPGRADES,
       startRoom: saved?.startRoom ?? startRoom,
       ...(saved ? { startEntry: saved.startEntry, checkpoint: saved.checkpoint, flags: saved.flags, restore: saved.restore } : options.room ? {} : { startEntry: START.entry }),
       unlocked: saved ? [...saved.unlocked, ...options.unlock] : options.room ? options.unlock : [...START.unlocked, ...options.unlock],

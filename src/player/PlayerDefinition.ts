@@ -12,6 +12,11 @@ export interface PlayerCombatDefinition {
   /** The two blows of the Ground Slam (docs/PROMPT21-LOG.md): the dive that hurts what it falls on, and the shockwave where it lands (the id a breakable floor asks for). Without them the ability does nothing. */
   slamDive?: string;
   slamWave?: string;
+  /**
+   * What the relics of the world are worth (docs/PROMPT21-LOG.md): passive abilities, each one `abilities.has('relic_…')` where it matters. `edgeBonus` points more on every blow of the sword, `siphon` units of magic back for every blow that
+   * lands, `wardScale` times as long the invulnerability after a hit, `swiftScale` times the dash's cooldown, `brewBonus` points more from a bottle, `pierce` enemies the Spirit Bolt goes through.
+   */
+  relics?: { edgeBonus: number; siphon: number; wardScale: number; swiftScale: number; brewBonus: number; pierce: number };
   /** Seconds an attack press is remembered (so presses during a recovery are not lost). */
   attackBuffer: number;
   /** Being hit (docs/GAME-SPEC-2D.md §9). Durations are SIMULATION TICKS (60 per second). */

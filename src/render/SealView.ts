@@ -9,6 +9,9 @@ export interface SealLike {
   readonly x: number;
   readonly y: number;
   readonly height: number;
+  /** `crack`: split stone (a breakable wall or floor) instead of a ward of ink; the area it covers. */
+  readonly style?: 'ward' | 'crack';
+  readonly area?: { readonly x0: number; readonly y0: number; readonly x1: number; readonly y1: number };
   readonly view: { readonly rejected: number; readonly opacity: number; readonly broken: boolean };
 }
 
@@ -35,8 +38,13 @@ export class SealView implements EntityView {
   private readonly flash = new Graphics();
   private art: SealArt | null = null;
   private clock = 0;
+  private crack = false;
 
   constructor(private readonly seal: SealLike) {
+    if (seal.style === 'crack' && seal.area) {
+      this.drawCrack(seal.area);
+      return;
+    }
     const diamond = (r: number): number[] => [0, -r * 1.35, r, 0, 0, r * 1.35, -r, 0];
     this.halo.circle(0, 0, 1.35).fill({ color: PALETTE.violetCore, alpha: 0.14 });
     this.halo.circle(0, 0, 0.85).stroke({ width: 0.04, color: PALETTE.violetGlow, alpha: 0.5 });
@@ -47,6 +55,35 @@ export class SealView implements EntityView {
     this.flash.alpha = 0;
     this.root.addChild(this.halo, this.sigil, this.flash);
     this.root.position.set(seal.x, viewY(sealSigilY(seal)));
+  }
+
+  /**
+   * Split stone (a breakable wall or floor, docs/PROMPT21-LOG.md): a pale violet haze over the part that gives way, and a jagged crack along its length with a thin light in it. The same three
+   * `Graphics` as the sigil, so it flinches, flashes and fades the same way: only what is drawn differs. The crack is a fixed zigzag of the area's own size (the same wall always cracks the same way).
+   */
+  private drawCrack(a: { x0: number; y0: number; x1: number; y1: number }): void {
+    const w = a.x1 - a.x0;
+    const h = a.y1 - a.y0;
+    const cx = (a.x0 + a.x1) / 2;
+    const cy = (a.y0 + a.y1) / 2;
+    const long = Math.max(w, h);
+    const pts: number[] = [];
+    const steps = Math.max(3, Math.round(long / 0.8));
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps - 0.5;
+      const wobble = ((i * 7919) % 5) / 5 - 0.4; // a fixed, uneven zigzag
+      if (h >= w) pts.push(wobble * Math.min(0.45, w * 0.4), -t * h);
+      else pts.push(t * w, wobble * Math.min(0.35, h * 0.4));
+    }
+    const haze = (g: Graphics): void => void g.rect(-w / 2, -h / 2, w, h).fill({ color: PALETTE.violetCore, alpha: 0.07 });
+    haze(this.halo);
+    this.sigil.poly(pts, false).stroke({ width: 0.12, color: PALETTE.violetDeep, alpha: 0.95 });
+    this.sigil.poly(pts, false).stroke({ width: 0.04, color: PALETTE.violetGlow, alpha: 0.85 });
+    this.flash.rect(-w / 2, -h / 2, w, h).fill({ color: PALETTE.whiteHot, alpha: 1 });
+    this.flash.alpha = 0;
+    this.root.addChild(this.halo, this.sigil, this.flash);
+    this.root.position.set(cx, viewY(cy));
+    this.crack = true;
   }
 
   /** The art draws this sigil from now on (or, with `null`, the blockout's shapes do again): the shapes below are then not drawn. */
@@ -67,6 +104,13 @@ export class SealView implements EntityView {
         this.root.alpha = v.opacity;
         return;
       }
+    }
+    if (this.crack) {
+      // a crack does not breathe or swell: it glimmers a little, flashes white when a blow is turned away and fades as it gives way
+      this.halo.alpha = 0.8 + 0.2 * Math.sin(this.clock * 2.4);
+      this.flash.alpha = v.rejected * 0.6 * v.opacity;
+      this.root.alpha = v.opacity;
+      return;
     }
     const breathe = 1 + 0.06 * Math.sin(this.clock * 3.2);
     const swell = v.broken ? 1 + (1 - v.opacity) * 0.8 : 1;
