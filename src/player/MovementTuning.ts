@@ -69,6 +69,39 @@ export interface MovementTuning {
     buffer: number;
   };
 
+  /** The jump in mid-air (the Double Jump ability, docs/PROMPT21-LOG.md). */
+  doubleJump: {
+    /** Height of the extra jump, metres, from where it is made (a little under a full jump: it is a second chance, not a second jump of the same size). */
+    height: number;
+    /** Extra jumps per airtime (reset on landing). */
+    jumps: number;
+  };
+
+  /** Walls (the Wall Jump ability): holding toward a wall in the air slows the fall to a slide, and a press kicks off it. */
+  wall: {
+    /** Fastest fall while sliding down a wall you hold against, m/s. */
+    slideSpeed: number;
+    /** Height of the kick, metres, and the speed it throws the body away from the wall, m/s. */
+    jumpHeight: number;
+    kickSpeed: number;
+    /** Seconds the control toward the wall is ignored after a kick (so the stick still held toward the wall does not undo it). */
+    lockTime: number;
+    /** Seconds after leaving a wall during which a press still kicks off it. */
+    coyoteTime: number;
+  };
+
+  /** The Ground Slam (docs/PROMPT21-LOG.md): in the air, down and attack — a hover, a dive and the blow where it lands. */
+  slam: {
+    /** Ticks hanging in the air before the dive (the warning, and the moment to change your mind: nothing hurts yet). */
+    windup: number;
+    /** Dive speed, m/s. */
+    speed: number;
+    /** Ticks the hero is stuck in the ground after the landing. */
+    landLag: number;
+    /** Ticks the shockwave of the landing lasts. */
+    waveTicks: number;
+  };
+
   /** Crouching (docs/GAME-SPEC-2D.md §6): a posture with collision consequences, not just an animation. */
   crouch: {
     /** Height of the collision body while crouched, metres (standing height lives in `PlayerDefinition.body`). */
@@ -120,6 +153,12 @@ export const DEFAULT_MOVEMENT: MovementTuning = {
     ascentRetention: 0.8,
     buffer: 0.1,
   },
+
+  doubleJump: { height: 2.6, jumps: 1 },
+
+  wall: { slideSpeed: 3.4, jumpHeight: 2.9, kickSpeed: 8.2, lockTime: 0.16, coyoteTime: 0.1 },
+
+  slam: { windup: 5, speed: 30, landLag: 14, waveTicks: 3 },
 
   crouch: {
     height: 1.0,

@@ -26,9 +26,10 @@ describe('the profile', () => {
     expect(Object.keys(p).sort()).not.toContain('percent');
   });
 
-  it('abilities are those the hero HAS that have behaviour, in the content\'s order, by text key; one that is only declared (double jump) is not shown', () => {
+  it('abilities are those the hero HAS that have behaviour, in the content\'s order, by text key; one that is only declared (the grapple) is not shown', () => {
     expect(buildProfile(session(), stats, 1).abilities).toEqual(['ability.dash']);
-    expect(buildProfile(session([], ['dash', 'magic_attack', 'air_dash', 'double_jump']), stats, 1).abilities).toEqual(['ability.dash', 'ability.magicAttack', 'ability.airDash']);
+    expect(buildProfile(session([], ['dash', 'magic_attack', 'air_dash', 'grapple']), stats, 1).abilities).toEqual(['ability.dash', 'ability.magicAttack', 'ability.airDash']);
+    expect(buildProfile(session([], ['dash', 'double_jump', 'wall_jump', 'ground_slam']), stats, 1).abilities).toEqual(['ability.dash', 'ability.doubleJump', 'ability.wallJump', 'ability.groundSlam']);
   });
 
   it('every ability that has behaviour has a text key (teaching the hero a new one cannot leave the profile without its name)', () => {

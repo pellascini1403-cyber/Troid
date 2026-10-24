@@ -15,6 +15,8 @@ import type { SimEntity } from './SimEntity';
 export interface GameEvents extends CombatEvents {
   'player:jumped': { x: number; y: number; air: boolean };
   'player:landed': { x: number; y: number; impact: number };
+  /** The Ground Slam hit the ground: the shockwave leaves from `(x, y)`; `shake` is the camera's share of it. */
+  'player:slammed': { x: number; y: number; shake: number };
   /** A footstep: the hero covered one stride of ground at the pace the animation shows (a stride is a step of the walk, a longer one of the run, a short one crouched). `speed` is how fast they go (m/s). */
   'player:stepped': { x: number; y: number; speed: number; crouch: boolean };
   'player:dashed': { x: number; y: number; facing: 1 | -1; air: boolean };

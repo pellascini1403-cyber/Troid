@@ -69,9 +69,48 @@ export const CROUCH_SLASH: AttackDefinition = {
   hitVfx: 'impact',
 };
 
+/**
+ * The Ground Slam (docs/PROMPT21-LOG.md), two blows the controller submits itself (it owns the timing of the hover, the dive and the lag): the dive hurts what the hero falls on, once each; the wave, on the tick after
+ * the feet touch the ground, is the id a cracked floor asks for. They are data like every other attack — `startup/active/recovery` are not used (the controller's `slam` tuning owns the phases), the hitboxes, the damage and the shake are.
+ */
+export const SLAM_DIVE: AttackDefinition = {
+  id: 'slam_dive',
+  startup: 0, active: 1, recovery: 0,
+  damage: 2,
+  hitbox: { x: -0.5, y: -0.9, w: 1.0, h: 1.4 },
+  knockback: { x: 3, y: 4 },
+  stun: 18,
+  hitStop: 5,
+  shake: 0.1,
+  moveControl: 0,
+  anim: 'attackAir',
+  vfx: 'slash',
+  hitVfx: 'impact',
+};
+
+export const SLAM_WAVE: AttackDefinition = {
+  id: 'slam',
+  startup: 0, active: 3, recovery: 0,
+  damage: 3,
+  hitbox: { x: 0, y: -0.1, w: 3.4, h: 1.5 },
+  knockback: { x: 8, y: 5 },
+  stun: 26,
+  hitStop: 7,
+  shake: 0.32,
+  moveControl: 0,
+  anim: 'attackAir',
+  vfx: 'slash',
+  hitVfx: 'impact',
+};
+
+/** The ids a hit of the sword carries: what a wall that any blow breaks accepts (the Spirit Bolt and the slam are other ids). */
+export const SWORD_HITS: readonly string[] = ['slash_1', 'slash_2', 'air_slash', 'crouch_slash'];
+
 export const PLAYER_ATTACKS: Readonly<Record<string, AttackDefinition>> = {
   [SLASH_1.id]: SLASH_1,
   [SLASH_2.id]: SLASH_2,
   [AIR_SLASH.id]: AIR_SLASH,
   [CROUCH_SLASH.id]: CROUCH_SLASH,
+  [SLAM_DIVE.id]: SLAM_DIVE,
+  [SLAM_WAVE.id]: SLAM_WAVE,
 };

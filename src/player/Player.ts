@@ -127,6 +127,12 @@ export class Player extends Actor implements Combatant {
       v.anim = 'drink';
     } else if (c.state === 'interact') {
       v.anim = 'interact';
+    } else if (c.state === 'slam') {
+      // the Ground Slam wears the air attack: the hover is its wind-up, the dive its blow held at the moment it connects, the lag its recovery
+      const sp = c.slamProgress();
+      v.anim = 'attackAir';
+      v.phase = sp?.phase === 'windup' ? 'startup' : sp?.phase === 'impact' ? 'recovery' : 'active';
+      v.phaseT = sp?.phase === 'dive' ? 0.5 : (sp?.t ?? 0);
     } else if (c.state === 'attack' && attack) {
       const p = this.combat.progress();
       v.anim = attack.anim;

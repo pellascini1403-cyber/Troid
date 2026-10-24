@@ -9,6 +9,9 @@ export interface PlayerCombatDefinition {
   groundAttack: string;
   airAttack: string;
   crouchAttack: string;
+  /** The two blows of the Ground Slam (docs/PROMPT21-LOG.md): the dive that hurts what it falls on, and the shockwave where it lands (the id a breakable floor asks for). Without them the ability does nothing. */
+  slamDive?: string;
+  slamWave?: string;
   /** Seconds an attack press is remembered (so presses during a recovery are not lost). */
   attackBuffer: number;
   /** Being hit (docs/GAME-SPEC-2D.md §9). Durations are SIMULATION TICKS (60 per second). */

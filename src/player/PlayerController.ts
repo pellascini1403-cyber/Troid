@@ -2,7 +2,9 @@ import { clamp, lerp, sign } from '@/core/math';
 import { StateMachine } from '@/core/stateMachine';
 import { TICK_SECONDS, secondsToTicks } from '@/core/time';
 import type { SkillDefinition } from '@/abilities/SkillDefinition';
+import type { AttackDefinition } from '@/combat/AttackDefinition';
 import type { HitInfo } from '@/combat/Combatant';
+import { attackRect } from '@/combat/hitboxGeometry';
 import { Projectile } from '@/gameplay/Projectile';
 import { interactLock } from '@/interaction/InteractionSystem';
 import { NEUTRAL_INPUT, type InputFrame } from '@/input/InputFrame';
@@ -10,7 +12,7 @@ import type { SimServices } from '@/gameplay/SimServices';
 import type { MovementTuning } from './MovementTuning';
 import type { Player } from './Player';
 
-export type PlayerStateId = 'free' | 'crouch' | 'dash' | 'attack' | 'cast' | 'drink' | 'interact' | 'hurt' | 'dead';
+export type PlayerStateId = 'free' | 'crouch' | 'dash' | 'attack' | 'slam' | 'cast' | 'drink' | 'interact' | 'hurt' | 'dead';
 
 /** Ticks the white hit flash lasts. */
 const FLASH_TICKS = 6;
@@ -37,7 +39,9 @@ const STRIDE = { walk: 1.05, run: 1.7, crouch: 0.8 } as const;
  * on the ground; the effect lands, and the bottle is spent, on its LAST tick, so a hit in the middle costs nothing.
  * Interaction (§12): `interact` performs the object that has the icon and holds the control for its `lock` (at most 12 ticks).
  * Priority: dead > hurt > dash > attack > cast > drink > interact > crouch > free.
- * `free`, `crouch` and `dash` behave exactly as before (the 40 movement tests are the proof).
+ * `free`, `crouch` and `dash` behave exactly as before (the 40 movement tests are the proof) for a hero who has not learned the three movement abilities of docs/PROMPT21-LOG.md: the
+ * Double Jump (one more jump in the air), the Wall Jump (hold against a wall in the air to slide down it, and a press kicks off it) and the Ground Slam (`slam`: in the air, down and attack —
+ * a short hover, a dive, and the shockwave where it lands). Each is one `abilities.has(…)` and nothing else changes without it.
  */
 export class PlayerController {
   private readonly fsm: StateMachine<PlayerController, PlayerStateId>;
@@ -57,6 +61,16 @@ export class PlayerController {
   private dropThrough = 0;
   private jumpHeldTicks = 0;
   private airDashesUsed = 0;
+  /** Extra jumps made in the air since the feet last touched the ground (the Double Jump). */
+  private airJumpsUsed = 0;
+  /** The side a wall was last held against (−1 left, 1 right) and the ticks a press still kicks off it; the ticks the control toward it stays ignored after a kick (the Wall Jump). */
+  private wallSide: 1 | -1 = 1;
+  private wallTimer = 0;
+  private wallLock = 0;
+  /** The Ground Slam: where it is (`windup` hover, `dive`, `impact` stuck in the ground), the ticks into that part, and who the dive has already hit. */
+  private slamPhase: 'windup' | 'dive' | 'impact' = 'windup';
+  private slamTicks = 0;
+  private slamHit = new Set<string>();
   /** Ticks of damage immunity left (dash i-frames and hit i-frames). */
   invulnerable = 0;
   /** Ticks left on the hit blink / on the white flash / on the stun of `hurt`. */
@@ -104,6 +118,7 @@ export class PlayerController {
         },
         dash: { enter: (c) => c.enterDash(), update: (c) => c.updateDash(), exit: (c) => c.exitDash() },
         attack: { enter: (c) => c.enterAttack(), update: (c) => c.updateAttack(), exit: (c) => c.player.combat.end() },
+        slam: { enter: (c) => c.enterSlam(), update: (c) => c.updateSlam() },
         cast: { enter: (c) => c.enterCast(), update: (c) => c.updateCast(), exit: (c) => c.exitCast() },
         drink: { enter: (c) => c.enterDrink(), update: (c) => c.updateDrink(), exit: (c, to) => c.exitDrink(to) },
         interact: { enter: (c) => c.enterInteract(), update: (c) => c.updateInteract() },
@@ -119,6 +134,17 @@ export class PlayerController {
   }
   get dashing(): boolean {
     return this.fsm.current === 'dash';
+  }
+  /** Holding against a wall in the air and sliding down it (the Wall Jump): the body is on the wall, falling slowly. */
+  get wallSliding(): boolean {
+    return this.fsm.current === 'free' && !this.player.body.grounded && this.wallHeld() !== 0 && this.player.body.vy < 0;
+  }
+  /** Where the Ground Slam is, for the animation: its part and how far through it (0 … 1). `null` when the hero is not slamming. */
+  slamProgress(): { phase: 'windup' | 'dive' | 'impact'; t: number } | null {
+    if (this.fsm.current !== 'slam') return null;
+    const s = this.tuning.slam;
+    const length = this.slamPhase === 'windup' ? s.windup : this.slamPhase === 'impact' ? s.landLag : 1;
+    return { phase: this.slamPhase, t: Math.min(1, this.slamTicks / Math.max(1, length)) };
   }
   /** The body is the crouched size (also true while dashing out of a crouch, or when forced by a low ceiling). */
   get crouched(): boolean {
@@ -184,6 +210,8 @@ export class PlayerController {
   reset(): void {
     this.coyote = this.jumpBuffer = this.dropBuffer = this.abilityBuffer = this.bottleBuffer = this.interactBuffer = this.dashBuffer = this.dashCooldown = this.dashTicksLeft = 0;
     this.dropThrough = this.jumpHeldTicks = this.airDashesUsed = this.invulnerable = this.landTicks = 0;
+    this.airJumpsUsed = this.wallTimer = this.wallLock = this.slamTicks = 0;
+    this.slamHit = new Set();
     this.hurtInvuln = this.flashTicks = this.hurtTicks = 0;
     this.jumping = this.jumpCut = false;
     this.castSkill = null;
@@ -235,16 +263,29 @@ export class PlayerController {
     const grounded = b.grounded;
     const mx = inp.move.x;
 
-    if (Math.abs(mx) > 0.25) p.facing = mx > 0 ? 1 : -1;
+    // (a kick off a wall ignores the stick that is still held toward it for a moment: the hero keeps facing away)
+    const towardWall = this.wallLock > 0 && sign(mx) === this.wallSide;
+    if (Math.abs(mx) > 0.25 && !towardWall) p.facing = mx > 0 ? 1 : -1;
 
     // ---- ground contact bookkeeping ----
     if (grounded) {
       this.coyote = secondsToTicks(t.coyoteTime);
       this.airDashesUsed = 0;
+      this.airJumpsUsed = 0;
       this.jumping = false;
     } else if (this.coyote > 0) {
       this.coyote--;
     }
+
+    // ---- the wall (the Wall Jump): a wall the body pushed into is remembered for a few ticks, so a press kicks off it even on the very tick the stick turns away, or the instant after ----
+    const touched = crouching ? 0 : this.wallTouched();
+    if (touched !== 0) {
+      this.wallSide = touched;
+      this.wallTimer = secondsToTicks(t.wall.coyoteTime);
+    } else if (this.wallTimer > 0) this.wallTimer--;
+    const wall = touched !== 0 && sign(mx) === touched && Math.abs(mx) > 0.25 ? touched : 0; // held against: the stick is toward it too
+    if (grounded) this.wallTimer = 0;
+    if (this.wallLock > 0) this.wallLock--;
 
     // ---- jump (buffered, with coyote time) and drop (down + jump, or the flick down of the touch controls: only ever
     // through a one-way platform; on anything else the drop press is ignored and expires with its buffer) ----
@@ -260,6 +301,10 @@ export class PlayerController {
       // from a crouch the body stands up first; without room there is no jump (the press expires with its buffer)
       this.setCrouched(false);
       this.startJump(grounded);
+    } else if (!crouching && this.tryWallJump()) {
+      // (kicked off a wall)
+    } else if (!crouching && this.tryAirJump()) {
+      // (jumped again in the air)
     }
 
     // ---- variable jump height: releasing the button while rising cuts the jump ----
@@ -274,7 +319,7 @@ export class PlayerController {
 
     // ---- horizontal: accelerate toward the target speed, snappier when reversing ----
     const top = speedForMagnitude(Math.abs(mx), t);
-    const target = sign(mx) * (crouching ? Math.min(top, t.crouch.speed) : top);
+    const target = towardWall ? 0 : sign(mx) * (crouching ? Math.min(top, t.crouch.speed) : top);
     const air = !b.grounded;
     let accel: number;
     if (target === 0) {
@@ -292,6 +337,7 @@ export class PlayerController {
     if (b.vy < 0) g *= t.fallGravityMultiplier;
     else if (air && Math.abs(b.vy) < t.apexThreshold && inp.jumpHeld) g *= t.apexGravityMultiplier;
     b.vy = Math.max(b.vy - g * TICK_SECONDS, -t.maxFallSpeed);
+    if (wall !== 0 && b.vy < -t.wall.slideSpeed) b.vy = -t.wall.slideSpeed; // sliding down a wall: the fall is slowed to a slide
 
     // ---- posture: in / out of the crouch, with hysteresis; standing up needs room ----
     if (crouching) {
@@ -301,8 +347,8 @@ export class PlayerController {
       this.fsm.go('crouch');
     }
 
-    // ---- attack: a buffered press starts it (ground / air / crouch variant); overrides the posture change ----
-    if (this.player.combat.wantsAttack) this.fsm.go('attack');
+    // ---- attack: a buffered press starts it (ground / air / crouch variant); overrides the posture change. In the air, with the Ground Slam, down and attack is the slam ----
+    if (this.player.combat.wantsAttack) this.fsm.go(this.slamWanted() ? 'slam' : 'attack');
 
     // ---- ability: a buffered press casts the skill of the equipped card, unless an attack is starting this very tick ----
     // ---- bottle: a buffered request drinks (the next ready one, or the one asked for) when it would help; the cast wins a tie ----
@@ -333,12 +379,17 @@ export class PlayerController {
     this.player.body.height = on ? this.tuning.crouch.height : this.player.def.body.height;
   }
 
+  /** The take-off speed of a jump that rises `height` metres. +g·dt/2 compensates the half tick lost to semi-implicit integration, so `height` is the real apex height. */
+  private jumpSpeed(height: number): number {
+    const g = this.tuning.gravity;
+    return Math.sqrt(2 * g * height) + (g * TICK_SECONDS) / 2;
+  }
+
   private startJump(fromGround: boolean): void {
     const p = this.player;
     const b = p.body;
     const t = this.tuning;
-    // +g·dt/2 compensates the half tick lost to semi-implicit integration, so `jumpHeight` is the real apex height.
-    b.vy = Math.sqrt(2 * t.gravity * t.jumpHeight) + (t.gravity * TICK_SECONDS) / 2;
+    b.vy = this.jumpSpeed(t.jumpHeight);
     b.grounded = false;
     b.ground = null;
     this.jumping = true;
@@ -348,6 +399,146 @@ export class PlayerController {
     this.jumpBuffer = 0;
     this.animSerial++;
     this.sim.bus.emit('player:jumped', { x: b.x, y: b.y, air: !fromGround });
+  }
+
+  // ------------------------------------------------------------------------------------- the Double Jump and the Wall Jump
+
+  /** One more jump in the air: a FRESH press with nothing under the feet, no coyote time to make it a plain jump, the ability, and a jump left. */
+  private tryAirJump(): boolean {
+    const b = this.player.body;
+    const t = this.tuning;
+    if (!this.input.jumpPressed || b.grounded || this.coyote > 0 || this.airJumpsUsed >= t.doubleJump.jumps) return false;
+    if (!this.sim.abilities.has('double_jump')) return false;
+    this.airJumpsUsed++;
+    b.vy = this.jumpSpeed(t.doubleJump.height);
+    this.jumping = true;
+    this.jumpCut = false;
+    this.jumpHeldTicks = 0;
+    this.jumpBuffer = 0;
+    this.animSerial++;
+    this.sim.bus.emit('player:jumped', { x: b.x, y: b.y, air: true });
+    return true;
+  }
+
+  /** The side of the body a wall touches: the body pushed into it last tick, in the air, and the hero has the ability. 0: none. */
+  private wallTouched(): -1 | 0 | 1 {
+    const b = this.player.body;
+    if (b.grounded || (!b.hitRight && !b.hitLeft)) return 0;
+    return this.sim.abilities.has('wall_jump') ? (b.hitRight ? 1 : -1) : 0;
+  }
+
+  /** The side of the body a wall is HELD against: it touches, and the stick is toward it. The hero slides down it. */
+  private wallHeld(): -1 | 0 | 1 {
+    const side = this.wallTouched();
+    const mx = this.input.move.x;
+    return side !== 0 && sign(mx) === side && Math.abs(mx) > 0.25 ? side : 0;
+  }
+
+  /** A press within a few ticks of a wall that was held kicks off it: up and away, with the stick toward the wall ignored for a moment (it would undo the kick). */
+  private tryWallJump(): boolean {
+    const p = this.player;
+    const b = p.body;
+    const t = this.tuning.wall;
+    if (this.jumpBuffer <= 0 || this.wallTimer <= 0 || b.grounded) return false;
+    const away: 1 | -1 = this.wallSide === 1 ? -1 : 1;
+    b.vx = away * t.kickSpeed;
+    b.vy = this.jumpSpeed(t.jumpHeight);
+    p.facing = away;
+    this.wallLock = secondsToTicks(t.lockTime);
+    this.wallTimer = 0;
+    this.jumping = true;
+    this.jumpCut = false;
+    this.jumpHeldTicks = 0;
+    this.jumpBuffer = 0;
+    this.coyote = 0;
+    this.animSerial++;
+    this.sim.bus.emit('player:jumped', { x: b.x, y: b.y, air: true });
+    return true;
+  }
+
+  // ------------------------------------------------------------------------------------------------ the Ground Slam
+
+  /** In the air, with the ability and the attacks it needs, down and a press of attack. */
+  private slamWanted(): boolean {
+    const c = this.player.def.combat;
+    return !this.crouching && !this.player.body.grounded && this.input.move.y <= -0.6 && !!c.slamDive && !!c.slamWave && this.sim.abilities.has('ground_slam');
+  }
+
+  private enterSlam(): void {
+    this.player.combat.consumeBuffer();
+    this.slamPhase = 'windup';
+    this.slamTicks = 0;
+    this.slamHit = new Set();
+    this.jumping = false;
+    this.animSerial++;
+  }
+
+  /**
+   * One tick of the slam. A hover in the air (nothing hurts yet: it is the warning, and the moment to change your mind with a dash), the dive straight down at `slam.speed`, hitting whatever it falls on once each, and, the tick after the feet touch the ground, the
+   * shockwave: two halves of a wide blow either side of the body for a few ticks, then the hero is stuck in the ground until the lag has run out. `attack ids`: the dive is `slam_dive`, the wave is `slam` (what a breakable floor asks for).
+   */
+  private updateSlam(): void {
+    const p = this.player;
+    const b = p.body;
+    const t = this.tuning;
+    const s = t.slam;
+    const defs = p.def.combat;
+    if (this.slamPhase === 'windup') {
+      b.vx = approachValue(b.vx, 0, t.airDecel * 2 * TICK_SECONDS);
+      b.vy = 0;
+      if (++this.slamTicks >= s.windup) {
+        this.slamPhase = 'dive';
+        this.slamTicks = 0;
+      }
+      return;
+    }
+    if (this.slamPhase === 'dive') {
+      if (b.grounded) {
+        this.slamPhase = 'impact';
+        this.slamTicks = 0;
+        this.slamHit = new Set(); // the wave is a new blow: it can hit what the dive already hit
+        const wave = defs.attacks[defs.slamWave!];
+        this.sim.bus.emit('player:slammed', { x: b.x, y: b.y, shake: wave?.shake ?? 0 });
+      } else {
+        b.vx = 0;
+        b.vy = -s.speed;
+        const dive = defs.attacks[defs.slamDive!];
+        if (dive) this.submitSlam(dive, 1);
+        this.slamTicks++;
+        return;
+      }
+    }
+    // the impact: stuck in the ground, the wave going out both ways
+    b.vx = 0;
+    b.vy = Math.max(b.vy - this.gravityNow() * TICK_SECONDS, -t.maxFallSpeed);
+    if (this.slamTicks < s.waveTicks) {
+      const wave = defs.attacks[defs.slamWave!];
+      if (wave) {
+        this.submitSlam(wave, 1);
+        this.submitSlam(wave, -1);
+      }
+    }
+    if (++this.slamTicks >= s.landLag) this.fsm.go(this.postAttackState());
+  }
+
+  /** One hitbox of the slam this tick; the dive and the two halves of the wave each remember who they hit in the set of the phase they belong to. */
+  private submitSlam(a: AttackDefinition, facing: 1 | -1): void {
+    const p = this.player;
+    const rect = attackRect(a, p.body.x, p.body.y, facing, { x0: 0, y0: 0, x1: 0, y1: 0 });
+    this.sim.combat.submit({
+      ownerId: p.id,
+      team: 'player',
+      rect,
+      attackId: a.id,
+      damage: a.damage,
+      knockback: a.knockback,
+      stun: a.stun,
+      hitStop: a.hitStop,
+      shake: a.shake,
+      facing,
+      alreadyHit: this.slamHit,
+      onConfirm: () => {},
+    });
   }
 
   // ------------------------------------------------------------------------------------------------ dash

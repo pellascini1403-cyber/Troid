@@ -13,6 +13,8 @@ export const PLAYER: PlayerDefinition = {
     groundAttack: 'slash_1',
     airAttack: 'air_slash',
     crouchAttack: 'crouch_slash',
+    slamDive: 'slam_dive',
+    slamWave: 'slam',
     attackBuffer: 0.12,
     hurt: { stun: 14, invulnerability: 60, knockbackScale: 1, deathHitStop: 8 },
   },

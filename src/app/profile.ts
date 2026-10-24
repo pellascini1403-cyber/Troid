@@ -12,6 +12,9 @@ export const ABILITY_KEYS: Readonly<Record<string, string>> = {
   dash: 'ability.dash',
   magic_attack: 'ability.magicAttack',
   air_dash: 'ability.airDash',
+  double_jump: 'ability.doubleJump',
+  wall_jump: 'ability.wallJump',
+  ground_slam: 'ability.groundSlam',
 };
 
 /** What the profile shows, as plain data: every number is something the game counted or the simulation holds (docs/PROMPT14-LOG.md). */

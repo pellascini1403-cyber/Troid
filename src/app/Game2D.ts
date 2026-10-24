@@ -436,6 +436,8 @@ export class Game2D {
     );
     // a blow turned away by a seal jolts the view a little (it is not a hit: nothing froze, nothing was hurt)
     this.lifecycle.add(this.session.bus.on('seal:rejected', (e) => this.shake(e.shake)));
+    // the Ground Slam striking the ground shakes the view whether or not it hit anything
+    this.lifecycle.add(this.session.bus.on('player:slammed', (e) => this.shake(e.shake)));
     // the loading indicator: it exists only for a change of zone whose art is taking its time
 
     // a room was built by the simulation: its view is made at the next frame — and, under the black of a change of zone, only once its art is in
