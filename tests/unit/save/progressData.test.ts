@@ -57,6 +57,19 @@ describe('repair: any value becomes valid progress of the current version', () =
     expect(repairProgress({ abilities: ['dash', 'dash', 5] }).abilities).toEqual(['dash']);
   });
 
+  it('is sized for a WORLD: the progress of a full campaign (hundreds of flags, every room, a pile of cards) is written and read back whole, nothing cut', () => {
+    const flags = Array.from({ length: 700 }, (_, i) => `taken:item_${String(i).padStart(4, '0')}`);
+    const rooms = Array.from({ length: 120 }, (_, i) => `z${String(i % 8)}_room_${String(i).padStart(3, '0')}`);
+    const cards = Array.from({ length: 24 }, (_, i) => `card_${String(i).padStart(2, '0')}`);
+    const full = { ...newProgress(start, ['dash', 'air_dash', 'double_jump']), flags, cards: { owned: cards, equipped: cards[3]! }, stats: { ticks: 1_000_000, deaths: 40, kills: 600, rooms } };
+    const back = parseProgress(serializeProgress(full))!;
+    expect(back.flags).toEqual([...flags].sort());
+    expect(back.stats.rooms).toEqual([...rooms].sort());
+    expect(back.cards).toEqual({ owned: [...cards].sort(), equipped: cards[3] });
+    expect(PROGRESS_LIMITS.flags, 'headroom over what the content writes').toBeGreaterThanOrEqual(1024);
+    expect(PROGRESS_LIMITS.rooms).toBeGreaterThanOrEqual(256);
+  });
+
   it('the cards: the equipped one must be one that is owned', () => {
     expect(repairProgress({ cards: { owned: ['a'], equipped: 'a' } }).cards).toEqual({ owned: ['a'], equipped: 'a' });
     expect(repairProgress({ cards: { owned: ['a'], equipped: 'b' } }).cards).toEqual({ owned: ['a'], equipped: null });

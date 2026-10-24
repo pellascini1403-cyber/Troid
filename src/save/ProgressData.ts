@@ -50,14 +50,18 @@ export interface ProgressData {
   savedAt: number;
 }
 
-/** The limits a save is held to: a hand-edited or damaged value cannot ask for a million flags or a name the size of a book. */
+/**
+ * The limits a save is held to: a hand-edited or damaged value cannot ask for a million flags or a name the size of a book. They are sized for a WORLD, not for a slice: a campaign of some eighty
+ * rooms keeps a flag per defeated guardian, per pickup, per opened door and per broken wall (a few hundred), and the rooms the hero has been in are one name each. A cap below what a full game
+ * writes would cut the progress of a finished game silently on the next save, so these sit at several times what the content needs (the test of the world checks that, `tests/unit/content/world.test.ts`).
+ */
 export const PROGRESS_LIMITS = {
   name: 64,
-  flags: 256,
+  flags: 1024,
   abilities: 64,
-  cards: 16,
+  cards: 32,
   bottleSlots: 8,
-  rooms: 64,
+  rooms: 256,
   /** Deaths and kills: a count a person could never reach, so a number past it is a damaged one. */
   counter: 1_000_000_000,
   /** About 9 900 hours of play. */

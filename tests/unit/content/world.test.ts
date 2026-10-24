@@ -4,6 +4,7 @@ import { INK_WARDEN } from '@/content/enemies';
 import { BOTTLE_DEFINITIONS, BOTTLES, CARDS } from '@/content/resources';
 import { SKILLS, SPIRIT_BOLT } from '@/content/skills';
 import { CATALOGS } from '@/i18n';
+import { PROGRESS_LIMITS } from '@/save/ProgressData';
 import { validateRoom } from '@/world/validateRoom';
 import { analyzeProgression, buildWorldGraph, destinationOf, edgesFrom, routeBetween, validateWorld, worldEnds, worldGrantedFlags } from '@/world/worldGraph';
 
@@ -54,6 +55,14 @@ describe('the world as shipped', () => {
       expect(key, id).toBeTruthy();
       for (const [lang, catalog] of Object.entries(CATALOGS)) expect(catalog[key!], `${lang}: ${key}`).toBeTruthy();
     }
+  });
+
+  it('fits in a save with room to spare: what the world can write (flags, rooms visited, cards) stays under HALF of what a save is allowed to hold', () => {
+    const cards = WORLD.rooms.flatMap((id) => (ROOMS[id]!.interactables ?? []).flatMap((i) => i.actions.filter((a) => a.type === 'acquireCard')));
+    expect(worldGrantedFlags(WORLD, ROOMS).size).toBeLessThanOrEqual(PROGRESS_LIMITS.flags / 2);
+    expect(WORLD.rooms.length).toBeLessThanOrEqual(PROGRESS_LIMITS.rooms / 2);
+    expect(cards.length).toBeLessThanOrEqual(PROGRESS_LIMITS.cards / 2);
+    for (const flag of worldGrantedFlags(WORLD, ROOMS)) expect(flag.length, `${flag}: a save keeps names of up to ${PROGRESS_LIMITS.name} characters`).toBeLessThanOrEqual(PROGRESS_LIMITS.name);
   });
 });
 
