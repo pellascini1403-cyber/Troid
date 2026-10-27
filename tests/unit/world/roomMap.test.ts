@@ -168,6 +168,13 @@ describe('a room made from a picture', () => {
     expect(room.exits!.find((x) => x.id === 'east')!.rect).toEqual({ x0: 23 - 2.4, y0: 2, x1: 23, y1: 6 });
   });
 
+  it('the way out of the world is a zone like a door that leads nowhere and ends the adventure', () => {
+    const m = new RoomMap('t', { rows: SMALL });
+    const x = m.endSide('end', 'east', 'c', { requires: 'defeated:x' });
+    expect(x).toEqual({ id: 'end', rect: { x0: 10 - 1 - 2.4, y0: 2, x1: 9, y1: 6 }, end: true, requires: 'defeated:x' });
+    expect(x.to).toBeUndefined();
+  });
+
   it('the picture can be drawn again from the room: what was written is what the room has', () => {
     const back = pictureOf(room);
     expect(back).toHaveLength(11);

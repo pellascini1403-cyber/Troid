@@ -82,8 +82,8 @@ export interface ArenaSpec {
   /** The x where the feet are just OUTSIDE the arena, and just inside it. */
   outside: number;
   inside: number;
-  /** The vessel (or whatever) that the fall hands out: where to stand and the flag taking it sets. */
-  reward: { x: number; y: number; flag: string };
+  /** The vessel (or whatever) that the fall hands out, if it hands anything out: where to stand and the flag taking it sets. */
+  reward?: { x: number; y: number; flag: string };
   /** The way on: the exit and the room it leads to. */
   onward: { exit: string; room: string; entry: string };
 }
@@ -130,11 +130,13 @@ export function describeArena(rooms: Record<string, RoomDefinition>, spec: Arena
       expect(d.session.flags.has(spec.fight)).toBe(false);
       d.step(2);
       expect(doors(d)).toEqual([false, false]);
-      d.teleport(spec.reward.x, spec.reward.y);
-      d.settle();
-      d.tap('interact');
-      d.step(20);
-      expect(d.session.flags.has(spec.reward.flag)).toBe(true);
+      if (spec.reward) {
+        d.teleport(spec.reward.x, spec.reward.y);
+        d.settle();
+        d.tap('interact');
+        d.step(20);
+        expect(d.session.flags.has(spec.reward.flag)).toBe(true);
+      }
       const way = rooms[spec.room]!.exits!.find((x) => x.id === spec.onward.exit)!;
       expect(way.to, 'the way on').toEqual({ room: spec.onward.room, entry: spec.onward.entry });
       expect(way.requires, 'it works once the guardian has fallen').toBe(spec.defeated);
@@ -142,7 +144,7 @@ export function describeArena(rooms: Record<string, RoomDefinition>, spec: Arena
         through(d, spec.onward.exit);
         expect(d.session.room.id).toBe(spec.onward.room);
       }
-      const later = at(rooms, spec.room, spec.west, ['dash'], [spec.defeated, spec.reward.flag]);
+      const later = at(rooms, spec.room, spec.west, ['dash'], [spec.defeated, ...(spec.reward ? [spec.reward.flag] : [])]);
       expect(later.session.entities.some((e) => e instanceof BossClass)).toBe(false);
     });
   });

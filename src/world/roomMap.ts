@@ -345,6 +345,12 @@ export class RoomMap {
     return { id, rect: r, to, ...(opts.requires ? { requires: opts.requires } : {}), ...(opts.end ? { end: true } : {}) };
   }
 
+  /** The way out of the WORLD in a side wall (the end of the adventure): the same zone as a door, and it leads nowhere. */
+  endSide(id: string, side: 'west' | 'east', mark: string, opts: { requires?: string } = {}): ExitDef {
+    const { to: _to, ...exit } = this.exitSide(id, side, mark, { room: '', entry: '' }, opts);
+    return { ...exit, end: true };
+  }
+
   /**
    * A way out through the roof or the floor: a zone of `width` metres centred on the mark, `depth` metres deep, at the top (`north`) or the bottom (`south`) of the picture. A hole in a floor wants a shallow zone (`depth` 1: a hero who
    * stands on its lip, feet two metres up, does not touch it; one who falls in does).
