@@ -17,6 +17,9 @@ import type { Scenario } from '../scenario';
 const SIZE = { width: 844, height: 390, dpr: 1 };
 const RATES = [1, 4, 6] as const;
 const PLAY_MS = 9000;
+/** Frames the instrument needs before a mean and a percentile mean anything. On a machine whose software renderer gets through fewer than this in `PLAY_MS` (a container with every core busy drawing: 6–8 frames a second), the minutes measured go on until they are counted, up to `MAX_FACTOR` times as long. */
+const MIN_FRAMES = 60;
+const MAX_FACTOR = 5;
 
 /** Before the game's own code runs: every frame callback is timed (the time it takes, not the time between frames). */
 const TIMING = `(() => {
@@ -67,7 +70,12 @@ async function play(page: Page, ms: number): Promise<number[]> {
   }
   await page.evaluate('window.__cost.length = 0');
   const end = Date.now() + ms;
-  while (Date.now() < end) await strike();
+  const cap = Date.now() + ms * MAX_FACTOR;
+  // (counted as the frames are taken below: the game's own, or all of them if the page names none)
+  const counted = async (): Promise<number> =>
+    (await page.evaluate("(() => { const all = window.__cost; const game = all.filter(([name]) => name === 'onFrame'); return (game.length > 0 ? game : all).length; })()")) as number;
+  // (the fight is played for `ms` at least, and on a slow machine until enough frames are in: how many the renderer gets through in nine seconds is the machine's, not what this measures)
+  while (Date.now() < end || (Date.now() < cap && (await counted()) < MIN_FRAMES)) await strike();
   await page.keyboard.up('KeyD');
   await page.evaluate('window.__troid.pause()');
   // only the game's own frame (`GameLoop.onFrame`) is the game's cost: the page has other callbacks asked for on each frame (the interface's, the browser's own) that do almost nothing and would pull every figure down
@@ -102,7 +110,7 @@ export const cost: Scenario = {
           `  cost ×${rate}: ${s.frames} frames · JavaScript per frame: mean ${s.mean.toFixed(2)} ms · p50 ${s.p50.toFixed(2)} · p95 ${s.p95.toFixed(2)} · p99 ${s.p99.toFixed(2)} · worst ${s.max.toFixed(1)} · over 16.7 ms: ${(s.over * 100).toFixed(1)}%` +
             ` · the Warden was ${fight ? `${fight.state} (${fight.hp}/${fight.maxHp})` : 'not in the room'} · the game's own count: ${after.fps.toFixed(0)} frames a second`,
         );
-        assert.ok(frames.length >= 60, `×${rate}: the frames were counted (${frames.length})`);
+        assert.ok(frames.length >= MIN_FRAMES, `×${rate}: the frames were counted (${frames.length})`);
       }
     } finally {
       await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 }).catch(() => undefined);

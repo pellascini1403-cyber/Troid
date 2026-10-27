@@ -433,7 +433,8 @@ export const roomArt: Scenario = {
     await ctx.page.evaluate('window.__troid.game.roomDirty = true');
     await ctx.step(1);
     await ctx.page.waitForFunction(`(() => { const g = window.__troid.state().roomArtGates || []; return g.length > 0; })()`, undefined, { timeout: 8000 });
-    await ctx.page.waitForTimeout(250);
+    // (three frames of the page, not a stretch of the clock: the levels are put at their targets by the first frame that reads them, and one slow frame of a loaded machine can be longer than any stretch that would still tell "at once" from the 0.9 s fade)
+    await ctx.page.evaluate('new Promise((done) => { let n = 3; const tick = () => { if (--n <= 0) done(undefined); else requestAnimationFrame(tick); }; requestAnimationFrame(tick); })');
     assert.deepEqual(await levels('eye_dead'), [1], 'rebuilt with the Warden fallen: the eye is closed at once, not fading in');
     assert.deepEqual(await levels('eye_awake'), [0], 'and the burning eye is not there');
 
