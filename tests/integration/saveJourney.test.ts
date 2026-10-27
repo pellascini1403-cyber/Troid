@@ -1,14 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { ROOMS, WORLD } from '@/content';
 import { captureProgress, restoreFromProgress } from '@/gameplay/progress';
-import { COMPLETED_FLAG } from '@/progression/adventure';
 import { parseProgress, serializeProgress, type ProgressData } from '@/save/ProgressData';
 import { arriveIn, beatTheWarden, breakTheSeal, freshWorld, R2_SPIKES_JUMP, toTheEastExit } from '../helpers/journey';
 import { driver, type Driver } from '../helpers/sim';
 import { R1_CROUCH } from '../helpers/vertical';
 
 /**
- * SAVE → CLOSE → REOPEN → CONTINUE, through the whole adventure (docs/PROMPT20-LOG.md): the game is played from a new game to the end by the scripted player, and at every way into a room the game is
+ * SAVE → CLOSE → REOPEN → CONTINUE, through the first chapter of the adventure (docs/PROMPT20-LOG.md; the zones after it have their own saves in `worldSaves.test.ts`): the game is played from a new game to the Collapsed Nave by the scripted player, and at every way into a room the game is
  * saved, written out as the TEXT the browser keeps, read back as a cold start reads it, and a NEW session is begun from it — the player of the script goes on with that one. If anything a game needs were missing from a
  * save (a flag, an ability, a card, the bottles, the place), the next stretch of the journey would not be possible.
  *
@@ -32,12 +31,12 @@ function resume(saved: ProgressData, seed = 1): Driver {
   return d;
 }
 
-/** The stretches of the journey, each ending where the next one begins: on arriving in a room (or at the way out of the world). */
+/** The stretches of the journey, each ending where the next one begins: on arriving in a room. */
 const STRETCHES: Array<{ name: string; play: (d: Driver) => void }> = [
   { name: 'R1: the hurdle, the pit, the crawl, the slime, the door', play: (d) => (toTheEastExit(d, { crouchZones: R1_CROUCH }), arriveIn(d, 'r2_hall')) },
   { name: 'R2: the ditch and its spikes, the slime beyond', play: (d) => (toTheEastExit(d, { jumpAt: R2_SPIKES_JUMP }), arriveIn(d, 'r3_chamber')) },
   { name: 'R3: the climb, the card, the bolt that breaks the seal, the lane', play: (d) => (breakTheSeal(d), toTheEastExit(d), arriveIn(d, 'r4_sanctum')) },
-  { name: 'R4: the arena, the Warden, the Air Dash, the way out', play: (d) => (beatTheWarden(d), toTheEastExit(d)) },
+  { name: 'R4: the arena, the Warden, the Air Dash, the way on', play: (d) => (beatTheWarden(d), toTheEastExit(d), arriveIn(d, 'ru_nave')) },
 ];
 
 /**
@@ -53,7 +52,7 @@ const live = (d: Driver): unknown => ({
   bottleSlots: d.session.bottles.slots.length,
 });
 
-describe('the whole adventure with a save, a close and a reopen at every way into a room', () => {
+describe('the first chapter with a save, a close and a reopen at every way into a room', () => {
   it('is finished: the game that is reopened is the game that was saved, and every stretch can be played from it', () => {
     let d = freshWorld();
     d.settle();
@@ -74,9 +73,9 @@ describe('the whole adventure with a save, a close and a reopen at every way int
         d = reopened;
       }
     });
-    expect(roomsAt, 'saved on arriving in each room, and at the way out of the world in the last').toEqual(['r2_hall', 'r3_chamber', 'r4_sanctum', 'r4_sanctum']);
-    // the end of the journey: everything the world gives, and the memory of the end
-    expect(d.session.flags.list().sort()).toEqual(['broken:r3_seal', COMPLETED_FLAG, 'defeated:r1_slime', 'defeated:r2_slime', 'defeated:r4_boss', 'taken:air_dash', 'taken:card_spirit_bolt']);
+    expect(roomsAt, 'saved on arriving in each room, the Nave included').toEqual(['r2_hall', 'r3_chamber', 'r4_sanctum', 'ru_nave']);
+    // the end of the chapter: everything the Ruins give
+    expect(d.session.flags.list().sort()).toEqual(['broken:r3_seal', 'defeated:r1_slime', 'defeated:r2_slime', 'defeated:r4_boss', 'taken:air_dash', 'taken:card_spirit_bolt']);
     expect(d.session.abilities.has('air_dash')).toBe(true);
     expect(d.session.loadout.equipped?.id).toBe('card_spirit_bolt');
     expect(d.p.health.dead).toBe(false);

@@ -169,3 +169,70 @@ export function dumpRoom(room: RoomDefinition): string {
   }
   return pic.join('\n');
 }
+
+// ------------------------------------------------------------------------------------------------------------------------------- arriving safely
+
+interface Engage {
+  /** How far across (m) the creature takes notice, with a metre to spare for the stretch it wanders. */
+  range: number;
+  /** How far above or below (m) it still does. */
+  height: number;
+  /** A bat wakes only for someone BELOW it. */
+  below?: boolean;
+}
+
+/** From how far, and how high, a creature takes notice of someone (the numbers its brain reads), or `null` for one that does not take notice (it is a hazard of its own spot). */
+function engageOf(archetype: string, params: Record<string, number>): Engage | null {
+  const patrol = 1; // a metre of margin: the creature wanders a little around its post
+  switch (archetype) {
+    case 'crawler':
+    case 'toad':
+    case 'guard':
+    case 'roller':
+    case 'weaver':
+      return { range: (params['detectRange'] ?? 0) + patrol, height: params['detectHeight'] ?? 0 };
+    case 'spitter':
+      return { range: (params['detectRange'] ?? 0) + patrol, height: params['detectHeight'] ?? 0 };
+    case 'shade':
+    case 'piston':
+      return { range: params['detectRange'] ?? 0, height: params['detectHeight'] ?? 0 };
+    case 'toller':
+      return { range: params['range'] ?? 0, height: params['height'] ?? 0 };
+    case 'wisp':
+      return { range: params['chaseRange'] ?? 0, height: params['chaseHeight'] ?? 0 };
+    case 'spore':
+      return { range: params['triggerRange'] ?? 0, height: params['triggerHeight'] ?? 0 };
+    case 'leech':
+      return { range: (params['ambushRange'] ?? 0) + 1, height: params['ambushHeight'] ?? 0 };
+    case 'bat':
+      return { range: params['wakeRange'] ?? 0, height: params['wakeHeight'] ?? 0, below: true };
+    default:
+      return null;
+  }
+}
+
+/**
+ * Who would notice the hero the moment they ARRIVE: an entrance (where a door puts them, where a shrine brings them back after a defeat) must not be somewhere a creature already sees. A hero who comes through a door and is struck before they can read the room
+ * has been cheated of the telegraph every blow of the game is built around. Returns one line for each entrance and creature that fail.
+ */
+export function unsafeArrivals(room: RoomDefinition): string[] {
+  const out: string[] = [];
+  for (const sp of room.spawns ?? []) {
+    const def = ENEMIES[sp.enemy];
+    if (!def) continue;
+    const params = (def.ai as unknown as { params?: Record<string, number> }).params ?? {};
+    const e = engageOf(def.ai.archetype, params);
+    if (!e) continue;
+    // a keeper behind which a door stands (it opens when the keeper falls) is dead before anyone arrives on the other side
+    const gate = sp.defeatFlag ? (room.gates ?? []).find((g) => g.openWhen === sp.defeatFlag) : undefined;
+    const door = gate ? room.solids.find((s) => s.id === gate.solid) : undefined;
+    for (const en of room.entries) {
+      if (door && (sp.x - door.rect.x0) * (en.x - door.rect.x0) < 0) continue;
+      const dx = Math.abs(en.x - sp.x);
+      const dy = en.y - sp.y;
+      const sees = e.below ? dy <= 0.5 && -dy <= e.height : Math.abs(dy) <= e.height;
+      if (dx <= e.range && sees) out.push(`${en.id} is ${dx.toFixed(1)} m from ${sp.id} (${sp.enemy}), which takes notice from ${e.range.toFixed(1)} m`);
+    }
+  }
+  return out;
+}

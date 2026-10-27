@@ -1,19 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { ENEMIES, PLAYER, ROOMS, START } from '@/content';
-import { BOTTLE_DEFINITIONS, CARDS } from '@/content/resources';
 import { CATALOGS } from '@/i18n';
 import { validateRoom } from '@/world/validateRoom';
+import { REFS } from '../../helpers/audit';
 
 /**
  * The integrity of the data the game ships (docs/ARCHITECTURE-2D.md §5.11: `validateContent()` at start-up and in tests).
- * A typo in a room is caught here, with the room and the thing named, not in the middle of a playthrough.
+ * A typo in a room is caught here, with the room and the thing named, not in the middle of a playthrough. The references are the ones of the whole world (guardians, abilities, the flags that one room hands out for another to wait for).
  */
-const refs = {
-  enemies: ENEMIES,
-  player: { halfWidth: PLAYER.body.halfWidth, height: PLAYER.body.height },
-  cards: new Set(Object.keys(CARDS)),
-  bottles: new Set(Object.keys(BOTTLE_DEFINITIONS)),
+/** What a room may wait for that ANOTHER room hands out: the lever of a shortcut, the fall of a guardian, a thing taken. Read from the rooms themselves, so a flag nobody sets is still an error (the audit of each zone proves it for its own rooms). */
+const grantedBy = (): Set<string> => {
+  const out = new Set<string>();
+  for (const room of Object.values(ROOMS)) {
+    for (const i of room.interactables ?? []) for (const a of i.actions) if (a.type === 'setFlag') out.add(a.flag);
+    for (const sp of room.spawns ?? []) if (sp.defeatFlag) out.add(sp.defeatFlag);
+    for (const b of room.bosses ?? []) out.add(b.defeatFlag);
+  }
+  return out;
 };
+const refs = { ...REFS, externalFlags: new Set([...REFS.externalFlags, ...grantedBy()]) };
 
 describe('shipped rooms', () => {
   for (const room of Object.values(ROOMS)) {

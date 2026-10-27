@@ -56,6 +56,8 @@ export interface WorldGraph {
 export interface Progression {
   /** The rooms the player can reach, in the order they open up. */
   order: readonly string[];
+  /** For each room but the first: the way by which it OPENED, the first one that worked when the world was played on paper — the road to it, not a shortcut that only works after the road has been walked. */
+  via: ReadonlyMap<string, WorldEdge>;
   /** Every flag that can end up set. */
   flags: ReadonlySet<string>;
   /** The rooms of the world that are never reached. */
@@ -175,11 +177,13 @@ export function analyzeProgression(graph: WorldGraph, rooms: RoomRegistry, start
   const flags = new Set(startFlags);
   const reached = new Set<string>();
   const order: string[] = [];
+  const via = new Map<string, WorldEdge>();
   let changed = true;
-  const open = (id: string): void => {
+  const open = (id: string, by?: WorldEdge): void => {
     if (reached.has(id) || !graph.rooms.has(id)) return;
     reached.add(id);
     order.push(id);
+    if (by) via.set(id, by);
     changed = true;
   };
   open(graph.start.room);
@@ -221,9 +225,9 @@ export function analyzeProgression(graph: WorldGraph, rooms: RoomRegistry, start
         }
       }
     }
-    for (const e of graph.edges) if (reached.has(e.from) && (!e.requires || flags.has(e.requires)) && (e.needs ?? []).every((a) => flags.has(abilityFlag(a)))) open(e.to.room);
+    for (const e of graph.edges) if (reached.has(e.from) && (!e.requires || flags.has(e.requires)) && (e.needs ?? []).every((a) => flags.has(abilityFlag(a)))) open(e.to.room, e);
   }
-  return { order, flags, unreachable: [...graph.rooms.keys()].filter((id) => !reached.has(id)) };
+  return { order, via, flags, unreachable: [...graph.rooms.keys()].filter((id) => !reached.has(id)) };
 }
 
 /** The rooms to cross to go from one room to another with every flag collected: the shortest way, both ends included (empty: no way). */

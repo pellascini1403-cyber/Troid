@@ -4,7 +4,7 @@ import { DEFAULT_TRANSITION } from '@/gameplay/RoomTransition';
 import type { GameEvents } from '@/gameplay/events';
 import { block, ground, rect } from '@/world/builders';
 import type { RoomDefinition } from '@/world/RoomDefinition';
-import { buildWorldGraph, analyzeProgression } from '@/world/worldGraph';
+import { buildWorldGraph, analyzeProgression, worldGrantedFlags } from '@/world/worldGraph';
 import { strikeOnPlayer } from '../helpers/combat';
 import { driver, makeSession, type Driver, type MakeOptions } from '../helpers/sim';
 
@@ -38,6 +38,13 @@ const touch = (d: Driver, exitId: string): void => {
 function through(d: Driver, exitId: string): void {
   touch(d, exitId);
   d.step(1);
+  // an exit in the roof is entered with the head, from below, the way a jump does: a hero put at its floor would have their head in the stone
+  const z = zoneOf(d, exitId);
+  for (const rise of [1, 1.5, 2]) {
+    if (d.session.transition.active) break;
+    d.teleport(z.x, z.y - rise);
+    d.step(1);
+  }
   expect(d.session.transition.active, `${d.session.room.id}/${exitId} started a transition`).toBe(true);
   d.until(() => !d.session.transition.active, WHOLE + 20);
   d.settle();
@@ -106,9 +113,11 @@ describe('a transition: from touching an exit to having control again', () => {
 
   it('EVERY exit of the world that leads somewhere arrives at the entry it names (position, facing, on the ground), without bouncing back', () => {
     const graph = buildWorldGraph(WORLD, ROOMS);
-    expect(graph.edges.length).toBe(6);
+    expect(graph.edges.length, 'sixty-nine doors, each way').toBe(138);
     for (const e of graph.edges) {
-      const d = world(e.from);
+      // a hero who has what the way asks for (its flag: a guardian down, a lever pulled) and cannot be hurt on the way: this is about WHERE the exit puts them
+      const d = world(e.from, undefined, { flags: [...FLAGS, ...(e.requires ? [e.requires] : [])] });
+      d.session.godMode = true;
       through(d, e.exit);
       const entry = ROOMS[e.to.room]!.entries.find((n) => n.id === e.to.entry)!;
       expect(d.session.room.id, `${e.from}/${e.exit}`).toBe(e.to.room);
@@ -485,19 +494,29 @@ describe('what an exit does and does not do', () => {
     expect(d.session.room.id).toBe('r1_gate');
   });
 
-  it('the end of the world is an exit with no destination: it raises the event and nothing else — and only once the Ink Warden has fallen', () => {
-    const shut = world('r4_sanctum', 'west');
-    touch(shut, 'east');
+  it('the end of the world is an exit with no destination: it raises the event and nothing else — and only once the Inkheart Sovereign has fallen', () => {
+    const shut = world('ih_end', 'west');
+    touch(shut, 'end');
     shut.step(3);
-    expect(count(watch(shut), 'exit:reached'), 'with the Warden alive the zone does nothing').toBe(0);
+    expect(count(watch(shut), 'exit:reached'), 'with the Sovereign alive the zone does nothing').toBe(0);
     expect(shut.session.exitsReached.size).toBe(0);
-    const d = world('r4_sanctum', 'west', { flags: [...FLAGS, 'defeated:r4_boss'] });
+    const d = world('ih_end', 'west', { flags: [...FLAGS, 'defeated:ih_boss'] });
     const log = watch(d);
-    touch(d, 'east');
+    touch(d, 'end');
     d.step(3);
     expect(count(log, 'exit:reached')).toBe(1);
     expect(d.session.transition.active).toBe(false);
-    expect(d.session.room.id).toBe('r4_sanctum');
+    expect(d.session.room.id).toBe('ih_end');
+  });
+
+  it('the east door of the Sanctum is no longer the end of the world: once the Warden has fallen it leads on, to the Collapsed Nave', () => {
+    const shut = world('r4_sanctum', 'west');
+    touch(shut, 'east');
+    shut.step(3);
+    expect(shut.session.transition.active, 'with the Warden alive the door does nothing').toBe(false);
+    const d = world('r4_sanctum', 'west', { flags: [...FLAGS, 'defeated:r4_boss'] });
+    through(d, 'east');
+    expect(d.session.room.id).toBe('ru_nave');
   });
 });
 
@@ -525,7 +544,7 @@ describe('determinism', () => {
 });
 
 describe('the world played through transitions agrees with the graph on paper', () => {
-  it('following every exit from the start by physics visits the rooms in the order the paper analysis predicts', () => {
+  it('the first three exits from the start visit the rooms in the order the paper analysis predicts', () => {
     const paper = analyzeProgression(buildWorldGraph(WORLD, ROOMS), ROOMS).order;
     const d = world();
     const visited = [d.session.room.id];
@@ -533,7 +552,33 @@ describe('the world played through transitions agrees with the graph on paper', 
       through(d, 'east');
       visited.push(d.session.room.id);
     }
-    expect(visited).toEqual(paper);
+    expect(visited).toEqual(paper.slice(0, 4));
+  });
+
+  it('and the whole world walked door by door — down every road the paper opens and back — visits exactly the 64 rooms the paper reaches, each by the exit the paper says opens it', () => {
+    const graph = buildWorldGraph(WORLD, ROOMS);
+    const paper = analyzeProgression(graph, ROOMS);
+    expect(paper.unreachable).toEqual([]);
+    const flags = [...worldGrantedFlags(WORLD, ROOMS)];
+    const d = world('r1_gate', undefined, { flags });
+    d.session.godMode = true;
+    const seen = new Set([d.session.room.id]);
+    const walk = (room: string): void => {
+      for (const [child, way] of paper.via) {
+        if (way.from !== room) continue;
+        through(d, way.exit);
+        expect(d.session.room.id, `${way.from}/${way.exit} → ${child}`).toBe(child);
+        expect(d.session.transition.active).toBe(false);
+        seen.add(child);
+        walk(child);
+        const back = graph.edges.find((e) => e.from === child && e.to.room === room);
+        expect(back, `${child} has a way back to ${room}`).toBeDefined();
+        through(d, back!.exit);
+        expect(d.session.room.id, `back from ${child}`).toBe(room);
+      }
+    };
+    walk('r1_gate');
+    expect([...seen].sort()).toEqual([...WORLD.rooms].sort());
   });
 });
 

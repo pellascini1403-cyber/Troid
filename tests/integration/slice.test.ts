@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { attachProgressRecorder } from '@/app/progressRecorder';
 import { ROOMS, START, WORLD } from '@/content';
 import { captureProgress, restoreFromProgress } from '@/gameplay/progress';
-import { COMPLETED_FLAG } from '@/progression/adventure';
 import type { ProgressData } from '@/save/ProgressData';
 import { ProgressStore } from '@/save/ProgressStore';
 import { MemoryStorage } from '@/save/StorageAdapter';
@@ -13,15 +12,15 @@ import { driver, type Driver } from '../helpers/sim';
 import { R1_CROUCH } from '../helpers/vertical';
 
 /**
- * THE WHOLE SLICE, SAVED AS IT GOES AND RESUMABLE FROM EVERY SAVE (docs/PROMPT6-LOG.md S32): a hero plays the world from a new game to the end with
+ * THE FIRST CHAPTER, SAVED AS IT GOES AND RESUMABLE FROM EVERY SAVE (docs/PROMPT6-LOG.md S32): a hero plays the world from a new game to the Collapsed Nave — the four rooms of the slice, the card, the seal, the Warden and the way on — with
  * the REAL recorder attached to a real store, so that every save the game made on the way is a point where a person could have closed the page. Then
  * the game is begun again from EACH of those saves — the way a load does — and the rest of the world is played from there: it must always be
- * possible to finish it, and the game that finishes must be, on what is saved, the same one: the same flags, abilities, card, bottles and
+ * possible to finish the chapter, and the game that finishes must be, on what is saved, the same one: the same flags, abilities, card, bottles and
  * checkpoint, whatever the save it was resumed from. And again after a defeat right at the resume point: the world that was won stays won
  * (what was opened stays open, what was broken stays broken, what was taken stays taken) and the way on is still there.
  */
 const QUICK = { death: { dying: 6, fadeOut: 4, hold: 4, fadeIn: 4, skipAfter: 1 } };
-const FINAL_FLAGS = ['broken:r3_seal', COMPLETED_FLAG, 'defeated:r1_slime', 'defeated:r2_slime', 'defeated:r4_boss', 'taken:air_dash', 'taken:card_spirit_bolt'];
+const FINAL_FLAGS = ['broken:r3_seal', 'defeated:r1_slime', 'defeated:r2_slime', 'defeated:r4_boss', 'taken:air_dash', 'taken:card_spirit_bolt'];
 
 /** What is left of the journey from the entry of a room (where a load puts the hero), reading what the world remembers. */
 function finishFrom(d: Driver): void {
@@ -48,7 +47,8 @@ function finishFrom(d: Driver): void {
       d.tap('interact');
       d.step(16);
     }
-    toTheEastExit(d); // the way out of the world
+    toTheEastExit(d); // the way on, to the Collapsed Nave
+    arriveIn(d, 'ru_nave');
   }
   d.step(20);
 }
@@ -98,13 +98,13 @@ function playAndSave(): { saves: ProgressData[]; final: ProgressData; d: Driver 
   return { saves, final: captureProgress(d.session), d };
 }
 
-describe('the whole slice, from a new game to the end of the world', () => {
+describe('the first chapter, from a new game to the Collapsed Nave', () => {
   const run = playAndSave();
 
-  it('is finished by a scripted hero: four rooms, the card, the seal, the Warden and the way out — alive, with every flag the world gives and no volatile one', () => {
+  it('is finished by a scripted hero: four rooms, the card, the seal, the Warden and the way on — alive in the Nave, with every flag the chapter gives and no volatile one', () => {
     const s = run.d.session;
-    expect(s.room.id).toBe('r4_sanctum');
-    expect(s.exitsReached.has('east'), 'the way out of the world was reached').toBe(true);
+    expect(s.room.id).toBe('ru_nave');
+    expect(s.transition.active).toBe(false);
     expect(run.d.p.health.dead).toBe(false);
     expect(s.flags.list().sort()).toEqual(FINAL_FLAGS);
     expect(s.abilities.has('air_dash') && s.abilities.has('magic_attack') && s.abilities.has('dash')).toBe(true);
@@ -119,7 +119,7 @@ describe('the whole slice, from a new game to the end of the world', () => {
       for (const f of before) expect(run.saves[i]!.flags, `save ${i} keeps ${f}`).toContain(f);
     }
     const places = run.saves.map((p) => `${p.at.room}:${p.at.entry}`);
-    for (const room of ['r2_hall', 'r3_chamber', 'r4_sanctum']) expect(places, `a save at the door of ${room}`).toContain(`${room}:west`);
+    for (const room of ['r2_hall', 'r3_chamber', 'r4_sanctum', 'ru_nave']) expect(places, `a save at the door of ${room}`).toContain(`${room}:west`);
     expect(key(run.saves[run.saves.length - 1]!)).toBe(key(run.final));
     expect(run.saves.every((p) => p.flags.every((f) => !f.startsWith('~'))), 'no save ever holds a volatile flag').toBe(true);
     expect(run.final.checkpoint, 'nobody rested: the checkpoint is still the start of the world').toEqual({ room: START.room, entry: START.entry });
@@ -140,7 +140,7 @@ describe('the whole slice, from a new game to the end of the world', () => {
       const where = `${save.at.room}:${save.at.entry} with ${save.flags.length} flags`;
       expect(d.session.room.id, where).toBe(save.at.room);
       finishFrom(d);
-      expect(d.session.exitsReached.has('east'), `${where}: the end was reached`).toBe(true);
+      expect(d.session.room.id, `${where}: the chapter was finished, in the Nave`).toBe('ru_nave');
       expect(d.p.health.dead, `${where}: alive`).toBe(false);
       expect(key(captureProgress(d.session)), `${where}: the same game at the end`).toBe(key(run.final));
     }
@@ -163,7 +163,7 @@ describe('the whole slice, from a new game to the end of the world', () => {
       for (const f of save.flags) expect(d.session.flags.has(f), `${where}: ${f} stays won`).toBe(true);
       expect(captureProgress(d.session).cards, `${where}: and the cards`).toEqual(save.cards);
       finishFrom(d);
-      expect(d.session.exitsReached.has('east'), `${where}: the end is still there to be reached`).toBe(true);
+      expect(d.session.room.id, `${where}: the way on is still there to be taken`).toBe('ru_nave');
       expect(key(captureProgress(d.session)), `${where}: the same game at the end`).toBe(key(run.final));
     }
   });

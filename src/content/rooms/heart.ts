@@ -22,7 +22,7 @@ export function threshold(): RoomDefinition {
   const c = new RoomCanvas('ih_threshold', 56, 20).walls().ground(1, 55, 2);
   c.plat(1, 12, 7).plat(13, 16, 4).region('D', 8, 7, 9, 11);
   c.rock(20, 2, 22, 4).rock(34, 2, 36, 4);
-  c.mark('a', 5, 2).mark('b', 50, 2).mark('s', 6, 7).mark('x', 27, 2).mark('y', 42, 2);
+  c.mark('a', 5, 2).mark('b', 50, 2).mark('s', 6, 7).mark('x', 27, 2).mark('y', 38, 2);
   return mapRoom(
     { id: 'ih_threshold', regionId: REGION, name: 'Threshold', nameKey: 'room.ih_threshold.name', art: { backdrop: 'ruins', seed: 58 }, rows: c.rows(), regions: { D: { id: 'home_door', material: 'gate' } } },
     (m) => ({
@@ -60,16 +60,18 @@ export function veins(): RoomDefinition {
 
 // ---------------------------------------------------------------------------------------------------------------- the Pulse
 /**
- * «Latido»: 36 × 16 m. A small round room where the floor beats, very slowly. The shrine is in the middle of it — the first place to rest in the Heart. No enemy.
+ * «Latido»: 36 × 16 m. A small round room where the floor beats, very slowly. The shrine is in the middle of it — the first place to rest in the Heart. The veins of the floor are black and sharp at the east end, and a leech lies in the west one.
  */
 export function pulse(): RoomDefinition {
   const c = new RoomCanvas('ih_shrine', 36, 16).walls().ground(1, 35, 2);
   c.rock(12, 2, 15, 3).rock(22, 2, 25, 3);
-  c.mark('a', 5, 2).mark('b', 30, 2).mark('q', 17, 2).mark('r', 19, 2);
+  c.spikes(27, 29, 2); // the veins at the east end
+  c.mark('a', 5, 2).mark('b', 30, 2).mark('q', 17, 2).mark('r', 19, 2).mark('l', 9, 2);
   return mapRoom(
     { id: 'ih_shrine', regionId: REGION, name: 'Pulse', nameKey: 'room.ih_shrine.name', art: { backdrop: 'ruins', seed: 60 }, rows: c.rows() },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('rest', 'q', 1)],
+      spawns: [m.spawn('leech_1', 'floor_leech', 'l')],
       exits: [m.exitSide('west', 'west', 'a', { room: 'ih_veins', entry: 'east' }), m.exitSide('east', 'east', 'b', { room: 'ih_ascent', entry: 'bottom' })],
       interactables: [m.shrine('r')],
     }),
@@ -108,7 +110,7 @@ export function antechamber(): RoomDefinition {
   const c = new RoomCanvas('ih_approach', 60, 24).walls().ground(1, 59, 2);
   c.plat(1, 12, 7).plat(13, 16, 4);
   c.rock(24, 2, 26, 4).rock(38, 2, 40, 3);
-  c.mark('a', 5, 2).mark('b', 54, 2).mark('s', 6, 7).mark('l', 9, 7).mark('x', 20, 2).mark('y', 27, 2).mark('w', 32, 2).mark('t', 35, 2).mark('q', 49, 2).mark('r', 51, 2);
+  c.mark('a', 5, 2).mark('b', 54, 2).mark('s', 6, 7).mark('l', 9, 7).mark('x', 20, 2).mark('y', 26, 2).mark('w', 30, 2).mark('t', 33, 2).mark('q', 49, 2).mark('r', 51, 2);
   return mapRoom(
     { id: 'ih_approach', regionId: REGION, name: 'Antechamber', nameKey: 'room.ih_approach.name', art: { backdrop: 'ruins', seed: 62 }, rows: c.rows() },
     (m) => ({

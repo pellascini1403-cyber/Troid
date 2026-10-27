@@ -31,9 +31,9 @@ describe('the seven rooms', () => {
     expect(new Set(HEART_ROOMS.map((r) => JSON.stringify(r.solids.map((s) => s.rect)))).size).toBe(7);
   });
 
-  it('are peopled by the Veil Shade, the one creature that is new here, and by the weavers, tollers and wisps of the zones before: shades come back behind whoever comes close', () => {
+  it('are peopled by the Veil Shade, the one creature that is new here, and by the weavers, tollers, wisps and the leech of the zones before: shades come back behind whoever comes close', () => {
     const kinds = new Set(HEART_ROOMS.flatMap((r) => (r.spawns ?? []).map((s) => ENEMIES[s.enemy]!.ai.archetype)));
-    expect([...kinds].sort()).toEqual(['shade', 'toller', 'weaver', 'wisp']);
+    expect([...kinds].sort()).toEqual(['leech', 'shade', 'toller', 'weaver', 'wisp']);
     expect(HEART_ROOMS.filter((r) => (r.spawns ?? []).some((s) => ENEMIES[s.enemy]!.ai.archetype === 'shade')).length).toBeGreaterThanOrEqual(3);
   });
 });

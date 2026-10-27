@@ -215,7 +215,7 @@ describe('winning', () => {
     expect(d.session.abilities.has('air_dash')).toBe(false);
   });
 
-  it('the way out of the world works only after the Warden: the zone does nothing before, and raises the end once it has fallen', () => {
+  it('the way on works only after the Warden: the zone does nothing before, and once it has fallen it takes the hero on, to the Collapsed Nave', () => {
     const before = r4();
     before.teleport(96, 0).settle();
     before.step(5);
@@ -224,7 +224,9 @@ describe('winning', () => {
     after.teleport(96, 0);
     after.step(2);
     expect(after.session.exitsReached.has('east')).toBe(true);
-    expect(after.session.transition.active).toBe(false);
+    expect(after.session.transition.active, 'the Sanctum is no longer the end of the world: a transition begins').toBe(true);
+    after.until(() => !after.session.transition.active, 200);
+    expect(after.session.room.id).toBe('ru_nave');
   });
 
   it('a Warden that fell is never built again: not by a reload of the room, nor by coming back from R3, nor by a defeat elsewhere', () => {

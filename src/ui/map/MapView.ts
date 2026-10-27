@@ -12,6 +12,12 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 export const REGION_KEYS: Readonly<Record<string, string>> = {
   ancient_forest_ruins: 'region.ruins.name',
   ancient_forest_sanctum: 'region.sanctum.name',
+  sunken_roots: 'region.roots.name',
+  glowmire: 'region.glowmire.name',
+  crystal_mines: 'region.mines.name',
+  bell_spire: 'region.spire.name',
+  ink_foundry: 'region.foundry.name',
+  ink_heart: 'region.heart.name',
 };
 
 /** A name is written inside its room only when the room is at least this wide on the screen (px): narrower, it would be written over its neighbour. */

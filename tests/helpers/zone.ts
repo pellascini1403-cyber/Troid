@@ -3,7 +3,7 @@ import { UPGRADES } from '@/content/upgrades';
 import type { GameEvents } from '@/gameplay/events';
 import type { RoomDefinition } from '@/world/RoomDefinition';
 import { grantedFlags } from '@/world/worldGraph';
-import { auditRoom, type AuditOptions } from './audit';
+import { auditRoom, unsafeArrivals, type AuditOptions } from './audit';
 import { driver, type Driver, type MakeOptions } from './sim';
 
 /** The rooms of a zone as a registry, the way the session wants them. */
@@ -50,6 +50,7 @@ export function expectSound(rooms: readonly RoomDefinition[], oneWay: Record<str
     expect(a.issues.map((i) => i.message), `${room.id}: the validator`).toEqual([]);
     expect(a.unreachable, `${room.id}: what cannot be reached`).toEqual([]);
     expect(a.loose, `${room.id}: claims that are not tight`).toEqual([]);
+    expect(unsafeArrivals(room), `${room.id}: an entrance where a creature already sees the hero`).toEqual([]);
   }
 }
 

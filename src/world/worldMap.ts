@@ -1,7 +1,7 @@
 import { clamp, type Rect } from '@/core/math';
 import type { RoomDefinition } from './RoomDefinition';
 import type { WorldDefinition } from './WorldDefinition';
-import type { RoomRegistry } from './worldGraph';
+import { analyzeProgression, buildWorldGraph, type RoomRegistry } from './worldGraph';
 
 /**
  * THE MAP OF THE WORLD (docs/PROMPT19-LOG.md), as pure functions over the data the world already is. There is no second description of the world to keep in step: the rooms, their extents, their solids, their exits
@@ -198,8 +198,9 @@ function placeBeside(a: Rect, side: MapSide, door: { x: number; y: number }, b: 
 
 /**
  * Puts the world on a plane. The first room is at the origin; from there, in the order the doors are met, each room that a door leads to is set against the wall that door is in, with the door that leads back
- * level with it (so a corridor that is one room long is one line long, whatever the rooms); a room that would land on another slides along the wall until it is clear. A room no door reaches goes below the rest,
- * in a row. The same world always gives the same layout.
+ * level with it (so a corridor that is one room long is one line long, whatever the rooms); a room that would land on another slides along the wall until it is clear. It is the ROAD that places the rooms — the way by which each one
+ * first opens when the world is played on paper — so that a shortcut (a door that works once a lever far down the road has been pulled) is drawn as a line between two rooms that stand where the road put them, not the other way round.
+ * A room no door of the road reaches hangs off any door that leads to it; one that no door reaches goes below the rest, in a row. The same world always gives the same layout.
  */
 export function buildMapLayout(world: WorldDefinition, registry: RoomRegistry): MapLayout {
   const defs = world.rooms.flatMap((id) => (registry[id] ? [registry[id] as RoomDefinition] : []));
@@ -222,7 +223,9 @@ export function buildMapLayout(world: WorldDefinition, registry: RoomRegistry): 
     put(startId, { x0: 0, y0: 0, x1: s.w, y1: s.h });
   }
   const queue = first ? [startId] : [];
-  const grow = (): void => {
+  const road = analyzeProgression(buildWorldGraph(world, registry), registry).via;
+  /** `onlyRoad`: a room is set only by the door by which it opens on paper. */
+  const grow = (onlyRoad: boolean): void => {
     while (queue.length > 0) {
       const aId = queue.shift() as string;
       const a = byId.get(aId) as RoomDefinition;
@@ -232,6 +235,8 @@ export function buildMapLayout(world: WorldDefinition, registry: RoomRegistry): 
         const bId = exit.to?.room;
         const b = bId ? byId.get(bId) : undefined;
         if (!b || !bId || boxes.has(bId)) continue;
+        const way = road.get(bId);
+        if (onlyRoad && way && (way.from !== aId || way.exit !== exit.id)) continue;
         const side = sideOfExit(exit.rect, aExtent);
         const door = doorPoint({ extent: aExtent, rect: aBox }, exit.rect, side);
         const s = sizeOf(b);
@@ -240,7 +245,10 @@ export function buildMapLayout(world: WorldDefinition, registry: RoomRegistry): 
       }
     }
   };
-  grow();
+  grow(true);
+  // what the road does not reach (a room that opens only by a flag nothing sets): off any door that leads to it
+  queue.push(...order);
+  grow(false);
   // the rooms no door reaches: a row below everything else
   for (const r of defs) {
     if (boxes.has(r.id)) continue;
@@ -248,7 +256,7 @@ export function buildMapLayout(world: WorldDefinition, registry: RoomRegistry): 
     const s = sizeOf(r);
     put(r.id, { x0: 0, y0: below, x1: s.w, y1: below + s.h });
     queue.push(r.id);
-    grow();
+    grow(false);
   }
 
   const rooms = new Map<string, MapRoom>();

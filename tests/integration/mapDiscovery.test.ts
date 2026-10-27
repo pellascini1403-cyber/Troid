@@ -57,7 +57,7 @@ describe('the map follows the hero through the world', () => {
     expect(s.hero?.room).toBe('r1_gate');
     expect(s.links).toEqual([]);
     expect(s.rooms[0]!.doors[0]).toMatchObject({ exit: 'east', state: 'locked', known: false });
-    expect([s.discovered, s.total]).toEqual([1, 4]);
+    expect([s.discovered, s.total]).toEqual([1, 64]);
   });
 
   it('every room the hero walks into joins the map, with the connection to the one before, and the hero is where they stand', () => {
@@ -75,11 +75,12 @@ describe('the map follows the hero through the world', () => {
     expect(ids(s)).toEqual(['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum']);
     expect(s.links).toHaveLength(3);
     expect(s.current).toBe('r4_sanctum');
-    expect([s.discovered, s.total]).toEqual([4, 4]);
-    // the guardian's arena is on the map of a room the hero is in; the world's end is a way still shut
+    expect([s.discovered, s.total]).toEqual([4, 64]);
+    // the guardian's arena is on the map of a room the hero is in; the way on past it, to a room not yet seen, is a way still shut
     const sanctum = s.rooms.find((r) => r.id === 'r4_sanctum')!;
     expect(sanctum.pois.map((p) => p.kind).sort()).toEqual(['boss', 'rest']);
-    expect(sanctum.doors.find((d) => d.end)).toMatchObject({ state: 'locked', known: false });
+    expect(sanctum.doors.find((d) => d.exit === 'east')).toMatchObject({ state: 'locked', known: false });
+    expect(sanctum.doors.some((d) => d.end), 'the Sanctum is not the end of the world any more').toBe(false);
   });
 
   it('the hero\'s mark moves with the hero inside the room, and stays inside the room\'s box', () => {

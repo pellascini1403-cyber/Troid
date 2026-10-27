@@ -22,8 +22,15 @@ import { verifyArtFolder } from '../../../tools/assets/verify';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 /** Packing the art of the repository is real work (a few seconds): the tests that do it say so. */
 const PACKING = 120_000;
-/** What the rooms of the world ask of the environment and no pack has yet: the blockout draws each of these. Empty when the world is fully dressed. */
-const STILL_THE_BLOCKOUT: string[] = [];
+/**
+ * What the rooms of the world ask of the environment and no pack has yet: the blockout draws each of these. Empty when the world is fully dressed. The 56 rooms past the Sanctum reuse the six `ruins-*` packs and add two things to touch or to break that the
+ * generator has not painted yet: the body of a door of split stone and the lever of a shortcut (docs/PROMPT21-LOG.md).
+ */
+const PACK = 'ruins-ground + ruins-back + ruins-light + ruins-roots + ruins-seal + ruins-sanctum';
+const STILL_THE_BLOCKOUT: string[] = [
+  `warn environment ${PACK}: the world asks for the "body" of door "stone" (ru_nave, rt_tangle, mr_stilts, mn_hall, mn_forge, mn_descent, sp_bridge, fd_line) and the pack does not have it: the blockout draws it`,
+  `warn environment ${PACK}: the world asks for the interactive "activate" (rt_cellar, mr_approach, mn_approach, sp_belfry, sp_approach, fd_control, ih_approach) and the pack does not have it: the blockout draws it`,
+];
 /** The states the game asks of the protagonist that the character sheet has no drawing for (in the engine's names: the manifest would say `aerialAttack` and `crouchAttack`): not declared, drawn with the placeholder. */
 const NOT_IN_THE_SHEET = ['attack2', 'attackAir', 'crouch', 'attackCrouch', 'drink'] as const;
 /** What the game asks of the protagonist and the sheet has: the other ten of the fifteen. */
@@ -114,7 +121,7 @@ describe('the art of the repository', () => {
     }
   }, PACKING);
 
-  it('verifies: what the game fetches is a valid art folder, with no warning but the one that says which clips of the protagonist the sheet does not have: the environment the world asks for is all there', () => {
+  it('verifies: what the game fetches is a valid art folder, with no warning but the one that says which clips of the protagonist the sheet does not have: and the two pieces the new rooms ask for that no pack paints yet, which the blockout draws', () => {
     const v = verifyArtFolder(join(root, 'public', 'art'));
     const lacking = `warn player sprites.hero: the protagonist's art lacks ${NOT_IN_THE_SHEET.length} of the 15 clips the game asks of it: ${NOT_IN_THE_SHEET.join(', ')} — the placeholder draws those states`;
     expect(v.issues.filter((i) => i.level !== 'info').map((i) => `${i.level} ${i.path}: ${i.message}`)).toEqual([lacking, ...STILL_THE_BLOCKOUT]);

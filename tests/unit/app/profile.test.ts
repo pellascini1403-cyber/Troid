@@ -49,8 +49,14 @@ describe('the profile', () => {
 
   it('bosses beaten are those whose defeat flag is set; the world\'s bosses are counted from the rooms, not from a number written here', () => {
     const none = buildProfile(session(), stats, 1);
-    expect(none.bosses).toEqual({ beaten: [], total: 1 });
+    expect(none.bosses).toEqual({ beaten: [], total: 7 });
     const down = buildProfile(session(['defeated:r4_boss']), stats, 1);
-    expect(down.bosses).toEqual({ beaten: ['enemy.warden.name'], total: 1 });
+    expect(down.bosses).toEqual({ beaten: ['enemy.warden.name'], total: 7 });
+    // all seven, in the order of the world: the Warden, then the guardian of each zone after it
+    const all = buildProfile(session(['defeated:r4_boss', 'defeated:rt_boss', 'defeated:mr_boss', 'defeated:mn_boss', 'defeated:sp_boss', 'defeated:fd_boss', 'defeated:ih_boss']), stats, 1);
+    expect(all.bosses.total).toBe(7);
+    expect(all.bosses.beaten).toHaveLength(7);
+    expect(new Set(all.bosses.beaten).size, 'seven different guardians').toBe(7);
+    expect(all.bosses.beaten[0]).toBe('enemy.warden.name');
   });
 });

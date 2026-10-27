@@ -36,6 +36,8 @@ export const R4_SANCTUM_ROOM: RoomDefinition = {
     { id: 'west', x: 4, y: 0, facing: 1 },
     // where the shrine brings the hero back: the last place to rest before the arena
     { id: 'rest', x: 14.8, y: 0, facing: 1 },
+    // from the Nave (docs/PROMPT21-LOG.md): the way back from the rest of the world, past the reward, facing the arena
+    { id: 'east', x: 91, y: 0, facing: -1 },
   ],
   solids: [
     // boundary walls
@@ -57,8 +59,8 @@ export const R4_SANCTUM_ROOM: RoomDefinition = {
   bosses: [{ id: 'warden', guardian: 'ink_warden', x: 58, y: 0, facing: -1, arena: rect(27.5, -1, 64.5, 12), defeatFlag: 'defeated:r4_boss', fightFlag: '~fight:r4_boss' }],
   exits: [
     { id: 'west', rect: rect(0, 0, 2.4, 4), to: { room: 'r3_chamber', entry: 'east' } },
-    // the end of the slice: it leads out of the world as it stands, and only once the Warden has fallen
-    { id: 'east', rect: rect(95, 0, 98, 4), end: true, requires: 'defeated:r4_boss' },
+    // the way on, to the Collapsed Nave and the rest of the world (docs/PROMPT21-LOG.md; it was the end of the slice), and only once the Warden has fallen
+    { id: 'east', rect: rect(95, 0, 98, 4), to: { room: 'ru_nave', entry: 'west' }, requires: 'defeated:r4_boss' },
   ],
   interactables: [
     // the checkpoint before the arena: a defeat in the fight brings the hero back here, with the Warden whole and the doors open

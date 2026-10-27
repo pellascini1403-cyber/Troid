@@ -9,7 +9,7 @@ import { driver, type Driver } from '../../helpers/sim';
 
 /**
  * THE CUES OF THE SOUND TO COME, IN THE GAME ITSELF (docs/ART-PIPELINE-2D.md, part H): the real simulation, played by a scripted player with the buttons a person has, with
- * an audio director listening to it — the whole world from R1 to the end of R4, the boss included, and a short fight for what the journey does not do (being hurt, dying,
+ * an audio director listening to it — the first chapter of the world, from R1 to the way out of R4, the boss included, and a short fight for what the journey does not do (being hurt, dying,
  * a bottle). What a sound engine would be told, and WHEN: the tick of the event, never the tick of a button.
  */
 function listen(session: GameSession): AudioCueEvent[] {
@@ -27,7 +27,7 @@ function journey(): AudioCueEvent[] {
   return cues;
 }
 
-describe('the whole world, R1 to the end of R4', () => {
+describe('the first chapter, R1 to the way out of R4 (the Warden, and on to the Collapsed Nave)', () => {
   const cues = journey();
 
   it('raises the cues of the moments the journey has: blows, hits, jumps and landings, the bolt, the objects, the rooms, the enemies and the boss', () => {
@@ -65,7 +65,7 @@ describe('the whole world, R1 to the end of R4', () => {
 
   it('the rooms: one change of room per exit taken, with nothing to say where, and the room it leads to as its kind', () => {
     const rooms = cues.filter((c) => c.cue === 'roomTransition');
-    expect(rooms.map((c) => c.variant)).toEqual(['r2_hall', 'r3_chamber', 'r4_sanctum', 'r4_sanctum'].slice(0, rooms.length));
+    expect(rooms.map((c) => c.variant)).toEqual(['r2_hall', 'r3_chamber', 'r4_sanctum', 'ru_nave'].slice(0, rooms.length));
     expect(rooms.length).toBeGreaterThanOrEqual(3);
     for (const r of rooms) expect([r.x, r.y]).toEqual([null, null]);
   });

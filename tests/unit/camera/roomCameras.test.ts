@@ -59,7 +59,9 @@ describe('the limits of each room', () => {
 
     it(`${id}: the floor's foot is the bottom of the picture: the view never shows below the ground (6 m under the lowest floor)`, () => {
       const limits = roomLimits(room);
-      const floors = room.solids.filter((s) => (s.kind ?? 'solid') === 'solid' && !s.id.startsWith('wall') && s.rect.y1 <= 0.01);
+      // the floor is what the lowest entrance stands on (y = 0 in the rooms of the slice, whatever the picture says in the rooms drawn on a canvas): the solids whose top is no higher than that
+      const lowestEntry = Math.min(...room.entries.map((e) => e.y));
+      const floors = room.solids.filter((s) => (s.kind ?? 'solid') === 'solid' && !s.id.startsWith('wall') && s.rect.y1 <= lowestEntry + 0.01);
       const lowestFoot = Math.min(...floors.map((s) => s.rect.y0));
       expect(limits.y0).toBeGreaterThanOrEqual(lowestFoot - 1e-9);
     });

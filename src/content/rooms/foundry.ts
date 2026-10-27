@@ -22,7 +22,7 @@ export function gate(): RoomDefinition {
   const c = new RoomCanvas('fd_gate', 64, 20).walls().ground(1, 63, 2);
   c.plat(1, 12, 7).plat(13, 16, 4).region('D', 8, 7, 9, 11);
   c.rock(22, 2, 24, 4).rock(38, 2, 40, 4).rock(50, 2, 52, 3);
-  c.mark('a', 5, 2).mark('b', 58, 2).mark('s', 6, 7).mark('g', 31, 2).mark('x', 26, 12).mark('y', 44, 12);
+  c.mark('a', 5, 2).mark('b', 58, 2).mark('s', 6, 7).mark('g', 31, 2).mark('x', 26, 12).mark('y', 40, 12);
   return mapRoom(
     { id: 'fd_gate', regionId: REGION, name: 'Foundry Gate', nameKey: 'room.fd_gate.name', art: { backdrop: 'ruins', seed: 48 }, rows: c.rows(), regions: { D: { id: 'home_door', material: 'gate' } } },
     (m) => ({
@@ -129,16 +129,17 @@ export function vats(): RoomDefinition {
 
 // ---------------------------------------------------------------------------------------------------------------- the Workshop
 /**
- * «Taller»: 40 × 16 m. A workbench, a vice and the shrine behind them — the first place to rest in the Foundry. No enemy.
+ * «Taller»: 40 × 16 m. A workbench, a vice and the shrine behind them — the first place to rest in the Foundry. A leech lies on the bench at the east end, in the way out.
  */
 export function workshop(): RoomDefinition {
   const c = new RoomCanvas('fd_workshop', 40, 16).walls().ground(1, 39, 2);
   c.rock(10, 2, 15, 3).rock(26, 2, 29, 4);
-  c.mark('a', 5, 2).mark('b', 34, 2).mark('q', 18, 2).mark('r', 20, 2);
+  c.mark('a', 5, 2).mark('b', 34, 2).mark('q', 18, 2).mark('r', 20, 2).mark('l', 27, 4);
   return mapRoom(
     { id: 'fd_workshop', regionId: REGION, name: 'Workshop', nameKey: 'room.fd_workshop.name', art: { backdrop: 'ruins', seed: 53 }, rows: c.rows() },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('rest', 'q', 1)],
+      spawns: [m.spawn('leech_1', 'floor_leech', 'l')],
       exits: [m.exitSide('west', 'west', 'a', { room: 'fd_vats', entry: 'east' }), m.exitSide('east', 'east', 'b', { room: 'fd_catwalks', entry: 'west' })],
       interactables: [m.shrine('r')],
     }),
@@ -152,7 +153,7 @@ export function workshop(): RoomDefinition {
 export function catwalks(): RoomDefinition {
   const c = new RoomCanvas('fd_catwalks', 88, 28).walls().ground(1, 14, 10).ground(74, 87, 10).pit(14, 74);
   c.rock(18, 11, 27, 12).rock(32, 10, 38, 11).rock(43, 12, 51, 13).rock(56, 10, 62, 11).rock(66, 11, 72, 12);
-  c.mark('a', 5, 10).mark('b', 80, 10).mark('g', 22, 12).mark('s', 47, 13).mark('t', 69, 12).mark('x', 34, 20).mark('y', 58, 20);
+  c.mark('a', 5, 10).mark('b', 80, 10).mark('g', 22, 12).mark('s', 47, 13).mark('t', 58, 11).mark('x', 34, 20).mark('y', 58, 20);
   return mapRoom(
     { id: 'fd_catwalks', regionId: REGION, name: 'Iron Catwalks', nameKey: 'room.fd_catwalks.name', art: { backdrop: 'ruins', seed: 54 }, rows: c.rows() },
     (m) => ({
@@ -171,8 +172,8 @@ export function catwalks(): RoomDefinition {
 export function control(): RoomDefinition {
   const c = new RoomCanvas('fd_control', 56, 22).walls().ground(1, 55, 2);
   c.plat(1, 12, 7).plat(13, 16, 4);
-  c.rock(20, 2, 22, 4).rock(34, 2, 37, 3);
-  c.mark('a', 5, 2).mark('b', 50, 2).mark('s', 6, 7).mark('l', 9, 7).mark('x', 24, 2).mark('w', 29, 2).mark('y', 39, 2).mark('m', 44, 2).mark('q', 46, 2).mark('r', 48, 2);
+  c.rock(18, 2, 20, 4).rock(36, 2, 38, 3);
+  c.mark('a', 5, 2).mark('b', 50, 2).mark('s', 6, 7).mark('l', 9, 7).mark('x', 22, 2).mark('w', 28, 2).mark('y', 34, 2).mark('m', 39, 2).mark('q', 46, 2).mark('r', 48, 2);
   return mapRoom(
     { id: 'fd_control', regionId: REGION, name: 'Control Room', nameKey: 'room.fd_control.name', art: { backdrop: 'ruins', seed: 55 }, rows: c.rows() },
     (m) => ({
@@ -190,12 +191,13 @@ export function control(): RoomDefinition {
 
 // ---------------------------------------------------------------------------------------------------------------- the Engine Room
 /**
- * «Sala del Motor»: 72 × 26 m. The arena of the FOUNDRY ENGINE: 53 m of floor between two walls of iron that are doors — it charges into them and is stunned — and nine columns' worth of pistons under the floor. When it falls the Warding Thread lies where it stood
+ * «Sala del Motor»: 72 × 26 m. The arena of the FOUNDRY ENGINE: 53 m of floor between two walls of iron that are doors — it charges into them and is stunned — with three gantries of iron 3 m up and nine columns' worth of pistons under the floor. When it falls the Warding Thread lies where it stood
  * (a hit leaves the hero untouchable for longer), and the way on, to the Heart of the Ink, works.
  */
 export function engineRoom(): RoomDefinition {
   const c = new RoomCanvas('fd_arena', 72, 26).walls().ground(1, 71, 2);
   c.region('A', 8, 2, 9, 25).region('B', 65, 2, 66, 25); // doors to the roof
+  c.plat(16, 21, 5).plat(31, 36, 5).plat(46, 51, 5); // three gantries of iron, 3 m up: out of the way of the charge, with the pistons under them
   c.mark('a', 4, 2).mark('b', 67, 2).mark('l', 11, 2).mark('r', 64, 2).mark('k', 56, 2).mark('v', 60, 2);
   return mapRoom(
     { id: 'fd_arena', regionId: REGION, name: 'Engine Room', nameKey: 'room.fd_arena.name', art: { backdrop: 'ruins', seed: 56 }, rows: c.rows(), regions: { A: { id: 'door_w', material: 'gate' }, B: { id: 'door_e', material: 'gate' } } },
@@ -221,7 +223,7 @@ export function scrap(): RoomDefinition {
   const c = new RoomCanvas('fd_scrap', 40, 20).walls().ground(1, 39, 2);
   c.rock(10, 2, 13, 3).rock(20, 2, 24, 4).rock(28, 2, 30, 3);
   c.rock(34, 2, 38, 4); // the pedestal
-  c.mark('a', 5, 2).mark('v', 36, 4).mark('g', 16, 2).mark('x', 18, 12).mark('y', 28, 14);
+  c.mark('a', 5, 2).mark('v', 36, 4).mark('g', 16, 2).mark('x', 24, 12).mark('y', 31, 14);
   return mapRoom(
     { id: 'fd_scrap', regionId: REGION, name: 'Scrapyard', nameKey: 'room.fd_scrap.name', art: { backdrop: 'ruins', seed: 57 }, rows: c.rows() },
     (m) => ({

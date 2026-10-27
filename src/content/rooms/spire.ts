@@ -24,7 +24,7 @@ export function foot(): RoomDefinition {
   c.plat(1, 12, 7).plat(13, 16, 4).region('D', 8, 7, 9, 11);
   c.rock(18, 2, 20, 4);
   c.rock(23, 5, 24, 30).rock(28, 2, 39, 30);
-  c.mark('a', 5, 2).mark('s', 6, 7).mark('e', 34, 30).mark('x', 21, 2).mark('p', 6, 32).mark('q', 34, 32);
+  c.mark('a', 5, 2).mark('s', 6, 7).mark('e', 34, 30).mark('x', 21, 2).mark('p', 6, 32).mark('q', 26, 32);
   return mapRoom(
     { id: 'sp_foot', regionId: REGION, name: 'Foot of the Spire', nameKey: 'room.sp_foot.name', art: { backdrop: 'ruins', seed: 38 }, rows: c.rows(), regions: { D: { id: 'home_door', material: 'gate' } } },
     (m) => ({
@@ -48,9 +48,9 @@ export function foot(): RoomDefinition {
  */
 export function gallery(): RoomDefinition {
   const c = new RoomCanvas('sp_gallery', 76, 20).walls().ground(1, 75, 2);
-  c.rock(8, 2, 10, 4).rock(24, 2, 26, 4).rock(40, 2, 42, 4).rock(56, 2, 58, 4);
-  c.plat(10, 18, 6).plat(26, 34, 6).plat(42, 50, 6).plat(58, 66, 6);
-  c.mark('a', 5, 2).mark('b', 70, 2).mark('x', 21, 2).mark('y', 30, 6).mark('z', 53, 2).mark('w', 62, 6).mark('p', 20, 18).mark('q', 48, 18);
+  c.rock(8, 2, 10, 4).rock(24, 2, 26, 4).rock(40, 2, 42, 4).rock(50, 2, 52, 4);
+  c.plat(10, 18, 6).plat(26, 34, 6).plat(42, 50, 6).plat(52, 60, 6);
+  c.mark('a', 5, 2).mark('b', 70, 2).mark('x', 21, 2).mark('y', 30, 6).mark('z', 47, 2).mark('w', 53, 6).mark('p', 20, 18).mark('q', 48, 18);
   return mapRoom(
     { id: 'sp_gallery', regionId: REGION, name: 'Gallery of Bells', nameKey: 'room.sp_gallery.name', art: { backdrop: 'ruins', seed: 39 }, rows: c.rows() },
     (m) => ({
@@ -82,7 +82,7 @@ export function stair(): RoomDefinition {
       c.plat(1, 3, below + 2).plat(3, 5, below + 4).plat(5, 7, below + 6);
     }
   });
-  c.mark('a', 4, 2).mark('e', 5, 44).mark('x', 15, 2).mark('p', 14, 12).mark('q', 8, 24).mark('r', 14, 30).mark('t', 15, 38);
+  c.mark('a', 4, 2).mark('e', 5, 44).mark('x', 20, 2).mark('p', 14, 12).mark('q', 8, 24).mark('r', 14, 30).mark('t', 15, 38);
   return mapRoom(
     { id: 'sp_stair', regionId: REGION, name: 'Spiral Stair', nameKey: 'room.sp_stair.name', art: { backdrop: 'ruins', seed: 40 }, rows: c.rows() },
     (m) => ({
@@ -95,11 +95,12 @@ export function stair(): RoomDefinition {
 
 // ---------------------------------------------------------------------------------------------------------------- the Sacristy
 /**
- * «Sacristía»: 36 × 16 m. A low room of stone between two climbs, with the shrine on a step at the end — the first place to rest in the Spire. No enemy; a bell somewhere above that nobody rings.
+ * «Sacristía»: 36 × 16 m. A low room of stone between two climbs, with the shrine on a step at the end — the first place to rest in the Spire. No enemy; a bell somewhere above that nobody rings, and a strip of the rusted nails of the pews on the floor before the step.
  */
 export function sacristy(): RoomDefinition {
   const c = new RoomCanvas('sp_shrine', 36, 16).walls().ground(1, 35, 2);
   c.rock(14, 2, 18, 3).rock(18, 2, 24, 4);
+  c.spikes(9, 12, 2); // the nails of the pews
   c.mark('a', 5, 2).mark('b', 30, 2).mark('q', 19, 4).mark('r', 21, 4);
   return mapRoom(
     { id: 'sp_shrine', regionId: REGION, name: 'Sacristy', nameKey: 'room.sp_shrine.name', art: { backdrop: 'ruins', seed: 41 }, rows: c.rows() },
@@ -143,7 +144,7 @@ export function belfry(): RoomDefinition {
   c.rock(24, 22, 32, 26).rock(27, 26, 29, 29); // the bell, hanging
   c.region('D', 28, 2, 29, 29).region('E', 48, 2, 49, 29); // doors to the roof: there is no climbing over a door with the Wall Jump
   c.rock(36, 5, 37, 20).rock(40, 5, 47, 20); // the chimney of the second lever: a wall, a block hanging over the floor, and a passage under it
-  c.mark('a', 5, 2).mark('b', 52, 2).mark('l', 19, 6).mark('m', 43, 20).mark('x', 10, 2).mark('y', 33, 14).mark('p', 33, 28).mark('q', 44, 28);
+  c.mark('a', 5, 2).mark('b', 51, 2).mark('l', 19, 6).mark('m', 43, 20).mark('x', 24, 2).mark('y', 33, 14).mark('p', 33, 28).mark('q', 44, 28);
   return mapRoom(
     { id: 'sp_belfry', regionId: REGION, name: 'Belfry', nameKey: 'room.sp_belfry.name', art: { backdrop: 'ruins', seed: 43 }, rows: c.rows(), regions: { D: { id: 'bell_door_1', material: 'gate' }, E: { id: 'bell_door_2', material: 'gate' } } },
     (m) => ({
@@ -167,7 +168,7 @@ export function bridge(): RoomDefinition {
   c.rock(17, 9, 23, 10).rock(28, 11, 34, 12).rock(38, 8, 42, 9).rock(46, 10, 52, 11).rock(56, 12, 62, 13); // the platforms
   c.rock(36, 4, 41, 5).region('F', 37, 4, 40, 5); // the island, 4 m below the platform at x 38…42, and the split stone in it
   c.plat(32, 36, 7); // a step from the island back up to the road
-  c.mark('a', 5, 10).mark('b', 73, 10).mark('u', 40, 9).mark('k', 38, 5).mark('x', 31, 12).mark('y', 22, 16).mark('z', 48, 17).mark('p', 14, 24).mark('q', 58, 24);
+  c.mark('a', 5, 10).mark('b', 73, 10).mark('u', 40, 9).mark('k', 38, 5).mark('x', 22, 10).mark('y', 22, 16).mark('z', 48, 17).mark('p', 14, 24).mark('q', 58, 24);
   return mapRoom(
     { id: 'sp_bridge', regionId: REGION, name: 'Windy Bridge', nameKey: 'room.sp_bridge.name', art: { backdrop: 'ruins', seed: 44 }, rows: c.rows(), regions: { F: { id: 'crack_floor', material: 'stone', tag: 'crack' } } },
     (m) => ({
@@ -192,8 +193,8 @@ export function bridge(): RoomDefinition {
 export function approach(): RoomDefinition {
   const c = new RoomCanvas('sp_approach', 52, 22).walls().ground(1, 51, 2);
   c.plat(1, 12, 7).plat(13, 16, 4);
-  c.rock(24, 2, 26, 4).rock(34, 2, 36, 3);
-  c.mark('a', 5, 2).mark('b', 46, 2).mark('s', 6, 7).mark('l', 9, 7).mark('x', 20, 2).mark('y', 30, 2).mark('p', 28, 20).mark('q', 41, 2).mark('r', 43, 2);
+  c.rock(30, 2, 32, 4).rock(34, 2, 36, 3);
+  c.mark('a', 5, 2).mark('b', 46, 2).mark('s', 6, 7).mark('l', 9, 7).mark('x', 22, 2).mark('y', 25, 2).mark('p', 28, 20).mark('q', 41, 2).mark('r', 43, 2);
   return mapRoom(
     { id: 'sp_approach', regionId: REGION, name: 'Antechamber', nameKey: 'room.sp_approach.name', art: { backdrop: 'ruins', seed: 45 }, rows: c.rows() },
     (m) => ({

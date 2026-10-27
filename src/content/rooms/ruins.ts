@@ -19,7 +19,8 @@ const REGION = 'ancient_forest_ruins';
 // ---------------------------------------------------------------------------------------------------------------- the Nave
 /**
  * «Nave Derrumbada»: 72 × 24 m. A hall whose roof has fallen in. West door (the Sanctum), east door (the Archive), a hole in the floor in the middle (the Roots, a 7 m drop that a running jump clears), and the two secrets:
- * the crack in the floor at x 46…49 (the Slam, 3 m wide) and the ladder at the east — four platforms, each 4 m above the last, which is more than a jump and less than two. Two spitters keep the pillars and two crawlers the floor.
+ * the crack in the floor at x 46…49 (the Slam, 3 m wide) and the ladder at the east — four platforms, each 4 m above the last, which is more than a jump and less than two. Two crawlers keep the tops of the pillars and two spitters the first platforms of the ladder:
+ * the floor, where the five doors of the hub put the hero, is nobody's.
  */
 export function nave(): RoomDefinition {
   const c = new RoomCanvas('ru_nave', 72, 24).walls().ground(1, 71, 2).pit(22, 29).air(46, 0, 49, 1).region('F', 46, 1, 49, 2);
@@ -28,7 +29,7 @@ export function nave(): RoomDefinition {
   c.air(59, 23, 62, 24); // the hole in the roof, over the top of it
   c.mark('a', 5, 2).mark('b', 66, 2).mark('r', 20, 2).mark('s', 44, 2).mark('t', 59, 18); // west, east, from the Roots, from the Cistern, from the Reliquary
   c.mark('p', 25, 12).mark('k', 47, 2).mark('h', 60, 20); // the middle of the pit, the crack, the roof hole
-  c.mark('c', 37, 2).mark('d', 51, 2).mark('x', 14, 4).mark('y', 41, 4); // two crawlers, two spitters
+  c.mark('c', 14, 4).mark('d', 41, 4).mark('x', 54, 6).mark('y', 60, 10); // two crawlers on the pillars, two spitters on the ladder
   return mapRoom(
     {
       id: 'ru_nave',
@@ -41,7 +42,7 @@ export function nave(): RoomDefinition {
     },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('roots', 'r', 1), m.entry('cistern', 's', -1), m.entry('top', 't', 1)],
-      spawns: [m.spawn('crawler_1', 'bramble_crawler', 'c'), m.spawn('crawler_2', 'bramble_crawler', 'd'), m.spawn('spitter_1', 'ink_spitter', 'x', { facing: 1 }), m.spawn('spitter_2', 'ink_spitter', 'y')],
+      spawns: [m.spawn('crawler_1', 'bramble_crawler', 'c', { facing: 1 }), m.spawn('crawler_2', 'bramble_crawler', 'd'), m.spawn('spitter_1', 'ink_spitter', 'x', { facing: 1 }), m.spawn('spitter_2', 'ink_spitter', 'y')],
       gates: [m.gate('crack_gate', 'crack_floor', 'broken:ru_nave_crack')],
       seals: [m.seal('crack', 'k', { area: rect(45.9, 1.4, 49.1, 2.4), style: 'crack', accepts: ['slam', 'slam_dive'], flag: 'broken:ru_nave_crack', needs: abilityFlag('ground_slam') })],
       exits: [
@@ -66,7 +67,7 @@ export function archive(): RoomDefinition {
   c.plat(10, 16, 5).plat(20, 27, 8).plat(31, 37, 5).plat(40, 46, 8); // the shelves
   c.rock(24, 2, 27, 4); // a plinth
   c.region('D', 52, 2, 53, 11); // the door of the vault
-  c.mark('a', 5, 2).mark('c', 13, 2).mark('x', 23, 8).mark('y', 43, 8).mark('w', 51, 2).mark('v', 56, 2);
+  c.mark('a', 5, 2).mark('c', 18, 2).mark('x', 23, 8).mark('y', 43, 8).mark('w', 51, 2).mark('v', 56, 2);
   return mapRoom(
     {
       id: 'ru_archive',

@@ -25,7 +25,7 @@ export function mouth(): RoomDefinition {
   tops.forEach((y, i) => c.plat(from[i]!, from[i]! + 8, y));
   c.plat(10, 29, 29); // the ledge the hero lands on
   c.region('D', 21, 29, 22, 33); // the door of the way home
-  c.mark('n', 16, 29).mark('s', 24, 29).mark('e', 24, 2).mark('c', 20, 2).mark('x', 4, 34).mark('y', 26, 34);
+  c.mark('n', 16, 29).mark('s', 24, 29).mark('e', 24, 2).mark('c', 10, 2).mark('x', 4, 34).mark('y', 9, 34);
   return mapRoom(
     { id: 'rt_mouth', regionId: REGION, name: 'Mouth of the Roots', nameKey: 'room.rt_mouth.name', art: { backdrop: 'ruins', seed: 9 }, rows: c.rows(), regions: { D: { id: 'home_door', material: 'gate' } } },
     (m) => ({
@@ -51,7 +51,7 @@ export function tangle(): RoomDefinition {
   c.spikes(22, 26, 2).spikes(31, 35, 2);
   c.plat(40, 44, 4).plat(45, 49, 7).plat(50, 55, 10);
   c.rock(55, 9, 63, 15).air(56, 10, 62, 14).region('W', 55, 10, 56, 14); // the block and its hollow, shut by the split wall
-  c.mark('a', 5, 2).mark('b', 59, 2).mark('c', 10, 2).mark('d', 48, 2).mark('l', 28, 2).mark('x', 37, 16).mark('w', 54, 10).mark('v', 59, 10);
+  c.mark('a', 5, 2).mark('b', 59, 2).mark('c', 19, 2).mark('d', 45, 2).mark('l', 28, 2).mark('x', 37, 16).mark('w', 54, 10).mark('v', 59, 10);
   return mapRoom(
     { id: 'rt_tangle', regionId: REGION, name: 'Tangle', nameKey: 'room.rt_tangle.name', art: { backdrop: 'ruins', seed: 10 }, rows: c.rows(), regions: { W: { id: 'nook_wall', material: 'stone', tag: 'crack' } } },
     (m) => ({
@@ -115,18 +115,18 @@ export function cellar(): RoomDefinition {
 
 // ---------------------------------------------------------------------------------------------------------------- the Bridge
 /**
- * «Puente de Raíz»: 72 × 18 m. A chasm 46 m wide and no floor under it — fall and the hero is out of the world — crossed on five platforms of roots, 4 m of air between each. A crawler on the near bank, an Ink Spitter on the far one, and three bats on the roof over the
+ * «Puente de Raíz»: 72 × 18 m. A chasm 46 m wide and no floor under it — fall and the hero is out of the world — crossed on five platforms of roots, 4 m of air between each. An Ink Spitter on the last platform but one, and three bats on the roof over the
  * crossing: the only room of the zone where the danger is above the hero and the way is a series of jumps.
  */
 export function bridge(): RoomDefinition {
   const c = new RoomCanvas('rt_bridge', 72, 18).walls().ground(1, 13, 8).ground(59, 71, 8).pit(13, 59);
   c.plat(15, 20, 8).plat(24, 29, 9).plat(33, 38, 10).plat(42, 47, 9).plat(51, 56, 8);
-  c.mark('a', 5, 8).mark('b', 66, 8).mark('c', 8, 8).mark('s', 64, 8).mark('x', 22, 16).mark('y', 36, 16).mark('z', 49, 16);
+  c.mark('a', 5, 8).mark('b', 66, 8).mark('s', 52, 8).mark('x', 22, 16).mark('y', 36, 16).mark('z', 49, 16);
   return mapRoom(
     { id: 'rt_bridge', regionId: REGION, name: 'Root Bridge', nameKey: 'room.rt_bridge.name', art: { backdrop: 'ruins', seed: 13 }, rows: c.rows() },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
-      spawns: [m.spawn('crawler_1', 'bramble_crawler', 'c'), m.spawn('spitter_1', 'ink_spitter', 's'), m.spawn('bat_1', 'cave_bat', 'x', { facing: 1 }), m.spawn('bat_2', 'cave_bat', 'y'), m.spawn('bat_3', 'cave_bat', 'z')],
+      spawns: [m.spawn('spitter_1', 'ink_spitter', 's'), m.spawn('bat_1', 'cave_bat', 'x', { facing: 1 }), m.spawn('bat_2', 'cave_bat', 'y'), m.spawn('bat_3', 'cave_bat', 'z')],
       exits: [m.exitSide('west', 'west', 'a', { room: 'rt_cellar', entry: 'east' }), m.exitSide('east', 'east', 'b', { room: 'rt_echo', entry: 'west' })],
     }),
   );
@@ -134,7 +134,7 @@ export function bridge(): RoomDefinition {
 
 // ---------------------------------------------------------------------------------------------------------------- the Echo Chamber
 /**
- * «Cámara del Eco»: 52 × 22 m. The hall where the DOUBLE JUMP lies, on a pedestal in the middle, under the fire of three Ink Spitters on perches around it. And the room asks for it at once: the door on is on a plateau 4 m above the floor, a wall to a hero
+ * «Cámara del Eco»: 52 × 22 m. The hall where the DOUBLE JUMP lies, on a pedestal in the middle, under the fire of two Ink Spitters on perches around it. And the room asks for it at once: the door on is on a plateau 4 m above the floor, a wall to a hero
  * with the dash and the air dash (3 m is the most they clear, however they time it) and a step to one with the second jump (5 m). The way back is a drop.
  */
 export function echo(): RoomDefinition {
@@ -142,12 +142,12 @@ export function echo(): RoomDefinition {
   c.rock(12, 2, 17, 4); // the pedestal
   c.rock(33, 2, 51, 6); // the plateau with the door on it
   c.plat(5, 10, 8).plat(19, 24, 8);
-  c.mark('a', 5, 2).mark('b', 44, 6).mark('r', 14, 4).mark('x', 7, 8).mark('y', 21, 8).mark('z', 35, 6);
+  c.mark('a', 5, 2).mark('b', 44, 6).mark('r', 14, 4).mark('x', 7, 8).mark('y', 21, 8);
   return mapRoom(
     { id: 'rt_echo', regionId: REGION, name: 'Echo Chamber', nameKey: 'room.rt_echo.name', art: { backdrop: 'ruins', seed: 14 }, rows: c.rows() },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
-      spawns: [m.spawn('spitter_1', 'ink_spitter', 'x', { facing: 1 }), m.spawn('spitter_2', 'ink_spitter', 'y'), m.spawn('spitter_3', 'ink_spitter', 'z')],
+      spawns: [m.spawn('spitter_1', 'ink_spitter', 'x', { facing: 1 }), m.spawn('spitter_2', 'ink_spitter', 'y')],
       exits: [m.exitSide('west', 'west', 'a', { room: 'rt_bridge', entry: 'east' }), m.exitSide('east', 'east', 'b', { room: 'rt_gallery', entry: 'west' })],
       interactables: [teach(m, 'double_jump', 'r')],
       needs: [{ target: 'exit:east', abilities: ['double_jump'] }],
@@ -204,12 +204,13 @@ export function hideout(): RoomDefinition {
 
 // ---------------------------------------------------------------------------------------------------------------- the Arena
 /**
- * «Trono de Raíces»: 72 × 26 m. The arena of the ROOT TYRANT: 53 m of flat floor between two stone doors that shut when the fight begins (the hero's feet crossing x = 11.5) and open when it ends. The Tyrant waits at the east end. When it falls, a vessel of life appears
- * where it stood, and the door to the east — the way on, to the Glowmire — works.
+ * «Trono de Raíces»: 72 × 26 m. The arena of the ROOT TYRANT: 53 m of floor between two stone doors that shut when the fight begins (the hero's feet crossing x = 11.5) and open when it ends, with two arches of root 3 m up over it — above the reach of its sweep. The Tyrant
+ * waits at the east end. When it falls, a vessel of life appears where it stood, and the door to the east — the way on, to the Glowmire — works.
  */
 export function arena(): RoomDefinition {
   const c = new RoomCanvas('rt_arena', 72, 26).walls().ground(1, 71, 2);
   c.region('A', 8, 2, 9, 25).region('B', 65, 2, 66, 25); // doors to the roof: there is no climbing over a door with the Wall Jump
+  c.plat(18, 25, 5).plat(47, 54, 5); // two arches of root, 3 m up: above the sweep of the Tyrant, a place to wait out its march
   c.mark('a', 4, 2).mark('b', 67, 2).mark('l', 11, 2).mark('r', 64, 2).mark('k', 56, 2).mark('v', 60, 2);
   return mapRoom(
     { id: 'rt_arena', regionId: REGION, name: 'Root Throne', nameKey: 'room.rt_arena.name', art: { backdrop: 'ruins', seed: 17 }, rows: c.rows(), regions: { A: { id: 'door_w', material: 'gate' }, B: { id: 'door_e', material: 'gate' } } },

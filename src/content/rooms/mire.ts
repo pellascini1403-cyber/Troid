@@ -23,7 +23,7 @@ export function edge(): RoomDefinition {
   const c = new RoomCanvas('mr_edge', 64, 18).walls().ground(1, 16, 2).ground(21, 34, 2).ground(39, 52, 2).ground(57, 63, 2).pit(16, 21).pit(34, 39).pit(52, 57);
   c.plat(1, 12, 7).plat(13, 16, 4).region('D', 8, 7, 9, 11); // the gallery, the stairs to it, the door
   c.plat(17, 21, 6).plat(25, 30, 6).plat(34, 39, 6).plat(43, 48, 6).plat(52, 57, 6); // the high road
-  c.mark('a', 5, 2).mark('b', 58, 2).mark('s', 6, 7).mark('t', 28, 2).mark('u', 44, 2).mark('v', 49, 2);
+  c.mark('a', 5, 2).mark('b', 58, 2).mark('s', 6, 7).mark('t', 28, 2).mark('u', 41, 2).mark('v', 44, 2);
   return mapRoom(
     { id: 'mr_edge', regionId: REGION, name: 'Mire Edge', nameKey: 'room.mr_edge.name', art: { backdrop: 'ruins', seed: 18 }, rows: c.rows(), regions: { D: { id: 'home_door', material: 'gate' } } },
     (m) => ({
@@ -48,7 +48,7 @@ export function stilts(): RoomDefinition {
   const c = new RoomCanvas('mr_stilts', 76, 22).walls().ground(1, 75, 2).air(56, 0, 59, 1).region('F', 56, 1, 59, 2);
   c.spikes(20, 24, 2).spikes(38, 43, 2).spikes(62, 66, 2);
   c.plat(9, 15, 4).plat(18, 24, 6).plat(27, 33, 8).plat(36, 42, 10).plat(45, 51, 8).plat(54, 60, 6).plat(63, 69, 4);
-  c.mark('a', 5, 2).mark('b', 70, 2).mark('d', 53, 2).mark('k', 57, 2).mark('l', 30, 2).mark('t', 50, 2).mark('s', 48, 8).mark('x', 21, 13).mark('y', 39, 15).mark('z', 57, 12);
+  c.mark('a', 5, 2).mark('b', 70, 2).mark('d', 60, 2).mark('k', 57, 2).mark('l', 30, 2).mark('t', 44, 2).mark('s', 48, 8).mark('x', 21, 13).mark('y', 39, 15).mark('z', 57, 12);
   return mapRoom(
     { id: 'mr_stilts', regionId: REGION, name: 'Stilt Walkways', nameKey: 'room.mr_stilts.name', art: { backdrop: 'ruins', seed: 19 }, rows: c.rows(), regions: { F: { id: 'crack_floor', material: 'stone', tag: 'crack' } } },
     (m) => ({
@@ -75,7 +75,7 @@ export function lanterns(): RoomDefinition {
   c.rock(18, 2, 20, 4).rock(30, 2, 32, 4).rock(38, 2, 40, 4); // low stones to jump
   c.plat(21, 27, 6).plat(33, 37, 7).plat(42, 47, 5); // the caps of three mushrooms
   c.region('D', 52, 2, 53, 10);
-  c.mark('a', 5, 2).mark('b', 55, 2).mark('t', 47, 2).mark('w', 14, 6).mark('x', 24, 9).mark('y', 34, 5).mark('z', 43, 10);
+  c.mark('a', 5, 2).mark('b', 55, 2).mark('t', 47, 2).mark('w', 16, 6).mark('x', 24, 9).mark('y', 34, 5).mark('z', 43, 10);
   return mapRoom(
     { id: 'mr_lanterns', regionId: REGION, name: 'Lanterns', nameKey: 'room.mr_lanterns.name', art: { backdrop: 'ruins', seed: 20 }, rows: c.rows(), regions: { D: { id: 'mire_door', material: 'gate' } } },
     (m) => ({
@@ -89,7 +89,7 @@ export function lanterns(): RoomDefinition {
 
 // ---------------------------------------------------------------------------------------------------------------- the Toad Pit
 /**
- * «Foso de los Sapos»: 44 × 30 m. A pit of thorns with a staircase of six platforms down it — each 3 m below the last, overlapping — and a toad on every other one. The hero comes in at the top, on a ledge, and the way on is on the bottom, on the only earth
+ * «Foso de los Sapos»: 44 × 30 m. A pit of thorns with a staircase of six platforms down it — each 3 m below the last, overlapping —and a toad on the second and on the fourth, 5 m or more above the way out. The hero comes in at the top, on a ledge, and the way on is on the bottom, on the only earth
  * that is not thorns. A fall costs a point of life; the toads' shocks cost more.
  */
 export function toadpit(): RoomDefinition {
@@ -98,12 +98,12 @@ export function toadpit(): RoomDefinition {
   const from = [27, 23, 19, 15, 11, 7];
   tops.forEach((y, i) => c.plat(from[i]!, from[i]! + 9, y));
   c.rock(1, 21, 9, 22); // the ledge
-  c.mark('a', 5, 22).mark('b', 38, 2).mark('t', 31, 4).mark('u', 23, 10).mark('v', 15, 16);
+  c.mark('a', 5, 22).mark('b', 38, 2).mark('t', 27, 7).mark('v', 19, 13);
   return mapRoom(
     { id: 'mr_toadpit', regionId: REGION, name: 'Toad Pit', nameKey: 'room.mr_toadpit.name', art: { backdrop: 'ruins', seed: 21 }, rows: c.rows() },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
-      spawns: [m.spawn('toad_1', 'mire_toad', 't'), m.spawn('toad_2', 'mire_toad', 'u'), m.spawn('toad_3', 'mire_toad', 'v')],
+      spawns: [m.spawn('toad_1', 'mire_toad', 't'), m.spawn('toad_2', 'mire_toad', 'v')],
       exits: [m.exitSide('west', 'west', 'a', { room: 'mr_lanterns', entry: 'east' }), m.exitSide('east', 'east', 'b', { room: 'mr_shrine', entry: 'west' })],
     }),
   );
@@ -111,16 +111,17 @@ export function toadpit(): RoomDefinition {
 
 // ---------------------------------------------------------------------------------------------------------------- the Landing
 /**
- * «Embarcadero»: 40 × 16 m. A plank bridge over black water, and a pier with the shrine on it: the first place to rest in the Glowmire. The east door is on the pier. No enemy.
+ * «Embarcadero»: 40 × 16 m. A plank bridge over black water, and a pier with the shrine on it: the first place to rest in the Glowmire. The east door is on the pier. A lantern wisp hangs over the water, and the bridge is the way under it: the toll of the rest.
  */
 export function landing(): RoomDefinition {
   const c = new RoomCanvas('mr_shrine', 40, 16).walls().ground(1, 39, 2).pit(12, 18).plat(12, 18, 2);
   c.rock(26, 2, 39, 4); // the pier
-  c.mark('a', 5, 2).mark('b', 34, 4).mark('q', 29, 4).mark('r', 31, 4);
+  c.mark('a', 5, 2).mark('b', 34, 4).mark('q', 29, 4).mark('r', 31, 4).mark('w', 16, 8);
   return mapRoom(
     { id: 'mr_shrine', regionId: REGION, name: 'Landing', nameKey: 'room.mr_shrine.name', art: { backdrop: 'ruins', seed: 22 }, rows: c.rows() },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('rest', 'q', 1)],
+      spawns: [m.spawn('wisp_1', 'lantern_wisp', 'w')],
       exits: [m.exitSide('west', 'west', 'a', { room: 'mr_toadpit', entry: 'east' }), m.exitSide('east', 'east', 'b', { room: 'mr_sink', entry: 'west' })],
       interactables: [m.shrine('r')],
     }),
@@ -158,7 +159,7 @@ export function sink(): RoomDefinition {
 export function walls(): RoomDefinition {
   const c = new RoomCanvas('mr_climb', 60, 20).walls().ground(1, 59, 2);
   c.rock(14, 2, 16, 10).rock(28, 2, 30, 10).rock(42, 2, 44, 10);
-  c.mark('a', 5, 2).mark('b', 54, 2).mark('t', 8, 2).mark('p', 22, 2).mark('w', 36, 7).mark('u', 49, 2);
+  c.mark('a', 5, 2).mark('b', 54, 2).mark('t', 20, 2).mark('p', 24, 2).mark('w', 38, 8).mark('u', 34, 2);
   return mapRoom(
     { id: 'mr_climb', regionId: REGION, name: 'Mushroom Walls', nameKey: 'room.mr_climb.name', art: { backdrop: 'ruins', seed: 24 }, rows: c.rows() },
     (m) => ({
@@ -197,12 +198,13 @@ export function approach(): RoomDefinition {
 
 // ---------------------------------------------------------------------------------------------------------------- the Lair
 /**
- * «Charca de la Matriarca»: 72 × 26 m. The arena of the MIRE MATRIARCH: 53 m of floor between two doors that shut when the fight begins and open when it ends, and a pool of black water beyond the east one. When she falls a vessel of magic appears where she stood,
- * and the way on, to the Crystal Mines, works.
+ * «Charca de la Matriarca»: 72 × 26 m. The arena of the MIRE MATRIARCH: 53 m of floor between two doors that shut when the fight begins and open when it ends, with an island of mud 20 m wide in the middle of it and a pool of black water beyond the east door. When she
+ * falls a vessel of magic appears where she stood, and the way on, to the Crystal Mines, works.
  */
 export function lair(): RoomDefinition {
   const c = new RoomCanvas('mr_lair', 72, 26).walls().ground(1, 71, 2);
   c.region('A', 8, 2, 9, 25).region('B', 65, 2, 66, 25); // doors to the roof: there is no climbing over a door with the Wall Jump
+  c.plat(26, 46, 4); // an island of mud in the middle of the pool, 2 m up: out of the way of her tongue
   c.mark('a', 4, 2).mark('b', 67, 2).mark('l', 11, 2).mark('r', 64, 2).mark('k', 56, 2).mark('v', 60, 2);
   return mapRoom(
     { id: 'mr_lair', regionId: REGION, name: 'Matriarch Pool', nameKey: 'room.mr_lair.name', art: { backdrop: 'ruins', seed: 26 }, rows: c.rows(), regions: { A: { id: 'door_w', material: 'gate' }, B: { id: 'door_e', material: 'gate' } } },

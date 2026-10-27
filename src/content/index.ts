@@ -10,6 +10,13 @@ import { R1_GATE_ROOM } from './rooms/r1Gate';
 import { R2_HALL_ROOM } from './rooms/r2Hall';
 import { R3_CHAMBER_ROOM } from './rooms/r3Chamber';
 import { R4_SANCTUM_ROOM } from './rooms/r4Sanctum';
+import { FOUNDRY_ROOMS } from './rooms/foundry';
+import { HEART_ROOMS } from './rooms/heart';
+import { MINES_ROOMS } from './rooms/mines';
+import { MIRE_ROOMS } from './rooms/mire';
+import { ROOTS_ROOMS } from './rooms/roots';
+import { RUINS_ROOMS } from './rooms/ruins';
+import { SPIRE_ROOMS } from './rooms/spire';
 import { PROCEDURAL_ATLASES, SPRITE_SETS } from './sprites';
 import { UPGRADES } from './upgrades';
 import { WORLD } from './world';
@@ -20,6 +27,8 @@ export const ROOMS: Readonly<Record<string, RoomDefinition>> = {
   [R2_HALL_ROOM.id]: R2_HALL_ROOM,
   [R3_CHAMBER_ROOM.id]: R3_CHAMBER_ROOM,
   [R4_SANCTUM_ROOM.id]: R4_SANCTUM_ROOM,
+  // the rest of the world (docs/PROMPT21-LOG.md), a file of rooms for each zone, in the order the hero meets them
+  ...Object.fromEntries([...RUINS_ROOMS, ...ROOTS_ROOMS, ...MIRE_ROOMS, ...MINES_ROOMS, ...SPIRE_ROOMS, ...FOUNDRY_ROOMS, ...HEART_ROOMS].map((r) => [r.id, r])),
   [MOVEMENT_TEST_ROOM.id]: MOVEMENT_TEST_ROOM,
   [CROUCH_TEST_ROOM.id]: CROUCH_TEST_ROOM,
   [INTERACTION_TEST_ROOM.id]: INTERACTION_TEST_ROOM,

@@ -4,7 +4,7 @@ import { block, ground, oneWay, rect } from '@/world/builders';
 import type { RoomDefinition } from '@/world/RoomDefinition';
 import type { WorldDefinition } from '@/world/WorldDefinition';
 import { buildMapLayout, EMPTY_SCENE, MAP_GAP, mapPoint, mapScene, sideOfExit, STUB_LENGTH, type MapInput, type MapLayout } from '@/world/worldMap';
-import type { RoomRegistry } from '@/world/worldGraph';
+import { analyzeProgression, buildWorldGraph, type RoomRegistry } from '@/world/worldGraph';
 
 /**
  * The map of the world on SYNTHETIC worlds (the shipped one is at the end): where the rooms go, what each one is made of on the map, and what the player has earned of it. The map is pure — the same world and
@@ -319,9 +319,20 @@ describe('the map of the shipped world', () => {
   const layout = buildMapLayout(WORLD, ROOMS);
   const ids = WORLD.rooms;
 
-  it('places the four rooms in a line, in the order of the world, no two on top of each other, each door level with the one it leads to', () => {
-    expect([...layout.rooms.keys()]).toEqual(['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum']);
-    for (let i = 1; i < ids.length; i++) {
+  it('places the 64 rooms along the road, the first at the origin, no two on top of each other (nor closer than the gap), and the four rooms of the slice in a line, each door level with the one it leads to', () => {
+    expect(layout.rooms.size).toBe(64);
+    expect([...layout.rooms.keys()].slice(0, 4)).toEqual(['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum']);
+    expect(room_(layout, 'r1_gate').rect).toMatchObject({ x0: 0, y0: 0 });
+    const boxes = [...layout.rooms.values()];
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i]!.rect;
+        const b = boxes[j]!.rect;
+        const apart = a.x1 + MAP_GAP / 2 <= b.x0 || b.x1 + MAP_GAP / 2 <= a.x0 || a.y1 + MAP_GAP / 2 <= b.y0 || b.y1 + MAP_GAP / 2 <= a.y0;
+        expect(apart, `${boxes[i]!.id} and ${boxes[j]!.id} are not on top of each other`).toBe(true);
+      }
+    }
+    for (let i = 1; i < 4; i++) {
       const before = room_(layout, ids[i - 1]!);
       const after = room_(layout, ids[i]!);
       expect(after.rect.x0, `${ids[i]} comes after ${ids[i - 1]}`).toBe(before.rect.x1 + MAP_GAP);
@@ -331,10 +342,39 @@ describe('the map of the shipped world', () => {
     }
   });
 
-  it('connects every way between two rooms of the world, and knows the one that leaves it', () => {
-    expect(layout.links.map((l) => l.id)).toEqual(['r1_gate:east~r2_hall:west', 'r2_hall:east~r3_chamber:west', 'r3_chamber:east~r4_sanctum:west']);
-    const end = room_(layout, 'r4_sanctum').doors.find((d) => d.end)!;
-    expect(end).toMatchObject({ to: null, requires: 'defeated:r4_boss' });
+  it('the ROAD places the rooms, not the shortcuts: each room stands next to the room by which it first opens on paper, and a shortcut is a line between two rooms that are already there', () => {
+    const road = analyzeProgression(buildWorldGraph(WORLD, ROOMS), ROOMS).via;
+    expect(road.size).toBe(63);
+    for (const [to, way] of road) {
+      const a = room_(layout, way.from).rect;
+      const b = room_(layout, to).rect;
+      const side = layout.rooms.get(way.from)!.doors.find((d) => d.exit === way.exit)!.side;
+      // against the wall that door is in, a gap away (a room that would have landed on another has slid along the wall)
+      const against = side === 'east' ? b.x0 === a.x1 + MAP_GAP : side === 'west' ? b.x1 === a.x0 - MAP_GAP : side === 'south' ? b.y0 === a.y1 + MAP_GAP : b.y1 === a.y0 - MAP_GAP;
+      expect(against, `${to} is set against the ${side} wall of ${way.from}`).toBe(true);
+    }
+    const door = (id: string): { x: number; y: number } => layout.rooms.get(id.split(':')[0]!)!.doors.find((d) => d.id === id)!;
+    const length = (id: string): number => {
+      const l = layout.links.find((k) => k.id === id)!;
+      return Math.hypot(door(l.a).x - door(l.b).x, door(l.a).y - door(l.b).y);
+    };
+    const shortcuts = layout.links.filter((l) => l.id.includes(':shortcut'));
+    expect(shortcuts).toHaveLength(12 / 2);
+    // the roads are short lines (a few rooms of sliding at the most); the shortcuts reach back along the whole zone
+    for (const l of layout.links) if (!l.id.includes(':shortcut')) expect(length(l.id), l.id).toBeLessThan(80);
+  });
+
+  it('connects every way between two rooms of the world, and knows the one that leaves it: the end of the adventure, in the last room, behind the Sovereign', () => {
+    const graph = buildWorldGraph(WORLD, ROOMS);
+    // every exit that leads to a room that leads back is a link, once
+    const pairs = new Set(graph.edges.filter((e) => graph.edges.some((b) => b.from === e.to.room && b.to.room === e.from)).map((e) => [e.from, e.to.room].sort().join('~')));
+    expect(layout.links.length).toBeGreaterThanOrEqual(pairs.size);
+    for (const e of graph.edges) expect(layout.links.some((l) => l.a === `${e.from}:${e.exit}` || l.b === `${e.from}:${e.exit}`), `${e.from}:${e.exit} is linked`).toBe(true);
+    // the door of R4 that used to leave the world leads on, to the Collapsed Nave
+    expect(room_(layout, 'r4_sanctum').doors.find((d) => d.exit === 'east')).toMatchObject({ to: 'ru_nave', requires: 'defeated:r4_boss', end: false });
+    const ends = [...layout.rooms.values()].flatMap((r) => r.doors.filter((d) => d.end));
+    expect(ends).toHaveLength(1);
+    expect(ends[0]).toMatchObject({ room: 'ih_end', to: null, requires: 'defeated:ih_boss' });
   });
 
   it('draws every room with its terrain, and the gates of R1 and R4 as gates', () => {
@@ -356,7 +396,14 @@ describe('the map of the shipped world', () => {
     expect(s.links).toEqual([]);
     expect(s.rooms[0]!.doors[0]).toMatchObject({ exit: 'east', state: 'locked', known: false });
     expect(s.rooms[0]!.pois).toEqual([]);
-    expect([s.discovered, s.total]).toEqual([1, 4]);
+    expect([s.discovered, s.total]).toEqual([1, 64]);
+  });
+
+  it('knows what is worth a mark: the fifteen shrines, the seven guardians, the two wards that only the Bolt breaks — and not the split stone, which is a secret', () => {
+    const pois = [...layout.rooms.values()].flatMap((r) => r.pois);
+    expect(pois.filter((p) => p.kind === 'rest')).toHaveLength(15);
+    expect(pois.filter((p) => p.kind === 'boss').map((p) => p.room).sort()).toEqual(['fd_arena', 'ih_arena', 'mn_arena', 'mr_lair', 'r4_sanctum', 'rt_arena', 'sp_arena']);
+    expect(pois.filter((p) => p.kind === 'seal').map((p) => p.room).sort()).toEqual(['r3_chamber', 'ru_archive']);
   });
 
   it('the hero of every room of the world stands inside its box at every entry', () => {

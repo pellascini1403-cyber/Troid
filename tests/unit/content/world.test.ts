@@ -9,8 +9,8 @@ import { validateRoom } from '@/world/validateRoom';
 import { analyzeProgression, buildWorldGraph, destinationOf, edgesFrom, routeBetween, validateWorld, worldEnds, worldGrantedFlags } from '@/world/worldGraph';
 
 /**
- * The shipped mini-world (docs/PROMPT6-LOG.md S22): four rooms in a line, each connected to the next and back, every connection
- * naming the entry the player appears at. The graph is read from the data of the rooms; nothing here knows what comes after what.
+ * The shipped world (docs/PROMPT6-LOG.md S22, docs/PROMPT21-LOG.md): the four rooms of the slice in a line, each connected to the next and back, and past the Sanctum six more zones — sixty-four rooms in all — every connection naming the entry the
+ * player appears at. The graph is read from the data of the rooms; nothing here knows what comes after what.
  */
 const player = { halfWidth: PLAYER.body.halfWidth, height: PLAYER.body.height };
 const graph = buildWorldGraph(WORLD, ROOMS);
@@ -21,15 +21,27 @@ describe('the world as shipped', () => {
   });
 
   it('has exactly one way out of the world, in the last room, and it asks for the guardian that waits there', () => {
-    expect(worldEnds(WORLD, ROOMS)).toEqual([{ room: 'r4_sanctum', exit: 'east', requires: 'defeated:r4_boss' }]);
-    expect(WORLD.rooms[WORLD.rooms.length - 1]).toBe('r4_sanctum');
-    const boss = ROOMS['r4_sanctum']!.bosses![0]!;
-    expect(boss.defeatFlag).toBe('defeated:r4_boss');
+    expect(worldEnds(WORLD, ROOMS)).toEqual([{ room: 'ih_end', exit: 'end', requires: 'defeated:ih_boss' }]);
+    expect(WORLD.rooms[WORLD.rooms.length - 1]).toBe('ih_end');
+    const boss = ROOMS['ih_arena']!.bosses![0]!;
+    expect(boss.defeatFlag).toBe('defeated:ih_boss');
+    expect(ROOMS['ih_end']!.entries.map((e) => e.id)).toContain('west');
   });
 
-  it('is four rooms, in the order the player meets them: R1 → R2 → R3 → R4', () => {
-    expect(WORLD.rooms).toEqual(['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum']);
-    expect(analyzeProgression(graph, ROOMS).order).toEqual(['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum']);
+  it('is sixty-four rooms in seven zones, the first four those of the slice, in the order the player meets them: R1 → R2 → R3 → R4 → the Collapsed Nave', () => {
+    expect(WORLD.rooms).toHaveLength(64);
+    expect(WORLD.rooms.slice(0, 5)).toEqual(['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum', 'ru_nave']);
+    const p = analyzeProgression(graph, ROOMS);
+    expect(p.order.slice(0, 5)).toEqual(['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum', 'ru_nave']);
+    expect(p.order, 'every room can be reached on paper').toHaveLength(64);
+    expect(p.unreachable).toEqual([]);
+  });
+
+  it('the zones are the seven the design names, and each has the rooms the design gives it', () => {
+    const zones: Record<string, string[]> = {};
+    const prefix = (id: string): string => (/^r[1-4]_/.test(id) ? 'ru' : id.split('_')[0]!);
+    for (const id of WORLD.rooms) (zones[prefix(id)] ??= []).push(id);
+    expect(Object.fromEntries(Object.entries(zones).map(([z, r]) => [z, r.length]))).toEqual({ ru: 8, rt: 9, mr: 10, mn: 10, sp: 10, fd: 10, ih: 7 });
   });
 
   it('every room of the world is registered under its own id, and the registry also keeps the playgrounds', () => {
@@ -66,6 +78,17 @@ describe('the world as shipped', () => {
   });
 });
 
+/** The road from the first room to the last, by the doors every hero must take (the optional rooms, the shortcuts and the secrets hang off it). */
+const SPINE = [
+  'r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum', 'ru_nave',
+  'rt_mouth', 'rt_tangle', 'rt_hollow', 'rt_cellar', 'rt_bridge', 'rt_echo', 'rt_gallery', 'rt_arena',
+  'mr_edge', 'mr_stilts', 'mr_lanterns', 'mr_toadpit', 'mr_shrine', 'mr_sink', 'mr_climb', 'mr_approach', 'mr_lair',
+  'mn_gate', 'mn_seam', 'mn_hall', 'mn_camp', 'mn_forge', 'mn_descent', 'mn_rails', 'mn_approach', 'mn_arena',
+  'sp_foot', 'sp_gallery', 'sp_stair', 'sp_shrine', 'sp_chimney', 'sp_belfry', 'sp_bridge', 'sp_approach', 'sp_arena',
+  'fd_gate', 'fd_line', 'fd_press', 'fd_furnace', 'fd_vats', 'fd_workshop', 'fd_catwalks', 'fd_control', 'fd_arena',
+  'ih_threshold', 'ih_veins', 'ih_shrine', 'ih_ascent', 'ih_approach', 'ih_arena', 'ih_end',
+];
+
 describe('the connections', () => {
   const at = (room: string, exit: string) => destinationOf(graph, room, exit);
 
@@ -88,8 +111,9 @@ describe('the connections', () => {
     }
   });
 
-  it('the spawn point of an arrival is on the side the player came from, facing into the room', () => {
+  it('the spawn point of an arrival through a WEST or an EAST entry is on the side the player came from, facing into the room', () => {
     for (const e of graph.edges) {
+      if (e.to.entry !== 'west' && e.to.entry !== 'east') continue;
       const target = ROOMS[e.to.room]!;
       const entry = target.entries.find((n) => n.id === e.to.entry)!;
       const middle = (target.bounds.x0 + target.bounds.x1) / 2;
@@ -116,15 +140,55 @@ describe('the connections', () => {
     }
   });
 
-  it('the walk from the start to the last room crosses every room once, and back', () => {
+  it('the walk from the start to the last room of the slice crosses every room once, and back', () => {
     const flags = analyzeProgression(graph, ROOMS).flags;
     expect(routeBetween(graph, 'r1_gate', 'r4_sanctum', flags)).toEqual(['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum']);
     expect(routeBetween(graph, 'r4_sanctum', 'r1_gate', flags)).toEqual(['r4_sanctum', 'r3_chamber', 'r2_hall', 'r1_gate']);
   });
 
-  it('the only exit that leaves the world is the east one of the last room', () => {
+  it('the road from the first room to the end is the spine of the design — fifty-six rooms, each joined to the next — and the shortcuts make it shorter once their levers have been used, never before', () => {
+    const flags = analyzeProgression(graph, ROOMS).flags;
+    for (let i = 0; i + 1 < SPINE.length; i++) expect(edgesFrom(graph, SPINE[i]!).some((e) => e.to.room === SPINE[i + 1]), `${SPINE[i]} → ${SPINE[i + 1]}`).toBe(true);
+    expect(SPINE).toHaveLength(56);
+    expect(SPINE[0]).toBe('r1_gate');
+    expect(SPINE[SPINE.length - 1]).toBe('ih_end');
+    // with the levers of the shortcuts still unused, the shortest way is the spine itself, room for room
+    const unused = new Set([...flags].filter((f) => !f.startsWith('lever:') || f.startsWith('lever:sp_bell')));
+    expect(routeBetween(graph, 'r1_gate', 'ih_end', unused)).toEqual(SPINE);
+    // with them, it is shorter
+    expect(routeBetween(graph, 'r1_gate', 'ih_end', flags).length).toBeLessThan(SPINE.length);
+  });
+
+  it('the only exit that leaves the world is the one of the last room, in its east wall', () => {
     const ends = WORLD.rooms.flatMap((id) => (ROOMS[id]!.exits ?? []).filter((x) => x.end).map((x) => `${id}/${x.id}`));
-    expect(ends).toEqual(['r4_sanctum/east']);
+    expect(ends).toEqual(['ih_end/end']);
+    const room = ROOMS.ih_end!;
+    expect(room.exits!.find((x) => x.end)!.rect.x0).toBeGreaterThan((room.bounds.x0 + room.bounds.x1) / 2);
+  });
+
+  it('the Sanctum leads on to the Collapsed Nave and back, and the Nave is the hub: five ways, one of them (the roof of the ladder) and one of them (the cracked floor) asking for something the hero has not got yet', () => {
+    expect(at('r4_sanctum', 'east')).toEqual({ room: 'ru_nave', entry: 'west' });
+    expect(at('ru_nave', 'west')).toEqual({ room: 'r4_sanctum', entry: 'east' });
+    expect(edgesFrom(graph, 'ru_nave').map((e) => e.exit).sort()).toEqual(['cistern', 'east', 'reliquary', 'roots', 'west']);
+    expect(graph.edges.find((e) => e.from === 'ru_nave' && e.exit === 'reliquary')!.needs).toEqual(['double_jump']);
+    expect(graph.edges.find((e) => e.from === 'ru_nave' && e.exit === 'cistern')!.requires).toBe('broken:ru_nave_crack');
+  });
+
+  it('every zone joins the next by the east door of its arena, which works only once the guardian has fallen', () => {
+    const joins: Array<[string, string, string]> = [
+      ['r4_sanctum', 'ru_nave', 'defeated:r4_boss'],
+      ['rt_arena', 'mr_edge', 'defeated:rt_boss'],
+      ['mr_lair', 'mn_gate', 'defeated:mr_boss'],
+      ['mn_arena', 'sp_foot', 'defeated:mn_boss'],
+      ['sp_arena', 'fd_gate', 'defeated:sp_boss'],
+      ['fd_arena', 'ih_threshold', 'defeated:fd_boss'],
+      ['ih_arena', 'ih_end', 'defeated:ih_boss'],
+    ];
+    for (const [from, to, flag] of joins) {
+      const e = graph.edges.find((x) => x.from === from && x.to.room === to)!;
+      expect(e, `${from} → ${to}`).toBeDefined();
+      expect(e.requires, from).toBe(flag);
+    }
   });
 });
 
@@ -135,7 +199,7 @@ describe('what the first room asks of the player', () => {
     expect(r1.gates![0]!.openWhen).toBe('defeated:r1_slime');
     expect(graph.edges.find((e) => e.from === 'r1_gate')!.requires).toBe('defeated:r1_slime');
     // so, with no flags, the paper player is stuck in R1; with the slime beaten, the world opens
-    expect(analyzeProgression(graph, ROOMS).order).toHaveLength(4);
+    expect(analyzeProgression(graph, ROOMS).order).toHaveLength(64);
     const shut = { ...ROOMS, r1_gate: { ...r1, spawns: [{ ...r1.spawns![0]!, defeatFlag: undefined }] } };
     // (without a defeat flag nothing sets the one the exit requires: the validator says so)
     expect(validateWorld(WORLD, shut as typeof ROOMS, { player }).map((i) => i.code)).toEqual(expect.arrayContaining(['flag-ungranted', 'room-unreachable']));
@@ -145,8 +209,21 @@ describe('what the first room asks of the player', () => {
 describe('the shrines (checkpoints)', () => {
   const shrines = WORLD.rooms.flatMap((id) => (ROOMS[id]!.interactables ?? []).filter((i) => i.kind === 'rest').map((i) => ({ room: id, shrine: i })));
 
-  it('R2 has one (the first place to rest after R1) and R4 has one (the last place before the arena); R1 and R3 have none', () => {
-    expect(shrines.map((s) => s.room)).toEqual(['r2_hall', 'r4_sanctum']);
+  it('there are fifteen, in the places the design gives them: R2 (the first place to rest after R1) and R4 (the last before the Warden), then two in each zone — one early, one before the arena — and a last one in the Rest', () => {
+    expect(shrines.map((s) => s.room)).toEqual([
+      'r2_hall', 'r4_sanctum', 'rt_cellar', 'rt_gallery', 'mr_shrine', 'mr_approach', 'mn_camp', 'mn_approach', 'sp_shrine', 'sp_approach', 'fd_workshop', 'fd_control', 'ih_shrine', 'ih_approach', 'ih_end',
+    ]);
+  });
+
+  it('along the road from the first room to the end there is a place to rest every four to eight rooms: never more than seven rooms between two, and the arena of every guardian has one behind it, in the room before', () => {
+    const at = SPINE.map((id, i) => ({ id, i })).filter(({ id }) => shrines.some((s) => s.room === id)).map(({ i }) => i);
+    expect(at[0]).toBeLessThanOrEqual(2);
+    for (let k = 0; k + 1 < at.length; k++) expect(at[k + 1]! - at[k]!, `${SPINE[at[k]!]} → ${SPINE[at[k + 1]!]}`).toBeLessThanOrEqual(8);
+    expect(SPINE.length - 1 - at[at.length - 1]!, 'and the last room has one').toBe(0);
+    for (const arena of ['r4_sanctum', 'rt_arena', 'mr_lair', 'mn_arena', 'sp_arena', 'fd_arena', 'ih_arena']) {
+      const before = SPINE[SPINE.indexOf(arena) - 1]!;
+      expect(shrines.some((s) => s.room === before) || arena === 'r4_sanctum', `a shrine in ${before}, before ${arena}`).toBe(true);
+    }
   });
 
   it('each one rests at an entry of its own room that is beside it, and that is not inside an exit', () => {
@@ -168,10 +245,9 @@ describe('the shrines (checkpoints)', () => {
 });
 
 describe('the hazards', () => {
-  it('R2 has one strip of spikes on the floor of its ditch — the price of the low road — and no other room of the world has any', () => {
-    const found = WORLD.rooms.flatMap((id) => (ROOMS[id]!.hazards ?? []).map((h) => `${id}/${h.id}`));
-    expect(found).toEqual(['r2_hall/spikes_ditch']);
+  it('R2 has its strip of spikes on the floor of its ditch — the price of the low road — and it is placed and sized as the slice put it', () => {
     const r2 = ROOMS.r2_hall!;
+    expect(r2.hazards!.map((h) => h.id)).toEqual(['spikes_ditch']);
     const strip = r2.hazards![0]!.rect;
     const floor = r2.solids.find((s) => s.id === 'g_low')!.rect;
     expect(strip.y0, 'standing on the floor of the ditch').toBeCloseTo(floor.y1, 6);
@@ -186,9 +262,16 @@ describe('the hazards', () => {
     expect(strip.rect.y1 - strip.rect.y0, 'low enough for a hop').toBeLessThanOrEqual(0.8);
   });
 
+  it('the rooms past the slice use spikes too — in a dozen of them — and every one is a strip of spikes', () => {
+    const withSpikes = WORLD.rooms.filter((id) => (ROOMS[id]!.hazards ?? []).length > 0);
+    expect(withSpikes.length).toBeGreaterThanOrEqual(10);
+    for (const id of withSpikes) for (const h of ROOMS[id]!.hazards!) expect(h.kind, `${id}/${h.id}`).toBe('spikes');
+  });
+
   it('the hero never starts, arrives or comes back from a defeat inside it (every entry of every room is clear of every hazard)', () => {
     expect(validateWorld(WORLD, ROOMS, { player })).toEqual([]);
-    for (const id of WORLD.rooms) expect(validateRoom(ROOMS[id]!, { enemies: ENEMIES, player }).map((i) => i.code).filter((c) => c.includes('hazard')), id).toEqual([]);
+    const refs = { enemies: ENEMIES, bosses: BOSSES, abilities: new Set(ABILITIES.map((a) => a.id)), player, externalFlags: worldGrantedFlags(WORLD, ROOMS) };
+    for (const id of WORLD.rooms) expect(validateRoom(ROOMS[id]!, refs).map((i) => i.code).filter((c) => c.includes('hazard')), id).toEqual([]);
   });
 });
 
@@ -299,14 +382,16 @@ describe('the Spirit Bolt and its seal (S28)', () => {
 
   it('on paper: the card comes before the seal and the way to R4 opens only through it — both flags are collected, in that order, and the world is whole', () => {
     const p = analyzeProgression(graph, ROOMS);
-    expect(p.order).toEqual(['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum']);
+    expect(p.order.slice(0, 4)).toEqual(['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum']);
     expect(p.flags.has('taken:card_spirit_bolt')).toBe(true);
     expect(p.flags.has('broken:r3_seal')).toBe(true);
     expect(validateWorld(WORLD, ROOMS, { player })).toEqual([]);
     // take the card out of the world and R4 is out of reach, which is exactly what the validator is for
     const noCard = { ...ROOMS, r3_chamber: { ...R3, interactables: [] } };
     const stuck = analyzeProgression(buildWorldGraph(WORLD, noCard as typeof ROOMS), noCard as typeof ROOMS);
-    expect(stuck.unreachable).toEqual(['r4_sanctum']);
+    expect(stuck.unreachable, 'R4 and everything past it').toHaveLength(61);
+    expect(stuck.unreachable).toContain('r4_sanctum');
+    expect(stuck.unreachable).toContain('ih_end');
     expect(validateWorld(WORLD, noCard as typeof ROOMS, { player }).map((i) => i.code)).toEqual(expect.arrayContaining(['room-unreachable']));
   });
 });
@@ -317,9 +402,10 @@ describe('the Ink Warden and its arena (S29)', () => {
   const W = INK_WARDEN;
   const solid = (id: string) => R4.solids.find((x) => x.id === id)!.rect;
 
-  it('there is one boss in the world and it is in R4: the guardian of the sanctum, standing on the floor inside its arena', () => {
+  it('there are seven bosses in the world and the first is the one in R4: the guardian of the sanctum, standing on the floor inside its arena', () => {
     const found = WORLD.rooms.flatMap((id) => (ROOMS[id]!.bosses ?? []).map((b) => `${id}/${b.id}`));
-    expect(found).toEqual(['r4_sanctum/warden']);
+    expect(found).toEqual(['r4_sanctum/warden', 'rt_arena/tyrant', 'mr_lair/matriarch', 'mn_arena/colossus', 'sp_arena/bell_warden', 'fd_arena/engine', 'ih_arena/sovereign']);
+    expect(new Set(WORLD.rooms.flatMap((id) => (ROOMS[id]!.bosses ?? []).map((b) => b.guardian))).size, 'seven different guardians').toBe(7);
     expect(BOSSES[boss.guardian]).toBe(W);
     expect(boss.x).toBeGreaterThan(boss.arena.x0);
     expect(boss.x).toBeLessThan(boss.arena.x1);
@@ -345,15 +431,17 @@ describe('the Ink Warden and its arena (S29)', () => {
     expect(boss.fightFlag.startsWith('~'), 'volatile: no save keeps it').toBe(true);
   });
 
-  it('the hero is never in the arena by arriving or resting: both entries and the shrine are in the vestibule, west of the west door', () => {
-    for (const e of R4.entries) expect(e.x, e.id).toBeLessThan(solid('door_w').x0);
+  it('the hero is never in the arena by arriving or resting: the entries from the west and from the shrine, and the shrine, are in the vestibule, west of the west door; the one from the Nave is in the reward chamber, east of the east door', () => {
+    for (const e of R4.entries.filter((n) => n.id !== 'east')) expect(e.x, e.id).toBeLessThan(solid('door_w').x0);
+    expect(R4.entries.find((n) => n.id === 'east')!.x).toBeGreaterThan(solid('door_e').x1);
     const shrine = R4.interactables!.find((i) => i.kind === 'rest')!;
     expect(shrine.x).toBeLessThan(solid('door_w').x0);
     expect(R4.exits!.find((x) => x.id === 'west')!.rect.x1).toBeLessThan(solid('door_w').x0);
   });
 
-  it('what waits for the Warden: the way out of the world, the reward (it is not there before), and the camera, which lets go of the arena', () => {
-    expect(R4.exits!.find((x) => x.id === 'east')).toMatchObject({ end: true, requires: boss.defeatFlag });
+  it('what waits for the Warden: the way on, to the Collapsed Nave and the rest of the world, the reward (it is not there before), and the camera, which lets go of the arena', () => {
+    expect(R4.exits!.find((x) => x.id === 'east')).toMatchObject({ to: { room: 'ru_nave', entry: 'west' }, requires: boss.defeatFlag });
+    expect(R4.exits!.find((x) => x.id === 'east')!.end).toBeUndefined();
     const reward = R4.interactables!.find((i) => i.id === 'reward_air_dash')!;
     expect(reward.whenSet).toBe(boss.defeatFlag);
     expect(reward.x, 'in the chamber beyond the east door').toBeGreaterThan(solid('door_e').x1);
@@ -386,14 +474,14 @@ describe('the Ink Warden and its arena (S29)', () => {
     for (const [lang, catalog] of Object.entries(CATALOGS)) expect(catalog[W.nameKey], lang).toBeTruthy();
   });
 
-  it('on paper: reaching R4 is enough to beat it, and then the end of the world opens; the world is whole with the boss in it', () => {
+  it('on paper: reaching R4 is enough to beat it, and then the rest of the world opens; the world is whole with the boss in it', () => {
     const p = analyzeProgression(graph, ROOMS);
     expect(p.flags.has('defeated:r4_boss')).toBe(true);
     expect(p.flags.has('taken:air_dash')).toBe(true);
     expect(validateWorld(WORLD, ROOMS, { player })).toEqual([]);
   });
 
-  it('take the Warden out of R4 and the way out of the world cannot open: the validator says it waits for a flag nothing sets', () => {
+  it('take the Warden out of R4 and the way on cannot open: the validator says it waits for a flag nothing sets', () => {
     const noBoss = { ...ROOMS, r4_sanctum: { ...R4, bosses: [] } } as typeof ROOMS;
     const p = analyzeProgression(buildWorldGraph(WORLD, noBoss), noBoss);
     expect(p.flags.has('defeated:r4_boss')).toBe(false);

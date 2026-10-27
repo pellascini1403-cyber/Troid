@@ -47,7 +47,7 @@ describe('the moods the game ships', () => {
   });
 
   it('have a mood for every room of the game, and none for a room that is not', () => {
-    // (the playgrounds of the tools are rooms too, but the world is the four the hero walks through)
+    // (the playgrounds of the tools are rooms too, but the world is the sixty-four the hero walks through)
     for (const id of WORLD.rooms) expect(ROOM_MOODS[id], id).toBeDefined();
     for (const id of Object.keys(ROOM_MOODS)) expect(Object.keys(ROOMS), id).toContain(id);
     expect(moodFor('r4_sanctum')).toBe(ROOM_MOODS['r4_sanctum']);

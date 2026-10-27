@@ -295,7 +295,7 @@ describe('the build runs the same questions on what is about to ship', () => {
 
 /**
  * THE ENVIRONMENT'S ART (docs/ART-PIPELINE-2D.md, part I): a pack of the `environment` category must say what each sprite draws (role, what it is for, which piece), be
- * placed from where its repetition starts, and — as a final pack — have every piece the four rooms of the world ask for. Read from the data of the rooms.
+ * placed from where its repetition starts, and — as a final pack — have every piece the rooms of the world ask for. Read from the data of the rooms.
  */
 describe('environment art', () => {
   const slots = environmentSlots(WORLD.rooms.map((id) => ROOMS[id]!));
@@ -339,7 +339,7 @@ describe('environment art', () => {
     manifest(dropHazard);
     const final = verifyArtFolder(out);
     expect(final.ok).toBe(false);
-    expect(errors(final)).toEqual([expect.stringMatching(/the world asks for the "cell" of hazard "spikes" \(r2_hall\) and the pack does not have it$/)]);
+    expect(errors(final)).toEqual([expect.stringMatching(/the world asks for the "cell" of hazard "spikes" \(r2_hall, ru_cistern[^)]*\) and the pack does not have it$/)]);
     manifest((m) => void (m['status'] = 'provisional'));
     const provisional = verifyArtFolder(out);
     expect(provisional.ok).toBe(true);
