@@ -222,6 +222,9 @@ export class RoomPhysics {
     const wall = has.has('wall_jump');
     for (const dir of [-1, 1] as const) {
       out.push({ name: `walk ${dir}`, uses: [], dir, hold: 0 });
+      // off an edge and let go of the stick: a fall that does not drift all the way to the wall (a shaft with spikes along one face)
+      out.push({ name: `walk ${dir} brief`, uses: [], dir, hold: 0, steerOffAt: 3 });
+      out.push({ name: `walk ${dir} brief 10`, uses: [], dir, hold: 0, steerOffAt: 10 });
       for (const hold of [26, 4]) {
         out.push({ name: `jump ${dir} h${hold}`, uses: [], dir, hold });
         out.push({ name: `jump ${dir} h${hold} steer-off`, uses: [], dir, hold, steerOffAt: 22 });
