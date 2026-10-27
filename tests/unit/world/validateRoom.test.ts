@@ -62,6 +62,15 @@ describe('validateRoom', () => {
     expect(codes(room({ spawns: [{ id: 's1', enemy: 'ink_slime', x: 30, y: 5, defeatFlag: 'defeated:s1' }] }))).toContain('spawn-floating');
   });
 
+  it('a flyer needs nothing under it, and a bat needs a roof over its head: it hangs from something or it is not a bat', () => {
+    const fliers: RoomRefs = { enemies: { wisp: { body: { halfWidth: 0.35, height: 0.7 }, ai: { archetype: 'wisp' } }, cave_bat: { body: { halfWidth: 0.4, height: 0.5 }, ai: { archetype: 'bat' } }, ink_slime: { body: { halfWidth: 0.55, height: 0.9 }, ai: { archetype: 'slime' } } } };
+    const withSpawn = (enemy: string, y: number): RoomDefinition => room({ solids: [ground('g', 0, 60), block('wall_l', -2, -14, 0, 20), block('wall_r', 60, -14, 62, 20), block('roof', 0, 9, 60, 10), block('door', 50, 0, 51.5, 8)], spawns: [{ id: 's1', enemy, x: 30, y, defeatFlag: 'defeated:s1' }] });
+    expect(validateRoom(withSpawn('wisp', 4), fliers)).toEqual([]);
+    expect(validateRoom(withSpawn('cave_bat', 8.5), fliers), 'a bat whose head touches the roof').toEqual([]);
+    expect(validateRoom(withSpawn('cave_bat', 4), fliers).map((i) => i.code), 'a bat in the middle of the air').toContain('spawn-no-roof');
+    expect(validateRoom(withSpawn('ink_slime', 4), fliers).map((i) => i.code), 'a slime does not fly').toContain('spawn-floating');
+  });
+
   it('the enemy\'s own body decides whether it fits: a wider body is buried where a narrow one is not', () => {
     const wide: RoomRefs = { enemies: { ink_slime: { body: { halfWidth: 1.4, height: 0.9 } } } };
     // 48.8 + 1.4 = 50.2 > 50 (the door): buried; the real slime (0.55) would clear it

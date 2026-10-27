@@ -16,8 +16,8 @@ export interface RoomIssue {
 }
 
 export interface RoomRefs {
-  /** The enemy definitions spawns may name (their body sizes are needed to check they fit where they are put). */
-  enemies: Readonly<Record<string, { body: { halfWidth: number; height: number } }>>;
+  /** The enemy definitions spawns may name (their body sizes are needed to check they fit where they are put, and their archetype to know whether they stand on a floor, fly, or hang from a roof). */
+  enemies: Readonly<Record<string, { body: { halfWidth: number; height: number }; ai?: { archetype: string } }>>;
   /** Flags that something outside the room sets (a pickup in another room): a gate may open with them. */
   externalFlags?: ReadonlySet<string>;
   /** The player's standing body (default 0.35 × 1.7 m). */
@@ -32,6 +32,10 @@ export interface RoomRefs {
 }
 
 const SUPPORT_TOLERANCE = 0.05;
+/** The archetypes that fly: nothing has to be under them. A bat is one of them and hangs from a roof, so it has to have one over its head. */
+const AIRBORNE = new Set(['bat', 'wisp', 'piston']);
+/** How far above a bat's head the roof it hangs from may be, metres. */
+const PERCH_REACH = 0.6;
 /** Flags that begin with this are volatile — a door that closed for a fight — and no save keeps them (the same prefix `gameplay/progress.ts` filters on). */
 const VOLATILE = '~';
 /** How far, in metres, the entry a shrine rests at may be from the shrine itself. */
@@ -76,6 +80,9 @@ export function validateRoom(room: RoomDefinition, refs: RoomRefs): RoomIssue[] 
   /** Is there floor (a solid or a one-way top) right under the feet? */
   const supported = (x: number, y: number, halfWidth: number): boolean =>
     room.solids.some((s) => s.rect.x0 < x + halfWidth - 0.01 && s.rect.x1 > x - halfWidth + 0.01 && Math.abs(s.rect.y1 - y) <= SUPPORT_TOLERANCE);
+  /** Is there a solid just over this point (the head of something that hangs)? */
+  const roofAbove = (x: number, headY: number, halfWidth: number): boolean =>
+    solids.some((sd) => sd.rect.x0 < x + halfWidth && sd.rect.x1 > x - halfWidth && sd.rect.y0 >= headY - SUPPORT_TOLERANCE && sd.rect.y0 <= headY + PERCH_REACH);
   /** The player's standing body at (x, y), slightly shrunk so touching an edge is not being inside. */
   const bodyAt = (x: number, y: number): Rect => ({ x0: x - player.halfWidth + 1e-6, x1: x + player.halfWidth - 1e-6, y0: y + 1e-6, y1: y + player.height - 1e-6 });
   const inBounds = (x: number, y: number): boolean => x >= room.bounds.x0 && x <= room.bounds.x1 && y >= room.bounds.y0 && y <= room.bounds.y1;
@@ -95,7 +102,8 @@ export function validateRoom(room: RoomDefinition, refs: RoomRefs): RoomIssue[] 
     }
     if (!inBounds(sp.x, sp.y)) add('spawn-outside', `spawn "${sp.id}" is outside the room bounds`);
     else if (buried(sp.x, sp.y, def.body.halfWidth, def.body.height)) add('spawn-buried', `spawn "${sp.id}" puts "${sp.enemy}" inside a wall`);
-    else if (!supported(sp.x, sp.y, def.body.halfWidth)) add('spawn-floating', `spawn "${sp.id}" has no floor under "${sp.enemy}"`);
+    else if (!AIRBORNE.has(def.ai?.archetype ?? '') && !supported(sp.x, sp.y, def.body.halfWidth)) add('spawn-floating', `spawn "${sp.id}" has no floor under "${sp.enemy}"`);
+    else if (def.ai?.archetype === 'bat' && !roofAbove(sp.x, sp.y + def.body.height, def.body.halfWidth)) add('spawn-no-roof', `spawn "${sp.id}" hangs "${sp.enemy}" from nothing: no roof within ${PERCH_REACH} m over its head`);
     if (sp.defeatFlag !== undefined) {
       if (sp.defeatFlag === '') add('empty-flag', `spawn "${sp.id}" has an empty defeat flag`);
       gateFlags.add(sp.defeatFlag);

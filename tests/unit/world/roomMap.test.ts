@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ENEMIES } from '@/content/enemies';
 import { PLAYER } from '@/content/player';
-import { mapRoom, pictureOf, RoomMap } from '@/world/roomMap';
+import { mapRoom, pictureOf, RoomCanvas, RoomMap } from '@/world/roomMap';
 import { validateRoom } from '@/world/validateRoom';
 
 /**
@@ -176,5 +176,35 @@ describe('a room made from a picture', () => {
     expect(back[6]!.slice(10, 12)).toBe('--');
     expect(back[9]!).toBe('G'.repeat(24));
     expect(back[10]!).toBe('#'.repeat(24));
+  });
+});
+
+describe('the canvas paints a picture by its place in metres', () => {
+  it('counts from the left and from the BOTTOM, the numbers the game uses: a floor whose top is y = 2 has its earth in the square below that', () => {
+    const c = new RoomCanvas('t', 12, 8).walls().ground(1, 11, 2).mark('a', 3, 2);
+    const rows = c.rows();
+    expect(rows).toHaveLength(8);
+    expect(rows[0]).toBe('#'.repeat(12));
+    expect(rows[6]).toBe('#' + 'G'.repeat(10) + '#'); // y = 1 … 2
+    expect(rows[5]).toBe('#..a' + '.'.repeat(7) + '#'); // y = 2 … 3: the mark stands on the floor
+    expect(rows[7]).toBe('#'.repeat(12));
+    expect(new RoomMap('t', { rows }).at('a')).toMatchObject({ x: 3.5, y: 2 });
+  });
+
+  it('platforms have their top at y, spikes stand on a top at y, a pit takes the floor away all the way down, and a stroke paints over what was there', () => {
+    const c = new RoomCanvas('t', 20, 10).walls().ground(1, 19, 2).pit(8, 11).plat(12, 16, 5).spikes(3, 6, 2).rock(16, 2, 19, 5).air(17, 2, 18, 4);
+    const m = new RoomMap('t', { rows: c.rows() });
+    expect(m.solids.find((s) => s.kind === 'oneway')!.rect).toMatchObject({ x0: 12, x1: 16, y1: 5 });
+    expect(m.hazards[0]!.rect).toMatchObject({ x0: 3, x1: 6, y0: 2 });
+    expect(c.rows()[9]).toBe('########...#########'); // the bedrock is the bottom row, with the pit cut through it: a hero who falls in has nothing under them
+    expect(c.rows()[7]![17]).toBe('.'); // and the last stroke carved the hollow in the block
+  });
+
+  it('a stroke outside the canvas, or not in whole squares, is an error that names the room', () => {
+    const c = new RoomCanvas('lab_x', 10, 10);
+    expect(() => c.rock(0, 0, 11, 1)).toThrow(/\[lab_x\].*outside the canvas/);
+    expect(() => c.rock(0, 0, 1.5, 1)).toThrow(/\[lab_x\]/);
+    expect(() => c.rock(3, 0, 1, 1)).toThrow(/\[lab_x\]/);
+    expect(() => new RoomCanvas('lab_x', 2, 2)).toThrow(/\[lab_x\]/);
   });
 });

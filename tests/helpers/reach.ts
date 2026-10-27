@@ -184,8 +184,8 @@ export class RoomPhysics {
     return null;
   }
 
-  /** The points to take off from along a surface: both ends, a regular spacing, and under the edges of what is above and beside it. */
-  takeoffs(s: Surface): number[] {
+  /** The points to take off from along a surface: both ends, a regular spacing (unless `dense`: the ends only), and under the edges of what is above and beside it. */
+  takeoffs(s: Surface, dense = false): number[] {
     const out = new Map<number, number>();
     const add = (x: number): void => {
       const c = Math.min(s.x1, Math.max(s.x0, x));
@@ -193,7 +193,7 @@ export class RoomPhysics {
     };
     add(s.x0);
     add(s.x1);
-    for (let x = s.x0; x <= s.x1; x += 1.25) add(x);
+    if (!dense) for (let x = s.x0; x <= s.x1; x += 1.25) add(x);
     for (const o of this.surfaces) {
       if (o === s) continue;
       const dy = o.y - s.y;
@@ -253,6 +253,35 @@ export class RoomPhysics {
       out.push({ name: 'up again@24', uses: ['double_jump'], dir: 0, hold: 26, again: 24 });
     }
     return out.filter((s) => s.uses.every((a) => a === 'dash' || a === 'air_dash' || has.has(a)));
+  }
+
+  /**
+   * The scripts of a hero who has practised: every moment of the jump for the dash, for the second jump and for the dash in the air, not the few a careful person tries first. They are how a GATE is proved to hold — if the lacking
+   * ability cannot get there even with these, the gate is one — and they are slow (a thousand scripts a take-off), so they are tried from the ends of a ledge and under the edges of what is above it, not along it.
+   * (Found by brute force, the farthest a flat gap is crossed: the dash alone 10 m, with the air dash 13, with the Double Jump 16, with both 19; the highest ledge: 3 m, and 5 with the Double Jump.)
+   */
+  static denseScripts(has: ReadonlySet<string>): Script[] {
+    const out: Script[] = [];
+    const dash = has.has('dash');
+    const airDash = dash && has.has('air_dash');
+    const dbl = has.has('double_jump');
+    for (const dir of [-1, 1] as const) {
+      for (const hold of [26, 18, 10, 4]) {
+        if (dash) {
+          for (let d = 0; d <= 60; d += 4) {
+            out.push({ name: `jump ${dir} h${hold} d${d}`, uses: ['dash'], dir, hold, dash: [d] });
+            if (airDash) for (let d2 = d + 14; d2 <= 72; d2 += 6) out.push({ name: `jump ${dir} h${hold} d${d} d${d2}`, uses: ['dash', 'air_dash'], dir, hold, dash: [d, d2] });
+          }
+        }
+        if (dbl) {
+          for (let a = 8; a <= 44; a += 4) {
+            out.push({ name: `jump ${dir} h${hold} a${a}`, uses: ['double_jump'], dir, hold, again: a });
+            if (dash) for (let d = 0; d <= 72; d += 8) if (Math.abs(d - a) > 3) out.push({ name: `jump ${dir} h${hold} a${a} d${d}`, uses: ['double_jump', 'dash'], dir, hold, again: a, dash: [d] });
+          }
+        }
+      }
+    }
+    return out;
   }
 
   private setAbilities(has: ReadonlySet<string>): void {
@@ -368,14 +397,14 @@ export class RoomPhysics {
   // ------------------------------------------------------------------------------------------------ the search
 
   /** Every place the hero can come to from the surface they start on, with the abilities `has`. `stopWhen` ends the search early (everything asked for was found). */
-  reachFrom(start: Surface, has: ReadonlySet<string>, stopWhen?: (reached: ReadonlySet<number>) => boolean): Reach {
-    const scripts = RoomPhysics.scripts(has);
+  reachFrom(start: Surface, has: ReadonlySet<string>, stopWhen?: (reached: ReadonlySet<number>) => boolean, opts: { dense?: boolean } = {}): Reach {
+    const scripts = opts.dense ? [...RoomPhysics.scripts(has), ...RoomPhysics.denseScripts(has)] : RoomPhysics.scripts(has);
     const reached = new Set<number>([start.index]);
     const hops: Hop[] = [];
     const queue = [start.index];
     for (let q = 0; q < queue.length; q++) {
       const s = this.surfaces[queue[q]!]!;
-      for (const x of this.takeoffs(s)) {
+      for (const x of this.takeoffs(s, opts.dense)) {
         for (const script of scripts) {
           if (script.down && !s.oneway) continue;
           const r = this.trial(s, x, script, has);

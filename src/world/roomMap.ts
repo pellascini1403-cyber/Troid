@@ -60,6 +60,97 @@ const SOLID_CHARS = new Set(['#', 'G']);
 const isMark = (c: string): boolean => /^[a-z0-9]$/.test(c);
 const isRegion = (c: string): boolean => /^[A-Z]$/.test(c) && c !== 'G';
 
+/**
+ * THE CANVAS: the way a picture is MADE. A room of sixty columns written as sixty letters a row is a room whose every row has to be counted; here the squares are painted by their place in metres — from the left, from the BOTTOM,
+ * the same numbers the game uses (`y = 6` is a floor six metres up) — and what comes out is the same picture (`rows()`), which `RoomMap` reads. A square at (x, y) spans x … x + 1, y … y + 1. A stroke outside the canvas is an
+ * error naming the room.
+ */
+export class RoomCanvas {
+  private readonly cells: string[][];
+
+  constructor(
+    readonly roomId: string,
+    readonly width: number,
+    readonly height: number,
+  ) {
+    if (!Number.isInteger(width) || !Number.isInteger(height) || width < 4 || height < 4) throw new Error(`[${roomId}] a canvas of ${width} × ${height} squares`);
+    this.cells = Array.from({ length: height }, () => Array.from({ length: width }, () => '.'));
+  }
+
+  /** Paints every square of x0 … x1 × y0 … y1 (the far edges excluded) with `ch`. */
+  fill(x0: number, y0: number, x1: number, y1: number, ch: string): this {
+    if (!Number.isInteger(x0) || !Number.isInteger(y0) || !Number.isInteger(x1) || !Number.isInteger(y1) || x0 > x1 || y0 > y1) throw new Error(`[${this.roomId}] a stroke ${x0},${y0} → ${x1},${y1} that is not whole squares in order`);
+    if (x0 < 0 || y0 < 0 || x1 > this.width || y1 > this.height) throw new Error(`[${this.roomId}] a stroke ${x0},${y0} → ${x1},${y1} outside the canvas (${this.width} × ${this.height})`);
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) this.cells[this.height - 1 - y]![x] = ch;
+    return this;
+  }
+
+  /** Stone. */
+  rock(x0: number, y0: number, x1: number, y1: number): this {
+    return this.fill(x0, y0, x1, y1, '#');
+  }
+
+  /** Earth ground. */
+  earth(x0: number, y0: number, x1: number, y1: number): this {
+    return this.fill(x0, y0, x1, y1, 'G');
+  }
+
+  /** Air: carves out what was painted. */
+  air(x0: number, y0: number, x1: number, y1: number): this {
+    return this.fill(x0, y0, x1, y1, '.');
+  }
+
+  /** The border of the room: a wall on each side, a roof and a bedrock floor. */
+  walls(): this {
+    return this.rock(0, 0, 1, this.height).rock(this.width - 1, 0, this.width, this.height).rock(0, this.height - 1, this.width, this.height).rock(0, 0, this.width, 1);
+  }
+
+  /** A floor from x0 to x1 whose top is at `top`: earth on top of stone down to the bottom of the canvas. */
+  ground(x0: number, x1: number, top = 2): this {
+    return this.rock(x0, 0, x1, top - 1).earth(x0, top - 1, x1, top);
+  }
+
+  /** A pit: the floor taken away from x0 to x1, all the way down. */
+  pit(x0: number, x1: number): this {
+    return this.air(x0, 0, x1, this.height - 1);
+  }
+
+  /** A jump-through platform whose TOP is at y, from x0 to x1. */
+  plat(x0: number, x1: number, y: number): this {
+    return this.fill(x0, y - 1, x1, y, '-');
+  }
+
+  /** A strip of spikes standing on whatever has its top at y. */
+  spikes(x0: number, x1: number, y: number): this {
+    return this.fill(x0, y, x1, y + 1, '^');
+  }
+
+  /** A named region (a capital letter the room's `regions` table describes): one filled rectangle. */
+  region(ch: string, x0: number, y0: number, x1: number, y1: number): this {
+    return this.fill(x0, y0, x1, y1, ch);
+  }
+
+  /** A mark: the feet of someone standing at (x, y) — on a floor whose top is y. */
+  mark(ch: string, x: number, y: number): this {
+    return this.fill(x, y, x + 1, y + 1, ch);
+  }
+
+  /** Marks of the same letter along a row: `from`, `from + step`… up to (and including) `to`. */
+  marks(ch: string, from: number, to: number, y: number, step = 1): this {
+    for (let x = from; x <= to; x += step) this.mark(ch, x, y);
+    return this;
+  }
+
+  /** The picture, from the top row to the bottom one. */
+  rows(): string[] {
+    return this.cells.map((r) => r.join(''));
+  }
+
+  toString(): string {
+    return this.rows().join('\n');
+  }
+}
+
 export class RoomMap {
   readonly width: number;
   readonly height: number;
@@ -254,11 +345,15 @@ export class RoomMap {
     return { id, rect: r, to, ...(opts.requires ? { requires: opts.requires } : {}), ...(opts.end ? { end: true } : {}) };
   }
 
-  /** A way out through the roof or the floor: a zone of `width` metres centred on the mark, at the top (`north`) or the bottom (`south`) of the picture. */
-  exitShaft(id: string, side: 'north' | 'south', mark: string, to: Destination, opts: { width?: number; requires?: string } = {}): ExitDef {
+  /**
+   * A way out through the roof or the floor: a zone of `width` metres centred on the mark, `depth` metres deep, at the top (`north`) or the bottom (`south`) of the picture. A hole in a floor wants a shallow zone (`depth` 1: a hero who
+   * stands on its lip, feet two metres up, does not touch it; one who falls in does).
+   */
+  exitShaft(id: string, side: 'north' | 'south', mark: string, to: Destination, opts: { width?: number; depth?: number; requires?: string } = {}): ExitDef {
     const m = this.at(mark);
     const w = (opts.width ?? 4) / 2;
-    const r = side === 'north' ? rect(m.x - w, this.height - 3, m.x + w, this.height - 0.5) : rect(m.x - w, 0.5, m.x + w, 3);
+    const d = opts.depth ?? 2.5;
+    const r = side === 'north' ? rect(m.x - w, this.height - 0.5 - d, m.x + w, this.height - 0.5) : rect(m.x - w, 0.5, m.x + w, 0.5 + d);
     return { id, rect: r, to, ...(opts.requires ? { requires: opts.requires } : {}) };
   }
 
