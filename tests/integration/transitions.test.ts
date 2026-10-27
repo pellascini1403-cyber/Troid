@@ -600,4 +600,53 @@ describe('synthetic: any two rooms can be connected', () => {
     expect(d.body.x).toBeCloseTo(30, 6);
     expect(d.p.facing).toBe(-1);
   });
+
+  it('a way on to a room that has not arrived yet (the world after the Sanctum is a chunk of its own) does nothing — until the host arms it again', () => {
+    const a = hall('a', [{ id: 'in', x: 4, y: 0, facing: 1 }], [{ id: 'door', rect: rect(36, 0, 39, 4), to: { room: 'b', entry: 'near' } }]);
+    const b = hall('b', [{ id: 'near', x: 4, y: 0, facing: 1 }], []);
+    const rooms: Record<string, RoomDefinition> = { a };
+    const s = makeSession({ room: a, extra: { rooms } });
+    const d = new (driver({ room: a }).constructor as typeof Driver)(s);
+    d.settle();
+    const reached: string[] = [];
+    s.bus.on('exit:reached', (e) => reached.push(e.exitId));
+    d.teleport(37.5, 0);
+    d.step(5);
+    // the hero touched the way on: the session says so, and has nowhere to take them yet
+    expect(reached).toEqual(['door']);
+    expect(s.transition.active).toBe(false);
+    expect(s.room.id).toBe('a');
+    // the touch is spent: standing in the zone is not touching it again
+    d.step(60);
+    expect(s.transition.active).toBe(false);
+    expect(reached).toEqual(['door']);
+    // the room arrives — the registry is the one object everybody reads — and the host arms the way again: the hero who still stands there goes through, once
+    rooms.b = b;
+    s.rearmExit('door');
+    d.step(1);
+    expect(s.transition.active).toBe(true);
+    d.until(() => !s.transition.active, 60);
+    expect(s.room.id).toBe('b');
+    expect(d.body.x).toBeCloseTo(4, 6);
+    expect(reached).toEqual(['door', 'door']);
+  });
+
+  it('arming a way that was never touched changes nothing (the host arms every exit it saw reach a room it did not have, whether or not the hero is still there)', () => {
+    const a = hall('a', [{ id: 'in', x: 4, y: 0, facing: 1 }], [{ id: 'door', rect: rect(36, 0, 39, 4), to: { room: 'b', entry: 'near' } }]);
+    const b = hall('b', [{ id: 'near', x: 4, y: 0, facing: 1 }], []);
+    const s = makeSession({ room: a, extra: { rooms: { a, b } } });
+    const d = new (driver({ room: a }).constructor as typeof Driver)(s);
+    d.settle();
+    s.rearmExit('door');
+    s.rearmExit('no-such-exit');
+    d.step(30);
+    expect(s.transition.active).toBe(false);
+    expect(s.room.id).toBe('a');
+    // and a hero who has already gone away from the zone when it is armed is not pulled through it
+    d.teleport(10, 0);
+    d.step(30);
+    s.rearmExit('door');
+    d.step(30);
+    expect(s.room.id).toBe('a');
+  });
 });
