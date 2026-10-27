@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { BOSSES, ROOMS, WORLD } from '@/content';
 import { LAND_SILENCE, namedSounds, soundsFor, STINGER_RANK, STINGERS, SURFACES, UI_SOUNDS } from '@/audio/soundMap';
 import { BOSS_MUSIC, SILENT_ZONE, ZONES, zoneOf } from '@/audio/zoneAudio';
 import { AUDIO_CUES, type AudioCueEvent, type AudioCueId } from '@/presentation/audioCues';
@@ -154,8 +155,8 @@ describe('which sound is for which moment', () => {
 });
 
 describe('the sound of each place', () => {
-  it('has a place for each room of the first slice, and silence for any other', () => {
-    expect(Object.keys(ZONES).sort()).toEqual(['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum']);
+  it('has a place for each room of the world — sixty-four of them — and silence for any other', () => {
+    expect(Object.keys(ZONES).sort()).toEqual([...WORLD.rooms].sort());
     expect(zoneOf('movement_test')).toBe(SILENT_ZONE);
     expect(SILENT_ZONE.track).toBeNull();
     expect(SILENT_ZONE.bed).toBeNull();
@@ -176,9 +177,23 @@ describe('the sound of each place', () => {
     expect(zoneOf('r4_sanctum').surface).toBe('stone');
   });
 
-  it('gives the sanctum the boss\'s sounds to hold while the hero is in it, and nothing else holds them', () => {
-    expect(zoneOf('r4_sanctum').groups).toContain('boss');
-    for (const [id, z] of Object.entries(ZONES)) if (id !== 'r4_sanctum') expect(z.groups ?? [], id).not.toContain('boss');
+  it('gives each guardian\'s arena the boss\'s sounds to hold while the hero is in it — the Sanctum and the five arenas after it — and nothing else holds them', () => {
+    const arenas = WORLD.rooms.filter((id) => (ROOMS[id]!.bosses ?? []).length > 0);
+    expect(arenas).toEqual(['r4_sanctum', 'rt_arena', 'mr_lair', 'mn_arena', 'sp_arena', 'fd_arena', 'ih_arena']);
+    for (const id of arenas) expect(zoneOf(id).groups, id).toContain('boss');
+    for (const [id, z] of Object.entries(ZONES)) if (!arenas.includes(id)) expect(z.groups ?? [], id).not.toContain('boss');
+  });
+
+  it('every room has the sound of its zone — the music does not restart at a door inside a zone — and no room past the Sanctum is silent', () => {
+    for (const id of WORLD.rooms) {
+      expect(zoneOf(id), id).not.toBe(SILENT_ZONE);
+      expect(zoneOf(id).track, id).not.toBeNull();
+      expect(zoneOf(id).bed, id).not.toBeNull();
+    }
+    const trackOf = (prefix: string): Set<string | null> => new Set(WORLD.rooms.filter((id) => id.startsWith(prefix)).map((id) => zoneOf(id).track));
+    for (const prefix of ['rt_', 'mr_', 'mn_', 'sp_', 'fd_']) expect(trackOf(prefix).size, `${prefix}: one piece of music for the zone`).toBe(1);
+    // and the guardians fight to a piece that exists
+    for (const def of Object.values(BOSSES)) expect(BOSS_MUSIC[def.id], def.id).toBe('warden');
   });
 
   it('makes sense of every small sound of every place: a wait that is a real range, a chance, a distance, a level that is a whisper', () => {
