@@ -38,7 +38,10 @@ export interface Landing {
   hop: Hop;
   x: number;
   y: number;
+  /** The hero came down (was in the air and is on something again). */
   landed: boolean;
+  /** …and came down WHERE the solver's hero did: the same place, to a hair. */
+  matches: boolean;
 }
 
 /** Plays a chain of hops in the session of `d`, one after the other; the hero stands where the last one put them. */
@@ -62,7 +65,7 @@ export function playChain(d: Driver, phys: RoomPhysics, chain: readonly Hop[], h
         break;
       }
     }
-    out.push({ hop, x: d.body.x, y: d.body.y, landed });
+    out.push({ hop, x: d.body.x, y: d.body.y, landed, matches: landed && Math.abs(d.body.x - rec.landX) < 0.05 && Math.abs(d.body.y - rec.landY) < 0.05 });
     // the walk to the next take-off, and the breath a hero takes on the way: what a dash spent in the air has to recover before the next one
     d.stop();
     d.step(WALK_TICKS);

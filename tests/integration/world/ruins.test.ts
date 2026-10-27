@@ -3,7 +3,7 @@ import { RUINS_ROOMS } from '@/content/rooms/ruins';
 import { CATALOGS } from '@/i18n';
 import { abilitySet, RoomPhysics } from '../../helpers/reach';
 import { chainTo, playChain } from '../../helpers/chain';
-import { at, expectSound, log, registry, SLOW } from '../../helpers/zone';
+import { at, bare, expectSound, log, registry, SLOW } from '../../helpers/zone';
 
 // the audit of a zone tries thousands of hops with the real controller: seconds on a quiet machine, many more on a busy one
 vi.setConfig({ testTimeout: SLOW });
@@ -13,6 +13,8 @@ vi.setConfig({ testTimeout: SLOW });
  * what each one asks of the hero is asked for real.
  */
 const ROOMS = registry(RUINS_ROOMS);
+/** The same rooms with nobody in them, for replaying a climb: an enemy that bites in the middle of a hop is not what is asked there. */
+const BARE = registry(RUINS_ROOMS.map(bare));
 const HELD = ['air_dash']; // what the hero has had since the Sanctum
 
 describe('the four rooms', () => {
@@ -95,16 +97,16 @@ describe('the Nave: a hub with a door back, a door on, a hole down and two thing
     expect(reach.surfaces.has(top.index), 'with the Double Jump').toBe(true);
     const chain = chainTo(reach, top.index)!;
     expect(chain.length).toBeGreaterThanOrEqual(4);
-    const d = at(ROOMS, 'ru_nave', 'west', ['dash', 'double_jump']);
+    const d = at(BARE, 'ru_nave', 'west', ['dash', 'double_jump']);
     const landings = playChain(d, phys, chain, has);
-    for (const l of landings) expect(l.landed, `the hop from ${l.hop.from} to ${l.hop.to}`).toBe(true);
+    for (const l of landings) expect(l.matches, `the hop from ${l.hop.from} to ${l.hop.to} comes down where the solver's did`).toBe(true);
     expect(d.body.y).toBeCloseTo(18, 1);
     // up: the hole in the roof takes the hero to the Reliquary
-    d.moveY = 0;
-    d.press('jump');
-    d.step(30);
-    d.release('jump');
-    d.until(() => d.session.room.id === 'ru_reliquary', 160);
+    const up = at(ROOMS, 'ru_nave', 'top', ['dash', 'double_jump']);
+    up.press('jump');
+    up.step(30);
+    up.release('jump');
+    up.until(() => up.session.room.id === 'ru_reliquary', 160);
   });
 });
 

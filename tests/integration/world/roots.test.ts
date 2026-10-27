@@ -5,7 +5,7 @@ import { Boss } from '@/enemies/boss/Boss';
 import { CATALOGS } from '@/i18n';
 import { abilitySet, RoomPhysics } from '../../helpers/reach';
 import { chainTo, playChain } from '../../helpers/chain';
-import { at, expectSound, log, registry, SLOW, through } from '../../helpers/zone';
+import { at, bare, expectSound, log, registry, SLOW, through } from '../../helpers/zone';
 
 // the audit of a zone tries thousands of hops with the real controller: seconds on a quiet machine, many more on a busy one
 vi.setConfig({ testTimeout: SLOW });
@@ -15,6 +15,8 @@ vi.setConfig({ testTimeout: SLOW });
  * climbs, the lever that opens the way home, the split wall with a vessel behind it, and the arena of the Root Tyrant — its doors, its flags, its reward.
  */
 const ROOMS = registry(ROOTS_ROOMS);
+/** The same rooms with nobody in them, for replaying a climb: an enemy that bites in the middle of a hop is not what is asked there. */
+const BARE = registry(ROOTS_ROOMS.map(bare));
 const HELD = ['air_dash']; // what the hero has had since the Sanctum
 
 describe('the nine rooms', () => {
@@ -63,9 +65,9 @@ describe('the Echo Chamber: the Double Jump, and the pit that asks for it', () =
     const reach = phys.reachFrom(west, has);
     expect(reach.surfaces.has(east.index), 'with the Double Jump').toBe(true);
     const chain = chainTo(reach, east.index)!;
-    const d = at(ROOMS, 'rt_echo', 'west', ['dash', 'air_dash', 'double_jump']);
+    const d = at(BARE, 'rt_echo', 'west', ['dash', 'air_dash', 'double_jump']);
     const landings = playChain(d, phys, chain, has);
-    for (const l of landings) expect(l.landed, `the hop from ${l.hop.from} to ${l.hop.to}`).toBe(true);
+    for (const l of landings) expect(l.matches, `the hop from ${l.hop.from} to ${l.hop.to} comes down where the solver's did`).toBe(true);
     expect(d.body.y).toBeCloseTo(6, 1);
     expect(d.body.x).toBeGreaterThan(33);
   });
@@ -170,9 +172,9 @@ describe('the Gallery: a chimney that only the Wall Jump climbs, and the shrine 
     const reach = phys.reachFrom(west, has);
     expect(reach.surfaces.has(ledge.index), 'with the Wall Jump').toBe(true);
     const chain = chainTo(reach, ledge.index)!;
-    const d = at(ROOMS, 'rt_gallery', 'west', ['dash', 'wall_jump']);
+    const d = at(BARE, 'rt_gallery', 'west', ['dash', 'wall_jump']);
     const landings = playChain(d, phys, chain, has);
-    expect(landings.every((l) => l.landed)).toBe(true);
+    expect(landings.every((l) => l.matches), 'every hop comes down where the solver\'s did').toBe(true);
     expect(d.body.y).toBeCloseTo(17, 1);
   });
 

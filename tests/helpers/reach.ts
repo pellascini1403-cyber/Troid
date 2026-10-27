@@ -29,6 +29,8 @@ const TICK = 1 / 60;
 /** How far past the edge of a ledge the centre of the body can be and still stand on it (the ground probe is the body's width less a hair). */
 const OVERHANG = HALF - 0.02;
 const MAX_TICKS = 190;
+/** A climb from wall to wall is long: 2 or 3 m a kick, a kick every half second or so. */
+const MAX_WALL_TICKS = 560;
 const RUN = PLAYER.movement.runSpeed;
 const RUN_ACCEL = PLAYER.movement.groundAccel;
 
@@ -324,7 +326,8 @@ export class RoomPhysics {
     // a second jump is a second PRESS: the first one is let go of before it
     const hold = script.again !== undefined ? Math.min(script.hold, script.again - 1) : script.hold;
     this.trace = [];
-    for (let t = 0; t < MAX_TICKS; t++) {
+    const limit = script.wall ? MAX_WALL_TICKS : MAX_TICKS;
+    for (let t = 0; t < limit; t++) {
       let dir: number = script.dir;
       if (script.steerOffAt !== undefined && t >= script.steerOffAt) dir = 0;
       let wantJump = t < hold;
