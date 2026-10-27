@@ -1,0 +1,143 @@
+{
+  "sceneVersion": 1,
+  "room": "ih_veins",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 42,
+        "y": 1,
+        "w": 82,
+        "h": 1
+      },
+      {
+        "sprite": "mushrooms_a",
+        "x": 16.27,
+        "y": 2,
+        "scale": 1.18,
+        "flip": true
+      },
+      {
+        "sprite": "crystals_b",
+        "x": 29.44,
+        "y": 2,
+        "scale": 1.09,
+        "flip": false
+      },
+      {
+        "sprite": "crystals_b",
+        "x": 40.45,
+        "y": 2,
+        "scale": 0.9,
+        "flip": true
+      },
+      {
+        "sprite": "crystals_b",
+        "x": 49.17,
+        "y": 2,
+        "scale": 1.11,
+        "flip": true
+      },
+      {
+        "sprite": "crystals_b",
+        "x": 53.6,
+        "y": 2,
+        "scale": 1.04,
+        "flip": true
+      },
+      {
+        "sprite": "mushrooms_a",
+        "x": 59.12,
+        "y": 2,
+        "scale": 0.89,
+        "flip": true
+      },
+      {
+        "sprite": "crystals_a",
+        "x": 73.26,
+        "y": 2,
+        "scale": 1.03,
+        "flip": false
+      },
+      {
+        "sprite": "grass_a",
+        "x": 31.94,
+        "y": 14,
+        "scale": 0.9
+      },
+      {
+        "sprite": "grass_a",
+        "x": 40.67,
+        "y": 14,
+        "scale": 0.9
+      },
+      {
+        "sprite": "grass_a",
+        "x": 50.48,
+        "y": 14,
+        "scale": 0.9
+      },
+      {
+        "sprite": "grass_a",
+        "x": 24.18,
+        "y": 10,
+        "scale": 0.9
+      },
+      {
+        "sprite": "grass_a",
+        "x": 62.34,
+        "y": 10,
+        "scale": 0.9
+      },
+      {
+        "sprite": "grass_a",
+        "x": 14.02,
+        "y": 6,
+        "scale": 0.9
+      },
+      {
+        "sprite": "grass_a",
+        "x": 70.1,
+        "y": 6,
+        "scale": 0.9
+      }
+    ],
+    "propsBack": [
+      {
+        "sprite": "effigy_a",
+        "x": 27.86,
+        "y": 2,
+        "scale": 1.09,
+        "flip": false
+      },
+      {
+        "sprite": "effigy_a",
+        "x": 47.48,
+        "y": 2,
+        "scale": 0.99,
+        "flip": true
+      },
+      {
+        "sprite": "effigy_a",
+        "x": 54.9,
+        "y": 2,
+        "scale": 1.14,
+        "flip": true
+      },
+      {
+        "sprite": "column_whole_a",
+        "x": 61.78,
+        "y": 2,
+        "scale": 1.15,
+        "flip": true
+      },
+      {
+        "sprite": "column_whole_a",
+        "x": 29.13,
+        "y": 2,
+        "scale": 1.12,
+        "flip": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "sceneVersion": 1,
+  "room": "fd_arena",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_a",
+        "x": 13.66,
+        "y": 0.6,
+        "flip": true,
+        "scale": 1.05
+      },
+      {
+        "sprite": "arch_grand_a",
+        "x": 39.6,
+        "y": 0.6,
+        "flip": false,
+        "scale": 0.96
+      }
+    ]
+  }
+}

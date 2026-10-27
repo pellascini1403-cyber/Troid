@@ -1,0 +1,15 @@
+{
+  "sceneVersion": 1,
+  "room": "ih_end",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_a",
+        "x": 13.12,
+        "y": 0.6,
+        "flip": false,
+        "scale": 0.95
+      }
+    ]
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "sceneVersion": 1,
+  "room": "ru_archive",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_b",
+        "x": 12.47,
+        "y": 0.6,
+        "flip": true,
+        "scale": 0.92
+      },
+      {
+        "sprite": "arch_grand_b",
+        "x": 35.98,
+        "y": 0.6,
+        "flip": true,
+        "scale": 1
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "fore_leaves_a",
+        "x": 9.29,
+        "y": 17,
+        "flip": true,
+        "scale": 1.3
+      },
+      {
+        "sprite": "fore_leaves_b",
+        "x": 26.78,
+        "y": 16.92,
+        "flip": true,
+        "scale": 1.25
+      },
+      {
+        "sprite": "fore_leaves_c",
+        "x": 45.46,
+        "y": 16.39,
+        "flip": true,
+        "scale": 1.37
+      },
+      {
+        "sprite": "fore_leaves_a",
+        "x": 62.52,
+        "y": 17.12,
+        "flip": true,
+        "scale": 1.07
+      }
+    ]
+  }
+}

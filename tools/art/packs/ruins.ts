@@ -2,6 +2,9 @@ import { R1_SCENES } from '../scenes/r1';
 import { R2_SCENES } from '../scenes/r2';
 import { R3_SCENES } from '../scenes/r3';
 import { R4_SCENES } from '../scenes/r4';
+import { DRESSED_BY_COMPOSER, WORLD_SCENES } from '../scenes/world';
+import { ROOMS, WORLD } from '../../../src/content';
+import { environmentSlots, slotKey } from '../../../src/presentation/environment';
 import { SLIME_EYES, SLIME_SIGIL } from '../painter/slime';
 import type { PackSpec, SpriteSpec } from '../spec';
 
@@ -17,8 +20,19 @@ import type { PackSpec, SpriteSpec } from '../spec';
  * done is never half-dressed with materials that were not composed for it (the boss's telegraph, for one, was drawn over a bare floor and is judged over the scenery that
  * phase gives it).
  */
-const DRESSED_ROOMS = ['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum'];
+const SLICE_ROOMS = ['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum'];
+/** The rooms of the slice, composed by hand, and the sixty after them, composed by `scenes/world.ts` from their data (docs/PROMPT21-LOG.md): every room of the world is dressed. */
+const DRESSED_ROOMS = [...SLICE_ROOMS, ...DRESSED_BY_COMPOSER];
 const SEED = 7;
+
+/**
+ * The rooms past the Sanctum that ask for a piece of the environment which only one of the small packs has — read from their data, the way the contract reads it: the thorns, the shrine and the vial are the roots', the sigil of a
+ * seal and the card are the seal's, the rune is the sanctum's. A pack is fetched only for the rooms that need it (the rooms of the slice keep the pack they had).
+ */
+const roomsAsking = (...pieces: string[]): string[] => {
+  const asked = new Set(environmentSlots(WORLD.rooms.map((id) => ROOMS[id]!)).filter((s) => pieces.includes(slotKey(s.role, s.subject, s.part))).flatMap((s) => s.rooms));
+  return WORLD.rooms.filter((id) => asked.has(id) && !SLICE_ROOMS.includes(id));
+};
 
 const solid = (material: 'earth' | 'stone'): SpriteSpec[] => {
   const style = material;
@@ -112,7 +126,7 @@ export const RUINS_GROUND: PackSpec = {
     prop('rune_stone_a', 'runeStone', 7, [1.3, 3.2], 'props-back'),
     prop('effigy_a', 'effigy', 9, [1.6, 3.6], 'props-back'),
   ],
-  scenes: { r1_gate: R1_SCENES.ground, r2_hall: R2_SCENES.ground, r3_chamber: R3_SCENES.ground, r4_sanctum: R4_SCENES.ground },
+  scenes: { r1_gate: R1_SCENES.ground, r2_hall: R2_SCENES.ground, r3_chamber: R3_SCENES.ground, r4_sanctum: R4_SCENES.ground, ...WORLD_SCENES.ground },
 };
 
 export const RUINS_BACK: PackSpec = {
@@ -132,7 +146,7 @@ export const RUINS_BACK: PackSpec = {
     prop('fore_leaves_b', 'foreLeaves', 42, [5, 3.4], 'foreground', 48),
     prop('fore_leaves_c', 'foreLeaves', 43, [5, 3.4], 'foreground', 48),
   ],
-  scenes: { r1_gate: R1_SCENES.back, r2_hall: R2_SCENES.back, r3_chamber: R3_SCENES.back, r4_sanctum: R4_SCENES.back },
+  scenes: { r1_gate: R1_SCENES.back, r2_hall: R2_SCENES.back, r3_chamber: R3_SCENES.back, r4_sanctum: R4_SCENES.back, ...WORLD_SCENES.back },
 };
 
 export const RUINS_LIGHT: PackSpec = {
@@ -151,7 +165,7 @@ export const RUINS_LIGHT: PackSpec = {
     lightPiece('mist_bank', 'lightMist', 1024, 192, 32, 'decor', { seed: 3 }),
     lightPiece('motes_a', 'lightMotes', 512, 384, 32, 'decor', { seed: 8 }),
   ],
-  scenes: { r1_gate: R1_SCENES.light, r2_hall: R2_SCENES.light, r3_chamber: R3_SCENES.light, r4_sanctum: R4_SCENES.light },
+  scenes: { r1_gate: R1_SCENES.light, r2_hall: R2_SCENES.light, r3_chamber: R3_SCENES.light, r4_sanctum: R4_SCENES.light, ...WORLD_SCENES.light },
 };
 
 /**
@@ -161,7 +175,7 @@ export const RUINS_LIGHT: PackSpec = {
  */
 export const RUINS_ROOTS: PackSpec = {
   id: 'ruins-roots',
-  zones: ['r2_hall'],
+  zones: ['r2_hall', ...roomsAsking('hazard:spikes:cell', 'interactive:rest:', 'interactive:pickup:bottle')],
   ppm: 96,
   comment:
     'THE ROOTS of the Root Gallery: root arches, curtains, wound columns, roots on the ground, tendrils in the foreground, and the thorns, the shrine and the vial of that room. ' +
@@ -195,7 +209,7 @@ export const RUINS_ROOTS: PackSpec = {
  */
 export const RUINS_SEAL: PackSpec = {
   id: 'ruins-seal',
-  zones: ['r3_chamber'],
+  zones: ['r3_chamber', ...roomsAsking('door:seal:body', 'seal::', 'interactive:pickup:card')],
   ppm: 96,
   comment:
     'THE SEAL of the Seal Chamber: the door of the ward (the material "seal") and its sigil, the card of the Spirit Bolt, the altar, the carved walls, the portal, the paving and the circles of light. ' +
@@ -243,7 +257,7 @@ const grand = (id: string, piece: string, seed: number, sizeM: [number, number],
 
 export const RUINS_SANCTUM: PackSpec = {
   id: 'ruins-sanctum',
-  zones: ['r4_sanctum'],
+  zones: ['r4_sanctum', ...roomsAsking('interactive:pickup:rune')],
   ppm: 96,
   comment:
     'THE SANCTUM of the Ink Warden: columns taller than the view, guardians of stone, the wall with an eye cut into it, the shrine of the last rest, the rune of the Air Dash, the ink on the floor, banners, the portals and the floor. ' +

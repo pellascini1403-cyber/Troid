@@ -1,0 +1,66 @@
+{
+  "sceneVersion": 1,
+  "room": "mn_arena",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 36,
+        "y": 1,
+        "w": 70,
+        "h": 1
+      },
+      {
+        "sprite": "mushrooms_a",
+        "x": 8.26,
+        "y": 2,
+        "scale": 0.85,
+        "flip": true
+      },
+      {
+        "sprite": "crystals_a",
+        "x": 10.81,
+        "y": 2,
+        "scale": 0.97,
+        "flip": false
+      },
+      {
+        "sprite": "crystals_b",
+        "x": 65.28,
+        "y": 2,
+        "scale": 1.19,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_a",
+        "x": 14.5,
+        "y": 2,
+        "scale": 1.05,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_a",
+        "x": 61.5,
+        "y": 2,
+        "scale": 1.05,
+        "flip": true
+      }
+    ],
+    "propsBack": [
+      {
+        "sprite": "column_broken_b",
+        "x": 12.9,
+        "y": 2,
+        "scale": 1.1,
+        "flip": false
+      },
+      {
+        "sprite": "column_broken_b",
+        "x": 63.1,
+        "y": 2,
+        "scale": 1.1,
+        "flip": true
+      }
+    ]
+  }
+}

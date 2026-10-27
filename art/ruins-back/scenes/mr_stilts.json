@@ -1,0 +1,73 @@
+{
+  "sceneVersion": 1,
+  "room": "mr_stilts",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_b",
+        "x": 14.76,
+        "y": 0.6,
+        "flip": false,
+        "scale": 1.09
+      },
+      {
+        "sprite": "arch_grand_a",
+        "x": 44.57,
+        "y": 0.6,
+        "flip": true,
+        "scale": 1.08
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "fore_leaves_a",
+        "x": 4.07,
+        "y": 21.1,
+        "flip": true,
+        "scale": 1.31
+      },
+      {
+        "sprite": "fore_leaves_b",
+        "x": 17.11,
+        "y": 21.71,
+        "flip": false,
+        "scale": 1.32
+      },
+      {
+        "sprite": "fore_leaves_c",
+        "x": 32.15,
+        "y": 21.21,
+        "flip": false,
+        "scale": 1.4
+      },
+      {
+        "sprite": "fore_leaves_a",
+        "x": 48.36,
+        "y": 21.66,
+        "flip": true,
+        "scale": 1.29
+      },
+      {
+        "sprite": "fore_leaves_b",
+        "x": 59.41,
+        "y": 21.75,
+        "flip": true,
+        "scale": 1.31
+      },
+      {
+        "sprite": "fore_leaves_c",
+        "x": 73.75,
+        "y": 21.18,
+        "flip": true,
+        "scale": 1.47
+      },
+      {
+        "sprite": "fore_leaves_a",
+        "x": 84.86,
+        "y": 22.33,
+        "flip": false,
+        "scale": 1.06
+      }
+    ]
+  }
+}

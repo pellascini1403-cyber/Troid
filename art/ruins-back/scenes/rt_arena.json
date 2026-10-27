@@ -1,0 +1,66 @@
+{
+  "sceneVersion": 1,
+  "room": "rt_arena",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_a",
+        "x": 15.45,
+        "y": 0.6,
+        "flip": true,
+        "scale": 0.9
+      },
+      {
+        "sprite": "arch_grand_a",
+        "x": 42.09,
+        "y": 0.6,
+        "flip": false,
+        "scale": 1.06
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "fore_leaves_a",
+        "x": 5.93,
+        "y": 25.61,
+        "flip": true,
+        "scale": 1.47
+      },
+      {
+        "sprite": "fore_leaves_b",
+        "x": 22.1,
+        "y": 26.75,
+        "flip": true,
+        "scale": 1.17
+      },
+      {
+        "sprite": "fore_leaves_c",
+        "x": 36.32,
+        "y": 25.85,
+        "flip": false,
+        "scale": 1.36
+      },
+      {
+        "sprite": "fore_leaves_a",
+        "x": 50.57,
+        "y": 26.44,
+        "flip": true,
+        "scale": 1.19
+      },
+      {
+        "sprite": "fore_leaves_b",
+        "x": 63.55,
+        "y": 27.14,
+        "flip": false,
+        "scale": 1.08
+      },
+      {
+        "sprite": "fore_leaves_c",
+        "x": 81.42,
+        "y": 25.67,
+        "flip": true,
+        "scale": 1.49
+      }
+    ]
+  }
+}

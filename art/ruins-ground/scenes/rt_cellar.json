@@ -1,0 +1,174 @@
+{
+  "sceneVersion": 1,
+  "room": "rt_cellar",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 7.5,
+        "y": 1,
+        "w": 13,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 23.5,
+        "y": 1,
+        "w": 15,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 34,
+        "y": 1,
+        "w": 2,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 41.5,
+        "y": 1,
+        "w": 11,
+        "h": 1
+      },
+      {
+        "sprite": "fern_c",
+        "x": 15.03,
+        "y": 3,
+        "scale": 1.06,
+        "flip": true
+      },
+      {
+        "sprite": "fern_a",
+        "x": 7.46,
+        "y": 2,
+        "scale": 0.9,
+        "flip": true
+      },
+      {
+        "sprite": "fern_a",
+        "x": 11.01,
+        "y": 2,
+        "scale": 0.85,
+        "flip": true
+      },
+      {
+        "sprite": "fern_b",
+        "x": 17.15,
+        "y": 2,
+        "scale": 0.93,
+        "flip": false
+      },
+      {
+        "sprite": "mushrooms_a",
+        "x": 20.29,
+        "y": 2,
+        "scale": 1.18,
+        "flip": false
+      },
+      {
+        "sprite": "mushrooms_b",
+        "x": 26.43,
+        "y": 2,
+        "scale": 1,
+        "flip": false
+      },
+      {
+        "sprite": "fern_c",
+        "x": 30.27,
+        "y": 2,
+        "scale": 1.13,
+        "flip": false
+      },
+      {
+        "sprite": "mushrooms_b",
+        "x": 33.34,
+        "y": 2,
+        "scale": 1.01,
+        "flip": true
+      },
+      {
+        "sprite": "mushrooms_b",
+        "x": 40.79,
+        "y": 2,
+        "scale": 1.04,
+        "flip": false
+      },
+      {
+        "sprite": "roots_b",
+        "x": 1.8,
+        "y": 6.06,
+        "scale": 0.31,
+        "flip": true
+      },
+      {
+        "sprite": "roots_a",
+        "x": 3.39,
+        "y": 5.99,
+        "scale": 0.34,
+        "flip": false
+      },
+      {
+        "sprite": "roots_a",
+        "x": 5.42,
+        "y": 5.86,
+        "scale": 0.4,
+        "flip": true
+      },
+      {
+        "sprite": "roots_b",
+        "x": 6.88,
+        "y": 5.71,
+        "scale": 0.47,
+        "flip": true
+      },
+      {
+        "sprite": "roots_a",
+        "x": 8.8,
+        "y": 5.73,
+        "scale": 0.46,
+        "flip": true
+      },
+      {
+        "sprite": "roots_a",
+        "x": 10.66,
+        "y": 5.71,
+        "scale": 0.47,
+        "flip": true
+      },
+      {
+        "sprite": "roots_b",
+        "x": 12.41,
+        "y": 5.97,
+        "scale": 0.35,
+        "flip": false
+      },
+      {
+        "sprite": "grass_a",
+        "x": 7.36,
+        "y": 7,
+        "scale": 0.9
+      },
+      {
+        "sprite": "roots_b",
+        "x": 16.8,
+        "y": 3.06,
+        "scale": 0.31,
+        "flip": false
+      },
+      {
+        "sprite": "roots_b",
+        "x": 18.23,
+        "y": 2.46,
+        "scale": 0.58,
+        "flip": false
+      },
+      {
+        "sprite": "grass_a",
+        "x": 18.02,
+        "y": 4,
+        "scale": 0.9
+      }
+    ]
+  }
+}

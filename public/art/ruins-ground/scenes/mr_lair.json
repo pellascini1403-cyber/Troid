@@ -1,0 +1,135 @@
+{
+  "sceneVersion": 1,
+  "room": "mr_lair",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 36,
+        "y": 1,
+        "w": 70,
+        "h": 1
+      },
+      {
+        "sprite": "rubble_b",
+        "x": 7.26,
+        "y": 2,
+        "scale": 0.9,
+        "flip": true
+      },
+      {
+        "sprite": "mushrooms_a",
+        "x": 10.44,
+        "y": 2,
+        "scale": 0.96,
+        "flip": false
+      },
+      {
+        "sprite": "roots_a",
+        "x": 26.8,
+        "y": 2.88,
+        "scale": 0.39,
+        "flip": true
+      },
+      {
+        "sprite": "roots_b",
+        "x": 28.9,
+        "y": 3.04,
+        "scale": 0.32,
+        "flip": false
+      },
+      {
+        "sprite": "roots_a",
+        "x": 30.88,
+        "y": 2.75,
+        "scale": 0.45,
+        "flip": true
+      },
+      {
+        "sprite": "roots_a",
+        "x": 32.52,
+        "y": 2.86,
+        "scale": 0.4,
+        "flip": false
+      },
+      {
+        "sprite": "roots_b",
+        "x": 34.69,
+        "y": 2.49,
+        "scale": 0.57,
+        "flip": true
+      },
+      {
+        "sprite": "roots_b",
+        "x": 36.47,
+        "y": 2.73,
+        "scale": 0.46,
+        "flip": true
+      },
+      {
+        "sprite": "roots_b",
+        "x": 37.93,
+        "y": 2.68,
+        "scale": 0.48,
+        "flip": false
+      },
+      {
+        "sprite": "roots_a",
+        "x": 40.29,
+        "y": 2.57,
+        "scale": 0.53,
+        "flip": true
+      },
+      {
+        "sprite": "roots_a",
+        "x": 42.82,
+        "y": 3.01,
+        "scale": 0.33,
+        "flip": true
+      },
+      {
+        "sprite": "roots_a",
+        "x": 45.33,
+        "y": 2.93,
+        "scale": 0.37,
+        "flip": false
+      },
+      {
+        "sprite": "grass_a",
+        "x": 32.98,
+        "y": 4,
+        "scale": 0.9
+      },
+      {
+        "sprite": "rubble_a",
+        "x": 14.5,
+        "y": 2,
+        "scale": 1.05,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_a",
+        "x": 61.5,
+        "y": 2,
+        "scale": 1.05,
+        "flip": true
+      }
+    ],
+    "propsBack": [
+      {
+        "sprite": "column_broken_b",
+        "x": 12.9,
+        "y": 2,
+        "scale": 1.1,
+        "flip": false
+      },
+      {
+        "sprite": "column_broken_b",
+        "x": 63.1,
+        "y": 2,
+        "scale": 1.1,
+        "flip": true
+      }
+    ]
+  }
+}

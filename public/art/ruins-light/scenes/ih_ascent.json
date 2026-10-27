@@ -1,0 +1,46 @@
+{
+  "sceneVersion": 1,
+  "room": "ih_ascent",
+  "layers": {
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 6,
+        "y": 5.8,
+        "alpha": 0.32,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 17.5,
+        "y": 21.8,
+        "alpha": 0.17,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "motes_a",
+        "x": 10.5,
+        "y": 20.5,
+        "scale": 1.17,
+        "alpha": 0.3,
+        "flip": true,
+        "tint": 11570431,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_a",
+        "x": 28.88,
+        "y": 20.5,
+        "scale": 1.07,
+        "alpha": 0.23,
+        "flip": true,
+        "tint": 11570431,
+        "motion": "drift"
+      }
+    ]
+  }
+}

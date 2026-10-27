@@ -1,0 +1,15 @@
+{
+  "sceneVersion": 1,
+  "room": "sp_shrine",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_a",
+        "x": 15.17,
+        "y": 0.6,
+        "flip": false,
+        "scale": 1
+      }
+    ]
+  }
+}

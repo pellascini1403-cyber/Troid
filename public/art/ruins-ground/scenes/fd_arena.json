@@ -1,0 +1,52 @@
+{
+  "sceneVersion": 1,
+  "room": "fd_arena",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 36,
+        "y": 1,
+        "w": 70,
+        "h": 1
+      },
+      {
+        "sprite": "rubble_b",
+        "x": 6.23,
+        "y": 2,
+        "scale": 1.05,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_a",
+        "x": 14.5,
+        "y": 2,
+        "scale": 1.05,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_a",
+        "x": 61.5,
+        "y": 2,
+        "scale": 1.05,
+        "flip": true
+      }
+    ],
+    "propsBack": [
+      {
+        "sprite": "column_broken_b",
+        "x": 12.9,
+        "y": 2,
+        "scale": 1.1,
+        "flip": false
+      },
+      {
+        "sprite": "column_broken_b",
+        "x": 63.1,
+        "y": 2,
+        "scale": 1.1,
+        "flip": true
+      }
+    ]
+  }
+}

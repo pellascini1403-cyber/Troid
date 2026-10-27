@@ -1,0 +1,15 @@
+{
+  "sceneVersion": 1,
+  "room": "mn_vault",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_a",
+        "x": 15.75,
+        "y": 0.6,
+        "flip": true,
+        "scale": 1.07
+      }
+    ]
+  }
+}

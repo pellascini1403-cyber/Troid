@@ -1,0 +1,108 @@
+{
+  "sceneVersion": 1,
+  "room": "mn_forge",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 4.5,
+        "y": 1,
+        "w": 7,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 24.5,
+        "y": 1,
+        "w": 23,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 43,
+        "y": 1,
+        "w": 8,
+        "h": 1
+      },
+      {
+        "sprite": "rubble_c",
+        "x": 8.62,
+        "y": 4,
+        "scale": 1.05,
+        "flip": true
+      },
+      {
+        "sprite": "rubble_c",
+        "x": 13.7,
+        "y": 2,
+        "scale": 1.13,
+        "flip": false
+      },
+      {
+        "sprite": "grass_b",
+        "x": 16.37,
+        "y": 2,
+        "scale": 0.99,
+        "flip": true
+      },
+      {
+        "sprite": "crystals_a",
+        "x": 20.74,
+        "y": 2,
+        "scale": 0.93,
+        "flip": true
+      },
+      {
+        "sprite": "mushrooms_b",
+        "x": 24.66,
+        "y": 2,
+        "scale": 1.06,
+        "flip": true
+      },
+      {
+        "sprite": "crystals_b",
+        "x": 28.35,
+        "y": 2,
+        "scale": 1.04,
+        "flip": true
+      },
+      {
+        "sprite": "rubble_a",
+        "x": 31.74,
+        "y": 2,
+        "scale": 1.06,
+        "flip": true
+      },
+      {
+        "sprite": "crystals_b",
+        "x": 34.06,
+        "y": 2,
+        "scale": 0.95,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_c",
+        "x": 39.83,
+        "y": 2,
+        "scale": 0.94,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_c",
+        "x": 45.68,
+        "y": 2,
+        "scale": 0.92,
+        "flip": true
+      }
+    ],
+    "propsBack": [
+      {
+        "sprite": "column_broken_b",
+        "x": 31.6,
+        "y": 2,
+        "scale": 1.11,
+        "flip": false
+      }
+    ]
+  }
+}

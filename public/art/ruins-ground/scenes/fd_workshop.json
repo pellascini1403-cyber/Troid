@@ -1,0 +1,50 @@
+{
+  "sceneVersion": 1,
+  "room": "fd_workshop",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 5.5,
+        "y": 1,
+        "w": 9,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 20.5,
+        "y": 1,
+        "w": 11,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 34,
+        "y": 1,
+        "w": 10,
+        "h": 1
+      },
+      {
+        "sprite": "rubble_c",
+        "x": 10.74,
+        "y": 3,
+        "scale": 1.16,
+        "flip": true
+      },
+      {
+        "sprite": "rubble_c",
+        "x": 8.63,
+        "y": 2,
+        "scale": 1.23,
+        "flip": true
+      },
+      {
+        "sprite": "rubble_c",
+        "x": 30.12,
+        "y": 2,
+        "scale": 0.92,
+        "flip": false
+      }
+    ]
+  }
+}

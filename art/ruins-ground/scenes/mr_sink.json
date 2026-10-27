@@ -1,0 +1,43 @@
+{
+  "sceneVersion": 1,
+  "room": "mr_sink",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 3,
+        "y": 1,
+        "w": 4,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 12,
+        "y": 1,
+        "w": 8,
+        "h": 1
+      },
+      {
+        "sprite": "mushrooms_a",
+        "x": 17.05,
+        "y": 27,
+        "scale": 1.01,
+        "flip": true
+      },
+      {
+        "sprite": "crystals_a",
+        "x": 8.67,
+        "y": 2,
+        "scale": 1.17,
+        "flip": false
+      },
+      {
+        "sprite": "mushrooms_a",
+        "x": 13.02,
+        "y": 2,
+        "scale": 1.16,
+        "flip": true
+      }
+    ]
+  }
+}

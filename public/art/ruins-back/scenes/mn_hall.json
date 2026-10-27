@@ -1,0 +1,22 @@
+{
+  "sceneVersion": 1,
+  "room": "mn_hall",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_a",
+        "x": 11.83,
+        "y": 0.6,
+        "flip": true,
+        "scale": 1.08
+      },
+      {
+        "sprite": "arch_grand_b",
+        "x": 39.02,
+        "y": 0.6,
+        "flip": false,
+        "scale": 0.95
+      }
+    ]
+  }
+}

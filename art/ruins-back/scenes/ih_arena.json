@@ -1,0 +1,22 @@
+{
+  "sceneVersion": 1,
+  "room": "ih_arena",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_a",
+        "x": 14.45,
+        "y": 0.6,
+        "flip": false,
+        "scale": 0.92
+      },
+      {
+        "sprite": "arch_grand_a",
+        "x": 39.43,
+        "y": 0.6,
+        "flip": true,
+        "scale": 1.04
+      }
+    ]
+  }
+}

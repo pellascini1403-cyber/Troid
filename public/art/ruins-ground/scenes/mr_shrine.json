@@ -1,0 +1,77 @@
+{
+  "sceneVersion": 1,
+  "room": "mr_shrine",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 6.5,
+        "y": 1,
+        "w": 11,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 22,
+        "y": 1,
+        "w": 8,
+        "h": 1
+      },
+      {
+        "sprite": "mushrooms_b",
+        "x": 26.78,
+        "y": 4,
+        "scale": 0.86,
+        "flip": true
+      },
+      {
+        "sprite": "fern_c",
+        "x": 9.11,
+        "y": 2,
+        "scale": 1.2,
+        "flip": true
+      },
+      {
+        "sprite": "crystals_b",
+        "x": 19.08,
+        "y": 2,
+        "scale": 0.9,
+        "flip": false
+      },
+      {
+        "sprite": "mushrooms_a",
+        "x": 23.04,
+        "y": 2,
+        "scale": 0.96,
+        "flip": false
+      },
+      {
+        "sprite": "roots_a",
+        "x": 12.8,
+        "y": 0.79,
+        "scale": 0.43,
+        "flip": true
+      },
+      {
+        "sprite": "roots_a",
+        "x": 15.22,
+        "y": 0.53,
+        "scale": 0.55,
+        "flip": false
+      },
+      {
+        "sprite": "roots_a",
+        "x": 16.8,
+        "y": 0.49,
+        "scale": 0.57,
+        "flip": false
+      },
+      {
+        "sprite": "grass_a",
+        "x": 16.23,
+        "y": 2,
+        "scale": 0.9
+      }
+    ]
+  }
+}

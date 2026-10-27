@@ -1,0 +1,15 @@
+{
+  "sceneVersion": 1,
+  "room": "mn_seam",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_a",
+        "x": 8.25,
+        "y": 0.6,
+        "flip": true,
+        "scale": 0.91
+      }
+    ]
+  }
+}

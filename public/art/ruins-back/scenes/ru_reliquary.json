@@ -1,0 +1,38 @@
+{
+  "sceneVersion": 1,
+  "room": "ru_reliquary",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_a",
+        "x": 12.92,
+        "y": 0.6,
+        "flip": true,
+        "scale": 0.91
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "fore_leaves_a",
+        "x": 10.93,
+        "y": 21.21,
+        "flip": true,
+        "scale": 1.46
+      },
+      {
+        "sprite": "fore_leaves_b",
+        "x": 21.05,
+        "y": 21.69,
+        "flip": true,
+        "scale": 1.15
+      },
+      {
+        "sprite": "fore_leaves_c",
+        "x": 42.63,
+        "y": 22.22,
+        "flip": true,
+        "scale": 1.1
+      }
+    ]
+  }
+}

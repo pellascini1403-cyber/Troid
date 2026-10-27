@@ -1,0 +1,38 @@
+{
+  "sceneVersion": 1,
+  "room": "rt_hideout",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_b",
+        "x": 12.16,
+        "y": 0.6,
+        "flip": false,
+        "scale": 0.97
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "fore_leaves_a",
+        "x": 9.54,
+        "y": 16.64,
+        "flip": true,
+        "scale": 1.39
+      },
+      {
+        "sprite": "fore_leaves_b",
+        "x": 22.32,
+        "y": 16.88,
+        "flip": false,
+        "scale": 1.15
+      },
+      {
+        "sprite": "fore_leaves_c",
+        "x": 35.93,
+        "y": 16.7,
+        "flip": true,
+        "scale": 1.21
+      }
+    ]
+  }
+}

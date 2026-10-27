@@ -1,0 +1,202 @@
+{
+  "sceneVersion": 1,
+  "room": "mr_den",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 20.5,
+        "y": 1,
+        "w": 39,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 45.5,
+        "y": 1,
+        "w": 3,
+        "h": 1
+      },
+      {
+        "sprite": "grass_a",
+        "x": 40.49,
+        "y": 4,
+        "scale": 1.07,
+        "flip": true
+      },
+      {
+        "sprite": "crystals_b",
+        "x": 17.26,
+        "y": 2,
+        "scale": 0.97,
+        "flip": false
+      },
+      {
+        "sprite": "crystals_a",
+        "x": 21.69,
+        "y": 2,
+        "scale": 0.9,
+        "flip": true
+      },
+      {
+        "sprite": "fern_a",
+        "x": 25.1,
+        "y": 2,
+        "scale": 0.94,
+        "flip": true
+      },
+      {
+        "sprite": "mushrooms_a",
+        "x": 27.61,
+        "y": 2,
+        "scale": 0.92,
+        "flip": false
+      },
+      {
+        "sprite": "grass_b",
+        "x": 32.16,
+        "y": 2,
+        "scale": 0.95,
+        "flip": true
+      },
+      {
+        "sprite": "grass_b",
+        "x": 35.39,
+        "y": 2,
+        "scale": 1.06,
+        "flip": false
+      },
+      {
+        "sprite": "crystals_a",
+        "x": 38.4,
+        "y": 2,
+        "scale": 1.01,
+        "flip": false
+      },
+      {
+        "sprite": "grass_a",
+        "x": 45.13,
+        "y": 2,
+        "scale": 1.11,
+        "flip": true
+      },
+      {
+        "sprite": "roots_b",
+        "x": 7.8,
+        "y": 11.79,
+        "scale": 0.43,
+        "flip": true
+      },
+      {
+        "sprite": "roots_b",
+        "x": 10.25,
+        "y": 11.9,
+        "scale": 0.38,
+        "flip": true
+      },
+      {
+        "sprite": "roots_b",
+        "x": 11.99,
+        "y": 11.75,
+        "scale": 0.45,
+        "flip": true
+      },
+      {
+        "sprite": "grass_a",
+        "x": 9.93,
+        "y": 13,
+        "scale": 0.9
+      },
+      {
+        "sprite": "roots_a",
+        "x": 10.8,
+        "y": 8.77,
+        "scale": 0.44,
+        "flip": false
+      },
+      {
+        "sprite": "roots_b",
+        "x": 13.01,
+        "y": 8.49,
+        "scale": 0.57,
+        "flip": false
+      },
+      {
+        "sprite": "roots_b",
+        "x": 14.85,
+        "y": 8.93,
+        "scale": 0.37,
+        "flip": true
+      },
+      {
+        "sprite": "grass_a",
+        "x": 13.94,
+        "y": 10,
+        "scale": 0.9
+      },
+      {
+        "sprite": "roots_b",
+        "x": 13.8,
+        "y": 5.71,
+        "scale": 0.47,
+        "flip": true
+      },
+      {
+        "sprite": "roots_a",
+        "x": 15.64,
+        "y": 5.9,
+        "scale": 0.38,
+        "flip": false
+      },
+      {
+        "sprite": "roots_b",
+        "x": 17.92,
+        "y": 5.64,
+        "scale": 0.5,
+        "flip": false
+      },
+      {
+        "sprite": "grass_a",
+        "x": 15.5,
+        "y": 7,
+        "scale": 0.9
+      },
+      {
+        "sprite": "roots_b",
+        "x": 16.8,
+        "y": 3.01,
+        "scale": 0.33,
+        "flip": true
+      },
+      {
+        "sprite": "roots_a",
+        "x": 18.84,
+        "y": 2.99,
+        "scale": 0.34,
+        "flip": true
+      },
+      {
+        "sprite": "roots_b",
+        "x": 20.48,
+        "y": 2.6,
+        "scale": 0.52,
+        "flip": false
+      },
+      {
+        "sprite": "grass_a",
+        "x": 17.2,
+        "y": 4,
+        "scale": 0.9
+      }
+    ],
+    "propsBack": [
+      {
+        "sprite": "rune_stone_a",
+        "x": 28.27,
+        "y": 2,
+        "scale": 1,
+        "flip": true
+      }
+    ]
+  }
+}

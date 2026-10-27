@@ -1,0 +1,51 @@
+{
+  "sceneVersion": 1,
+  "room": "sp_foot",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 9.5,
+        "y": 1,
+        "w": 17,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 24,
+        "y": 1,
+        "w": 8,
+        "h": 1
+      },
+      {
+        "sprite": "grass_b",
+        "x": 32.24,
+        "y": 30,
+        "scale": 0.92,
+        "flip": true
+      },
+      {
+        "sprite": "rubble_c",
+        "x": 24.81,
+        "y": 2,
+        "scale": 1.04,
+        "flip": false
+      },
+      {
+        "sprite": "grass_a",
+        "x": 14.37,
+        "y": 4,
+        "scale": 0.9
+      }
+    ],
+    "propsBack": [
+      {
+        "sprite": "column_whole_a",
+        "x": 25.16,
+        "y": 2,
+        "scale": 1.07,
+        "flip": false
+      }
+    ]
+  }
+}

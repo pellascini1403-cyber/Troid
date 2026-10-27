@@ -1,0 +1,15 @@
+{
+  "sceneVersion": 1,
+  "room": "fd_scrap",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_b",
+        "x": 13.42,
+        "y": 0.6,
+        "flip": true,
+        "scale": 0.94
+      }
+    ]
+  }
+}

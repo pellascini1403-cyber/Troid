@@ -1,0 +1,59 @@
+{
+  "sceneVersion": 1,
+  "room": "mr_lanterns",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_b",
+        "x": 9.37,
+        "y": 0.6,
+        "flip": true,
+        "scale": 1.07
+      },
+      {
+        "sprite": "arch_grand_b",
+        "x": 33.24,
+        "y": 0.6,
+        "flip": false,
+        "scale": 0.98
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "fore_leaves_a",
+        "x": 6.3,
+        "y": 18.89,
+        "flip": false,
+        "scale": 1.26
+      },
+      {
+        "sprite": "fore_leaves_b",
+        "x": 21.2,
+        "y": 18.63,
+        "flip": true,
+        "scale": 1.48
+      },
+      {
+        "sprite": "fore_leaves_c",
+        "x": 37.39,
+        "y": 19.29,
+        "flip": true,
+        "scale": 1.27
+      },
+      {
+        "sprite": "fore_leaves_a",
+        "x": 52.29,
+        "y": 19.56,
+        "flip": false,
+        "scale": 1.14
+      },
+      {
+        "sprite": "fore_leaves_b",
+        "x": 63.49,
+        "y": 19.25,
+        "flip": true,
+        "scale": 1.32
+      }
+    ]
+  }
+}

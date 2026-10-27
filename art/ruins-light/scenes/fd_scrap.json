@@ -1,0 +1,54 @@
+{
+  "sceneVersion": 1,
+  "room": "fd_scrap",
+  "layers": {
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 8,
+        "y": -2.2,
+        "alpha": 0.36,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 5.5,
+        "y": 1.8,
+        "alpha": 0.2,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "motes_a",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 1.15,
+        "alpha": 0.23,
+        "flip": false,
+        "tint": 16763296,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_a",
+        "x": 29.43,
+        "y": 0.5,
+        "scale": 0.92,
+        "alpha": 0.28,
+        "flip": true,
+        "tint": 16756864,
+        "motion": "drift"
+      },
+      {
+        "sprite": "glow_violet",
+        "x": 36.5,
+        "y": 3.3,
+        "scale": 0.7,
+        "alpha": 0.4,
+        "motion": "pulse"
+      }
+    ]
+  }
+}

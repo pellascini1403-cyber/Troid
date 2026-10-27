@@ -1,0 +1,15 @@
+{
+  "sceneVersion": 1,
+  "room": "mn_forge",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_a",
+        "x": 20.07,
+        "y": 0.6,
+        "flip": false,
+        "scale": 0.94
+      }
+    ]
+  }
+}

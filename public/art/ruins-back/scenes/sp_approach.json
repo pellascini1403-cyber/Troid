@@ -1,0 +1,22 @@
+{
+  "sceneVersion": 1,
+  "room": "sp_approach",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_a",
+        "x": 10.2,
+        "y": 0.6,
+        "flip": true,
+        "scale": 0.95
+      },
+      {
+        "sprite": "arch_grand_a",
+        "x": 28.65,
+        "y": 0.6,
+        "flip": false,
+        "scale": 1.02
+      }
+    ]
+  }
+}

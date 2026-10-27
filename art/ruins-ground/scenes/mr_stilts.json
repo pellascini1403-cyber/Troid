@@ -1,0 +1,326 @@
+{
+  "sceneVersion": 1,
+  "room": "mr_stilts",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 28.5,
+        "y": 1,
+        "w": 55,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 67,
+        "y": 1,
+        "w": 16,
+        "h": 1
+      },
+      {
+        "sprite": "mushrooms_a",
+        "x": 8.32,
+        "y": 2,
+        "scale": 0.92,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_a",
+        "x": 10.61,
+        "y": 2,
+        "scale": 0.87,
+        "flip": true
+      },
+      {
+        "sprite": "mushrooms_a",
+        "x": 13.31,
+        "y": 2,
+        "scale": 0.99,
+        "flip": false
+      },
+      {
+        "sprite": "fern_c",
+        "x": 15.24,
+        "y": 2,
+        "scale": 1.11,
+        "flip": false
+      },
+      {
+        "sprite": "fern_b",
+        "x": 17.52,
+        "y": 2,
+        "scale": 1.16,
+        "flip": false
+      },
+      {
+        "sprite": "mushrooms_b",
+        "x": 21.76,
+        "y": 2,
+        "scale": 0.93,
+        "flip": false
+      },
+      {
+        "sprite": "fern_c",
+        "x": 25,
+        "y": 2,
+        "scale": 1.24,
+        "flip": true
+      },
+      {
+        "sprite": "grass_b",
+        "x": 28.51,
+        "y": 2,
+        "scale": 0.97,
+        "flip": true
+      },
+      {
+        "sprite": "mushrooms_a",
+        "x": 31.98,
+        "y": 2,
+        "scale": 1.24,
+        "flip": false
+      },
+      {
+        "sprite": "crystals_a",
+        "x": 35.23,
+        "y": 2,
+        "scale": 1.18,
+        "flip": false
+      },
+      {
+        "sprite": "mushrooms_a",
+        "x": 39.32,
+        "y": 2,
+        "scale": 1.09,
+        "flip": true
+      },
+      {
+        "sprite": "fern_a",
+        "x": 43.13,
+        "y": 2,
+        "scale": 1.06,
+        "flip": true
+      },
+      {
+        "sprite": "grass_b",
+        "x": 51.03,
+        "y": 2,
+        "scale": 1.11,
+        "flip": false
+      },
+      {
+        "sprite": "mushrooms_a",
+        "x": 53.47,
+        "y": 2,
+        "scale": 0.88,
+        "flip": false
+      },
+      {
+        "sprite": "mushrooms_b",
+        "x": 64.66,
+        "y": 2,
+        "scale": 0.92,
+        "flip": false
+      },
+      {
+        "sprite": "mushrooms_a",
+        "x": 67.63,
+        "y": 2,
+        "scale": 1.02,
+        "flip": false
+      },
+      {
+        "sprite": "roots_b",
+        "x": 36.8,
+        "y": 8.86,
+        "scale": 0.4,
+        "flip": false
+      },
+      {
+        "sprite": "roots_b",
+        "x": 38.26,
+        "y": 8.75,
+        "scale": 0.45,
+        "flip": false
+      },
+      {
+        "sprite": "roots_b",
+        "x": 40.8,
+        "y": 8.95,
+        "scale": 0.36,
+        "flip": true
+      },
+      {
+        "sprite": "grass_a",
+        "x": 38.66,
+        "y": 10,
+        "scale": 0.9
+      },
+      {
+        "sprite": "roots_a",
+        "x": 27.8,
+        "y": 6.84,
+        "scale": 0.41,
+        "flip": true
+      },
+      {
+        "sprite": "roots_a",
+        "x": 30.14,
+        "y": 6.6,
+        "scale": 0.52,
+        "flip": true
+      },
+      {
+        "sprite": "roots_a",
+        "x": 32.18,
+        "y": 6.66,
+        "scale": 0.49,
+        "flip": false
+      },
+      {
+        "sprite": "grass_a",
+        "x": 29.82,
+        "y": 8,
+        "scale": 0.9
+      },
+      {
+        "sprite": "roots_b",
+        "x": 45.8,
+        "y": 6.6,
+        "scale": 0.52,
+        "flip": false
+      },
+      {
+        "sprite": "roots_b",
+        "x": 47.88,
+        "y": 6.75,
+        "scale": 0.45,
+        "flip": true
+      },
+      {
+        "sprite": "roots_a",
+        "x": 49.88,
+        "y": 6.86,
+        "scale": 0.4,
+        "flip": false
+      },
+      {
+        "sprite": "grass_a",
+        "x": 47.55,
+        "y": 8,
+        "scale": 0.9
+      },
+      {
+        "sprite": "roots_b",
+        "x": 18.8,
+        "y": 4.77,
+        "scale": 0.44,
+        "flip": false
+      },
+      {
+        "sprite": "roots_a",
+        "x": 20.95,
+        "y": 4.6,
+        "scale": 0.52,
+        "flip": false
+      },
+      {
+        "sprite": "roots_b",
+        "x": 23.32,
+        "y": 4.86,
+        "scale": 0.4,
+        "flip": true
+      },
+      {
+        "sprite": "grass_a",
+        "x": 22.77,
+        "y": 6,
+        "scale": 0.9
+      },
+      {
+        "sprite": "roots_b",
+        "x": 54.8,
+        "y": 4.46,
+        "scale": 0.58,
+        "flip": true
+      },
+      {
+        "sprite": "roots_b",
+        "x": 57.09,
+        "y": 4.68,
+        "scale": 0.48,
+        "flip": false
+      },
+      {
+        "sprite": "roots_b",
+        "x": 59.49,
+        "y": 4.42,
+        "scale": 0.6,
+        "flip": true
+      },
+      {
+        "sprite": "roots_b",
+        "x": 9.8,
+        "y": 2.73,
+        "scale": 0.46,
+        "flip": true
+      },
+      {
+        "sprite": "roots_b",
+        "x": 11.55,
+        "y": 2.73,
+        "scale": 0.46,
+        "flip": true
+      },
+      {
+        "sprite": "roots_b",
+        "x": 14.06,
+        "y": 2.75,
+        "scale": 0.45,
+        "flip": true
+      },
+      {
+        "sprite": "grass_a",
+        "x": 13.13,
+        "y": 4,
+        "scale": 0.9
+      },
+      {
+        "sprite": "roots_b",
+        "x": 63.8,
+        "y": 2.49,
+        "scale": 0.57,
+        "flip": true
+      },
+      {
+        "sprite": "roots_b",
+        "x": 65.65,
+        "y": 2.84,
+        "scale": 0.41,
+        "flip": true
+      },
+      {
+        "sprite": "roots_a",
+        "x": 67.58,
+        "y": 2.66,
+        "scale": 0.49,
+        "flip": true
+      },
+      {
+        "sprite": "grass_a",
+        "x": 65.43,
+        "y": 4,
+        "scale": 0.9
+      }
+    ],
+    "propsBack": [
+      {
+        "sprite": "rune_stone_a",
+        "x": 45.98,
+        "y": 2,
+        "scale": 1.1,
+        "flip": true
+      }
+    ]
+  }
+}

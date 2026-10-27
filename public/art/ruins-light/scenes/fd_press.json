@@ -1,0 +1,27 @@
+{
+  "sceneVersion": 1,
+  "room": "fd_press",
+  "layers": {
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 2.8,
+        "y": 12.2,
+        "alpha": 0.37,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "motes_a",
+        "x": 10.5,
+        "y": 36.5,
+        "scale": 0.88,
+        "alpha": 0.23,
+        "flip": false,
+        "tint": 16756864,
+        "motion": "drift"
+      }
+    ]
+  }
+}

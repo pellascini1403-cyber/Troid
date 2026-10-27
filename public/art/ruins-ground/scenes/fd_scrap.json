@@ -1,0 +1,50 @@
+{
+  "sceneVersion": 1,
+  "room": "fd_scrap",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 5.5,
+        "y": 1,
+        "w": 9,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 16.5,
+        "y": 1,
+        "w": 7,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 26,
+        "y": 1,
+        "w": 4,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 32,
+        "y": 1,
+        "w": 4,
+        "h": 1
+      },
+      {
+        "sprite": "rubble_b",
+        "x": 17.5,
+        "y": 2,
+        "scale": 1.14,
+        "flip": true
+      },
+      {
+        "sprite": "rubble_c",
+        "x": 30.39,
+        "y": 2,
+        "scale": 1.24,
+        "flip": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "sceneVersion": 1,
+  "room": "sp_bridge",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 7,
+        "y": 9,
+        "w": 12,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 73,
+        "y": 9,
+        "w": 12,
+        "h": 1
+      },
+      {
+        "sprite": "grass_a",
+        "x": 59.99,
+        "y": 13,
+        "scale": 1.24,
+        "flip": true
+      },
+      {
+        "sprite": "grass_a",
+        "x": 50.4,
+        "y": 11,
+        "scale": 0.86,
+        "flip": true
+      },
+      {
+        "sprite": "grass_b",
+        "x": 12.48,
+        "y": 10,
+        "scale": 1.18,
+        "flip": false
+      },
+      {
+        "sprite": "crystals_a",
+        "x": 21.84,
+        "y": 10,
+        "scale": 1.01,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_a",
+        "x": 68.17,
+        "y": 10,
+        "scale": 0.94,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_c",
+        "x": 75.18,
+        "y": 10,
+        "scale": 0.9,
+        "flip": true
+      },
+      {
+        "sprite": "grass_a",
+        "x": 33.15,
+        "y": 7,
+        "scale": 0.9
+      }
+    ],
+    "propsBack": [
+      {
+        "sprite": "column_whole_a",
+        "x": 29.57,
+        "y": 12,
+        "scale": 0.96,
+        "flip": false
+      },
+      {
+        "sprite": "effigy_a",
+        "x": 10.49,
+        "y": 10,
+        "scale": 1.13,
+        "flip": false
+      }
+    ]
+  }
+}

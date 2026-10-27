@@ -1,0 +1,15 @@
+{
+  "sceneVersion": 1,
+  "room": "sp_stair",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_b",
+        "x": 12.72,
+        "y": 0.6,
+        "flip": false,
+        "scale": 0.94
+      }
+    ]
+  }
+}

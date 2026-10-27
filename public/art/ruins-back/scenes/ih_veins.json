@@ -1,0 +1,22 @@
+{
+  "sceneVersion": 1,
+  "room": "ih_veins",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_a",
+        "x": 16.52,
+        "y": 0.6,
+        "flip": true,
+        "scale": 0.94
+      },
+      {
+        "sprite": "arch_grand_b",
+        "x": 49.2,
+        "y": 0.6,
+        "flip": true,
+        "scale": 0.99
+      }
+    ]
+  }
+}

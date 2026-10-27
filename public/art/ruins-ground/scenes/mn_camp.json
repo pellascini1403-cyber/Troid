@@ -1,0 +1,92 @@
+{
+  "sceneVersion": 1,
+  "room": "mn_camp",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 4.5,
+        "y": 1,
+        "w": 7,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 12,
+        "y": 1,
+        "w": 2,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 16,
+        "y": 1,
+        "w": 2,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 30.5,
+        "y": 1,
+        "w": 17,
+        "h": 1
+      },
+      {
+        "sprite": "crystals_b",
+        "x": 13.38,
+        "y": 4,
+        "scale": 0.87,
+        "flip": true
+      },
+      {
+        "sprite": "crystals_b",
+        "x": 20.64,
+        "y": 4,
+        "scale": 1.16,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_c",
+        "x": 8.59,
+        "y": 3,
+        "scale": 1.16,
+        "flip": true
+      },
+      {
+        "sprite": "crystals_b",
+        "x": 17.63,
+        "y": 3,
+        "scale": 0.96,
+        "flip": true
+      },
+      {
+        "sprite": "rubble_a",
+        "x": 11.46,
+        "y": 2,
+        "scale": 1.24,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_a",
+        "x": 15.82,
+        "y": 2,
+        "scale": 1.23,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_b",
+        "x": 22.52,
+        "y": 2,
+        "scale": 0.87,
+        "flip": true
+      },
+      {
+        "sprite": "rubble_b",
+        "x": 25.17,
+        "y": 2,
+        "scale": 1.13,
+        "flip": true
+      }
+    ]
+  }
+}

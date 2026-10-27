@@ -1,0 +1,45 @@
+{
+  "sceneVersion": 1,
+  "room": "mr_toadpit",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_b",
+        "x": 14.95,
+        "y": 0.6,
+        "flip": true,
+        "scale": 1.02
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "fore_leaves_a",
+        "x": 6.19,
+        "y": 30.32,
+        "flip": true,
+        "scale": 1.48
+      },
+      {
+        "sprite": "fore_leaves_b",
+        "x": 21.58,
+        "y": 31.31,
+        "flip": true,
+        "scale": 1.23
+      },
+      {
+        "sprite": "fore_leaves_c",
+        "x": 33.74,
+        "y": 31.29,
+        "flip": false,
+        "scale": 1.19
+      },
+      {
+        "sprite": "fore_leaves_a",
+        "x": 43.43,
+        "y": 30.63,
+        "flip": false,
+        "scale": 1.35
+      }
+    ]
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "sceneVersion": 1,
+  "room": "fd_catwalks",
+  "layers": {
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 8.8,
+        "y": 1,
+        "alpha": 0.37,
+        "flip": false
+      },
+      {
+        "sprite": "beam_b",
+        "x": 26.4,
+        "y": 1,
+        "alpha": 0.28,
+        "flip": true
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 7.5,
+        "y": 9.8,
+        "alpha": 0.14,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 80.5,
+        "y": 9.8,
+        "alpha": 0.18,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "motes_a",
+        "x": 10.5,
+        "y": 8.5,
+        "scale": 0.94,
+        "alpha": 0.24,
+        "flip": false,
+        "tint": 16763296,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_a",
+        "x": 32.29,
+        "y": 8.5,
+        "scale": 0.94,
+        "alpha": 0.3,
+        "flip": false,
+        "tint": 16756864,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_a",
+        "x": 50.79,
+        "y": 8.5,
+        "scale": 0.99,
+        "alpha": 0.24,
+        "flip": false,
+        "tint": 16763296,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_a",
+        "x": 71.45,
+        "y": 8.5,
+        "scale": 0.96,
+        "alpha": 0.21,
+        "flip": true,
+        "tint": 16756864,
+        "motion": "drift"
+      }
+    ]
+  }
+}

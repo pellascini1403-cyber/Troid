@@ -1,0 +1,63 @@
+{
+  "sceneVersion": 1,
+  "room": "mr_shrine",
+  "layers": {
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 8,
+        "y": -2.2,
+        "alpha": 0.36,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 6.5,
+        "y": 1.8,
+        "alpha": 0.12,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 22,
+        "y": 1.8,
+        "alpha": 0.17,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "motes_a",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 0.91,
+        "alpha": 0.21,
+        "flip": false,
+        "tint": 13172710,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_a",
+        "x": 31.84,
+        "y": 0.5,
+        "scale": 1.06,
+        "alpha": 0.22,
+        "flip": true,
+        "tint": 11071704,
+        "motion": "drift"
+      },
+      {
+        "sprite": "glow_cyan",
+        "x": 31.5,
+        "y": 2.9,
+        "scale": 1.1,
+        "alpha": 0.34,
+        "motion": "pulse"
+      }
+    ]
+  }
+}

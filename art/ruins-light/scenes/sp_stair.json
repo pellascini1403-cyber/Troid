@@ -1,0 +1,46 @@
+{
+  "sceneVersion": 1,
+  "room": "sp_stair",
+  "layers": {
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 6,
+        "y": -2.2,
+        "alpha": 0.27,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 15,
+        "y": 1.8,
+        "alpha": 0.16,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "motes_a",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 1.17,
+        "alpha": 0.21,
+        "flip": true,
+        "tint": 15791871,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_a",
+        "x": 28.73,
+        "y": 0.5,
+        "scale": 1.15,
+        "alpha": 0.22,
+        "flip": true,
+        "tint": 15791871,
+        "motion": "drift"
+      }
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "sceneVersion": 1,
+  "room": "fd_press",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 3.5,
+        "y": 1,
+        "w": 5,
+        "h": 1
+      },
+      {
+        "sprite": "rubble_c",
+        "x": 6.84,
+        "y": 38,
+        "scale": 1.03,
+        "flip": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "sceneVersion": 1,
+  "room": "mr_toadpit",
+  "layers": {
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 8.8,
+        "y": -2.2,
+        "alpha": 0.36,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 22,
+        "y": 1.8,
+        "alpha": 0.14,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "motes_a",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 0.85,
+        "alpha": 0.33,
+        "flip": true,
+        "tint": 13172710,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_a",
+        "x": 29.73,
+        "y": 0.5,
+        "scale": 0.87,
+        "alpha": 0.23,
+        "flip": true,
+        "tint": 13172710,
+        "motion": "drift"
+      }
+    ]
+  }
+}

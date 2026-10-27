@@ -1,0 +1,72 @@
+{
+  "sceneVersion": 1,
+  "room": "ru_nave",
+  "layers": {
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 7.2,
+        "y": -2.2,
+        "alpha": 0.34,
+        "flip": false
+      },
+      {
+        "sprite": "beam_b",
+        "x": 21.6,
+        "y": -2.2,
+        "alpha": 0.29,
+        "flip": true
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 7,
+        "y": 1.8,
+        "alpha": 0.15,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 60,
+        "y": 1.8,
+        "alpha": 0.2,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "motes_a",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 1.04,
+        "alpha": 0.24,
+        "flip": true,
+        "tint": 14217471,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_a",
+        "x": 32.14,
+        "y": 0.5,
+        "scale": 1.07,
+        "alpha": 0.22,
+        "flip": true,
+        "tint": 14217471,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_a",
+        "x": 53,
+        "y": 0.5,
+        "scale": 0.85,
+        "alpha": 0.26,
+        "flip": true,
+        "tint": 12576511,
+        "motion": "drift"
+      }
+    ]
+  }
+}

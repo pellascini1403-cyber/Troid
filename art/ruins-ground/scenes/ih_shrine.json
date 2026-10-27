@@ -1,0 +1,50 @@
+{
+  "sceneVersion": 1,
+  "room": "ih_shrine",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 6.5,
+        "y": 1,
+        "w": 11,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 18.5,
+        "y": 1,
+        "w": 7,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 30,
+        "y": 1,
+        "w": 10,
+        "h": 1
+      },
+      {
+        "sprite": "mushrooms_b",
+        "x": 12.8,
+        "y": 3,
+        "scale": 1.21,
+        "flip": false
+      },
+      {
+        "sprite": "crystals_b",
+        "x": 22.58,
+        "y": 3,
+        "scale": 0.93,
+        "flip": false
+      },
+      {
+        "sprite": "crystals_b",
+        "x": 25.72,
+        "y": 2,
+        "scale": 1.09,
+        "flip": true
+      }
+    ]
+  }
+}

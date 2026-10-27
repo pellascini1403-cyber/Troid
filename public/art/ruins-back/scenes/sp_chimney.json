@@ -1,0 +1,15 @@
+{
+  "sceneVersion": 1,
+  "room": "sp_chimney",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_a",
+        "x": 6.55,
+        "y": 24.6,
+        "flip": false,
+        "scale": 1.07
+      }
+    ]
+  }
+}

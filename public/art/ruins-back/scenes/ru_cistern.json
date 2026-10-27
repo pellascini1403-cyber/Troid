@@ -1,0 +1,38 @@
+{
+  "sceneVersion": 1,
+  "room": "ru_cistern",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_a",
+        "x": 17.93,
+        "y": 0.6,
+        "flip": false,
+        "scale": 1.08
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "fore_leaves_a",
+        "x": 10.04,
+        "y": 17.49,
+        "flip": false,
+        "scale": 1.09
+      },
+      {
+        "sprite": "fore_leaves_b",
+        "x": 25.66,
+        "y": 17.62,
+        "flip": true,
+        "scale": 1.11
+      },
+      {
+        "sprite": "fore_leaves_c",
+        "x": 43.17,
+        "y": 16.68,
+        "flip": false,
+        "scale": 1.31
+      }
+    ]
+  }
+}

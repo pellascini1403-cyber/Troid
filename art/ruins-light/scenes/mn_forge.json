@@ -1,0 +1,63 @@
+{
+  "sceneVersion": 1,
+  "room": "mn_forge",
+  "layers": {
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 9.6,
+        "y": -2.2,
+        "alpha": 0.33,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 24.5,
+        "y": 1.8,
+        "alpha": 0.2,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 43,
+        "y": 1.8,
+        "alpha": 0.19,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "motes_a",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 1.17,
+        "alpha": 0.26,
+        "flip": false,
+        "tint": 10475775,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_a",
+        "x": 34.22,
+        "y": 0.5,
+        "scale": 0.98,
+        "alpha": 0.22,
+        "flip": false,
+        "tint": 10475775,
+        "motion": "drift"
+      },
+      {
+        "sprite": "glow_cyan",
+        "x": 10.5,
+        "y": 3.3,
+        "scale": 0.7,
+        "alpha": 0.4,
+        "motion": "pulse"
+      }
+    ]
+  }
+}

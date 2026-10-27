@@ -1,0 +1,59 @@
+{
+  "sceneVersion": 1,
+  "room": "mr_climb",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_a",
+        "x": 11.26,
+        "y": 0.6,
+        "flip": false,
+        "scale": 0.98
+      },
+      {
+        "sprite": "arch_grand_a",
+        "x": 33.77,
+        "y": 0.6,
+        "flip": false,
+        "scale": 0.91
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "fore_leaves_a",
+        "x": 8.92,
+        "y": 19.05,
+        "flip": false,
+        "scale": 1.23
+      },
+      {
+        "sprite": "fore_leaves_b",
+        "x": 20.11,
+        "y": 18.58,
+        "flip": false,
+        "scale": 1.49
+      },
+      {
+        "sprite": "fore_leaves_c",
+        "x": 36.36,
+        "y": 19.49,
+        "flip": false,
+        "scale": 1.12
+      },
+      {
+        "sprite": "fore_leaves_a",
+        "x": 47.58,
+        "y": 19.36,
+        "flip": false,
+        "scale": 1.32
+      },
+      {
+        "sprite": "fore_leaves_b",
+        "x": 63.09,
+        "y": 19.05,
+        "flip": true,
+        "scale": 1.3
+      }
+    ]
+  }
+}

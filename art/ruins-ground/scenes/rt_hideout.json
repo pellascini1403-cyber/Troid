@@ -1,0 +1,73 @@
+{
+  "sceneVersion": 1,
+  "room": "rt_hideout",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 4,
+        "y": 1,
+        "w": 6,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 19.5,
+        "y": 1,
+        "w": 17,
+        "h": 1
+      },
+      {
+        "sprite": "mushrooms_a",
+        "x": 28.71,
+        "y": 4,
+        "scale": 1.17,
+        "flip": true
+      },
+      {
+        "sprite": "fern_b",
+        "x": 2.19,
+        "y": 2,
+        "scale": 1.03,
+        "flip": false
+      },
+      {
+        "sprite": "fern_a",
+        "x": 13.81,
+        "y": 2,
+        "scale": 0.97,
+        "flip": false
+      },
+      {
+        "sprite": "fern_b",
+        "x": 18,
+        "y": 2,
+        "scale": 1.2,
+        "flip": false
+      },
+      {
+        "sprite": "mushrooms_b",
+        "x": 20.5,
+        "y": 2,
+        "scale": 1.06,
+        "flip": false
+      },
+      {
+        "sprite": "crystals_a",
+        "x": 26.18,
+        "y": 2,
+        "scale": 1.12,
+        "flip": true
+      }
+    ],
+    "propsBack": [
+      {
+        "sprite": "column_broken_a",
+        "x": 21.4,
+        "y": 2,
+        "scale": 1.08,
+        "flip": false
+      }
+    ]
+  }
+}

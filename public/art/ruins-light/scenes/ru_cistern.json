@@ -1,0 +1,54 @@
+{
+  "sceneVersion": 1,
+  "room": "ru_cistern",
+  "layers": {
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 8.8,
+        "y": -2.2,
+        "alpha": 0.33,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 27,
+        "y": 1.8,
+        "alpha": 0.14,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "motes_a",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 1.03,
+        "alpha": 0.29,
+        "flip": true,
+        "tint": 14217471,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_a",
+        "x": 33.36,
+        "y": 0.5,
+        "scale": 1.15,
+        "alpha": 0.32,
+        "flip": false,
+        "tint": 14217471,
+        "motion": "drift"
+      },
+      {
+        "sprite": "glow_cyan",
+        "x": 9.5,
+        "y": 2.3,
+        "scale": 0.7,
+        "alpha": 0.4,
+        "motion": "pulse"
+      }
+    ]
+  }
+}

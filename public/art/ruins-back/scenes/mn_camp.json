@@ -1,0 +1,15 @@
+{
+  "sceneVersion": 1,
+  "room": "mn_camp",
+  "layers": {
+    "backdropNear": [
+      {
+        "sprite": "arch_grand_a",
+        "x": 13.97,
+        "y": 0.6,
+        "flip": true,
+        "scale": 0.9
+      }
+    ]
+  }
+}
