@@ -1,44 +1,7 @@
-import type { RoomDefinition } from '@/world/RoomDefinition';
-import { ABILITIES } from './abilities';
-import { BOSSES, ENEMIES } from './enemies';
-import { PLAYER } from './player';
-import { PROCEDURAL_LOOKS } from './proceduralActors';
-import { CROUCH_TEST_ROOM } from './rooms/crouchTest';
-import { INTERACTION_TEST_ROOM } from './rooms/interactionTest';
-import { MOVEMENT_TEST_ROOM } from './rooms/movementTest';
-import { R1_GATE_ROOM } from './rooms/r1Gate';
-import { R2_HALL_ROOM } from './rooms/r2Hall';
-import { R3_CHAMBER_ROOM } from './rooms/r3Chamber';
-import { R4_SANCTUM_ROOM } from './rooms/r4Sanctum';
-import { FOUNDRY_ROOMS } from './rooms/foundry';
-import { HEART_ROOMS } from './rooms/heart';
-import { MINES_ROOMS } from './rooms/mines';
-import { MIRE_ROOMS } from './rooms/mire';
-import { ROOTS_ROOMS } from './rooms/roots';
-import { RUINS_ROOMS } from './rooms/ruins';
-import { SPIRE_ROOMS } from './rooms/spire';
-import { PROCEDURAL_ATLASES, SPRITE_SETS } from './sprites';
-import { UPGRADES } from './upgrades';
-import { WORLD } from './world';
-
-/** The game's concrete data. Only `app/` (and tests / tools) import this; the simulation receives it injected. */
-export const ROOMS: Readonly<Record<string, RoomDefinition>> = {
-  [R1_GATE_ROOM.id]: R1_GATE_ROOM,
-  [R2_HALL_ROOM.id]: R2_HALL_ROOM,
-  [R3_CHAMBER_ROOM.id]: R3_CHAMBER_ROOM,
-  [R4_SANCTUM_ROOM.id]: R4_SANCTUM_ROOM,
-  // the rest of the world (docs/PROMPT21-LOG.md), a file of rooms for each zone, in the order the hero meets them
-  ...Object.fromEntries([...RUINS_ROOMS, ...ROOTS_ROOMS, ...MIRE_ROOMS, ...MINES_ROOMS, ...SPIRE_ROOMS, ...FOUNDRY_ROOMS, ...HEART_ROOMS].map((r) => [r.id, r])),
-  [MOVEMENT_TEST_ROOM.id]: MOVEMENT_TEST_ROOM,
-  [CROUCH_TEST_ROOM.id]: CROUCH_TEST_ROOM,
-  [INTERACTION_TEST_ROOM.id]: INTERACTION_TEST_ROOM,
-};
+import './beyond';
 
 /**
- * Where a new game begins (docs/GAME-SPEC-2D.md §14.4): the first room of the world (it says so itself, `WORLD.start`), with the
- * abilities the hero starts with. R1 teaches the dash, so it is owned from the first step. The playgrounds (`?room=movement_test`)
- * and `?unlock=` do not use this: they start with exactly what the URL says.
+ * The game's concrete data, WHOLE: the first four rooms and what the rest of the world adds to them (docs/PROMPT21-LOG.md). Only `app/` (and tests / tools) import this; the simulation receives it injected. The game's first frame does not
+ * import it — it imports `content/core.ts`, and asks for `content/beyond.ts` once it is up — but every other consumer (the pause menu, the tests, the tools) wants the world whole, and here it is.
  */
-export const START = { room: WORLD.start.room, entry: WORLD.start.entry, unlocked: ['dash'] as readonly string[] } as const;
-
-export { ABILITIES, BOSSES, ENEMIES, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, SPRITE_SETS, UPGRADES, WORLD };
+export { ABILITIES, BOSSES, ENEMIES, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, ROOMS, SPRITE_SETS, START, UPGRADES, WORLD } from './core';

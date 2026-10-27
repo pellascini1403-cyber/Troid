@@ -5,7 +5,7 @@ import { createVfxAtlas, type VfxAtlas } from '@/assets/vfxAtlas';
 import { CAMERA_2D } from '@/camera/camera2d';
 import { resolveCameraView, type CameraView } from '@/camera/cameraZones';
 import type { CameraTarget } from '@/camera/CameraRig';
-import { ABILITIES, BOSSES, ENEMIES, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, ROOMS, SPRITE_SETS, START, UPGRADES, WORLD } from '@/content';
+import { ABILITIES, BOSSES, ENEMIES, inCore, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, ROOMS, SPRITE_SETS, START, UPGRADES, WORLD } from '@/content/core';
 import { BOTTLE_DEFINITIONS, BOTTLES, CARDS, MAGIC } from '@/content/resources';
 import { PLAYER_VISUAL } from '@/content/visuals';
 import { SKILLS } from '@/content/skills';
@@ -88,6 +88,7 @@ import type { AudioSystem } from './audio';
 import type { Effects } from './effects';
 
 type BossViews = typeof import('./bossViews');
+import { loadBeyond } from './beyond';
 import { artIndexUrl, optionsFromQuery, type GameOptions } from './options';
 
 /** How long after the first frame the page waits before it fetches the effects (it still waits for an idle moment after that). */
@@ -256,6 +257,10 @@ export class Game2D {
         await progress.load();
       }
     }
+    // The rest of the world (the rooms past the Sanctum and what lives in them) comes after the first frame — but a game that BEGINS there (a saved one that rests in a shrine of the Mire, a playground asked for by the URL) cannot wait for it, and a page
+    // under test (`?hooks=1`) has it from the start, so that no scene depends on the luck of a download.
+    const beyond = (room: string | undefined): boolean => room !== undefined && !inCore(room);
+    if (options.hooks || beyond(options.room) || (!options.room && (beyond(progress?.value?.at.room) || beyond(progress?.value?.checkpoint.room)))) await loadBeyond();
     return new Game2D(renderer, counter, options, sprites, playerSet, settings, progress, slots, found, isDurable(storage));
   }
 
@@ -454,6 +459,18 @@ export class Game2D {
     // a room was built by the simulation: its view is made at the next frame — and, under the black of a change of zone, only once its art is in
     on('room:loaded', (e) => this.arrive(e.roomId));
     on('transition:cancelled', () => this.letGo());
+    // The hero touched a way on to a room that has not arrived yet (the rest of the world is a chunk of its own, on its way since the first frame): the exit is armed again once the chunk is in, and the hero who still stands in its zone takes it
+    on('exit:reached', (e) => {
+      if (!e.to || ROOMS[e.to.room]) return;
+      const wait = (triesLeft: number): void =>
+        void loadBeyond().then(
+          () => this.session.rearmExit(e.exitId),
+          () => {
+            if (triesLeft > 0 && !this.closed) window.setTimeout(() => wait(triesLeft - 1), 2000);
+          },
+        );
+      wait(8);
+    });
     // a door dissolves when the flag that opens it is set (the simulation already switched its collider off)
     this.lifecycle.add(this.session.bus.on('gate:changed', ({ gateId, open }) => this.roomView.setGateOpen(gateId, open)));
     // The effects (pooled, budgeted, event-driven, real time) are cosmetic and a tenth of the first download: the page fetches them once the
@@ -555,6 +572,7 @@ export class Game2D {
       void loadEffects();
       void loadAudio();
       loadBossViews().catch(() => undefined);
+      loadBeyond().catch(() => undefined); // (a failure is tried again by the first way that leads there)
       void this.loadOverlays();
       startArt();
     };

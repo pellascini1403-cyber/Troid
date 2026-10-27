@@ -72,8 +72,8 @@ export const camera: Scenario = {
       await frames(ctx.page, 2); // a real frame has drawn the change first
       await ctx.page.evaluate(`window.__troid.settleCamera(${seconds})`);
     };
-    // every room holds the view to ITS limits (the room's width, the foot of the ground at the bottom): at the start, and at the far end
-    for (const id of WORLD.rooms) {
+    // every room of the first chapter holds the view to ITS limits (the room's width, the foot of the ground at the bottom): at the start, and at the far end (the sixty after them are visited, one page and every room, by `rooms`)
+    for (const id of WORLD.rooms.slice(0, 4)) {
       const room = ROOMS[id]!;
       const limits = roomLimits(room);
       await ctx.open(`room=${id}`, { width: 844, height: 390 });

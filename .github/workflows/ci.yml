@@ -33,7 +33,7 @@ jobs:
       matrix:
         group:
           - name: play
-            scenes: boot,movement,combat,room,world,pause,pauseMap,gamepad,focus,ending,finale,adaptive
+            scenes: boot,movement,combat,room,rooms,world,pause,pauseMap,gamepad,focus,ending,finale,adaptive
           - name: stability
             scenes: resilience,privacy,readable,sprites
     steps:

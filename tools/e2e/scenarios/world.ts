@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import { roomLimits } from '@/camera/cameraZones';
 import { ROOMS, WORLD } from '@/content';
-import { COMPLETED_FLAG } from '@/progression/adventure';
-import { freshWorld, playWorld } from '../../../tests/helpers/journey';
+import { arriveIn, freshWorld, playWorld } from '../../../tests/helpers/journey';
 import { frames } from '../frames';
 import { record, replay } from '../replay';
 import { createArtFixture, type FixturePack } from '../artFixture';
@@ -10,6 +9,9 @@ import type { Ctx, GameState, Scenario } from '../scenario';
 import { HERO_PACKS } from './playerR1';
 
 /** The art on the page in `world-art`: the whole protagonist and three packs nothing draws yet (they must change nothing). */
+/** The rooms of the first chapter, in the order the journey meets them (and then the Nave). */
+const CHAPTER = WORLD.rooms.slice(0, 4);
+
 const ART_PACKS: FixturePack[] = [
   ...HERO_PACKS,
   { id: 'forest', category: 'environment', load: 'zone', zones: ['r1_gate', 'r2_hall'], sprites: [{ id: 'stone', canvas: [64, 64], clips: { idle: 1 }, prefix: 'stone_', extra: { pivot: [0, 0], tags: ['role:solid', 'material:stone', 'part:fill'] } }] },
@@ -18,11 +20,10 @@ const ART_PACKS: FixturePack[] = [
 ];
 
 /**
- * THE WHOLE WORLD (docs/PROMPT6-LOG.md S23, S29): R1 → R2 → R3 → R4 → the end of the world, walked with REAL keyboard events in headless
- * Chromium — the fight with the Ink Warden of R4 and the reward it leaves included. The journey is RECORDED in Node on the pure simulation by a scripted player (`tests/helpers/journey.ts`, the same script
- * `worldJourney.test.ts` asserts on) and REPLAYED through the browser's keyboard tick by tick, comparing a digest of the whole
- * simulation — which now includes the room and the transition — every 50 ticks: the browser plays the same game as the simulation,
- * bit for bit, through three room transitions.
+ * THE FIRST CHAPTER OF THE WORLD (docs/PROMPT6-LOG.md S23, S29; docs/PROMPT21-LOG.md): R1 → R2 → R3 → R4 → the Collapsed Nave, walked with REAL keyboard events in headless
+ * Chromium — the fight with the Ink Warden of R4 and the reward it leaves included, and the way on to the rest of the world, which is a chunk of the game of its own (`content/beyond.ts`) that the page has by then. The journey is RECORDED
+ * in Node on the pure simulation by a scripted player (`tests/helpers/journey.ts`, the same script `worldJourney.test.ts` asserts on) and REPLAYED through the browser's keyboard tick by tick, comparing a digest of the whole
+ * simulation — which includes the room and the transition — every 50 ticks: the browser plays the same game as the simulation, bit for bit, through four room transitions.
  *
  * `world-art` is the same walk with ART ATTACHED (S44; synthetic art, never art): the complete protagonist (fifteen clips), a piece of scenery, an effect pack and an enemy pack the game does
  * not draw yet are all on the page, and the digests must STILL match the simulation tick for tick — the simulation does not know the art — while the hero is drawn by the art at every
@@ -33,8 +34,11 @@ const ART_PACKS: FixturePack[] = [
  */
 async function runWorld(ctx: Ctx, withArt: boolean): Promise<void> {
   const d = freshWorld();
-  const journey = record(d, () => playWorld(d));
-  console.log(`  recorded in Node: ${journey.total} ticks (${journey.runs.length} key changes) through ${WORLD.rooms.length} rooms`);
+  const journey = record(d, () => {
+    playWorld(d);
+    arriveIn(d, 'ru_nave'); // the touch of the way on begins the transition; the journey goes on until the hero is in the Nave
+  });
+  console.log(`  recorded in Node: ${journey.total} ticks (${journey.runs.length} key changes) through ${CHAPTER.length + 1} rooms`);
   assert.ok(journey.total > 2500, `a long walk (${journey.total} ticks)`);
 
   const fixture = withArt ? createArtFixture(ART_PACKS) : null;
@@ -91,13 +95,13 @@ async function runWorld(ctx: Ctx, withArt: boolean): Promise<void> {
     const events = (await ctx.page.evaluate('window.__w')) as string[];
     assert.deepEqual(
       events.filter((e) => e.startsWith('enter')),
-      ['enter r2_hall:west from r1_gate', 'enter r3_chamber:west from r2_hall', 'enter r4_sanctum:west from r3_chamber'],
-      'the three transitions of the world, each arriving at the west entry of the next room',
+      ['enter r2_hall:west from r1_gate', 'enter r3_chamber:west from r2_hall', 'enter r4_sanctum:west from r3_chamber', 'enter ru_nave:west from r4_sanctum'],
+      'the four transitions of the chapter, each arriving at the west entry of the next room — the last one into the rest of the world',
     );
     assert.deepEqual(
       events.filter((e) => e.startsWith('exit')),
       ['exit r1_gate/east', 'exit r2_hall/east', 'exit r3_chamber/east', 'exit r4_sanctum/east'],
-      'every east exit, the last one being the end of the world',
+      'every east exit, the last one the way on out of the Sanctum',
     );
     assert.ok(!events.includes('died') && !events.includes('cancelled'), `the hero never fell (${events.join(' | ')})`);
     assert.ok(events.includes('card') && events.indexOf('card') < events.indexOf('seal broken'), 'the card was taken before the seal broke');
@@ -106,26 +110,24 @@ async function runWorld(ctx: Ctx, withArt: boolean): Promise<void> {
     const at = (e: string): number => events.indexOf(e);
     assert.deepEqual(events.filter((e) => e.startsWith('boss')), ['boss started', 'boss defeated'], 'the Warden woke once and fell once');
     assert.ok(at('enter r4_sanctum:west from r3_chamber') < at('boss started') && at('boss started') < at('boss defeated'), 'in R4, in that order');
-    assert.ok(at('boss defeated') < at('ability air_dash') && at('ability air_dash') < at('exit r4_sanctum/east'), 'the reward after the fall, and the way out after the reward');
-    assert.deepEqual(events.filter((e) => e.startsWith('adventure')), ['adventure r4_sanctum/east'], 'the adventure ended once, at the way out of the world…');
-    assert.ok(at('exit r4_sanctum/east') < at('adventure r4_sanctum/east'), '…right after the way out was touched');
-    assert.equal(s.menuOpen, true, '…and the page answered by holding the world at the closing');
-    assert.equal(transitions, 3, 'three fades were seen');
-    assert.equal(s.room, 'r4_sanctum', 'the walk ends in the last room');
-    assert.deepEqual(s.exits, ['east'], 'at the end of the world');
+    assert.ok(at('boss defeated') < at('ability air_dash') && at('ability air_dash') < at('exit r4_sanctum/east'), 'the reward after the fall, and the way on after the reward');
+    assert.deepEqual(events.filter((e) => e.startsWith('adventure')), [], 'the Sanctum is not the end of the world any more: nothing ended');
+    assert.equal(s.menuOpen, false, 'and the world was not held at a closing');
+    assert.ok(transitions >= 3, `the fades of the chapter were seen (${transitions})`);
+    assert.equal(s.room, 'ru_nave', 'the walk ends in the Collapsed Nave, the hub of the rest of the world — the room came from the chunk the page asked for after its first frame');
     assert.equal(s.transition?.phase, 'none');
     assert.ok(s.health! > 0);
     assert.deepEqual(
       s.flags!.slice().sort(),
-      ['broken:r3_seal', COMPLETED_FLAG, 'defeated:r1_slime', 'defeated:r2_slime', 'defeated:r4_boss', 'taken:air_dash', 'taken:card_spirit_bolt'],
-      'both slimes fell on the way, the card was taken on R3\'s ledge and its seal broken, the Warden fell and its Air Dash was taken — and the way out of the world completed the adventure',
+      ['broken:r3_seal', 'defeated:r1_slime', 'defeated:r2_slime', 'defeated:r4_boss', 'taken:air_dash', 'taken:card_spirit_bolt'],
+      'both slimes fell on the way, the card was taken on R3\'s ledge and its seal broken, the Warden fell and its Air Dash was taken',
     );
-    assert.equal(s.card, 'card_spirit_bolt', 'the hero ends the world with the Spirit Bolt in hand');
-    assert.deepEqual([...shot].sort(), [...WORLD.rooms].sort(), 'every room was seen with the hero in it');
-    assert.deepEqual([...camera.rooms].sort(), [...WORLD.rooms].sort());
+    assert.equal(s.card, 'card_spirit_bolt', 'the hero ends the chapter with the Spirit Bolt in hand');
+    assert.deepEqual([...shot].sort(), [...CHAPTER, 'ru_nave'].sort(), 'every room of the chapter was seen with the hero in it, and the Nave');
+    assert.deepEqual([...camera.rooms].sort(), [...CHAPTER, 'ru_nave'].sort());
     assert.ok(camera.worstOverrun < 0.6, `the camera never showed more than 0.6 m beyond the limits of a room (${camera.worstOverrun.toFixed(2)} m)`);
     assert.ok(worst <= 60, `draw calls peaked at ${worst}`);
-    await ctx.shot('end-of-the-world');
+    await ctx.shot('the-way-on');
     if (fixture) {
       const samples = Object.values(looks).reduce((a, b) => a + b, 0);
       assert.equal(looks['placeholder'] ?? 0, 0, `with the complete art the hero is never drawn by the placeholder (${JSON.stringify(looks)})`);
@@ -140,8 +142,8 @@ async function runWorld(ctx: Ctx, withArt: boolean): Promise<void> {
       assert.ok(asked('forest') > 0 && asked('inks') > 0, 'the packs of R1 were fetched while the hero was in R1');
       assert.ok(!held('forest') && !held('inks'), 'and are not held in R4');
       assert.equal(asked('sparks'), 0, 'the lazy pack, which nothing asked for, was never fetched');
-      console.log(`  world-art: the same ${WORLD.rooms.length} rooms and ${transitions} transitions, bit for bit, with art attached (peak ${(art.peakBytes / 1048576).toFixed(1)} MiB, ${art.requests} files, zone packs followed the hero) and the hero drawn by it in ${looks['art']} of ${samples} samples · ${worst} draw calls at the worst moment (budget 60)`);
-    } else console.log(`  world: ${WORLD.rooms.length} rooms and ${transitions} transitions replayed bit for bit through the keyboard · ${worst} draw calls at the worst moment (budget 60) · camera overrun ${camera.worstOverrun.toFixed(2)} m`);
+      console.log(`  world-art: the same ${CHAPTER.length + 1} rooms and ${transitions} transitions, bit for bit, with art attached (peak ${(art.peakBytes / 1048576).toFixed(1)} MiB, ${art.requests} files, zone packs followed the hero) and the hero drawn by it in ${looks['art']} of ${samples} samples · ${worst} draw calls at the worst moment (budget 60)`);
+    } else console.log(`  world: ${CHAPTER.length + 1} rooms and ${transitions} transitions replayed bit for bit through the keyboard · ${worst} draw calls at the worst moment (budget 60) · camera overrun ${camera.worstOverrun.toFixed(2)} m`);
   } finally {
     fixture?.cleanup();
   }

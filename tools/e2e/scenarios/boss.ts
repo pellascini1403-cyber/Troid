@@ -232,12 +232,12 @@ export const boss: Scenario = {
     const dashes = (await log(ctx.page)).filter((e) => e.startsWith('dash')).slice(before);
     assert.deepEqual(dashes, ['dash air', 'dash air'], 'two dashes in the air: one more than the dash alone allows (boss-death shows the one)');
 
-    // ================================================================================================ the way out of the world, open
+    // ================================================================================================ the way on, open
     await ctx.teleport(96.5, 0);
-    await ctx.step(30);
+    await ctx.step(2);
     s = await state();
-    assert.deepEqual(s.exits, ['east'], 'the way out of the world is reached');
-    assert.equal(s.transition?.phase, 'none', 'it is the end of the world: no room follows');
+    assert.deepEqual(s.exits, ['east'], 'the way on is reached');
+    assert.notEqual(s.transition?.phase, 'none', 'it is not the end of the world: the Collapsed Nave follows (docs/PROMPT21-LOG.md), and its fade has begun');
     assert.ok(s.health! > 0);
 
     // ================================================================================================ saved: a reload leaves the Warden gone
@@ -267,8 +267,10 @@ export const boss: Scenario = {
     await frames(ctx.page, 8);
     assert.equal(await ctx.page.locator('[data-testid="prompt-hit"]').getAttribute('data-active'), '0', 'the reward is not there to take twice');
     await ctx.teleport(96.5, 0);
-    await ctx.step(30);
-    assert.deepEqual((await state()).exits, ['east'], 'and the way out still works');
+    await ctx.step(2);
+    s = await state();
+    assert.deepEqual(s.exits, ['east'], 'and the way on still works');
+    assert.notEqual(s.transition?.phase, 'none', '…and takes the hero to the Collapsed Nave');
 
     assert.ok(worst <= 60, `draw calls peaked at ${worst}`);
     console.log(`  boss: ${fight.total} ticks replayed bit for bit · violet warnings ${lines.join(', ')} px · quiet arena ${seen.quiet} px · ${worst} draw calls at the worst moment (budget 60)`);

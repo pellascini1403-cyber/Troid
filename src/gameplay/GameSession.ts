@@ -12,8 +12,8 @@ import { Rng } from '@/core/rng';
 import { Scheduler } from '@/core/scheduler';
 import { Enemy } from '@/enemies/Enemy';
 import type { EnemyDefinition } from '@/enemies/EnemyDefinition';
-import { Boss } from '@/enemies/boss/Boss';
 import type { BossDefinition } from '@/enemies/boss/BossDefinition';
+import { createEngineBoss } from '@/enemies/boss/registry';
 import { Guardian } from '@/enemies/Guardian';
 import type { GuardianDefinition } from '@/enemies/GuardianDefinition';
 import { InteractionSystem } from '@/interaction/InteractionSystem';
@@ -26,6 +26,7 @@ import { upgradeTotals, type UpgradeDef } from '@/progression/upgrades';
 import { WorldFlags } from '@/progression/WorldFlags';
 import { bodyRect, CollisionWorld } from '@/world/collision';
 import type { Destination, RoomDefinition } from '@/world/RoomDefinition';
+import { Actor } from './Actor';
 import { DeathFlow, DEFAULT_DEATH_FLOW, type DeathFlowDefinition, type DeathSnapshot } from './DeathFlow';
 import type { GameEvents } from './events';
 import { HazardSystem, type HazardHost } from './HazardSystem';
@@ -35,6 +36,10 @@ import { DEFAULT_TRANSITION, RoomTransition, type TransitionDefinition, type Tra
 import { Seal } from './Seal';
 import type { SimEntity } from './SimEntity';
 import type { SimServices } from './SimServices';
+
+/** Who fights in a room and may hold something shut: an enemy, the Ink Warden, a data-driven guardian — told apart by `kind`, not by class, so the session needs no code of the guardians that come after the Warden to know them. */
+type Fighter = Actor & SimEntity & { readonly health: { readonly dead: boolean }; readonly home: Readonly<{ x: number; y: number }> };
+const isGuardian = (e: SimEntity): e is Fighter => (e.kind === 'enemy' || e.kind === 'guardian') && e instanceof Actor;
 
 /** The player's resources, as data (docs/GAME-SPEC-2D.md §10–§11): the magic bar, the bottles and the cards that exist. */
 export interface PlayerResources {
@@ -533,8 +538,9 @@ export class GameSession implements SimServices {
       if (this.flags.has(b.defeatFlag)) continue;
       const def = this.opts.bosses?.[b.guardian];
       if (!def) throw new Error(`room "${room.id}": boss "${b.id}" places the unknown guardian "${b.guardian}"`);
-      // the Warden is the class written for it; the guardians after it are the data-driven engine (`phases` is what tells them apart)
-      const boss = 'phases' in def ? new Boss(this.ids.next(def.id), def, { x: b.x, y: b.y, facing: b.facing }, b.arena) : new Guardian(this.ids.next(def.id), def, { x: b.x, y: b.y, facing: b.facing }, b.arena);
+      // the Warden is the class written for it; the guardians after it are the data-driven engine (`phases` is what tells them apart), which is loaded with them (`enemies/boss/registry.ts`)
+      const at = { x: b.x, y: b.y, facing: b.facing };
+      const boss = 'phases' in def ? createEngineBoss(this.ids.next(def.id), def, at, b.arena) : new Guardian(this.ids.next(def.id), def, at, b.arena);
       this.defeatFlags.set(boss.id, b.defeatFlag);
       this.fightFlags.set(boss.id, b.fightFlag);
       this.addEntity(boss);
@@ -602,6 +608,14 @@ export class GameSession implements SimServices {
   /** Is there a room to go to, with that entry? */
   private canEnter(to: Destination): boolean {
     return this.opts.rooms[to.room]?.entries.some((e) => e.id === to.entry) ?? false;
+  }
+
+  /**
+   * The exit `exitId` may be touched again. The host calls it when the hero touched a way on to a room that the session did not have yet (the rooms of the world after the Sanctum arrive after the first frame, in a chunk of their own):
+   * once they are in, the hero who is still standing in the zone takes the transition on the next tick, instead of finding the way shut until the room is reloaded.
+   */
+  rearmExit(exitId: string): void {
+    this.exitsTouched.delete(exitId);
   }
 
   /**
@@ -748,7 +762,7 @@ export class GameSession implements SimServices {
   private rescueFallenGuardians(): void {
     const killY = this.current.killY ?? this.current.bounds.y0 - 10;
     for (const e of this.live) {
-      if (!(e instanceof Enemy) && !(e instanceof Guardian) && !(e instanceof Boss)) continue;
+      if (!isGuardian(e)) continue;
       if (e.body.y >= killY || e.health.dead) continue;
       e.teleport(e.home.x, e.home.y, e.facing);
       this.collision.probeGround(e.body);

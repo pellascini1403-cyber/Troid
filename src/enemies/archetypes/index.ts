@@ -1,52 +1,37 @@
 import type { SimServices } from '@/gameplay/SimServices';
 import type { Enemy } from '../Enemy';
 import type { EnemyBrain } from '../EnemyBrain';
-import { BatBrain } from './bat';
-import { CrawlerBrain } from './crawler';
+import type { EnemyAi } from '../EnemyDefinition';
 import { SlimeBrain } from './inkSlime';
-import { LeechBrain } from './leech';
-import { PistonBrain } from './piston';
-import { RollerBrain } from './roller';
-import { ShadeBrain } from './shade';
-import { SporeBrain } from './spore';
-import { SpitterBrain } from './spitter';
-import { StonebackBrain } from './stoneback';
-import { ToadBrain } from './toad';
-import { TollerBrain } from './toller';
-import { WeaverBrain } from './weaver';
-import { WispBrain } from './wisp';
 
-/** Builds the brain an enemy's definition asks for. A new archetype is one more `case` (the compiler checks the union). */
+/** Every way of behaving there is (`EnemyAi['archetype']`). */
+export type Archetype = EnemyAi['archetype'];
+type AiOf<A extends Archetype> = Extract<EnemyAi, { archetype: A }>;
+type Make = (enemy: Enemy, sim: SimServices) => EnemyBrain;
+
+/**
+ * THE BRAINS (docs/PROMPT21-LOG.md): which brain each archetype gets. The Ink Slime's is here, because the first rooms of the world are fought with nothing else; the thirteen that come after it are TAUGHT by
+ * `enemies/archetypes/all.ts`, which travels with the creatures that need them — the first frame of the game does not carry the code of creatures that live sixty rooms away (the budget of the cold start, `npm run bench:bundle`).
+ * A new archetype is a member of `EnemyAi`, a brain, and one `registerBrain`; `tests/unit/enemies/brains.test.ts` holds every member of the union to a brain.
+ */
+const BRAINS = new Map<Archetype, Make>();
+
+export function registerBrain<A extends Archetype>(archetype: A, make: (enemy: Enemy, sim: SimServices, params: AiOf<A>['params']) => EnemyBrain): void {
+  // (the definition says which archetype it is, and so which params: the compiler cannot follow that through a table, the registration above it does)
+  const loose = make as (enemy: Enemy, sim: SimServices, params: unknown) => EnemyBrain;
+  BRAINS.set(archetype, (enemy, sim) => loose(enemy, sim, enemy.def.ai.params));
+}
+
+/** Is there a brain for it? */
+export function hasBrain(archetype: Archetype): boolean {
+  return BRAINS.has(archetype);
+}
+
+registerBrain('slime', (enemy, sim, params) => new SlimeBrain(enemy, sim, params));
+
+/** Builds the brain an enemy's definition asks for. */
 export function createBrain(enemy: Enemy, sim: SimServices): EnemyBrain {
-  const ai = enemy.def.ai;
-  switch (ai.archetype) {
-    case 'slime':
-      return new SlimeBrain(enemy, sim, ai.params);
-    case 'crawler':
-      return new CrawlerBrain(enemy, sim, ai.params);
-    case 'toad':
-      return new ToadBrain(enemy, sim, ai.params);
-    case 'guard':
-      return new StonebackBrain(enemy, sim, ai.params);
-    case 'spore':
-      return new SporeBrain(enemy, sim, ai.params);
-    case 'spitter':
-      return new SpitterBrain(enemy, sim, ai.params);
-    case 'bat':
-      return new BatBrain(enemy, sim, ai.params);
-    case 'wisp':
-      return new WispBrain(enemy, sim, ai.params);
-    case 'toller':
-      return new TollerBrain(enemy, sim, ai.params);
-    case 'roller':
-      return new RollerBrain(enemy, sim, ai.params);
-    case 'piston':
-      return new PistonBrain(enemy, sim, ai.params);
-    case 'leech':
-      return new LeechBrain(enemy, sim, ai.params);
-    case 'weaver':
-      return new WeaverBrain(enemy, sim, ai.params);
-    case 'shade':
-      return new ShadeBrain(enemy, sim, ai.params);
-  }
+  const make = BRAINS.get(enemy.def.ai.archetype);
+  if (!make) throw new Error(`enemy "${enemy.def.id}" asks for the "${enemy.def.ai.archetype}" brain, which has not been taught (the creatures after the Ink Slime come with \`content/beyond\`)`);
+  return make(enemy, sim);
 }
