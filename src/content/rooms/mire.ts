@@ -202,7 +202,7 @@ export function approach(): RoomDefinition {
  */
 export function lair(): RoomDefinition {
   const c = new RoomCanvas('mr_lair', 72, 26).walls().ground(1, 71, 2);
-  c.region('A', 8, 2, 9, 14).region('B', 65, 2, 66, 14);
+  c.region('A', 8, 2, 9, 25).region('B', 65, 2, 66, 25); // doors to the roof: there is no climbing over a door with the Wall Jump
   c.mark('a', 4, 2).mark('b', 67, 2).mark('l', 11, 2).mark('r', 64, 2).mark('k', 56, 2).mark('v', 60, 2);
   return mapRoom(
     { id: 'mr_lair', regionId: REGION, name: 'Matriarch Pool', nameKey: 'room.mr_lair.name', art: { backdrop: 'ruins', seed: 26 }, rows: c.rows(), regions: { A: { id: 'door_w', material: 'gate' }, B: { id: 'door_e', material: 'gate' } } },
