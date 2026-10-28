@@ -63,11 +63,19 @@ async function runWorld(ctx: Ctx, withArt: boolean): Promise<void> {
     const shot = new Set<string>();
     let transitions = 0;
     let lastPhase = 'none';
+    // what the page tells the hero when it learns the Air Dash (docs/PROMPT22-LOG.md §6): looked at while it is on screen
+    let told: string | null = null;
     const camera = { rooms: new Set<string>(), worstOverrun: 0 };
     await replay(ctx, journey, {
       chunk: 4,
       observe: async (st: GameState) => {
         worst = Math.max(worst, st.drawsMax ?? 0);
+        if (told === null && st.flags?.includes('taken:air_dash')) {
+          told = (await ctx.page.evaluate(
+            `(() => { const e = document.querySelector('[data-testid="ability-notice"]'); return e && e.dataset.open === '1' ? e.dataset.ability + ' | ' + e.querySelector('.ability-kicker').textContent + ' | ' + e.querySelector('[data-testid="ability-notice-name"]').textContent + ' | ' + e.querySelector('[data-testid="ability-notice-how"]').textContent : null; })()`,
+          )) as string | null;
+          if (told !== null) await ctx.shot('ability-notice');
+        }
         if (st.visual) looks[st.visual.shows] = (looks[st.visual.shows] ?? 0) + 1;
         if (st.transition?.phase === 'fadeOut' && lastPhase === 'none') transitions++;
         lastPhase = st.transition?.phase ?? 'none';
@@ -123,6 +131,7 @@ async function runWorld(ctx: Ctx, withArt: boolean): Promise<void> {
       'both slimes fell on the way, the card was taken on R3\'s ledge and its seal broken, the Warden fell and its Air Dash was taken',
     );
     assert.equal(s.card, 'card_spirit_bolt', 'the hero ends the chapter with the Spirit Bolt in hand');
+    assert.equal(told, 'air_dash | New ability | Air Dash | In the air, press Shift once more.', 'and was told what it had learned, and how it is done with the keys');
     assert.deepEqual([...shot].sort(), [...CHAPTER, 'ru_nave'].sort(), 'every room of the chapter was seen with the hero in it, and the Nave');
     assert.deepEqual([...camera.rooms].sort(), [...CHAPTER, 'ru_nave'].sort());
     assert.ok(camera.worstOverrun < 0.6, `the camera never showed more than 0.6 m beyond the limits of a room (${camera.worstOverrun.toFixed(2)} m)`);

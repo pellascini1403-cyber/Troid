@@ -105,10 +105,11 @@ describe('the words of the settings menu travel apart (docs/PROMPT6-LOG.md S30: 
 });
 
 describe('the words of the overlays travel apart too (the bundle budget: the first frame does not carry them)', () => {
-  it('they have the same languages as the game, and are only the notice that asks to turn the device', () => {
+  it('they have the same languages as the game, and are only the notice that asks to turn the device and the one that tells what the hero has learned', () => {
     expect(Object.keys(OVERLAY_CATALOGS).sort()).toEqual(Object.keys(CATALOGS).sort());
     for (const lang of Object.keys(OVERLAY_CATALOGS)) {
-      expect(Object.keys(OVERLAY_CATALOGS[lang]!).sort(), lang).toEqual(['rotate.message', 'rotate.play']);
+      for (const key of Object.keys(OVERLAY_CATALOGS[lang]!)) expect(/^(rotate|abilityNotice)\./.test(key), `${lang}:${key}`).toBe(true);
+      expect(Object.keys(OVERLAY_CATALOGS[lang]!), lang).toEqual(expect.arrayContaining(['rotate.message', 'rotate.play']));
       for (const key of Object.keys(OVERLAY_CATALOGS[lang]!)) {
         expect(CATALOGS[lang]![key], `${lang}:${key} is in the game's catalog too`).toBeUndefined();
         expect(MENU_CATALOGS[lang]![key], `${lang}:${key} is in the menu's catalog too`).toBeUndefined();

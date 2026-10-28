@@ -796,11 +796,11 @@ describe('settings menu', () => {
       m.dispose();
     });
 
-    it('the touch lines describe gestures and buttons that exist: movement, jump, crouch, drop, buttons, bottle, interact, pause', () => {
+    it('the touch lines describe gestures and buttons that exist: movement, jump, crouch, drop, buttons, the moves in the air, bottle, interact, pause', () => {
       const m = controls();
       m.open();
       const names = [...q(second, 'settings-controls-body').querySelectorAll('.settings-touchline > b')].map((n) => n.textContent);
-      expect(names).toEqual(['Moverse', 'Saltar', 'Agacharse', 'Atravesar una plataforma', 'Atacar, esquivar y habilidad', 'Beber una botella', 'Interactuar', 'Pausa']);
+      expect(names).toEqual(['Moverse', 'Saltar', 'Agacharse', 'Atravesar una plataforma', 'Atacar, esquivar y habilidad', 'Salto doble y salto de pared', 'Golpe al suelo', 'Esquiva aérea', 'Beber una botella', 'Interactuar', 'Pausa']);
       m.dispose();
     });
   });

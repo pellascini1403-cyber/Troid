@@ -301,6 +301,8 @@ export class Game2D {
     // what the hero does is counted from the events the simulation raises; the time is the session's own clock on top of what the save already had
     this.stats = new PlayStats(saved?.stats);
     this.lifecycle.add(this.stats.attach(this.session.bus, this.session.room.id));
+    // what the hero learns is told, in the words of the device in use (the abilities they began with were given before anyone listened)
+    this.lifecycle.add(this.session.bus.on('ability:unlocked', (e) => this.overlays?.ability.show(e.id, this.input.device, this.bindings)));
     this.saves = slots
       ? new GameSaves({ slots, settings, slot: settings.value.slot, stats: this.stats, durable, platform: browserPlatform(), notify: (n) => this.showNotice(n.kind, n.slot), warn: (message) => log.scope('save').warn(message) })
       : null;
@@ -750,6 +752,7 @@ export class Game2D {
     o?.prompt.place(width, height, insets, this.touchControls.gestureScale);
     o?.pause.place(width, height, insets, this.touchControls.gestureScale, this.settings.value.accessibility.hudScale);
     o?.notice.place(width, height, insets, this.touchControls.gestureScale, this.settings.value.accessibility.hudScale);
+    o?.ability.place(width, height, insets, this.touchControls.gestureScale, this.settings.value.accessibility.hudScale);
     // a touch screen held upright (taller than wide): the line that asks to turn it, under the HUD
     o?.rotate.place(o.hud.bottom, this.touchControls.gestureScale);
     o?.rotate.want(this.touchControls.isVisible && this.renderer.viewport.aspect < 1);
@@ -984,6 +987,7 @@ export class Game2D {
     this.overlays?.transition.update(this.session.transitionSnapshot);
     this.updateArrivalIndicator(realDt);
     this.overlays?.notice.update(realDt);
+    this.overlays?.ability.update(realDt, this.menuOpen);
     this.updateHud(worldDt);
     // the sound keeps GAME time (the simulation's own clock) and follows the hero
     this.audio?.update(this.session.now / TICK_RATE, p);

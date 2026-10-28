@@ -71,10 +71,10 @@ describe('the gamepad', () => {
 });
 
 describe('the touch layer', () => {
-  it('lists what it really has: the movement zone and its gestures, three buttons, the bottle chip, the interaction icon and the pause button', () => {
+  it('lists what it really has: the movement zone and its gestures, three buttons, the moves of the air, the bottle chip, the interaction icon and the pause button', () => {
     const t = controlsReference(DEFAULT_BINDINGS).touch;
     expect(t.map((r) => r.action)).toEqual([
-      'controls.touchMove', 'controls.touchJump', 'controls.touchCrouch', 'controls.touchDrop', 'controls.touchButtons', 'controls.touchBottle', 'controls.touchInteract', 'controls.touchPause',
+      'controls.touchMove', 'controls.touchJump', 'controls.touchCrouch', 'controls.touchDrop', 'controls.touchButtons', 'controls.touchAirJump', 'controls.touchSlam', 'controls.touchAirDash', 'controls.touchBottle', 'controls.touchInteract', 'controls.touchPause',
     ]);
     expect(t).toEqual([...TOUCH_REFERENCE]);
   });
