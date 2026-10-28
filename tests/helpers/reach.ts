@@ -143,6 +143,8 @@ export class ScriptRunner {
       press = t === 0;
       wantJump = t === 0;
     }
+    // a key that is up cannot be held without being pressed first (the chain of kicks lets the button go and the second-jump window wants it held again in the same breath: no hand can do that, and a keyboard would say "pressed")
+    if (!this.jumpHeld && !press) wantJump = false;
     let dashNow = false;
     for (const d of script.dash ?? []) if (t === d) dashNow = true;
     const frame = this.frame;
@@ -152,7 +154,12 @@ export class ScriptRunner {
     frame.jumpReleased = this.jumpHeld && !wantJump;
     frame.jumpHeld = wantJump;
     frame.dashPressed = dashNow;
+    frame.dashHeld = dashNow;
+    // (the frame is one object, handed on tick after tick: whatever a caller put into it for one tick — a blow, a bolt — is gone on the next)
     frame.attackPressed = false;
+    frame.attackHeld = false;
+    frame.abilityPressed = false;
+    frame.abilityHeld = false;
     this.jumpHeld = wantJump;
     return frame;
   }

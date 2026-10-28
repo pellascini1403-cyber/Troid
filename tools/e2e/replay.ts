@@ -22,6 +22,11 @@ export interface Held {
   ability: boolean;
   bottle: boolean;
   interact: boolean;
+  /**
+   * The stick as the frame had it, to the last digit (a keyboard has only −1, 0 and 1; a scripted run walks slowly and tilts gently). Only the scripted hand (`device: 'script'`) plays it; the keyboard and the pad play `right` and `left`.
+   */
+  ax?: number;
+  ay?: number;
 }
 
 export const NO_KEYS: Readonly<Held> = { right: false, left: false, down: false, jump: false, attack: false, dash: false, ability: false, bottle: false, interact: false };
@@ -34,17 +39,18 @@ export interface Recording {
   total: number;
 }
 
-export const DIGEST_EVERY = 50;
+export const DIGEST_EVERY = Number(process.env['TROID_DIGEST_EVERY'] ?? 50);
 
 /** The held state a frame stands for. */
 export function heldOf(f: Readonly<InputFrame>): Held {
+  // (a frame made elsewhere — a hop the solver recorded, a blow put in by hand — may say "pressed" without "held": a key that goes down is both)
   return {
-    right: f.move.x > 0.5, left: f.move.x < -0.5, down: f.move.y < -0.5, jump: f.jumpHeld, attack: f.attackHeld, dash: f.dashHeld,
-    ability: f.abilityHeld, bottle: f.bottlePressed, interact: f.interactPressed,
+    right: f.move.x > 0.5, left: f.move.x < -0.5, down: f.move.y < -0.5, jump: f.jumpHeld, attack: f.attackHeld || f.attackPressed, dash: f.dashHeld || f.dashPressed,
+    ability: f.abilityHeld || f.abilityPressed, bottle: f.bottlePressed, interact: f.interactPressed, ax: f.move.x, ay: f.move.y,
   };
 }
 
-const KEYS: Readonly<Record<keyof Held, string>> = {
+const KEYS: Readonly<Record<Exclude<keyof Held, 'ax' | 'ay'>, string>> = {
   right: 'KeyD', left: 'KeyA', down: 'KeyS', jump: 'Space', attack: 'KeyJ', dash: 'ShiftLeft', ability: 'KeyK', bottle: 'KeyL', interact: 'KeyE',
 };
 
@@ -90,10 +96,23 @@ export interface Recordable {
 
 /** Runs `play` with the driver while recording what it presses and the state digest every `DIGEST_EVERY` ticks. */
 export function record(driver: Recordable, play: () => void): Recording {
+  const rec = begin(driver);
+  play();
+  return rec.end();
+}
+
+/** The same for a run that is played asynchronously (the whole playthrough saves between its steps, as the page does). */
+export async function recordAsync(driver: Recordable, play: () => Promise<void>): Promise<Recording> {
+  const rec = begin(driver);
+  await play();
+  return rec.end();
+}
+
+function begin(driver: Recordable): { end(): Recording } {
   const runs: Recording['runs'] = [];
   const digests: Recording['digests'] = [];
   let total = 0;
-  const same = (a: Held, b: Held): boolean => (Object.keys(NO_KEYS) as Array<keyof Held>).every((k) => a[k] === b[k]);
+  const same = (a: Held, b: Held): boolean => (Object.keys(NO_KEYS) as Array<keyof Held>).every((k) => a[k] === b[k]) && a.ax === b.ax && a.ay === b.ay;
   driver.onFrame = (f) => {
     // the state now is the state after `total` ticks
     if (total > 0 && total % DIGEST_EVERY === 0) digests.push({ tick: total, digest: digestOf(driver.session) });
@@ -103,17 +122,20 @@ export function record(driver: Recordable, play: () => void): Recording {
     else runs.push({ held, ticks: 1 });
     total++;
   };
-  play();
-  driver.onFrame = null;
-  digests.push({ tick: total, digest: digestOf(driver.session) });
-  return { runs, digests, total };
+  return {
+    end() {
+      driver.onFrame = null;
+      digests.push({ tick: total, digest: digestOf(driver.session) });
+      return { runs, digests, total };
+    },
+  };
 }
 
-/** The device a replay presses on: the keyboard, or the abstract gamepad of the test hook (the same actions, through the pad's own buttons and stick). */
-export type Device = 'keyboard' | 'gamepad';
+/** The device a replay presses on: the keyboard, the abstract gamepad of the test hook (the same actions, through the pad's own buttons and stick), or the scripted hand (the stick to the last digit). */
+export type Device = 'keyboard' | 'gamepad' | 'script';
 
 /** The standard-mapping button of each action that is a button on the pad (docs/GAME-SPEC-2D.md §4.2); left and right are the stick. */
-const PAD_BUTTONS: Readonly<Record<Exclude<keyof Held, 'left' | 'right'>, number>> = { down: 13, jump: 0, attack: 2, dash: 1, ability: 3, bottle: 4, interact: 6 };
+const PAD_BUTTONS: Readonly<Record<Exclude<keyof Held, 'left' | 'right' | 'ax' | 'ay'>, number>> = { down: 13, jump: 0, attack: 2, dash: 1, ability: 3, bottle: 4, interact: 6 };
 
 export interface ReplayOptions {
   /** Largest number of ticks between two looks at the game (the observer sees the state every this many ticks). */
@@ -132,7 +154,7 @@ export async function replay(ctx: Ctx, rec: Recording, opts: ReplayOptions = {})
   const chunk = opts.chunk ?? 4;
   const down = new Set<string>();
   const holdKeys = async (held: Held): Promise<void> => {
-    for (const k of Object.keys(KEYS) as Array<keyof Held>) {
+    for (const k of Object.keys(KEYS) as Array<keyof typeof KEYS>) {
       const code = KEYS[k];
       if (held[k] && !down.has(code)) {
         await ctx.page.keyboard.down(code);
@@ -149,12 +171,25 @@ export async function replay(ctx: Ctx, rec: Recording, opts: ReplayOptions = {})
     await ctx.page.evaluate(`window.__troid.pad.set(${held.right ? 1 : held.left ? -1 : 0}, 0, ${JSON.stringify(buttons)})`);
     padUsed = true;
   };
-  /** Presses `held` on `device` and lets go of everything on the other one. */
+  let scriptUsed = false;
+  const SCRIPT_BUTTONS: ReadonlyArray<Exclude<keyof Held, 'left' | 'right' | 'down' | 'ax' | 'ay'>> = ['jump', 'attack', 'dash', 'ability', 'bottle', 'interact'];
+  const holdScript = async (held: Held): Promise<void> => {
+    const names = SCRIPT_BUTTONS.filter((k) => held[k]);
+    await ctx.page.evaluate(`window.__troid.script.set(${held.ax ?? (held.right ? 1 : held.left ? -1 : 0)}, ${held.ay ?? (held.down ? -1 : 0)}, ${JSON.stringify(names)})`);
+    scriptUsed = true;
+  };
+  /** Presses `held` on `device` and lets go of everything on the other ones. */
   const hold = async (held: Held, device: Device = 'keyboard'): Promise<void> => {
-    if (device === 'gamepad') {
+    if (device === 'script') {
+      await holdKeys(NO_KEYS);
+      if (padUsed) await holdPad(NO_KEYS);
+      await holdScript(held);
+    } else if (device === 'gamepad') {
+      if (scriptUsed) await holdScript(NO_KEYS);
       await holdKeys(NO_KEYS);
       await holdPad(held);
     } else {
+      if (scriptUsed) await holdScript(NO_KEYS);
       if (padUsed) await holdPad(NO_KEYS);
       await holdKeys(held);
     }

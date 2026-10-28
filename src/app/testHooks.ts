@@ -33,6 +33,10 @@ import type { Game2D } from './Game2D';
 import type { GameSaves } from './gameSaves';
 import type { Effects } from './effects';
 
+/** The source of the scripted hand (`__troid.script`) and the actions it can hold. */
+const SCRIPT_SOURCE = 'script';
+const SCRIPT_ACTIONS = ['jump', 'attack', 'dash', 'ability', 'bottle', 'interact', 'drop'] as const;
+
 /**
  * `window.__troid`: what lets Playwright drive and inspect the game deterministically (dev builds and `?hooks=1`), and what no player ever needs.
  * It is a chunk of its own, fetched only when the hooks are asked for — so none of it travels in the cold start of a real player (docs/PROMPT6-LOG.md
@@ -321,6 +325,18 @@ export function createTestHooks(game: Game2D, shared: HookShared) {
       },
       disconnect: () => void h.virtualPad()?.disconnect(),
       remove: () => h.setVirtualPad(null),
+    },
+    /**
+     * Test hook: a scripted hand — what replays a run the simulation played (`tools/e2e/replay.ts`, the full-run scenario). The stick EXACTLY as recorded (the run's analog values: a slow walk, a gentle tilt; no dead zone, no rescaling) and the
+     * actions held. It goes through the same `InputManager` the keyboard, the pad and the fingers do — it is one more source — and `set` says everything that is held: what is not named is let go.
+     */
+    script: {
+      set: (x: number, y: number, held: string[] = []) => {
+        h.input.registerSource(SCRIPT_SOURCE, 'keyboard', 'independent');
+        h.input.setAxis(SCRIPT_SOURCE, x, y);
+        for (const a of SCRIPT_ACTIONS) h.input.setAction(SCRIPT_SOURCE, a, held.includes(a));
+      },
+      release: () => h.input.releaseSource(SCRIPT_SOURCE),
     },
     revive: () => {
       session.player.revive();

@@ -559,8 +559,12 @@ export class Pilot {
       // (the way out may have been taken in the middle of it: the room is the next one)
       return !x.end && x.to !== undefined && s.room.id === x.to.room && !this.d.p.health.dead;
     }
+    if (x.end) {
+      // (the touch is raised by the tick that put the hero into the zone, and the page holds the world from the end of that tick: not one tick more is played, or a browser replaying the run could not follow it)
+      if (!s.exitsReached.has(x.id)) this.d.step(1);
+      return true;
+    }
     this.d.step(1);
-    if (x.end) return true;
     const limit = s.now + 400;
     while (s.now < limit && (s.transition.active || s.room.id === from)) this.d.step(1);
     this.d.stop();

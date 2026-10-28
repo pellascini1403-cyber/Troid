@@ -198,7 +198,7 @@ export class Runner {
    * In the middle of a climb: a lantern that comes level with the hero is put out whole with the Spirit Bolt (it has two lives and the bolt does two); a creature that has come to the hero and is in reach of the sword gets a blow (a wisp at the
    * wall is put out before it goes off) — all without the hero letting go of the wall.
    */
-  private overlay(frame: { attackPressed: boolean; abilityPressed: boolean; abilityHeld: boolean }): void {
+  private overlay(frame: { attackPressed: boolean; attackHeld: boolean; abilityPressed: boolean; abilityHeld: boolean }): void {
     const d = this.d;
     if (d.p.controller.state !== 'free') return;
     for (const f of this.brawl.foes(9, 4)) {
@@ -213,6 +213,7 @@ export class Runner {
       if (!['chase', 'fuse', 'swoop', 'wake', 'telegraph', 'windup', 'rush', 'roll', 'attack'].includes(f.state)) continue;
       if (this.brawl.inSword(f)) {
         frame.attackPressed = true;
+        frame.attackHeld = true;
         this.lastSwing = d.session.now;
         return;
       }

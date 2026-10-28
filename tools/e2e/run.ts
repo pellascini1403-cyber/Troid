@@ -48,6 +48,7 @@ import { devtools } from './scenarios/devtools';
 import { ending } from './scenarios/ending';
 import { fallbacks } from './scenarios/fallbacks';
 import { finale } from './scenarios/finale';
+import { fullrun } from './scenarios/fullrun';
 import { focus } from './scenarios/focus';
 import { movement } from './scenarios/movement';
 import { pause } from './scenarios/pause';
@@ -75,7 +76,7 @@ import { vfx } from './scenarios/vfx';
 import { vfxArt } from './scenarios/vfxArt';
 import { world, worldArt } from './scenarios/world';
 
-const ALL: Scenario[] = [assets, playerArt, playerAnim, playerLab, playerR1, audioCues, audio, environment, artPerformance, cost, adaptive, roomArt, movement, crouch, combat, slime, r1, room, rooms, death, render, camera, sprites, vfx, vfxArt, lighting, fallbacks, boot, stress, touch, touchEditor, gamepad, hud, magic, bolt, bottles, bottle4, progression, interaction, devtools, language, vertical, transition, arrival, world, worldArt, boss, bossDeath, checkpoint, save, settings, pause, pauseMap, pauseZone, slots, tabs, accessibility, hazard, mobile, finale, ending, focus, resilience, readable, privacy, soak];
+const ALL: Scenario[] = [assets, playerArt, playerAnim, playerLab, playerR1, audioCues, audio, environment, artPerformance, cost, adaptive, roomArt, movement, crouch, combat, slime, r1, room, rooms, death, render, camera, sprites, vfx, vfxArt, lighting, fallbacks, boot, stress, touch, touchEditor, gamepad, hud, magic, bolt, bottles, bottle4, progression, interaction, devtools, language, vertical, transition, arrival, world, worldArt, boss, bossDeath, checkpoint, save, settings, pause, pauseMap, pauseZone, slots, tabs, accessibility, hazard, mobile, finale, fullrun, ending, focus, resilience, readable, privacy, soak];
 const filter = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice('--only='.length).split(',').filter((n) => n !== '');
 const prod = process.argv.includes('--prod');

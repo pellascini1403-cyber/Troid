@@ -73,9 +73,20 @@ describe('recording', () => {
   });
 
   it('heldOf reads the keys a frame stands for (a keyboard\'s clamped diagonal still counts as both)', () => {
-    const base = { move: { x: 0, y: 0 }, jumpHeld: false, attackHeld: false, dashHeld: false } as Parameters<typeof heldOf>[0];
-    expect(heldOf({ ...base, move: { x: 0.7071, y: -0.7071 }, jumpHeld: true })).toEqual({ right: true, left: false, down: true, jump: true, attack: false, dash: false });
-    expect(heldOf({ ...base, move: { x: -1, y: 0 }, attackHeld: true, dashHeld: true })).toEqual({ right: false, left: true, down: false, jump: false, attack: true, dash: true });
+    const base = { move: { x: 0, y: 0 }, jumpHeld: false, attackHeld: false, dashHeld: false, abilityHeld: false, attackPressed: false, dashPressed: false, abilityPressed: false, bottlePressed: false, interactPressed: false } as Parameters<typeof heldOf>[0];
+    const none = { ability: false, bottle: false, interact: false };
+    expect(heldOf({ ...base, move: { x: 0.7071, y: -0.7071 }, jumpHeld: true })).toEqual({ right: true, left: false, down: true, jump: true, attack: false, dash: false, ...none, ax: 0.7071, ay: -0.7071 });
+    expect(heldOf({ ...base, move: { x: -1, y: 0 }, attackHeld: true, dashHeld: true })).toEqual({ right: false, left: true, down: false, jump: false, attack: true, dash: true, ...none, ax: -1, ay: 0 });
+  });
+
+  it('heldOf keeps the stick to the last digit (a scripted run walks slowly) and counts a button that was only PRESSED as held (a key that goes down is both)', () => {
+    const base = { move: { x: 0, y: 0 }, jumpHeld: false, attackHeld: false, dashHeld: false, abilityHeld: false, attackPressed: false, dashPressed: false, abilityPressed: false, bottlePressed: false, interactPressed: false } as Parameters<typeof heldOf>[0];
+    const walking = heldOf({ ...base, move: { x: 0.25, y: 0 } });
+    expect(walking.ax).toBe(0.25);
+    expect(walking.right, 'a quarter of a stick is not the right key').toBe(false);
+    expect(heldOf({ ...base, dashPressed: true }).dash).toBe(true);
+    expect(heldOf({ ...base, attackPressed: true }).attack).toBe(true);
+    expect(heldOf({ ...base, abilityPressed: true }).ability).toBe(true);
   });
 });
 
