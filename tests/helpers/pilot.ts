@@ -2,6 +2,7 @@ import { PLAYER } from '@/content/player';
 import { overlaps, type Rect } from '@/core/math';
 import { bodyRect } from '@/world/collision';
 import type { InteractableDef } from '@/interaction/Interactable';
+import type { InputFrame } from '@/input/InputFrame';
 import { chainTo } from './chain';
 import { RoomPhysics, ScriptRunner, withExitsAsHazards, type Hop, type Surface } from './reach';
 import type { Driver } from './sim';
@@ -18,6 +19,8 @@ const HALF = PLAYER.body.halfWidth;
 const HEIGHT = PLAYER.body.height;
 /** How high above a floor a jump gets the head (a full jump is 3.1 m; this leaves a margin). */
 const JUMP_REACH = 2.9;
+/** And with the second jump at the top of the first (a full jump is 3.1 m and the second adds 2.6; this leaves a margin). */
+const JUMP_REACH_TWICE = 5.0;
 /** How far in from the end of a ledge a run-up begins, and a standing take-off stands (m). */
 const EDGE = 0.1;
 /** The height of the body crouched (m): a passage this low is walked through bent over. */
@@ -38,12 +41,24 @@ export interface PilotOptions {
   reflex?: (pilot: Pilot) => boolean;
   /** Where to write what the pilot did (for a person reading why a room could not be crossed). */
   trace?: string[];
+  /**
+   * Called with the frame of every tick of a hop, before it is played: the place where a person adds a blow to a climb (the sword at a wisp that has come to the wall) without letting go of the stick. It may set the buttons it needs; it must not
+   * touch the stick or the jump.
+   */
+  overlay?: (frame: InputFrame, pilot: Pilot) => void;
+  /**
+   * Asked on every tick of a hop: true means "let go" — the hop is given up on the spot and the hero comes down as well as they can (toward the middle of what is below), and the pilot makes a new plan from there. The place where a person
+   * who is hanging on a wall with something flying at them lets go and meets it on the ground.
+   */
+  abort?: (pilot: Pilot, hop: Hop) => boolean;
 }
 
 export class Pilot {
   /** What the pilot did, in words. */
   readonly trace: string[];
   reflex: PilotOptions['reflex'];
+  overlay: PilotOptions['overlay'];
+  abort: PilotOptions['abort'];
   avoidExits: boolean;
   /** The hops it played, and how many came down somewhere other than the solver said. */
   hops = 0;
@@ -56,6 +71,8 @@ export class Pilot {
     opts: PilotOptions = {},
   ) {
     this.reflex = opts.reflex;
+    this.overlay = opts.overlay;
+    this.abort = opts.abort;
     this.avoidExits = opts.avoidExits ?? true;
     this.trace = opts.trace ?? [];
   }
@@ -151,6 +168,75 @@ export class Pilot {
     return false;
   }
 
+  /**
+   * The hero stands where the solver has no place to stand: a floor of spikes, the lip of a block. The nearest place that is one — within a jump — is walked to, or hopped up onto, as a person gets out of a pit of spikes: at once, and by
+   * the shortest way. A pit can be wide (the Veins have sixty-two metres of it): when nothing is within a hop, the hero walks along the floor toward the nearest place it could climb onto — the spikes hurt each step, and that is what a fall into
+   * them costs. True when it did something about it.
+   */
+  private recover(phys: RoomPhysics, attempt: number): boolean {
+    const d = this.d;
+    const b = d.body;
+    const twice = this.hero().has('double_jump');
+    const reach = (twice ? JUMP_REACH_TWICE : JUMP_REACH) - 0.3;
+    const all = phys.surfaces.map((s) => ({ s, dx: b.x < s.x0 ? s.x0 - b.x : b.x > s.x1 ? b.x - s.x1 : 0, dy: s.y - b.y })).filter((c) => c.dy <= reach && c.dy >= -7);
+    const cost = (c: { dx: number; dy: number }): number => c.dx + Math.max(0, c.dy) * 0.6 + (c.dy < -0.2 ? 1.5 : 0);
+    const near = all.filter((c) => c.dx <= 6).sort((p, q) => cost(p) - cost(q));
+    const pick = near[attempt % Math.max(1, Math.min(2, near.length))];
+    if (!pick) {
+      // nothing within a hop: along the floor to the nearest place that can be climbed onto
+      const far = all.sort((p, q) => cost(p) - cost(q))[0];
+      if (!far) return false;
+      d.moveX = b.x < far.s.x0 ? 1 : b.x > far.s.x1 ? -1 : 0;
+      d.step(30);
+      d.stop();
+      return true;
+    }
+    const { s, dx, dy } = pick;
+    const dir: -1 | 1 = b.x < s.x0 ? 1 : b.x > s.x1 ? -1 : b.x < (s.x0 + s.x1) / 2 ? 1 : -1;
+    if (dy > 0.3 || dx > 0.2) {
+      // up onto it (or across a gap to it): a full jump toward it — and the second one at the top of it when it is higher than one jump gets
+      d.moveX = dir;
+      d.press('jump');
+      if (dy > JUMP_REACH - 0.3) {
+        d.step(14);
+        d.release('jump');
+        d.step(1);
+        d.press('jump');
+        d.step(20);
+      } else {
+        d.step(26);
+      }
+      d.release('jump');
+      for (let t = 0; t < 40 && !d.body.grounded; t++) d.step(1);
+      d.stop();
+      return true;
+    }
+    this.walkTo(Math.min(s.x1 - EDGE, Math.max(s.x0 + EDGE, b.x)), 0.1, 300);
+    return true;
+  }
+
+  /** Comes down from where the hero is: steering toward the middle of the nearest thing below (so as not to fall on the lip of a way out, or into the gap beside a ledge). False when they never come down onto anything. */
+  land(max = 360): boolean {
+    const d = this.d;
+    for (let t = 0; t < max; t++) {
+      if (d.body.grounded && !d.p.controller.dashing) {
+        d.stop();
+        return true;
+      }
+      const b = d.body;
+      const below = this.physics()
+        .surfaces.filter((q) => q.y <= b.y + 0.1 && q.x1 + 2 >= b.x && q.x0 - 2 <= b.x)
+        .sort((p, q) => q.y - p.y)[0];
+      if (below) {
+        const mid = (below.x0 + below.x1) / 2;
+        d.moveX = Math.sign(mid - b.x) * Math.min(1, Math.abs(mid - b.x) / 1.5);
+      } else d.moveX = 0;
+      d.step(1);
+    }
+    d.stop();
+    return d.body.grounded;
+  }
+
   /** Keeps walking toward `x` until `cond` is true (false when it never is, or the hero gets to `x` without it). */
   walkUntil(cond: () => boolean, x: number, maxTicks = 600): boolean {
     const d = this.d;
@@ -213,7 +299,10 @@ export class Pilot {
   goTo(goal: Goal, opts: { maxTicks?: number } = {}): boolean {
     const d = this.d;
     const deadline = d.session.now + (opts.maxTicks ?? 7200);
+    const room = d.session.room.id;
     for (let iter = 0; iter < 80 && d.session.now < deadline; iter++) {
+      // (a defeat that brought the hero back to a shrine in another room, or a door they fell through: the goal was of the room they were in)
+      if (d.session.room.id !== room || d.p.health.dead) return false;
       if (this.arrived(goal)) return true;
       if (this.reflex?.(this)) continue;
       if (!this.settle()) {
@@ -225,11 +314,9 @@ export class Pilot {
       const b = d.body;
       const here = phys.surfaceAt(b.x, b.y, 0.1);
       if (!here) {
-        // standing on something that is not a place of the solver's (the margin of a way out, the lip of a block): a walk to the nearest place that is, at the same height
+        // standing on something that is not a place of the solver's (the margin of a way out, the lip of a block, a floor of spikes): to the nearest place that is — a walk along the floor, or a hop up onto it
         this.say(`no surface under (${b.x.toFixed(2)}, ${b.y.toFixed(2)})`);
-        const near = phys.surfaces.filter((s) => Math.abs(s.y - b.y) <= 0.2).sort((p, q) => Math.min(Math.abs(b.x - p.x0), Math.abs(b.x - p.x1)) - Math.min(Math.abs(b.x - q.x0), Math.abs(b.x - q.x1)))[0];
-        if (near) this.walkTo(Math.min(near.x1 - EDGE, Math.max(near.x0 + EDGE, b.x)), 0.1, 400);
-        else {
+        if (!this.recover(phys, iter)) {
           d.moveX = iter % 2 ? 1 : -1;
           d.step(8);
           d.stop();
@@ -430,8 +517,15 @@ export class Pilot {
     const takeoff = `${d.body.x.toFixed(2)} (vx ${d.body.vx.toFixed(2)}), the solver's ${rec.x.toFixed(2)} (vx ${rec.vx.toFixed(2)})`;
     const runner = new ScriptRunner(script);
     let landed = false;
+    let letGo = false;
     for (let t = 0; t < runner.limit; t++) {
-      d.tickFrame(runner.next(t, d.body));
+      if (this.abort?.(this, hop)) {
+        letGo = true;
+        break;
+      }
+      const frame = runner.next(t, d.body);
+      this.overlay?.(frame, this);
+      d.tickFrame(frame);
       runner.after(d.body);
       if (runner.inAir && d.body.grounded && !d.p.controller.dashing) {
         landed = true;
@@ -439,6 +533,12 @@ export class Pilot {
       }
     }
     d.stop();
+    if (letGo) {
+      this.say(`the hop "${hop.script}" was given up at (${d.body.x.toFixed(2)}, ${d.body.y.toFixed(2)})`);
+      this.land();
+      d.step(4);
+      return;
+    }
     if (!landed) this.settle();
     if (Math.abs(d.body.x - rec.landX) > 0.4 || Math.abs(d.body.y - rec.landY) > 0.4) {
       this.misses++;
@@ -455,7 +555,10 @@ export class Pilot {
     const x = s.room.exits!.find((e) => e.id === exitId);
     if (!x) throw new Error(`[${s.room.id}] no way out "${exitId}"`);
     const from = s.room.id;
-    if (!this.goTo({ zone: x.rect })) return false;
+    if (!this.goTo({ zone: x.rect })) {
+      // (the way out may have been taken in the middle of it: the room is the next one)
+      return !x.end && x.to !== undefined && s.room.id === x.to.room && !this.d.p.health.dead;
+    }
     this.d.step(1);
     if (x.end) return true;
     const limit = s.now + 400;

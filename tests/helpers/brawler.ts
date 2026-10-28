@@ -3,6 +3,8 @@ import type { Rect } from '@/core/math';
 import { overlaps } from '@/core/math';
 import type { Enemy } from '@/enemies/Enemy';
 import { EnemyShot } from '@/enemies/EnemyShot';
+import { SPIRIT_BOLT } from '@/content/skills';
+import { floorAhead } from '@/enemies/senses';
 import type { Driver } from './sim';
 
 /**
@@ -44,6 +46,8 @@ export type Tactic = (f: Brawler, foe: Foe) => void;
 
 /** The states in which a creature is about to hit or hitting: the telegraph and the blow, by every name the brains give them. */
 const HOT = new Set(['telegraph', 'windup', 'attack', 'smash', 'rush', 'leap', 'land', 'roll', 'curl', 'lock', 'drop', 'bite', 'rise', 'fuse', 'blast', 'aim', 'fire', 'swoop', 'slash', 'appear', 'bloom', 'burst', 'crouch', 'swing', 'toll', 'weave']);
+/** The band of height the bolt crosses (m above the feet): its muzzle is at the chest and the bolt is half a metre tall. */
+const BOLT = { y0: SPIRIT_BOLT.projectile!.muzzle.y - SPIRIT_BOLT.projectile!.size.h / 2, y1: SPIRIT_BOLT.projectile!.muzzle.y + SPIRIT_BOLT.projectile!.size.h / 2 };
 /** The reach of the sword (m from the centre of the body, facing it): the standing blow, `slash_1`. */
 const SWORD = PLAYER.combat.attacks['slash_1']!.hitbox;
 /** A swing every so many ticks: the whole of the blow (startup, active, recovery) and a tick to spare, so the next press starts a new one. */
@@ -67,10 +71,14 @@ export class Brawler {
   swings = 0;
   private lastLife: number;
   private swingAt = -99;
+  private castAt = -99;
+  casts = 0;
   private releaseJumpAt = -1;
-  private readonly pulses: Array<'attack' | 'dash' | 'bottle' | 'jump' | 'interact'> = [];
+  private readonly pulses: Array<'attack' | 'dash' | 'bottle' | 'jump' | 'interact' | 'ability'> = [];
   /** A free-form memory of the tactic (what it decided a few ticks ago). */
   memo: Record<string, number> = {};
+  /** Never walks off a ledge: a fight is fought on the floor it began on (a hero who backs away from a blow does not back into a pit). Off for a fight that wants the edge. */
+  edgeGuard = true;
   /** Called after every tick (a trace for a person reading a fight). */
   onTick: ((f: Brawler) => void) | null = null;
 
@@ -172,8 +180,10 @@ export class Brawler {
     }
   }
 
-  /** Dash toward `dir` (the stick is set to it for the tick: a dash goes the way the stick says, and the way the hero faces without it). */
+  /** Dash toward `dir` (the stick is set to it for the tick: a dash goes the way the stick says, and the way the hero faces without it). Not off a ledge into nothing: a dash carries 3.5 m. */
   dash(dir: -1 | 1): void {
+    const b = this.d.body;
+    if (b.grounded && !floorAhead(this.d.session.collision, b, dir, 3.2, 6.5)) return;
     this.d.moveX = dir;
     this.pulses.push('dash');
   }
@@ -186,6 +196,29 @@ export class Brawler {
     this.pulses.push('attack');
     this.swingAt = this.tickCount;
     this.swings++;
+    return true;
+  }
+
+  /** Would the Spirit Bolt, from where the hero is and the way they face, cross this creature? (It flies level, from the chest, twelve metres.) */
+  inBolt(foe: Foe, facing: 1 | -1 = this.d.p.facing): boolean {
+    const me = this.d.body;
+    if ((foe.x - me.x) * facing <= 0 || Math.abs(foe.x - me.x) > 11) return false;
+    return foe.y < me.y + BOLT.y1 + 0.1 && foe.y + foe.h > me.y + BOLT.y0 - 0.1;
+  }
+
+  /** The bolt can be cast: the hero has it, the magic for it, the hands free, and the last cast is behind. */
+  get canCast(): boolean {
+    const s = this.d.session;
+    const st = this.d.p.controller.state;
+    return s.abilities.has('magic_attack') && s.magic.current >= SPIRIT_BOLT.cost && (st === 'free' || st === 'crouch') && this.tickCount - this.castAt >= 24;
+  }
+
+  /** The Spirit Bolt (the ability key): true when the press was made. */
+  cast(): boolean {
+    if (!this.canCast) return false;
+    this.pulses.push('ability');
+    this.castAt = this.tickCount;
+    this.casts++;
     return true;
   }
 
@@ -204,6 +237,11 @@ export class Brawler {
     this.face(foe.side);
     if (this.d.p.facing === foe.side && this.inSword(foe)) return this.swing();
     return false;
+  }
+
+  /** Is there floor to step back onto, a couple of metres behind (not a ledge or a pit)? */
+  canBack(dir: -1 | 1): boolean {
+    return floorAhead(this.d.session.collision, this.d.body, dir, 2.0, 2.5);
   }
 
   /** The dash is ready: the key is not on its cooldown and the hero is free to use it. */
@@ -280,6 +318,11 @@ export class Brawler {
       const target = this.pick(foes);
       if (target) (this.tactics[target.id] ?? this.fallback)(this, target);
     }
+    if (this.edgeGuard && this.d.body.grounded && this.d.moveX !== 0 && this.d.p.controller.state === 'free') {
+      const dir = this.d.moveX > 0 ? 1 : -1;
+      if (!floorAhead(this.d.session.collision, this.d.body, dir, 0.9, 6.5)) this.d.moveX = 0; // (a drop to a floor below is a way down; a drop into nothing is a pit)
+      else if (this.exitAhead(dir)) this.d.moveX = 0; // (and a fight does not leave the room)
+    }
     this.pressPulses();
     this.d.step(1);
     this.releasePulses();
@@ -288,6 +331,20 @@ export class Brawler {
     if (life < this.lastLife) this.hurt += this.lastLife - life;
     this.lastLife = life;
     this.onTick?.(this);
+  }
+
+  /** Would a step toward `dir` put the hero into a way out of the room (that is open to them)? A fight is fought in the room it began in: a hero who backs away from a blast does not back out of the door. */
+  exitAhead(dir: -1 | 1): boolean {
+    const s = this.d.session;
+    const b = this.d.body;
+    const body = (x: number): Rect => ({ x0: x - b.halfW, x1: x + b.halfW, y0: b.y, y1: b.y + b.height });
+    const now = body(b.x);
+    const next = body(b.x + dir * 0.7);
+    for (const x of s.room.exits ?? []) {
+      if (!x.to || (x.requires !== undefined && !s.flags.has(x.requires))) continue;
+      if (overlaps(next, x.rect) && !overlaps(now, x.rect)) return true;
+    }
+    return false;
   }
 
   /** The creature that matters most now: the nearest one that is winding up or hitting, else the maker of creatures if there is one (put it out first), else the nearest. */

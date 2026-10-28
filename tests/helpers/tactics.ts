@@ -108,8 +108,12 @@ export const TACTICS: Record<string, Tactic> = {
     switch (foe.state) {
       case 'windup':
       case 'smash':
-        // the smash falls in front of it: out of reach, or behind it
-        if (inFront && foe.gap < 2.4 + 0.5) return f.walk(away(foe));
+        // the smash falls in front of it: out of reach, or behind it — back if there is floor behind, else through it with the dash (to its back, where the shield is not)
+        if (inFront && foe.gap < 2.4 + 0.5) {
+          if (f.canBack(away(foe))) return f.walk(away(foe));
+          if (f.dashReady) return f.dash(foe.side);
+          return f.jump(26);
+        }
         return f.face(foe.side);
       case 'recover':
       case 'hurt':
@@ -159,11 +163,25 @@ export const TACTICS: Record<string, Tactic> = {
     else f.face(foe.side);
   },
 
-  // it floats to the hero and goes off: put it out first (two blows), or run from the blast
+  // it floats to the hero and goes off: put it out first (two blows), or run from the blast; when it hangs over the hero and there is no room to run (the foot of a chimney), a leap puts the sword into it before it goes off
   lantern_wisp: (f, foe) => {
-    if (foe.state === 'fuse' || foe.state === 'blast') return foe.gap < 2.1 + 0.35 + 0.5 ? f.walk(away(foe)) : f.face(foe.side);
+    const over = foe.y - f.me.y;
+    // from afar, the bolt: it has two lives and the bolt does two
+    if (foe.gap >= 2 && (foe.state === 'chase' || foe.state === 'fuse')) {
+      f.face(foe.side);
+      if (f.me.facing === foe.side && f.inBolt(foe) && f.cast()) return;
+    }
+    if (foe.state === 'fuse' || foe.state === 'blast') {
+      if (f.strike(foe)) return;
+      if (foe.gap < 2.1 + 0.35 + 0.5) {
+        if (foe.state === 'fuse' && over > 0.4 && foe.gap < 1.6 && f.me.grounded) return f.jump(26);
+        return f.walk(away(foe));
+      }
+      return f.face(foe.side);
+    }
     if (f.strike(foe)) return;
     if (foe.gap > 3.4) f.walk(foe.side, 0.6);
+    else if (over > 1.2 && foe.gap < 1.6 && f.me.grounded) f.jump(26); // (it hovers over the hero: the sword reaches it on the way up)
     else f.face(foe.side);
   },
 
@@ -210,8 +228,17 @@ export const TACTICS: Record<string, Tactic> = {
   // it makes creatures, never more than two: reach it
   ink_weaver: (f, foe) => engage(f, foe),
 
-  // it vanishes and returns behind the hero: keep out of the cut, strike it while it is spent
-  veil_shade: (f, foe) => baitAndPunish(f, foe, { danger: ['appear', 'slash'], open: ['recover', 'hurt'], standoff: 4.5 }),
+  // it vanishes and comes back where there is floor for it — behind the hero, or in front when behind is a drop — solid for 24 ticks before it cuts: on open floor keep out of the cut and strike it while it is spent; with no floor
+  // to give way on (a plank over spikes) the sword gets there first, while it is still unarmed, and the blow sends it back to the beginning
+  veil_shade: (f, foe) => {
+    if ((foe.state === 'appear' || foe.state === 'slash') && foe.gap < reachOf(foe) + HERO + SAFE && !f.canBack(away(foe))) {
+      if (foe.state === 'slash') return;
+      if (f.strike(foe)) return;
+      if (foe.gap > f.strikeGap(foe) - 0.3) return f.walk(foe.side);
+      return f.face(foe.side);
+    }
+    baitAndPunish(f, foe, { danger: ['appear', 'slash'], open: ['recover', 'hurt'], standoff: 4.5 });
+  },
 };
 
 /** No reading of the creature at all: walk up and swing. What a hero who does not look at the telegraph does. */
