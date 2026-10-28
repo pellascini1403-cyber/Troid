@@ -116,7 +116,7 @@ export function soundsFor(cue: Readonly<AudioCueEvent>, context: SoundContext): 
     case 'sealBroken':
       return [{ id: 'seal.break' }];
     case 'hazardHit':
-      return [{ id: 'hazard.spikes' }];
+      return [{ id: v === 'lava' ? 'hazard.lava' : 'hazard.spikes' }];
     case 'roomTransition':
       return [{ id: 'transition.pass' }];
     // ---- the moments that are also music

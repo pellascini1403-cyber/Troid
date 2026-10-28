@@ -122,6 +122,57 @@ const hurtBurst: FlipbookVfx = {
   life: 0.24, size: [1.6, 2.3], alpha: [1, 1], aim: 'dir',
 };
 
+// ------------------------------------------------------------------------------------------------- the lava
+
+/** Embers thrown up out of the lava where the hero touched it: slow, rising, hot, and they cool to red on the way down (the hero's own hurt is the shards of their cyan). */
+const lavaEmbers: ParticleVfx = {
+  kind: 'particles',
+  id: 'lava_embers',
+  priority: 8,
+  palette: 'ember',
+  blend: 'add',
+  shape: 'spark',
+  count: [12, 17],
+  speed: [2.5, 7.5],
+  life: [0.45, 0.85],
+  aim: 'up',
+  spread: 1.7,
+  size: [0.16, 0.36],
+  sizeEnd: 0.1,
+  gravity: -9,
+  drag: 1.2,
+  alpha: [1, 0],
+  colors: ['hot', 'core', 'core', 'deep'],
+  radius: 0.3,
+};
+
+/** Drops of lava that fall back heavy (normal blend: they are matter, not light). */
+const lavaDrops: ParticleVfx = {
+  kind: 'particles',
+  id: 'lava_drops',
+  priority: 6,
+  palette: 'ember',
+  blend: 'normal',
+  shape: 'ink',
+  count: [4, 7],
+  speed: [2, 5.5],
+  life: [0.4, 0.7],
+  aim: 'up',
+  spread: 1.3,
+  size: [0.2, 0.34],
+  sizeEnd: 0.12,
+  gravity: -17,
+  drag: 0.6,
+  alpha: [1, 0.2],
+  colors: ['core', 'deep', 'core'],
+  radius: 0.25,
+};
+
+const lavaFlash: FlashVfx = {
+  kind: 'flash', id: 'lava_flash', priority: 8, palette: 'ember', shape: 'glow', role: 'hot',
+  life: 0.22, size: [1.4, 3.0], alpha: [1, 0],
+};
+
 // ------------------------------------------------------------------------------------------------- the dash
 
 const dashBurst: ParticleVfx = {
@@ -875,6 +926,7 @@ export const VFX: Readonly<Record<string, VfxDefinition>> = Object.fromEntries(
     slashArc, slashArcFinisher,
     impactSparks, impactFlash, impactRing, impactBurst,
     hurtShards, hurtFlash, hurtBurst,
+    lavaEmbers, lavaDrops, lavaFlash,
     dashBurst, dashFlash, dashChevronNear, dashChevronFar, dashDust, dashTrail, dashTrailShards,
     deathInk, deathMotes, deathFlash, deathSplash, deathGloss, energyScatter, deathPillar,
     telegraphRing, telegraphRune, telegraphMotes,
@@ -899,6 +951,7 @@ export const VFX_BINDINGS: VfxBindings = {
   slashFinisher: ['slash_arc_finisher'],
   hitLanded: ['impact_sparks', 'impact_flash', 'impact_ring', 'impact_burst'],
   playerHurt: ['hurt_shards', 'hurt_flash', 'hurt_burst'],
+  lavaBurn: ['lava_embers', 'lava_drops', 'lava_flash'],
   dashStart: ['dash_burst', 'dash_flash', 'dash_chevron_near', 'dash_chevron_far'],
   dashDust: ['dash_dust'],
   dashTrail: ['dash_trail', 'dash_trail_shards'],

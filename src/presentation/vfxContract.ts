@@ -38,6 +38,8 @@ export const VFX_CONTRACT: Readonly<Record<VfxTrigger, VfxCue>> = {
   slashFinisher: { family: 'slash', events: ['player:attackActive'], originY: 0.8, maxLife: 0.32, maxParticles: 0, maxSprites: 4, palettes: ['energy', 'accent'] },
   hitLanded: { family: 'impact', events: ['combat:hit'], originY: 0, maxLife: 0.5, maxParticles: 20, maxSprites: 4, palettes: ['energy'] },
   playerHurt: { family: 'damage', events: ['player:hurt'], originY: 0, maxLife: 0.7, maxParticles: 24, maxSprites: 3, palettes: ['energy'] },
+  // the hero touches lava (the event gives where): embers thrown up and a hot flash, in the colour only lava has
+  lavaBurn: { family: 'damage', events: ['hazard:hit'], originY: 0, maxLife: 0.9, maxParticles: 40, maxSprites: 2, palettes: ['ember'] },
   dashStart: { family: 'dash', events: ['player:dashed'], originY: 0.9, maxLife: 0.45, maxParticles: 16, maxSprites: 3, palettes: ['energy'] },
   dashDust: { family: 'dash', events: ['player:dashed'], originY: 0.1, maxLife: 0.8, maxParticles: 12, maxSprites: 2, palettes: ['neutral'] },
   dashTrail: { family: 'dash', events: ['player:dashed', 'player:dashEnded'], originY: 0.85, maxLife: 0.6, maxParticles: 4, maxSprites: 3, palettes: ['energy'] },
@@ -71,6 +73,7 @@ export const VFX_CONTRACT: Readonly<Record<VfxTrigger, VfxCue>> = {
  */
 export const WORST_MOMENTS: Readonly<Record<string, readonly VfxTrigger[]>> = {
   'a blow that kills, taken while hurt and dashing': ['hitLanded', 'enemyDied', 'playerHurt', 'dashStart', 'dashDust'],
+  'a dash into lava that a creature also strikes': ['playerHurt', 'lavaBurn', 'hitLanded', 'dashStart', 'dashDust'],
   'the boss raging: four marks of the rain at once': ['bossStrike', 'bossStrike', 'bossStrike', 'bossStrike'],
   'the boss falls to the last blow': ['hitLanded', 'enemyDied', 'bossDefeated'],
   'the Spirit Bolt breaks a ward': ['boltImpact', 'sealBroken'],

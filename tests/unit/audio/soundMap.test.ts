@@ -95,6 +95,7 @@ describe('which sound is for which moment', () => {
     expect(ids(cue('sealRejected', 'slash_1', 0.5))).toEqual(['seal.reject']);
     expect(ids(cue('sealBroken', 'broken:r3_seal'))).toEqual(['seal.break']);
     expect(ids(cue('hazardHit', 'spikes'))).toEqual(['hazard.spikes']);
+    expect(ids(cue('hazardHit', 'lava')), 'lava sears; it does not stab').toEqual(['hazard.lava']);
     expect(ids(cue('roomTransition', 'r2_hall'))).toEqual(['transition.pass']);
   });
 

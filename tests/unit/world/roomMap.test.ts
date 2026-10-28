@@ -215,3 +215,33 @@ describe('the canvas paints a picture by its place in metres', () => {
     expect(() => new RoomCanvas('lab_x', 2, 2)).toThrow(/\[lab_x\]/);
   });
 });
+
+describe('lava (docs/PROMPT23-LOG.md §6): pools and falls drawn in letters', () => {
+  it('a pool is one hazard of the kind lava standing on the solid under it, a metre deep; a column of the same letter is one fall, not a row of pools', () => {
+    const c = new RoomCanvas('lv', 24, 14).walls().ground(1, 23, 2).pit(6, 14).rock(6, 0, 14, 1).lava(6, 14, 1).rock(16, 2, 18, 12).lava(10, 11, 2, 9);
+    const m = new RoomMap('lv', { rows: c.rows() });
+    expect(m.hazards.map((h) => [h.kind, h.rect])).toEqual([
+      ['lava', { x0: 6, y0: 1, x1: 14, y1: 2 }],
+      ['lava', { x0: 10, y0: 2, x1: 11, y1: 11 }],
+    ]);
+    expect(m.hazards.map((h) => h.id)).toEqual(['lava_6_1', 'lava_10_2']);
+  });
+
+  it('lava that stands on nothing solid (air, a jump-through platform, the edge of the picture) is an error naming the room', () => {
+    expect(() => new RoomMap('r', { rows: ['#####', '#.=.#', '#...#', '#####'] })).toThrow(/\[r\] the lava at column 2, row 1 stands on nothing solid/);
+    expect(() => new RoomMap('r', { rows: ['#####', '#.=.#', '#.-.#', '#####'] })).toThrow(/stands on nothing solid/);
+    // a column is held to its LAST square: the fall stands where it ends
+    expect(() => new RoomMap('r', { rows: ['#####', '#.=.#', '#.=.#', '#...#', '#####'] })).toThrow(/stands on nothing solid/);
+    expect(() => new RoomMap('r', { rows: ['#####', '#.=.#', '#.=.#', '#.#.#', '#####'] })).not.toThrow();
+  });
+
+  it('the picture can be drawn again from the room, lava on every row it fills', () => {
+    const c = new RoomCanvas('lv', 16, 10).walls().ground(1, 15, 2).rock(4, 2, 8, 3).lava(4, 8, 3, 2);
+    const room = mapRoom({ id: 'lv', regionId: 'x', name: 'lv', nameKey: 'room.lv.name', art: { backdrop: 'ruins', seed: 1 }, rows: c.rows() }, () => ({}));
+    const back = pictureOf(room);
+    expect(back[6]!.slice(4, 8)).toBe('====');
+    expect(back[5]!.slice(4, 8)).toBe('====');
+    expect(back[7]!.slice(4, 8)).toBe('####');
+    expect(room.hazards![0]).toMatchObject({ kind: 'lava', rect: { x0: 4, x1: 8, y0: 3, y1: 5 } });
+  });
+});

@@ -377,6 +377,36 @@
   "playedLufs": -18.7,
   "playedPeakDb": -3
  },
+ "hazard_lava_1": {
+  "frames": 27765,
+  "seconds": 0.578,
+  "peakDb": -4,
+  "lufs": -13.9,
+  "activeRmsDb": -19.7,
+  "silentMs": 35,
+  "playedLufs": -14.6,
+  "playedPeakDb": -3
+ },
+ "hazard_lava_2": {
+  "frames": 25620,
+  "seconds": 0.534,
+  "peakDb": -4,
+  "lufs": -13.5,
+  "activeRmsDb": -19.3,
+  "silentMs": 15,
+  "playedLufs": -14.4,
+  "playedPeakDb": -3
+ },
+ "hazard_lava_3": {
+  "frames": 27998,
+  "seconds": 0.583,
+  "peakDb": -4,
+  "lufs": -13.2,
+  "activeRmsDb": -19,
+  "silentMs": 40,
+  "playedLufs": -13.2,
+  "playedPeakDb": -2.9
+ },
  "hazard_spikes_1": {
   "frames": 9245,
   "seconds": 0.193,

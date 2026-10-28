@@ -173,6 +173,7 @@ export type VfxTrigger =
   | 'slashFinisher'
   | 'hitLanded'
   | 'playerHurt'
+  | 'lavaBurn'
   | 'dashStart'
   | 'dashDust'
   | 'dashTrail'

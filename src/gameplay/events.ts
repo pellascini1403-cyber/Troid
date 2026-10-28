@@ -48,7 +48,7 @@ export interface GameEvents extends CombatEvents {
   'transition:cancelled': { reason: 'death' | 'reload' };
   /** The room is about to be unloaded because the player walked out of it (the last moment to save what belongs to it). */
   'room:exiting': { roomId: string; exitId: string; to: { room: string; entry: string } };
-  /** A hazard of the room (spikes) hurt the hero: a confirmed hit, not a touch during the i-frames that follow one. `x, y` is where. */
+  /** A hazard of the room (spikes, lava) hurt the hero: a confirmed hit, not a touch during the i-frames that follow one. `x, y` is where. */
   'hazard:hit': { roomId: string; hazardId: string; kind: string; damage: number; x: number; y: number };
   /** A boss woke (the hero stepped into its arena): the session raises the fight flag and closes the doors. */
   'boss:started': { id: string; defId: string; nameKey: string; health: number; maxHealth: number; x: number; y: number };

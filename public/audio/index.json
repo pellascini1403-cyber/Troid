@@ -597,6 +597,35 @@
    "priority": 7,
    "reverb": 0.5
   },
+  "hazard.lava": {
+   "bus": "sfx",
+   "group": "core",
+   "variants": [
+    {
+     "opus": "sfx/hazard_lava_1.1b8f3695.opus",
+     "mp3": "sfx/hazard_lava_1.93182770.mp3",
+     "seconds": 0.578
+    },
+    {
+     "opus": "sfx/hazard_lava_2.1076e2fc.opus",
+     "mp3": "sfx/hazard_lava_2.40f3fda4.mp3",
+     "seconds": 0.534
+    },
+    {
+     "opus": "sfx/hazard_lava_3.23b66782.opus",
+     "mp3": "sfx/hazard_lava_3.1c0ecf4f.mp3",
+     "seconds": 0.583
+    }
+   ],
+   "channels": 1,
+   "gainDb": -7.8,
+   "pitchCents": 90,
+   "gainJitterDb": 1,
+   "cooldownMs": 250,
+   "voices": 2,
+   "priority": 9,
+   "reverb": 0.12
+  },
   "hazard.spikes": {
    "bus": "sfx",
    "group": "core",

@@ -108,7 +108,7 @@ export const AUDIO_CONTRACT: Readonly<Record<AudioCueId, AudioCueSpec>> = {
   checkpoint: { family: 'world', events: ['checkpoint:set'], positional: true, intensity: '1', variant: 'the room' },
   sealRejected: { family: 'world', events: ['seal:rejected', 'enemy:blocked'], positional: true, intensity: 'the jolt of the blow, 0–1', variant: 'the attack the seal (or the shield of an enemy) turned away' },
   sealBroken: { family: 'world', events: ['flag:set'], positional: false, intensity: '1', variant: 'the flag: broken:r3_seal' },
-  hazardHit: { family: 'world', events: ['hazard:hit'], positional: true, intensity: 'the damage over 2', variant: 'the kind of hazard: spikes' },
+  hazardHit: { family: 'world', events: ['hazard:hit'], positional: true, intensity: 'the damage over 2', variant: 'the kind of hazard: spikes, lava' },
   abilityUnlocked: { family: 'world', events: ['ability:unlocked'], positional: false, intensity: '1', variant: 'the ability: air_dash, magic_attack…' },
   cardAcquired: { family: 'world', events: ['card:changed'], positional: false, intensity: '1', variant: 'the card' },
   enemyAlert: { family: 'combat', events: ['enemy:alerted'], positional: true, intensity: '1', variant: 'the enemy: ink_slime, ink_warden' },

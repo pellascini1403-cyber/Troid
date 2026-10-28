@@ -25,6 +25,10 @@ export const PALETTE = {
   violetDeep: 0x3a1f7a,
   // optional accent (sampled from the red VFX of the pose sheet): OFF by default
   accentWarm: 0xf4343d,
+  // the ember of the second half (docs/PROMPT23-LOG.md §6): lava is orange with a yellow-white heart — a colour and a heat that neither the hero's cyan, the enemies' violet nor the red accent have
+  emberCore: 0xff7a1c,
+  emberHot: 0xffe08a,
+  emberDeep: 0x8a1c0c,
   // world (sampled from the reference palette strip)
   worldVoid: 0x050409,
   worldNight: 0x0c1019,
@@ -42,7 +46,7 @@ export const PALETTE = {
 export type PaletteToken = keyof typeof PALETTE;
 
 /** Which family of colours a VFX asks for; the same effect definition serves the hero and the enemies. */
-export type PaletteSlot = 'energy' | 'enemy' | 'accent' | 'neutral';
+export type PaletteSlot = 'energy' | 'enemy' | 'accent' | 'neutral' | 'ember';
 
 export interface SlotColors {
   /** Saturated body of the effect. */
@@ -59,6 +63,7 @@ export const SLOT_COLORS: Readonly<Record<PaletteSlot, SlotColors>> = {
   enemy: { core: PALETTE.violetCore, hot: PALETTE.violetGlow, deep: PALETTE.violetDeep },
   accent: { core: PALETTE.accentWarm, hot: PALETTE.whiteHot, deep: PALETTE.enemyInk },
   neutral: { core: PALETTE.worldHaze, hot: PALETTE.whiteHot, deep: PALETTE.worldDusk },
+  ember: { core: PALETTE.emberCore, hot: PALETTE.emberHot, deep: PALETTE.emberDeep },
 };
 
 /** `0xRRGGBB` → `#rrggbb` (CSS variables for the DOM UI). */

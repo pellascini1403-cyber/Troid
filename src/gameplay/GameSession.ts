@@ -29,7 +29,7 @@ import type { Destination, RoomDefinition } from '@/world/RoomDefinition';
 import { Actor } from './Actor';
 import { DeathFlow, DEFAULT_DEATH_FLOW, type DeathFlowDefinition, type DeathSnapshot } from './DeathFlow';
 import type { GameEvents } from './events';
-import { HazardSystem, type HazardHost } from './HazardSystem';
+import { HazardSystem, LAVA_LET_GO, type HazardHost } from './HazardSystem';
 import { createPlayerStatus, type PlayerStatus } from './PlayerStatus';
 import { VOLATILE_FLAG_PREFIX } from './progress';
 import { DEFAULT_TRANSITION, RoomTransition, type TransitionDefinition, type TransitionSnapshot } from './RoomTransition';
@@ -164,7 +164,15 @@ export class GameSession implements SimServices {
       requestHitStop: (n) => this.requestHitStop(n),
     });
     this.player = new Player(opts.player, this.ids.next('player'));
-    this.hazardHost = { combat: this.combat, player: this.player, hit: (e) => this.bus.emit('hazard:hit', { roomId: this.current.id, ...e }) };
+    this.hazardHost = {
+      combat: this.combat,
+      player: this.player,
+      hit: (e) => {
+        this.bus.emit('hazard:hit', { roomId: this.current.id, ...e });
+        // lava burns once and lets go: the hurt plays out, and the hero is back on the last ground that was safe (a hero who died is the defeat flow's)
+        if (e.kind === 'lava') this.scheduler.after(LAVA_LET_GO, () => this.player.health.dead || this.rescuePlayer(), this.roomOwner);
+      },
+    };
     this.magic = new Magic(opts.resources.magic, (change) => this.bus.emit('magic:changed', change));
     this.bottles = new BottleSet(opts.resources.bottles.definitions, opts.resources.bottles.initial, opts.resources.bottles.rules, (change) =>
       this.bus.emit('bottle:changed', { ...change, states: this.bottles.slots.map((slot) => slot.state) }),

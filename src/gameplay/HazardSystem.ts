@@ -8,6 +8,9 @@ import type { HazardDef } from '@/world/RoomDefinition';
  */
 export const HAZARD_HIT = { damage: 1, stun: 14, hitStop: 6, shake: 0.22, knockback: { x: 3.5, y: 7 } } as const;
 
+/** Ticks after a burn (not counting the hit-stop) at which lava lets the hero go: the throw-back and the flash play out, and the hero is put back on safe ground. */
+export const LAVA_LET_GO = 9;
+
 /** What the system needs of the world each tick: where the hero is, how to hurt them, and who to tell. */
 export interface HazardHost {
   readonly combat: { submit(hb: HitboxSubmission): void };

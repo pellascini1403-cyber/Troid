@@ -108,6 +108,10 @@ export class VfxDirector {
       bus.on('player:hurt', (e) => {
         this.fire('playerHurt', { x: e.x, y: e.y, facing: e.direction, dirX: e.direction, dirY: 0.2 });
       }),
+      // lava: the hero's own hurt comes from `player:hurt` (the cyan); the lava adds what is the lava's
+      bus.on('hazard:hit', (e) => {
+        if (e.kind === 'lava') this.fire('lavaBurn', { x: e.x, y: e.y, facing: 1, dirX: 0, dirY: 1 });
+      }),
       bus.on('player:dashed', (e) => {
         this.fire('dashStart', { x: e.x, y: e.y + 0.9, facing: e.facing });
         this.fire('dashDust', { x: e.x, y: e.y + 0.1, facing: e.facing });

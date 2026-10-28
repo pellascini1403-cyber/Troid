@@ -175,4 +175,33 @@ El reparto del tiempo de guion (§2.1) decía dónde estaba delgada la primera m
 
 Pruebas: 264 archivos / 5 007 pruebas en verde (las cifras fijadas —67 salas, 59 del camino, 144 puertas, once salas de la Ciénaga y de la Aguja, ocho del Corazón— se actualizaron una a una).
 
+---
+
+## 6 · Fase 2, bloque 1: la lava como peligro jugable
+
+### 6.1 · Qué es y cómo se decidió
+
+La lava es **un tipo de peligro** (`HazardKind = 'spikes' | 'lava'`), no un sistema nuevo: una zona que *hiere por el sistema de combate* —el mismo golpe de cualquier peligro: 1 punto de vida, aturdimiento de 14 ticks, parada de impacto de 6, empuje hacia arriba y hacia afuera, los *i-frames* de siempre y los mismos eventos—, de modo que la repetición está gobernada por lo que ya la gobierna (un segundo contacto durante los *i-frames* no hace nada; el dash protege con los suyos; el modo dios no la siente). Se descartaron dos diseños:
+
+| Diseño | Por qué no |
+|---|---|
+| **Hundirse hasta el vacío y que lo rescate el `killY`** (la lava como un foso con una capa que hiere) | El héroe atravesaría la lava a la vista, caería a un vacío sin fondo dibujado y reaparecería después de ~1 s; además la lava no tendría dibujo posible más allá de una franja. |
+| **Peligro periódico (géiser que se enciende y se apaga)** | Pide el reloj en el sistema de peligros (bytes del arranque en frío) y que el solucionador y el piloto sepan de fases: un peligro que el solucionador trata como pared fija haría inalcanzables las salas que dependen de cruzarlo en su fase. **El tiempo lo ponen las criaturas rítmicas que ya existen** (el tañedor, el pistón, el escupidor) sobre plataformas entre pozas; se dice así, no se finge. |
+
+**Quema una vez y suelta.** Tras el golpe, y pasada la parada de impacto, a los **9 ticks** (`LAVA_LET_GO`: lo que dura que el golpe y el destello se vean) el héroe es devuelto al **último suelo sólido seguro** —la misma regla que ya rescata al que cae fuera del mundo (`rescuePlayer`)—, con la sala y el guardado intactos. Un fallo cuesta **un punto de vida y un paseo corto**, nunca un bucle de quemaduras ni un lugar del que no se sale. Un héroe que **muere** de la quemadura no es trasladado: es la derrota (`DeathFlow`) la que lo devuelve al santuario. Un tablón de una sola dirección no es suelo al que volver (la regla de siempre: solo suelo sólido); las piedras de paso, sí, por lo que **las salas de lava se dibujan con piedras, no con tablones, donde un fallo no debe costar el camino entero**.
+
+### 6.2 · Dónde está, y lo que cuesta
+
+| Pieza | Dónde | Coste en el arranque en frío |
+|---|---|---|
+| El tipo `lava` | `world/RoomDefinition.ts` (un tipo: 0 B) | 0 |
+| «Quema y suelta» | `gameplay/GameSession.ts` (el *callback* del peligro) y `gameplay/HazardSystem.ts` (`LAVA_LET_GO`) | **54 B** (204 498 → 204 552 de 204 800; quedan 248) |
+| La lava en el dibujo de salas | `world/roomMap.ts` (`=`, `RoomCanvas.lava(x0, x1, y, depth)`; cada poza —o cada caída, una columna— es **un** rectángulo; una caída se apoya en la poza que alimenta) | 0 (viaja en el *chunk* diferido) |
+| El efecto del quemón | paleta `ember` (naranja con corazón amarillo: el color que ni el cian del héroe, ni el violeta de los enemigos, ni el acento rojo tienen), disparador `lavaBurn` (brasas que suben, gotas que caen pesadas, un destello cálido), dentro del contrato de efectos | 0 (carga diferida con los efectos) |
+| El sonido | `hazard.lava` (3 variantes: un siseo que cae, un peso caliente, el crepitar de lo que prendió), construido con la biblioteca de `tools/audio` | 0 |
+
+### 6.3 · Pruebas
+
+`tests/integration/lava.test.ts` (10, en una sala de laboratorio dibujada en letras: una repisa a cada lado, 16 m de lava de un metro sobre una cubeta de piedra con tres piedras de paso y un tablón): un contacto cuesta un punto y lo anuncia (sala, peligro, tipo, daño, dónde); el golpe es el habitual y el héroe es soltado tras la parada de impacto y el lanzamiento; **se quema una vez** por muy largo que fuera a quedarse; vuelve a la **piedra** donde estuvo y no a la repisa de la que salió; nunca queda dentro de una poza; un tablón no es suelo al que volver; la derrota no es trasladada; el modo dios ni quema ni traslada; los pinchos siguen sin trasladar. Comprobado que **cinco fallan** si se quita la regla de «suelta». `roomMap` (3 pruebas nuevas: el dibujo en letras, la caída sobre la poza, el error que nombra la sala si la lava no se apoya en nada sólido) y el contrato de efectos (el disparador, su evento y su techo de 40 partículas por disparo).
+
 *(El resto del documento se escribe al ejecutar cada fase.)*

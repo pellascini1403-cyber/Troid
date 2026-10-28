@@ -229,7 +229,7 @@ describe('slash arc geometry', () => {
 });
 
 describe('the effect table (content/vfx.ts)', () => {
-  const TRIGGERS: VfxTrigger[] = ['slash', 'slashFinisher', 'hitLanded', 'playerHurt', 'dashStart', 'dashDust', 'dashTrail', 'enemyDied', 'enemyTelegraph', 'playerDied', 'boltCharge', 'boltCast', 'boltImpact', 'boltEnd', 'drinkStart', 'drinkHeal', 'checkpoint', 'abilityGained', 'pickup', 'sealRejected', 'sealBroken', 'bossWake', 'bossStrike', 'bossPhase', 'bossDefeated'];
+  const TRIGGERS: VfxTrigger[] = ['slash', 'slashFinisher', 'hitLanded', 'playerHurt', 'lavaBurn', 'dashStart', 'dashDust', 'dashTrail', 'enemyDied', 'enemyTelegraph', 'playerDied', 'boltCharge', 'boltCast', 'boltImpact', 'boltEnd', 'drinkStart', 'drinkHeal', 'checkpoint', 'abilityGained', 'pickup', 'sealRejected', 'sealBroken', 'bossWake', 'bossStrike', 'bossPhase', 'bossDefeated'];
 
   it('binds every trigger, and every bound id is a defined effect', () => {
     expect(Object.keys(VFX_BINDINGS).sort()).toEqual([...TRIGGERS].sort());

@@ -195,6 +195,34 @@ export const COMBAT_SOUNDS: SoundRecipe[] = [
     note: 'the spikes of the ditch: a metallic stab',
   },
   {
+    id: 'hazard.lava',
+    bus: 'sfx',
+    group: 'core',
+    variants: 3,
+    channels: 1,
+    render: (_v, rnd) =>
+      mono(
+        finish(
+          layers(0.75, [
+            // a sear, not a stab: a hiss that falls, the weight of something heavy and hot, and the crackle of what it has caught
+            { sound: burst(0.42, 1300, 7800, 0.13, rnd), db: 0 },
+            { sound: swoosh(0.4, 1100, 260, { q: 0.8, rise: 0.08, shape: 1.2 }, rnd), db: -5 },
+            { sound: thump(120, 52, 0.07, 0.24), db: -3 },
+            { sound: sparkle(0.35, 9, 1800, 7000, { tau: 0.022, durSec: 0.55 }, rnd), db: -9, at: 0.03 },
+            { sound: bubble(360, 0.06, 2), db: -12, at: 0.09 },
+          ]),
+          { peakDb: -4, hpHz: 140, room: { rt60: 0.4, size: 0.45, wet: 0.1 } },
+        ),
+      ),
+    pitchCents: 90,
+    gainJitterDb: 1,
+    cooldownMs: 250,
+    voices: 2,
+    priority: 9,
+    reverb: 0.12,
+    note: 'the hero touches lava: a sear — a hiss that falls, a heavy hot weight and the crackle of what caught',
+  },
+  {
     id: 'hero.death',
     bus: 'sfx',
     group: 'core',

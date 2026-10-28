@@ -168,8 +168,8 @@ export interface BossDef {
   fightFlag: string;
 }
 
-/** What a hazard is. The interface draws it by kind; `spikes` is the one that exists today. */
-export type HazardKind = 'spikes';
+/** What a hazard is. The interface draws it by kind (`spikes` stab; `lava` burns, and the hero who touches it is put back on the last safe ground, as one who falls out of the world is). */
+export type HazardKind = 'spikes' | 'lava';
 
 /**
  * A danger that is part of the room and hurts whoever touches it (docs/PROMPT6-LOG.md S25). It is not an enemy: it has no health, no brain

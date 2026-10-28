@@ -11,6 +11,7 @@ import type { BossDef, Destination, EntryDef, ExitDef, GateDef, HazardDef, RoomD
  *   #  stone block (solid, blocks from every side)            G  earth ground (solid)
  *   -  jump-through platform; the hero stands on the TOP of its square, like on the top of a block
  *   ^  a strip of spikes standing on the solid under it (0.6 m high)
+ *   =  lava: one metre of it to the square, standing on the solid under it; the squares of one pool (or of one fall, a column of them) are ONE hazard
  *   A–Z (but G)  a NAMED region: every square of that letter together is ONE solid with the id the `regions` table gives it (a door, a breakable wall)
  *   a–z, 0–9  a mark: empty air; its position is the FEET of someone standing on the floor of that square
  *   . or space  air
@@ -125,6 +126,11 @@ export class RoomCanvas {
     return this.fill(x0, y, x1, y + 1, '^');
   }
 
+  /** Lava: a pool `depth` metres deep (a column of lava if it is tall: a fall) standing on whatever has its top at y. */
+  lava(x0: number, x1: number, y: number, depth = 1): this {
+    return this.fill(x0, y, x1, y + depth, '=');
+  }
+
   /** A named region (a capital letter the room's `regions` table describes): one filled rectangle. */
   region(ch: string, x0: number, y0: number, x1: number, y1: number): this {
     return this.fill(x0, y0, x1, y1, ch);
@@ -189,7 +195,7 @@ export class RoomMap {
     for (let r = 0; r < this.height; r++) {
       for (let c = 0; c < this.width; c++) {
         const ch = rows[r]![c]!;
-        if (ch === '.' || ch === '#' || ch === 'G' || ch === '-' || ch === '^') continue;
+        if (ch === '.' || ch === '#' || ch === 'G' || ch === '-' || ch === '^' || ch === '=') continue;
         if (isMark(ch)) {
           const list = this.marks.get(ch) ?? [];
           list.push({ x: c + 0.5, y: this.height - 1 - r, col: c, row: r });
@@ -283,6 +289,32 @@ export class RoomMap {
         c = e + 1;
       }
     }
+
+    // ---- lava: pools and falls, each one rectangle — a run of squares along a row, joined upward to the very same run above it (not to a longer or a shorter one: a fall that pours into a pool is a fall AND a pool) —
+    // standing on something solid, or on other lava (the fall on the pool it feeds)
+    const run = (r: number, c: number): number => {
+      let e = c;
+      while (e + 1 < this.width && rows[r]![e + 1] === '=') e++;
+      return e;
+    };
+    const taken = new Set<string>();
+    for (let r = this.height - 1; r >= 0; r--) {
+      let c = 0;
+      while (c < this.width) {
+        if (rows[r]![c] !== '=' || taken.has(`${c},${r}`)) {
+          c++;
+          continue;
+        }
+        const e = run(r, c);
+        let t = r;
+        while (t - 1 >= 0 && rows[t - 1]![c] === '=' && run(t - 1, c) === e && (c === 0 || rows[t - 1]![c - 1] !== '=')) t--;
+        for (let rr = t; rr <= r; rr++) for (let k = c; k <= e; k++) taken.add(`${k},${rr}`);
+        for (let k = c; k <= e; k++) if (!solidAt(k, r + 1) && rows[r + 1]?.[k] !== '=') fail(`the lava at column ${k}, row ${r} stands on nothing solid`);
+        this.hazards.push({ id: `lava_${c}_${this.height - 1 - r}`, kind: 'lava', rect: rect(c, this.height - 1 - r, e + 1, this.height - t) });
+        c = e + 1;
+      }
+    }
+    this.hazards.sort((a, b) => a.rect.x0 - b.rect.x0 || a.rect.y0 - b.rect.y0);
 
     const ids = this.solids.map((s) => s.id);
     const dup = ids.find((id, i) => ids.indexOf(id) !== i);
@@ -425,7 +457,7 @@ export function mapRoom(spec: MapRoomSpec, place: (m: RoomMap) => Partial<RoomDe
   };
 }
 
-/** The picture of a room as letters again: solids, jump-through platforms and spikes (what `mapRoom` was given, give or take the merging). For tests and for looking at a room. */
+/** The picture of a room as letters again: solids, jump-through platforms, spikes and lava (what `mapRoom` was given, give or take the merging). For tests and for looking at a room. */
 export function pictureOf(room: Pick<RoomDefinition, 'solids' | 'hazards' | 'camera' | 'bounds'>, marks: ReadonlyArray<{ x: number; y: number; ch: string }> = []): string[] {
   const g = room.camera?.bounds ?? room.bounds;
   const w = Math.round(g.x1 - g.x0);
@@ -443,7 +475,11 @@ export function pictureOf(room: Pick<RoomDefinition, 'solids' | 'hazards' | 'cam
       for (let c = Math.floor(s.rect.x0 - g.x0 + 1e-6); c < Math.ceil(s.rect.x1 - g.x0 - 1e-6); c++) put(c, r, s.material === 'earth' ? 'G' : s.tag ? 'B' : s.material === 'gate' ? 'D' : '#');
     }
   }
-  for (const hz of room.hazards ?? []) for (let c = Math.floor(hz.rect.x0 - g.x0 + 1e-6); c < Math.ceil(hz.rect.x1 - g.x0 - 1e-6); c++) put(c, Math.floor(g.y1 - hz.rect.y1 + 1e-6), '^');
+  for (const hz of room.hazards ?? []) {
+    // spikes are drawn on one row (they are 0.6 m); lava on every row it fills
+    const rows = hz.kind === 'lava' ? Math.round(hz.rect.y1 - hz.rect.y0) : 1;
+    for (let k = 0; k < rows; k++) for (let c = Math.floor(hz.rect.x0 - g.x0 + 1e-6); c < Math.ceil(hz.rect.x1 - g.x0 - 1e-6); c++) put(c, Math.floor(g.y1 - hz.rect.y1 + 1e-6) + k, hz.kind === 'lava' ? '=' : '^');
+  }
   for (const m of marks) put(Math.floor(m.x - g.x0), Math.round(g.y1 - m.y) - 1, m.ch);
   return out.map((r) => r.join(''));
 }
