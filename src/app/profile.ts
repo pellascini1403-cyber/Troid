@@ -45,6 +45,10 @@ export interface ProfileData {
   lifeMax: number;
   /** The game has been taken to the end of the adventure (the world remembers it: `completed:adventure`). */
   completed: boolean;
+  /** Where the time went: for each zone the hero has been in, in the order of the world, the id of its region, the ticks lived there and the times they fell there (what was counted since the game began counting it). */
+  zones: Array<{ region: string; ticks: number; falls: number }>;
+  /** How long it took to get to each guardian: the text key of its name and the time played (ticks) when it first fell, in the order they fell. */
+  guardianTimes: Array<{ nameKey: string; ticks: number }>;
 }
 
 /** The profile of the game being played, from the session and what was counted. Pure: the same session and counts always give the same profile. */
@@ -64,5 +68,9 @@ export function buildProfile(session: GameSession, stats: PlayStatsData, slot: n
     bosses: { beaten: bosses.filter((b) => session.flags.has(b.defeatFlag)).flatMap((b) => (BOSSES[b.guardian] ? [BOSSES[b.guardian]!.nameKey] : [])), total: bosses.length },
     lifeMax: session.player.health.max,
     completed: isCompleted((f) => session.flags.has(f)),
+    zones: [...new Set(WORLD.rooms.map((id) => ROOMS[id]?.regionId ?? ''))].filter((z) => z !== '' && (stats.zones?.[z] ?? 0) + (stats.falls?.[z] ?? 0) > 0).map((region) => ({ region, ticks: stats.zones?.[region] ?? 0, falls: stats.falls?.[region] ?? 0 })),
+    guardianTimes: Object.entries(stats.guardians ?? {})
+      .sort((a, b) => a[1] - b[1])
+      .flatMap(([id, ticks]) => (BOSSES[id] ? [{ nameKey: BOSSES[id]!.nameKey, ticks }] : [])),
   };
 }

@@ -56,13 +56,34 @@ describe('the whole adventure, from a new game to the way out of the world', () 
       expect(saved!.stats.rooms.length, 'and the rooms seen').toBeGreaterThanOrEqual(ROAD.length);
       expect(r.saves.length, 'the game was saved at every shrine of the road').toBe(SHRINES.length);
 
+      // where the time went, as the PAGE counted it (the stats the profile shows) — and as the runner measured it from the outside: the same
+      const zones = saved!.stats.zones!;
+      expect(Object.values(zones).reduce((a, b) => a + b, 0), 'the zones add up to the time played, to the tick').toBe(saved!.stats.ticks);
+      const outside = new Map<string, number>();
+      for (const [room, t] of r.roomTimes) outside.set(ROOMS[room]!.regionId, (outside.get(ROOMS[room]!.regionId) ?? 0) + t.ticks);
+      for (const [region, ticks] of outside) expect(Math.abs((zones[region] ?? 0) - ticks), `the time in ${region}: the page ${zones[region]}, the runner ${ticks}`).toBeLessThanOrEqual(40);
+      expect(Object.values(saved!.stats.falls ?? {}).reduce((a, b) => a + b, 0), 'the falls by zone add up to the falls').toBe(r.deaths);
+      const gs = Object.entries(saved!.stats.guardians ?? {}).sort((a, b) => a[1] - b[1]);
+      expect(gs.map(([id]) => id), 'the seven guardians, in the order of the road').toEqual(['ink_warden', 'boss_root_tyrant', 'boss_mire_matriarch', 'boss_colossus', 'boss_bell_warden', 'boss_engine', 'boss_sovereign']);
+      expect(gs[gs.length - 1]![1], 'the last one fell before the end').toBeLessThanOrEqual(saved!.stats.ticks);
+
       // the length of it: the lower bound
       expect(minutes(r.now), `minutes of play (the pure run: ${r.deaths} falls)`).toBeGreaterThan(15);
       expect(minutes(r.now)).toBeLessThan(60);
       expect(r.deaths, 'falls on the way').toBeLessThanOrEqual(30);
       expect(r.bossTicks, 'ticks against guardians').toBeGreaterThan(7 * 600);
 
-      report[`seed ${seed}`] = { minutes: minutes(r.now), deaths: r.deaths, combatMinutes: minutes(r.combatTicks), guardianMinutes: minutes(r.bossTicks), zones: r.zones().map((z) => ({ ...z, minutes: minutes(z.ticks), combatMinutes: minutes(z.combat) })) };
+      report[`seed ${seed}`] = {
+        minutes: minutes(r.now),
+        deaths: r.deaths,
+        combatMinutes: minutes(r.combatTicks),
+        guardianMinutes: minutes(r.bossTicks),
+        // (what the page counted: the numbers the profile of this game would show)
+        zonesMinutes: Object.fromEntries(Object.entries(zones).map(([k, v]) => [k, minutes(v)])),
+        falls: saved!.stats.falls ?? {},
+        guardianAt: Object.fromEntries(gs.map(([k, v]) => [k, minutes(v)])),
+        byZone: r.zones().map((z) => ({ ...z, minutes: minutes(z.ticks), combatMinutes: minutes(z.combat) })),
+      };
     }, 120_000);
   }
 

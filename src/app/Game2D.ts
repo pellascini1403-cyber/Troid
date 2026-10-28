@@ -300,7 +300,7 @@ export class Game2D {
     });
     // what the hero does is counted from the events the simulation raises; the time is the session's own clock on top of what the save already had
     this.stats = new PlayStats(saved?.stats);
-    this.lifecycle.add(this.stats.attach(this.session.bus, this.session.room.id));
+    this.lifecycle.add(this.stats.attach(this.session.bus, this.session.room.id, { zoneOf: (id) => ROOMS[id]?.regionId ?? '', clock: () => this.session.now }));
     // what the hero learns is told, in the words of the device in use (the abilities they began with were given before anyone listened)
     this.lifecycle.add(this.session.bus.on('ability:unlocked', (e) => this.overlays?.ability.show(e.id, this.input.device, this.bindings)));
     this.saves = slots

@@ -2,6 +2,7 @@ import { listen } from '@/app/dom';
 import type { ProfileData } from '@/app/profile';
 import { DisposableStore } from '@/core/lifecycle';
 import type { Translator } from '@/i18n/translator';
+import { REGION_KEYS } from '@/ui/map/MapView';
 import { formatClock } from './menuFormat';
 import { ensureMenuStyle } from './menuStyle';
 import { ScrollHint } from './scrollHint';
@@ -128,6 +129,10 @@ export class ProfileScreen {
       row('cards', 'profile.cards', p.cards.length > 0 ? named(p.cards) : none);
       row('bottles', 'profile.bottles', this.t('profile.bottlesValue', { slots: p.bottles.slots, max: p.bottles.max }));
       row('bosses', 'profile.bosses', this.t('profile.bossesValue', { beaten: p.bosses.beaten.length, total: p.bosses.total }), named(p.bosses.beaten));
+      if (p.zones.length > 0) {
+        row('zones', 'profile.zones', p.zones.map((z) => this.t(z.falls > 0 ? 'profile.zoneLineFalls' : 'profile.zoneLine', { name: REGION_KEYS[z.region] ? this.t(REGION_KEYS[z.region]!) : z.region, time: formatClock(z.ticks), falls: z.falls })));
+      }
+      if (p.guardianTimes.length > 0) row('guardianTimes', 'profile.guardianTimes', p.guardianTimes.map((g) => this.t('profile.zoneLine', { name: this.t(g.nameKey), time: formatClock(g.ticks) })));
       row('life', 'profile.life', String(p.lifeMax));
       row('deaths', 'profile.deaths', String(p.deaths));
       row('kills', 'profile.kills', String(p.kills));

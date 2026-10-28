@@ -87,3 +87,75 @@ describe('PlayStats', () => {
     expect(stats.snapshot(0)).toEqual({ ticks: 0, deaths: 0, kills: 1, rooms: ['r1_gate'] });
   });
 });
+
+/**
+ * WHERE THE TIME WENT (docs/PROMPT22-LOG.md §8): the time played by ZONE, the falls by zone, and how long it took to get to each guardian — the measurements a person's playthrough is read from (nothing a rule of the game reads).
+ */
+describe('PlayStats by zone', () => {
+  const zoneOf = (room: string): string => (room.startsWith('rt_') ? 'sunken_roots' : room.startsWith('mr_') ? 'glowmire' : 'ruins');
+  const make = (initial?: ConstructorParameters<typeof PlayStats>[0]) => {
+    let now = 0;
+    const b = bus();
+    const stats = new PlayStats(initial);
+    stats.attach(b, 'r1_gate', { zoneOf, clock: () => now });
+    return { b, stats, at: (t: number): void => void (now = t), room: (id: string): void => b.emit('room:loaded', { roomId: id, entryId: 'west' }) };
+  };
+
+  it('counts the ticks lived in each zone: from the moment the hero comes in until they go to another, and the stretch they are in now', () => {
+    const w = make();
+    w.at(600);
+    w.room('rt_mouth');
+    w.at(1500);
+    w.room('rt_tangle'); // the same zone: no new stretch
+    w.at(2100);
+    w.room('mr_edge');
+    w.at(2400);
+    expect(w.stats.snapshot(2400).zones).toEqual({ glowmire: 300, ruins: 600, sunken_roots: 1500 });
+  });
+
+  it('the zones add up to the time played, to the tick (for a game that was counted from its first tick)', () => {
+    const w = make();
+    for (const [t, r] of [[100, 'rt_a'], [350, 'mr_b'], [900, 'r1_gate'], [901, 'rt_c']] as const) {
+      w.at(t);
+      w.room(r);
+    }
+    const s = w.stats.snapshot(2000);
+    expect(Object.values(s.zones!).reduce((a, b) => a + b, 0)).toBe(s.ticks);
+  });
+
+  it('what a save had counted is kept and added to, and a game saved before the time was counted by zone starts counting from here', () => {
+    const w = make({ ticks: 5000, deaths: 0, kills: 0, rooms: [], zones: { sunken_roots: 4000 } });
+    w.at(100);
+    w.room('rt_mouth');
+    w.at(400);
+    const s = w.stats.snapshot(400);
+    expect(s.ticks).toBe(5400);
+    expect(s.zones).toEqual({ ruins: 100, sunken_roots: 4300 });
+    const old = make({ ticks: 5000, deaths: 0, kills: 0, rooms: [] });
+    old.at(60);
+    expect(old.stats.snapshot(60).zones, 'the minute of this session, and nothing invented for the past').toEqual({ ruins: 60 });
+  });
+
+  it('counts the falls in the zone they happened in, and the time at which each guardian first fell, on top of the time already played', () => {
+    const w = make({ ticks: 1000, deaths: 1, kills: 0, rooms: [], falls: { ruins: 1 } });
+    w.at(100);
+    w.room('rt_mouth');
+    w.at(200);
+    w.b.emit('death:started', { x: 0, y: 0 });
+    w.b.emit('death:started', { x: 0, y: 0 });
+    w.at(900);
+    w.b.emit('boss:defeated', { id: 'b1', defId: 'boss_root_tyrant', x: 0, y: 0 });
+    w.at(950);
+    w.b.emit('boss:defeated', { id: 'b1', defId: 'boss_root_tyrant', x: 0, y: 0 }); // (the same one again: the first time stands)
+    const s = w.stats.snapshot(1000);
+    expect(s.falls).toEqual({ ruins: 1, sunken_roots: 2 });
+    expect(s.guardians).toEqual({ boss_root_tyrant: 1900 });
+  });
+
+  it('without the means to tell a zone it counts what it always did and nothing else (the snapshot has no tables)', () => {
+    const stats = new PlayStats();
+    stats.attach(bus(), 'r1_gate');
+    expect(Object.keys(stats.snapshot(60)).sort()).toEqual(['deaths', 'kills', 'rooms', 'ticks']);
+  });
+});
+

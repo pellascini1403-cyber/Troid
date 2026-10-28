@@ -214,4 +214,15 @@ describe('migrations and golden files', () => {
     expect(out.bottleSlots).toBe(4);
     expect(parseProgress(JSON.stringify(v1), { 1: migrations[1] }, 3)).toBeNull();
   });
+
+  it('the time by zone, the falls by zone and the guardians\' times are read as the tables they are: only valid names, only counts above nothing, capped; and a game that has none has none', () => {
+    const r = repairProgress({ stats: { ticks: 10, zones: { sunken_roots: 5400.9, glowmire: 0, 'bad name!': 3, ink_heart: -2, ruins: 'long' }, falls: { ruins: 2 }, guardians: { boss_root_tyrant: 7200 } } }).stats;
+    expect(r.zones).toEqual({ sunken_roots: 5400 });
+    expect(r.falls).toEqual({ ruins: 2 });
+    expect(r.guardians).toEqual({ boss_root_tyrant: 7200 });
+    expect(repairProgress({ stats: { ticks: 10, zones: [1, 2], falls: 'many', guardians: null } }).stats).toEqual({ ticks: 10, deaths: 0, kills: 0, rooms: [] });
+    expect(repairProgress({ stats: { ticks: 10 } }).stats, 'a game saved before they were counted').toEqual({ ticks: 10, deaths: 0, kills: 0, rooms: [] });
+    const many = Object.fromEntries(Array.from({ length: 200 }, (_, i) => [`z${i}`, i + 1]));
+    expect(Object.keys(repairProgress({ stats: { zones: many } }).stats.zones!).length, 'a hand-made table does not grow without bound').toBe(PROGRESS_LIMITS.zones);
+  });
 });

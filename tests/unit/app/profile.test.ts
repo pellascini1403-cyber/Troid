@@ -59,4 +59,23 @@ describe('the profile', () => {
     expect(new Set(all.bosses.beaten).size, 'seven different guardians').toBe(7);
     expect(all.bosses.beaten[0]).toBe('enemy.warden.name');
   });
+
+  it('where the time went: the zones the hero has been in, in the order of the world, with the ticks and the falls of each — and nothing for a zone with no time', () => {
+    const counted = { ...stats, zones: { sunken_roots: 5400, ancient_forest_ruins: 1800 }, falls: { sunken_roots: 2, ink_heart: 1 } };
+    const p = buildProfile(session(), counted, 1);
+    expect(p.zones).toEqual([
+      { region: 'ancient_forest_ruins', ticks: 1800, falls: 0 },
+      { region: 'sunken_roots', ticks: 5400, falls: 2 },
+      { region: 'ink_heart', ticks: 0, falls: 1 },
+    ]);
+    expect(buildProfile(session(), stats, 1).zones, 'a game that was not counted by zone has none').toEqual([]);
+  });
+
+  it('how long it took to get to each guardian: the ones that have fallen, in the order they fell, by their text key', () => {
+    const counted = { ...stats, guardians: { boss_root_tyrant: 9000, ink_warden: 4000, not_a_boss: 1 } };
+    const p = buildProfile(session(), counted, 1);
+    expect(p.guardianTimes.map((g) => g.ticks)).toEqual([4000, 9000]);
+    expect(p.guardianTimes.map((g) => g.nameKey)).toEqual(['enemy.warden.name', 'enemy.rootTyrant.name']);
+  });
 });
+

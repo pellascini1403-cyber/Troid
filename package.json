@@ -19,6 +19,7 @@
     "test:engines": "tsx tools/e2e/engines.ts",
     "shot": "tsx tools/e2e/shot.ts",
     "bench:bundle": "tsx tools/bench/bundle.ts",
+    "session:report": "tsx tools/sessionReport.ts",
     "assets:pack": "tsx tools/assets/cli.ts",
     "assets:check": "tsx tools/assets/cli.ts --check",
     "assets:verify": "tsx tools/assets/cli.ts --verify",

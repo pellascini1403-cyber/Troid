@@ -119,6 +119,21 @@ describe('the profile screen', () => {
     expect(q(parent, 'profile-deaths').textContent).toBe('9');
   });
 
+  it('says where the time went and how long it took to reach each guardian, in the language in force — and says nothing of them for a game that has not been counted by zone', () => {
+    data = profileData({ guardianTimes: [{ nameKey: 'enemy.warden.name', ticks: 60 * 41 }] });
+    screen.open();
+    expect(q(parent, 'profile-zones').textContent).toBe('Ruinas del bosque antiguo: 0:50Raíces Hundidas: 0:33 · derrotas: 2');
+    expect(q(parent, 'profile-guardianTimes').textContent).toBe('Custodio de Tinta: 0:41');
+    tr.setLocale('en');
+    expect(q(parent, 'profile-zones').textContent).toBe('Ruins of the ancient forest — 0:50Sunken Roots — 0:33 · defeats: 2');
+    expect(q(parent, 'profile-grid').textContent).toContain('Time in each zone');
+    expect(q(parent, 'profile-grid').textContent).toContain('Time to each guardian');
+    data = profileData({ zones: [], guardianTimes: [] });
+    screen.open();
+    expect(q(parent, 'profile-zones')).toBeNull();
+    expect(q(parent, 'profile-guardianTimes')).toBeNull();
+  });
+
   it('says that everything comes from the game, on this device, and that there is no account', () => {
     screen.open();
     expect(q(parent, 'profile-note').textContent).toBe('Lo que ves aquí sale de tu partida, en este dispositivo. No hay cuenta ni servidor.');

@@ -101,6 +101,8 @@ export class Runner {
   private readonly ignored = new Map<unknown, number>();
   private readonly doneReload = new Set<string>();
   private enteredAt = 0;
+  /** The room whose time is being counted: the event of a room entered comes when the session is already in the NEW one. */
+  private inRoom = '';
   private bossFought = 0;
   private failures = new Map<string, number>();
 
@@ -124,12 +126,13 @@ export class Runner {
     d.settle();
     this.d = d;
     this.stats = new PlayStats(from?.stats);
-    this.stats.attach(d.session.bus, d.session.room.id);
+    this.stats.attach(d.session.bus, d.session.room.id, { zoneOf: (id) => ROOMS[id]?.regionId ?? '', clock: () => d.session.now });
     this.recorder?.stop();
     this.recorder = attachProgressRecorder(d.session, this.store, { stats: this.stats, now: () => ++this.clock, knownSavedAt: from?.savedAt ?? 0 });
     this.pilot = new Pilot(d, { reflex: () => this.reflex(), overlay: (frame) => this.overlay(frame), abort: (_, hop) => this.letGo(hop) });
     this.brawl = new Brawler(d, TACTICS, FALLBACK);
     this.enteredAt = d.session.now;
+    this.inRoom = d.session.room.id;
     this.lastSwing = -99; // (a clock of the session that was closed means nothing in this one)
     this.fighting = false;
     this.watch();
@@ -146,6 +149,7 @@ export class Runner {
     on('room:entered', (e) => {
       this.closeRoom();
       this.enteredAt = this.d.session.now;
+      this.inRoom = e.roomId;
       const t = this.roomTime(e.roomId);
       t.visits++;
       this.say(`enters ${e.roomId} from ${e.from}`);
@@ -171,7 +175,8 @@ export class Runner {
   }
 
   private closeRoom(): void {
-    this.roomTime(this.d.session.room.id).ticks += this.d.session.now - this.enteredAt;
+    this.roomTime(this.inRoom).ticks += this.d.session.now - this.enteredAt;
+    this.enteredAt = this.d.session.now;
   }
 
   say(line: string): void {

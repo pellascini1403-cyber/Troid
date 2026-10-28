@@ -120,6 +120,32 @@ export const fullrun: Scenario = {
     assert.deepEqual([...saved!.flags].filter((f) => !f.startsWith('~')).sort(), want, 'the saved game has the very flags of the simulation');
     assert.deepEqual([...saved!.abilities].sort(), runner.d.session.abilities.serialize().sort(), 'and its abilities');
 
+    // what the page counted — the time in each zone, the falls, the time to each guardian — is what the same run counted in Node: the same events, the same clock, the same numbers, whichever side of the wire
+    const counted = (await page.evaluate(`JSON.parse(localStorage.getItem(${JSON.stringify(PROGRESS_KEY)})).stats`)) as { ticks: number; deaths: number; zones?: Record<string, number>; falls?: Record<string, number>; guardians?: Record<string, number> };
+    const sim = (await runner.stored())!.stats;
+    assert.deepEqual(counted.zones, sim.zones, 'the time by zone is the simulation\'s, to the tick');
+    assert.deepEqual(counted.falls, sim.falls, 'and the falls by zone');
+    assert.deepEqual(counted.guardians, sim.guardians, 'and the time to each guardian');
+    assert.equal(Object.values(counted.zones!).reduce((a, b) => a + b, 0), counted.ticks, 'the zones add up to the time played');
+
+    // …and the Profile of the game shows it: leave the closing (the way out is spent), open the pause menu, look
+    await page.waitForTimeout(1500); // (the closing waits a moment before its buttons answer: a last jump must not skip it)
+    await page.keyboard.press('Escape');
+    for (let i = 0; i < 100 && (await ctx.state()).menuOpen; i++) await page.waitForTimeout(50);
+    await ctx.step(2);
+    await page.keyboard.press('KeyP');
+    await ctx.step(1);
+    await page.locator('[data-testid="pause-profile"]').click();
+    const zoneLines = ((await page.locator('[data-testid="profile-zones"]').evaluate((e) => (e as HTMLElement).innerText)) as string).split('\n').filter((l) => l.trim() !== '');
+    const guardianLines = ((await page.locator('[data-testid="profile-guardianTimes"]').evaluate((e) => (e as HTMLElement).innerText)) as string).split('\n').filter((l) => l.trim() !== '');
+    assert.equal(zoneLines.length, 8, `the eight zones of the world, each with its time (${zoneLines.join(' | ')})`);
+    assert.equal(guardianLines.length, 7, `the seven guardians, each with the time it took to reach it (${guardianLines.join(' | ')})`);
+    assert.ok(zoneLines.every((l) => /\d:\d\d/.test(l)), 'every line has a time');
+    await ctx.shot('02-profile');
+    console.log(`  the profile of the finished game: ${zoneLines.join(' · ')}`);
+    await page.locator('[data-testid="profile-back"]').click();
+    await page.keyboard.press('Escape');
+
     // ================================================================================================ the page, after a whole game
     assert.ok(worstDraws <= 60, `draw calls stayed under the budget (${worstDraws})`);
     for (const x of samples) {

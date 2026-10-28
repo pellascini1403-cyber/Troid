@@ -40,6 +40,11 @@ export function profileData(over: Partial<ProfileData> = {}): ProfileData {
     bosses: { beaten: [], total: 1 },
     lifeMax: 5,
     completed: false,
+    zones: [
+      { region: 'ancient_forest_ruins', ticks: 60 * 50, falls: 0 },
+      { region: 'sunken_roots', ticks: 60 * 33, falls: 2 },
+    ],
+    guardianTimes: [{ nameKey: 'enemy.warden.name', ticks: 60 * 41 }],
     ...over,
   };
 }

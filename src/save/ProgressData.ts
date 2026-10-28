@@ -29,6 +29,12 @@ export interface PlayStatsData {
   kills: number;
   /** The rooms the hero has been in, once each (sorted). */
   rooms: string[];
+  /** The ticks lived in each zone (by the id of its region): where the time went. Absent from a game saved before it was counted, and from one that has not played yet. */
+  zones?: Record<string, number>;
+  /** The times the hero has fallen in each zone. */
+  falls?: Record<string, number>;
+  /** For each guardian that has fallen, the time played (ticks) when it first did: how long it took to get to each one. */
+  guardians?: Record<string, number>;
 }
 
 export interface ProgressData {
@@ -62,6 +68,8 @@ export const PROGRESS_LIMITS = {
   cards: 32,
   bottleSlots: 8,
   rooms: 256,
+  /** The zones (and the guardians) the time and the falls are counted for. */
+  zones: 32,
   /** Deaths and kills: a count a person could never reach, so a number past it is a damaged one. */
   counter: 1_000_000_000,
   /** About 9 900 hours of play. */
@@ -100,13 +108,30 @@ function counter(value: unknown, max: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? Math.min(max, Math.max(0, Math.floor(value))) : 0;
 }
 
+/** A table of counts by name (the ticks of each zone): only valid names, only counts above nothing, capped; `undefined` when there is none. */
+function tally(value: unknown, max: number): Record<string, number> | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(value).slice(0, PROGRESS_LIMITS.zones)) {
+    const n = counter(v, max);
+    if (NAME.test(k) && n > 0) out[k] = n;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 function stats(value: unknown): PlayStatsData {
   const r = typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+  const zones = tally(r['zones'], PROGRESS_LIMITS.ticks);
+  const falls = tally(r['falls'], PROGRESS_LIMITS.counter);
+  const guardians = tally(r['guardians'], PROGRESS_LIMITS.ticks);
   return {
     ticks: counter(r['ticks'], PROGRESS_LIMITS.ticks),
     deaths: counter(r['deaths'], PROGRESS_LIMITS.counter),
     kills: counter(r['kills'], PROGRESS_LIMITS.counter),
     rooms: names(r['rooms'], PROGRESS_LIMITS.rooms),
+    ...(zones ? { zones } : {}),
+    ...(falls ? { falls } : {}),
+    ...(guardians ? { guardians } : {}),
   };
 }
 
