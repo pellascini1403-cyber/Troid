@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ROOMS, WORLD } from '@/content';
 import { readEnvLook } from '@/presentation/environment';
 import { PICKUP_FLOAT, sealSigilY } from '@/presentation/environment';
 import { cropFrame, exposedEdges, planHazards, planInteractables, planSeals, planStrip, planTerrain, subtractSpans, type PieceInfo, type PieceLookup, type PlanRoom } from '@/presentation/roomPlan';
@@ -306,6 +307,20 @@ describe('planSeals: the wards', () => {
     const plan = planSeals([{ id: 'a', x: 63, y: 0 }, { id: 'b', x: 10, y: 4, height: 2 }], sigil());
     expect(plan.placements).toEqual([{ id: 'a', x: 63, y: 1.8, frames: 2 }, { id: 'b', x: 10, y: 5, frames: 2 }]);
     expect(plan.lacking.size).toBe(0);
+  });
+
+  it('split stone is not a ward: a cracked wall or floor is not given the sigil — and is not reported as lacking it — so its own drawing stays (a sigil on a crack read as a seal of energy)', () => {
+    const plan = planSeals([{ id: 'ward', x: 63, y: 0 }, { id: 'crack', x: 47.5, y: 2, style: 'crack' }, { id: 'wall', x: 54.5, y: 10, style: 'ward' }], sigil());
+    expect(plan.placements.map((p) => p.id)).toEqual(['ward', 'wall']);
+    expect(planSeals([{ id: 'crack', x: 47.5, y: 2, style: 'crack' }], null).lacking.size, 'a room with only cracks asks the art for no sigil').toBe(0);
+    expect([...planSeals([{ id: 'ward', x: 1, y: 0 }, { id: 'crack', x: 5, y: 2, style: 'crack' }], null).lacking]).toEqual([['seal::', ['ward']]]);
+    // and the world's own cracked seals are exactly the ones left out
+    const cracks = WORLD.rooms.flatMap((id) => (ROOMS[id]!.seals ?? []).filter((s) => s.style === 'crack').map((s) => `${id}:${s.id}`));
+    expect(cracks).toHaveLength(8);
+    for (const id of WORLD.rooms) {
+      const room = ROOMS[id]!;
+      expect(planSeals(room.seals ?? [], sigil()).placements.map((p) => p.id), id).toEqual((room.seals ?? []).filter((s) => s.style !== 'crack').map((s) => s.id));
+    }
   });
 
   it('a room with wards and an art with no sigil reports the slot, and the blockout keeps its shapes', () => {

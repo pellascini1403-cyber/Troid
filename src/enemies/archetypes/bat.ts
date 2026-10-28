@@ -1,6 +1,7 @@
 import type { SimServices } from '@/gameplay/SimServices';
 import type { Enemy } from '../Enemy';
 import { BaseBrain, type BrainPose } from './BaseBrain';
+import { datan2, dcos, dhypot, dsin } from '@/core/dmath';
 
 /** The Cave Bat's numbers: it hangs from the roof until someone passes under it. */
 export interface BatParams {
@@ -88,7 +89,7 @@ export class BatBrain extends BaseBrain {
           update: () => {
             e.facing = e.home.x >= e.body.x ? 1 : -1;
             // it hangs again once it is near enough: a roof that is a hair too close to its wings must not keep it flying for ever
-            if (this.flyTo(e.home.x, e.home.y, p.returnSpeed) || Math.hypot(e.home.x - e.body.x, e.home.y - e.body.y) < 0.5) {
+            if (this.flyTo(e.home.x, e.home.y, p.returnSpeed) || dhypot(e.home.x - e.body.x, e.home.y - e.body.y) < 0.5) {
               e.teleport(e.home.x, e.home.y, e.facing);
               this.fsm.go('perched');
             }
@@ -106,15 +107,15 @@ export class BatBrain extends BaseBrain {
     const pl = this.sim.player;
     const tx = pl.body.x - b.x;
     const ty = pl.body.y + pl.body.height * 0.5 - (b.y + b.height * 0.5);
-    const want = Math.atan2(ty, tx);
-    const speed = Math.hypot(b.vx, b.vy);
-    let have = speed > 0.1 ? Math.atan2(b.vy, b.vx) : want;
+    const want = datan2(ty, tx);
+    const speed = dhypot(b.vx, b.vy);
+    let have = speed > 0.1 ? datan2(b.vy, b.vx) : want;
     let turn = want - have;
     while (turn > Math.PI) turn -= 2 * Math.PI;
     while (turn < -Math.PI) turn += 2 * Math.PI;
     have += Math.max(-rate, Math.min(rate, turn));
-    b.vx = Math.cos(have) * this.p.swoopSpeed;
-    b.vy = Math.sin(have) * this.p.swoopSpeed;
+    b.vx = dcos(have) * this.p.swoopSpeed;
+    b.vy = dsin(have) * this.p.swoopSpeed;
     e.facing = b.vx >= 0 ? 1 : -1;
   }
 

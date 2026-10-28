@@ -9,6 +9,7 @@ import type { AnimPhase, AnimState } from '@/presentation/vocabulary';
 import type { Enemy } from '../Enemy';
 import type { EnemyBrain } from '../EnemyBrain';
 import { floorAhead, sightBlocked } from '../senses';
+import { dhypot } from '@/core/dmath';
 
 /** What the view is told of the current state: the logical animation, the part of an action it is, and how far through it. */
 export interface BrainPose {
@@ -189,7 +190,7 @@ export abstract class BaseBrain implements EnemyBrain {
     const b = this.enemy.body;
     const dx = x - b.x;
     const dy = y - b.y;
-    const d = Math.hypot(dx, dy);
+    const d = dhypot(dx, dy);
     if (d < 0.12) {
       b.vx = approach(b.vx, 0, accel * TICK_SECONDS * 2);
       b.vy = approach(b.vy, 0, accel * TICK_SECONDS * 2);

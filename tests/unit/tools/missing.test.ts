@@ -196,7 +196,7 @@ describe('readEnvironmentDelivery', () => {
 
 
 /**
- * WHAT OF THE CREATURES' AND THE GUARDIANS' ART HAS BEEN DELIVERED (docs/PROMPT22-LOG.md §8): the looks the world's rooms place, read from the game's own data, against the packs of the `enemies` category. Until art comes the game draws all of them with shapes
+ * WHAT OF THE CREATURES' AND THE GUARDIANS' ART HAS BEEN DELIVERED (docs/PROMPT22-LOG.md §10): the looks the world's rooms place, read from the game's own data, against the packs of the `enemies` category. Until art comes the game draws all of them with shapes
  * (a silhouette by code) — and the report says so, with where each one stands and how big it is, so that the day someone paints one the request is exactly what it needs.
  */
 describe('looksNeeded', () => {

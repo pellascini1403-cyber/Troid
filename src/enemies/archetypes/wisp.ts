@@ -1,6 +1,7 @@
 import type { SimServices } from '@/gameplay/SimServices';
 import type { Enemy } from '../Enemy';
 import { BaseBrain, type BrainPose } from './BaseBrain';
+import { dhypot, dsin } from '@/core/dmath';
 
 /** The Lantern Wisp's numbers: a small light that drifts, finds the hero, and goes off. */
 export interface WispParams {
@@ -38,8 +39,8 @@ export class WispBrain extends BaseBrain {
             const b = e.body;
             if (this.sees(p.chaseRange, p.chaseHeight, false)) return this.fsm.go('chase');
             // a lazy figure of eight around home
-            const wx = e.home.x + Math.sin(t / 50) * p.driftRange * this.leg;
-            const wy = e.home.y + Math.sin(t / 31) * 0.35;
+            const wx = e.home.x + dsin(t / 50) * p.driftRange * this.leg;
+            const wy = e.home.y + dsin(t / 31) * 0.35;
             this.flyTo(wx, wy, p.driftSpeed, 8);
             e.facing = b.vx >= 0 ? 1 : -1;
           },
@@ -51,7 +52,7 @@ export class WispBrain extends BaseBrain {
             if (pl.health.dead || !this.sees(p.chaseRange * 1.5, p.chaseHeight * 1.5, false)) return this.fsm.go('drift');
             this.flyTo(pl.body.x, pl.body.y + p.hoverAbove, p.chaseSpeed, 14);
             e.facing = this.dx() >= 0 ? 1 : -1;
-            if (Math.hypot(this.dx(), this.dy() + p.hoverAbove * 0.5) <= p.fuseRange) this.fsm.go('fuse');
+            if (dhypot(this.dx(), this.dy() + p.hoverAbove * 0.5) <= p.fuseRange) this.fsm.go('fuse');
           },
         },
         fuse: {

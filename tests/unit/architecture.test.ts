@@ -140,6 +140,19 @@ describe('architecture: layering', () => {
     expect(offenders).toEqual([]);
   });
 
+  it('the simulation never asks the engine for a transcendental function (docs/PROMPT22-LOG.md §5): Math.sin, cos, atan2, hypot, pow, exp, log… are the engine\'s to compute, and engines differ in the last bit — it uses core/dmath.ts', () => {
+    // (the simulation proper: what changes the world. The camera, the placeholder poses, the effects, the audio and the interface read the world and keep the engine's own functions; `core/math.ts` holds the helpers of the camera — damp, easing — which the simulation does not use.)
+    const SIMULATION = new Set(['gameplay', 'player', 'combat', 'abilities', 'enemies', 'bosses', 'interaction', 'world', 'progression']);
+    const free = /\bMath\.(sin|cos|tan|asin|acos|atan|atan2|sinh|cosh|tanh|asinh|acosh|atanh|exp|expm1|log|log1p|log2|log10|pow|cbrt|hypot)\s*\(|[\w)\]]\s*\*\*\s*[\w(.]/;
+    const offenders = pure
+      .filter((f) => (SIMULATION.has(f.module) || (f.module === 'core' && f.rel !== 'core/math.ts')) && f.rel !== 'core/dmath.ts')
+      .filter((f) => free.test(f.code))
+      .map((f) => `${f.rel}: ${f.code.match(free)?.[0]}`);
+    expect(offenders).toEqual([]);
+    // and the helpers it is to use are there
+    expect(files.some((f) => f.rel === 'core/dmath.ts')).toBe(true);
+  });
+
   it('only app/ and content/ itself import content/ (game data is injected into the simulation)', () => {
     const offenders = files
       .filter((f) => f.module !== 'app' && f.module !== 'content')

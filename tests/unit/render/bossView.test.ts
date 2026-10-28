@@ -8,7 +8,7 @@ import type { CreatureArt, CreatureArtPart } from '@/render/ProceduralActor';
 import { fakeVfxAtlas } from '../../helpers/vfx';
 
 /**
- * THE GUARDIANS OF THE ENGINE TAKE ART (docs/PROMPT22-LOG.md §8). Their body is an ink creature's at the size of a room (`ProceduralActor` with the look of the boss), so their art is delivered the way a creature's is — six parts tagged
+ * THE GUARDIANS OF THE ENGINE TAKE ART (docs/PROMPT22-LOG.md §10). Their body is an ink creature's at the size of a room (`ProceduralActor` with the look of the boss), so their art is delivered the way a creature's is — six parts tagged
  * `enemy:<lookId>` (`presentation/enemyArt`) — and the view hands them to the actor that draws it. Until Prompt 22 `dress` did nothing: art painted for one of the six would never have been seen.
  */
 const atlas = fakeVfxAtlas();

@@ -8,7 +8,7 @@ import { lab } from '../../helpers/lab';
 import { Driver, makeSession } from '../../helpers/sim';
 
 /**
- * THE WHOLE WORLD, HEARD (docs/PROMPT22-LOG.md §9): `gameAudio.test.ts` walks the first four rooms; this one walks all sixty-four, fights the seven guardians, and plays the moves of the hero AS THE SIMULATION MAKES THEM — over the real manifest, the real table of
+ * THE WHOLE WORLD, HEARD (docs/PROMPT22-LOG.md §11): `gameAudio.test.ts` walks the first four rooms; this one walks all sixty-four, fights the seven guardians, and plays the moves of the hero AS THE SIMULATION MAKES THEM — over the real manifest, the real table of
  * places and the real conductor, on a fake Web Audio. What it protects is what a player can hear go wrong over a whole adventure: a zone with the wrong piece or none, a piece or a bed playing twice, a fight whose music does not come in or does not go out,
  * a move of the hero that makes no sound, a sound that is asked for and was never loaded, a world that does not fit in the memory of a phone.
  */

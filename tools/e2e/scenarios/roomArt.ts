@@ -24,7 +24,7 @@ import type { Ctx, GameState, Scenario } from '../scenario';
  *       once the Warden has fallen, the reward lights up when it falls, the scenery only READS the flags, and a room that opens with the Warden fallen does not fade its dead eye in
  *   J · the Ink Slimes (phase G): the one of R1 and the one of R2 are drawn by the parts of their art (and by their shapes with `?art=`, or in a room whose art has none), the bristle rises as one winds up, and
  *       the art follows the zone: it is let go when the hero leaves the rooms that hold it
- *   K · the guardians of the engine (docs/PROMPT22-LOG.md §8): the art of a boss that is not the Warden comes in the six parts of an ink creature, tagged with the boss's look, and its view takes them — with `?art=` it keeps its shapes
+ *   K · the guardians of the engine (docs/PROMPT22-LOG.md §10): the art of a boss that is not the Warden comes in the six parts of an ink creature, tagged with the boss's look, and its view takes them — with `?art=` it keeps its shapes
  */
 const PHONE = { width: 844, height: 390, dpr: 1 };
 const R1 = ROOMS['r1_gate']!;

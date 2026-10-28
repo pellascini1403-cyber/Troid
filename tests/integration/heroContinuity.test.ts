@@ -21,12 +21,12 @@ import { lab, LAB_H } from '../helpers/lab';
 import { Driver, makeSession } from '../helpers/sim';
 
 /**
- * THE HERO'S STATES ALWAYS END (docs/PROMPT22-LOG.md §7): no state of the hero can be left holding the animation — not one of the ten states of the controller, not one of the eighteen poses the view can ask for. Three things are proved, with the REAL
+ * THE HERO'S STATES ALWAYS END (docs/PROMPT22-LOG.md §9): no state of the hero can be left holding the animation — not one of the ten states of the controller, not one of the eighteen poses the view can ask for. Three things are proved, with the REAL
  * simulation and the REAL presenters (the placeholder's and the art's, the way `PlayerVisual` runs them every frame):
  *   1. each move, played once with the hands off afterwards, hands the body back to rest — free, on the ground, the idle pose, no phase — in the time its own data says (the blow's ticks, the channel of the bottle, the stun of the heaviest creature…);
  *   2. a hero played AT RANDOM (every control, in any order, with blows landing on them and the defeat flow bringing them back) never stays in a state longer than that, never publishes a pose the vocabulary does not have, and ends at rest;
  *   3. what is drawn follows: the placeholder has a clip of its own for every pose the hero can publish, the real art draws all but the five poses its sheet has no drawing for yet, and the frame shown during a blow is the one the clip says belongs to the phase the simulation is in.
- * The six clips still to be drawn (docs/PROMPT22-LOG.md §7, art/player/requests/) are asserted here too, against the simulation they have to fit: the number of ticks each lasts, the frames each phase will have.
+ * The six clips still to be drawn (docs/PROMPT22-LOG.md §9, art/player/requests/) are asserted here too, against the simulation they have to fit: the number of ticks each lasts, the frames each phase will have.
  */
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const ABILITIES = ['dash', 'air_dash', 'double_jump', 'wall_jump', 'ground_slam'];

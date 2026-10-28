@@ -13,6 +13,7 @@ import { EnemyShot, type ShotSpec } from '../EnemyShot';
 import type { GuardianAttack, GuardianMark, GuardianViewState } from '../Guardian';
 import type { BossAttackSpec, BossDefinition } from './BossDefinition';
 import { BOSS_HANDLERS, type BossCtx, type BossMark } from './handlers';
+import { dhypot } from '@/core/dmath';
 
 export type BossState = 'dormant' | 'intro' | 'choose' | 'return' | 'telegraph' | 'attack' | 'recover' | 'hurt' | 'shift' | 'dead';
 
@@ -498,7 +499,7 @@ export class Boss extends Actor implements SimEntity, Combatant {
     const b = this.body;
     const dx = x - b.x;
     const dy = y - b.y;
-    const d = Math.hypot(dx, dy);
+    const d = dhypot(dx, dy);
     if (d < 0.15) {
       this.stop();
       return true;

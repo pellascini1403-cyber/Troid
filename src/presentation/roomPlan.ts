@@ -420,6 +420,8 @@ export interface PlanSeal {
   x: number;
   y: number;
   height?: number;
+  /** `crack`: split stone (a breakable wall or floor), not a ward of ink. */
+  style?: 'ward' | 'crack';
 }
 
 export interface SealPlacement {
@@ -437,15 +439,20 @@ export interface SealPlan {
   lacking: Map<string, string[]>;
 }
 
-/** Where the art hangs the sigil of each ward of a room (the ward's collision and what breaks it are the room's data and the simulation's; the picture only follows). */
+/**
+ * Where the art hangs the sigil of each ward of a room (the ward's collision and what breaks it are the room's data and the simulation's; the picture only follows). Split stone — a cracked wall or floor that a blow heavy enough brings
+ * down — is not a ward: the sigil is the picture of a ward of violet ink, and hung on stone that has split it read as a seal of energy and hid that it was stone (docs/PROMPT22-LOG.md §10). The cracks keep the drawing of their own
+ * view (a jagged line with a thin light in it) until the art has a picture of split stone, which the world asks for as `door:stone` and no pack has yet.
+ */
 export function planSeals(seals: ReadonlyArray<PlanSeal>, sigil: PieceInfo | null): SealPlan {
   const placements: SealPlacement[] = [];
   const lacking = new Map<string, string[]>();
+  const wards = seals.filter((s) => s.style !== 'crack');
   if (!sigil) {
-    if (seals.length > 0) lacking.set(slotKey('seal', null, ''), seals.map((s) => s.id));
+    if (wards.length > 0) lacking.set(slotKey('seal', null, ''), wards.map((s) => s.id));
     return { placements, lacking };
   }
-  for (const s of seals) placements.push({ id: s.id, x: s.x, y: sealSigilY(s), frames: sigil.frames });
+  for (const s of wards) placements.push({ id: s.id, x: s.x, y: sealSigilY(s), frames: sigil.frames });
   return { placements, lacking };
 }
 

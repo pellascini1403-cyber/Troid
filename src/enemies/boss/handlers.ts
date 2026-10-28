@@ -3,6 +3,7 @@ import type { SimServices } from '@/gameplay/SimServices';
 import type { KinematicBody } from '@/world/collision';
 import type { ShotSpec } from '../EnemyShot';
 import type { BossAttackSpec, BossHandlerId } from './BossDefinition';
+import { datan2, dcos, dsin } from '@/core/dmath';
 
 /** One warning of the boss on the floor: where, how wide, and how near the blow is (0 → 1). */
 export interface BossMark {
@@ -252,11 +253,11 @@ const volley: BossHandler = {
     const dir: 1 | -1 = c.heroX() >= c.body.x ? 1 : -1;
     const mx = c.body.x + dir * 0.9;
     const my = c.body.y + c.body.height * 0.7;
-    const aim = Math.atan2(c.heroY() + 0.9 - my, Math.max(0.5, Math.abs(c.heroX() - mx)));
+    const aim = datan2(c.heroY() + 0.9 - my, Math.max(0.5, Math.abs(c.heroX() - mx)));
     const speed = c.num('speed');
     for (let k = 0; k < n; k++) {
       const a = aim + (n > 1 ? (k / (n - 1) - 0.5) * spread : 0) + c.num('lift', 0);
-      c.throwShot({ ...spec, speed: Math.cos(a) * speed, vy: Math.sin(a) * speed, gravity: c.num('arc', 0) }, mx, my, dir);
+      c.throwShot({ ...spec, speed: dcos(a) * speed, vy: dsin(a) * speed, gravity: c.num('arc', 0) }, mx, my, dir);
     }
     c.strike(mx, 1);
   },
@@ -393,7 +394,7 @@ const burst: BossHandler = {
     for (const side of [-1, 1] as const) {
       for (let k = 0; k < n; k++) {
         const a = n > 1 ? lo + (k / (n - 1)) * (hi - lo) : (lo + hi) / 2;
-        c.throwShot({ ...spec, speed: Math.cos(a) * speed, vy: Math.sin(a) * speed, gravity: c.num('arc', 0) }, x + side * 0.7, y, side);
+        c.throwShot({ ...spec, speed: dcos(a) * speed, vy: dsin(a) * speed, gravity: c.num('arc', 0) }, x + side * 0.7, y, side);
       }
     }
     c.strike(x, c.body.halfW * 2);

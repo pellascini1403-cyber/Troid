@@ -7,6 +7,7 @@ import {
   type InteractableDef,
   type InteractionKind,
 } from './Interactable';
+import { dhypot } from '@/core/dmath';
 
 /** What the system needs from the world: to read flags, to write them, and to hand out rewards. The session implements it. */
 export interface InteractionHost {
@@ -129,7 +130,7 @@ export class InteractionSystem {
       const r = d.reach ?? DEFAULT_REACH;
       return Math.abs(x - d.x) <= r.x + extra && Math.abs(y - d.y) <= r.y + extra;
     };
-    const dist = (d: Readonly<InteractableDef>): number => Math.hypot(x - d.x, y - d.y);
+    const dist = (d: Readonly<InteractableDef>): number => dhypot(x - d.x, y - d.y);
 
     let best: InteractableDef | null = null;
     for (const d of this.defs) {

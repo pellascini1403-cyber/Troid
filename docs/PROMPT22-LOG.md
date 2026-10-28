@@ -140,3 +140,106 @@ El Custodio de Tinta (`r4_sanctum`) sigue probándose con `fightTheWarden` en `b
 
 **Lo que no se afirma.** Que *a una persona* estos combates le parezcan justos o divertidos: el luchador no se cansa, no se equivoca de tecla y ve todo el estado interno de las criaturas (no solo la imagen). Demuestran **que cada encuentro tiene una respuesta, que esa respuesta cuesta poco al que la conoce y que el que no la conoce paga**. La dificultad humana (y sus tiempos) queda para la medición con personas (§11).
 
+
+---
+
+## 5 · La partida completa, de la partida nueva a la salida del mundo (T3, T4) — y lo que destapó sobre el determinismo
+
+**Qué es.** `tests/helpers/runner.ts` (`Runner`) es un jugador de guion que recorre **los 56 salones del camino principal** con las entradas de una persona y **un héroe que puede morir**: el piloto cruza (§3), el luchador pelea (§4: el Rayo contra las linternas, el golpe primero contra la sombra del velo sobre un tablón), los siete guardianes caen, las palancas se tiran, los sellos se rompen como cada uno pide, y **en cada santuario descansa y la partida se guarda con el mismo registrador que usa la página** (`attachProgressRecorder` + `ProgressStore` + `PlayStats`), leída de vuelta como la lee la página. Ninguna acción de la partida es un atajo de la simulación: todo pasa por un `InputFrame`.
+
+| Prueba | Qué comprueba |
+|---|---|
+| `tests/integration/fullRun.test.ts` | Tres semillas más una partida **cerrada y abierta de nuevo en cuatro santuarios** (`mr_shrine`, `mn_camp`, `sp_shrine`, `ih_shrine`): llega a la salida de la última sala (`adventure:ended`), con los siete guardianes caídos, las cinco habilidades del camino más el Rayo, lo guardado igual a las banderas de la simulación, una partida guardada por santuario, las zonas sumando el tiempo jugado al tick y coincidiendo (±40 ticks) con lo que el corredor midió por fuera, las derrotas iguales a las caídas, los guardianes en el orden del camino, entre 15 y 60 minutos y como mucho 30 derrotas. |
+| Escena E2E `fullrun` (`tools/e2e/scenarios/fullrun.ts`) | La **misma** partida (101 887 fotogramas), grabada en Node y repetida en Chromium por la «mano guionizada» de los ganchos de prueba (`__troid.script`: una fuente más del `InputManager`, con el stick tal como se grabó): **2 038 resúmenes de toda la simulación iguales** (héroe, banderas, enemigos, guardianes, sala, transición, generador), en desarrollo y en producción; al final la página está donde acaba el juego —pantalla de cierre abierta, mundo detenido, partida guardada como **completada** en el almacenamiento de la página— y lo guardado son las banderas de la simulación. Memoria de 14 a 41 MB sin crecer, 122 → 129 nodos de DOM y 27 llamadas de dibujo en el peor momento, muestreados a lo largo de 28 minutos de juego. |
+
+**Resultados** (`FULLRUN_REPORT=<archivo> npx vitest run tests/integration/fullRun.test.ts`):
+
+| Partida | Tiempo de simulación | Derrotas | En combate | Hasta cada guardián (min) |
+|---|---|---|---|---|
+| semilla 1 | **27,5 min** | 3 | 6,4 min | Custodio 1,6 · Tirano 6,1 · Matriarca 8,9 · Coloso 15,3 · Campana 18,9 · Motor 25,4 · Soberano 27,3 |
+| semilla 2 | **37,7 min** | 16 (15 en la Fundición) | 11,3 min | … · Motor 35,5 · Soberano 37,5 |
+| semilla 3 | **26,2 min** | 2 | 6,3 min | … · Motor 24,1 · Soberano 26,0 |
+| cerrada y abierta 4 veces | 29,8 min | 6 | | |
+
+Por zona (semilla 1, minutos): Ruinas y Santuario 1,8 · Raíces 4,4 · Cenagal 2,9 · Minas 6,3 · Campanario 3,7 · Fundición 6,4 · Corazón 2,0. La semilla 2 pasó **17,2 minutos en la Fundición con 15 caídas**: es el tramo más débil del jugador de guion (pasarelas y sala de control), no una medida de lo que le pasará a una persona.
+
+**Defectos reales hallados** (del jugador y del instrumento, y uno del juego):
+
+1. El piloto no salía de un foso largo de pinchos (`recover` ahora camina por el suelo y usa el salto doble); una linterna en una chimenea de pared no se podía apagar (el Rayo vuela a nivel y la linterna flota sobre la cabeza: salto y tajo, o soltarse de la pared si debajo hay suelo seguro); un reloj de sesión cerrada anulaba los golpes tras una recarga; el reloj por sala del corredor acreditaba el tiempo a la sala nueva (lo destapó el cruce con las estadísticas de la página).
+2. Al repetir la partida en otro motor el `ScriptRunner` entregaba **fotogramas imposibles** (el botón de salto «sostenido» sin pulsación, por la ventana del segundo salto y la cadena de patadas en la pared) y arrastraba campos de un fotograma al siguiente: corregido en el solucionador (no cambia lo que encuentra: las 283 pruebas de salas siguen igual).
+3. **La simulación dependía de funciones que cada motor calcula a su manera** (siguiente apartado).
+
+### 5.1 · La CI estaba roja por esto: `Math.sin` no es el mismo en Node y en Chromium
+
+Las ejecuciones de CI de T4, T5, T6 y T4b (nº 126 a 129) **fallaron** —solo el trabajo `e2e (journey)`, la escena `fullrun` en producción—. El registro dice: *«the browser diverged from the simulation at tick 14400»*, con **un murciélago en picada** en otro sitio (`35,256 · 10,360` en Node, `35,178 · 10,237` en el navegador); todo lo demás del resumen, igual. En el contenedor de trabajo la misma escena pasaba, en desarrollo y en producción.
+
+**Causa, demostrada.** El lenguaje fija el resultado de `+ − × ÷ √`; **no** el de `Math.sin`, `Math.cos`, `Math.atan2`, `Math.hypot`, `Math.pow`, `Math.exp`…, que cada motor, cada versión y cada compilación calcula como quiere. Medido aquí con 400 000 argumentos: **`Math.sin` y `Math.cos` de Node 22 y del Chromium 141 difieren en el último bit en 1 de cada 30 entradas** (`atan2` e `hypot` coincidían en esa pareja de motores; en el Chromium 153 que instala la CI no se pudo medir, la descarga está bloqueada aquí). La simulación gobierna el vuelo del murciélago con `atan2/cos/sin` (el rumbo), la deriva de las linternas con `sin`, los proyectiles de los jefes con `atan2/cos/sin`, y varias distancias con `hypot`. Un bit de diferencia en un rumbo no se nota… hasta que una decisión (una colisión, un umbral) cae al otro lado: a los 14 400 ticks, en CI, un murciélago acabó su picada a un decímetro de donde la acabó en la grabación.
+
+**Reproducido en local, en el mismo tick.** `tests/integration/engineIndependence.test.ts` graba una aventura completa (101 887 fotogramas) con el `Math` del motor, guarda las entradas fotograma a fotograma y la juega otra vez, desde una partida nueva, **sobre un motor cuyas funciones trascendentes responden una unidad en el último lugar de más —o de menos—**; el resumen de la simulación, cada 50 ticks, tiene que ser el mismo. Con la simulación como estaba, la prueba falla **en el tick 14 400** —el de la CI—.
+
+**Arreglo.** `src/core/dmath.ts`: `dsin`, `dcos`, `datan2` y `dhypot`, hechas solo de las operaciones cuyo resultado es el mismo en todos los motores (suma, resta, producto, cociente, raíz cuadrada), con los coeficientes de los núcleos de fdlibm, precisas a ~1e-16 (`tests/unit/core/dmath.test.ts` las compara con las del motor en 800 000 ángulos, 300 000 vectores y los valores especiales del lenguaje: ceros con signo, infinitos, NaN). La simulación las usa en lugar de las del motor (murciélago, linterna, jefes, distancias de la IA y de la interacción); la **regla de arquitectura** `tests/unit/architecture.test.ts` impide que `gameplay`, `player`, `combat`, `abilities`, `enemies`, `interaction`, `world`, `progression` y `core` (salvo las ayudas de la cámara en `core/math.ts`) vuelvan a llamar a una función trascendente de `Math` o a `**`. Con la simulación independiente del motor, la prueba pasa con el `Math` alterado en las dos direcciones; con un mutante que vuelve a llamar a `Math.sin/cos` en `dmath.ts`, **falla en el tick 14 400**.
+
+**Lo que NO se afirma.** Que la CI quede verde: eso lo dirá la ejecución siguiente (§14). Que dos motores *distintos* de verdad (Gecko, JavaScriptCore) coincidan con Node en toda la partida: el trabajo `engines` de la CI ya compara un tramo con Firefox y WebKit; la partida completa solo se ha repetido en Chromium (141 aquí).
+
+**Lo que prueba y lo que no.** Prueba que el mundo, **como una pieza**, se puede terminar con las entradas de una persona, que lo guardado dice *completado* y que la página lo reproduce bit a bit. **No prueba** que una persona pueda, ni cuánto tarda: los 26 – 38 minutos son **una cota inferior de un jugador que conoce el mapa de memoria, no cae casi nunca, no explora y no se equivoca de tecla** (§8).
+
+---
+
+## 6 · Las habilidades: cómo se aprenden, cómo se usan y con qué dispositivo (T6)
+
+**El problema (D3, D4, D5).** Las seis habilidades del camino —**Esquiva** (`dash`), **Rayo** (`magic_attack`, el hechizo de la carta), **Esquiva aérea** (`air_dash`), **Salto doble**, **Salto de pared** y **Golpe al suelo**— existían y se probaban con teclas, pero un jugador nuevo no tenía cómo saber que el Golpe al suelo está ahí (pide *abajo + atacar en el aire*, una combinación que nadie encuentra por casualidad): al ganar una habilidad solo había un brillo y un sonido, y la pantalla de Controles no decía nada de las tres nuevas; el texto de la pausa táctil decía «arriba, en el centro» cuando el botón está arriba a la derecha desde el Prompt 19. Y ninguna prueba hacía el salto doble, el de pared o el golpe al suelo **con los dedos ni con el mando**.
+
+| Habilidad | Teclado | Mando | Táctil | Qué lo prueba |
+|---|---|---|---|---|
+| Esquiva | Mayús | B | botón de esquiva | `movement`, `touch`, `gamepad` (E2E) y `dash.test` |
+| Rayo | K (con la carta puesta) | Y | botón de habilidad (aparece al equipar la carta) | `bolt`, `magic` (E2E), `abilityDevices` |
+| Esquiva aérea | Mayús en el aire | B en el aire | tocar otra vez la esquiva en el aire | `airDash.test`, `abilityDevices` |
+| Salto doble | Espacio otra vez en el aire | A otra vez | en el aire, bajar el dedo y arrastrarlo de nuevo hacia arriba | `movementAbilities.test`, `abilityDevices` |
+| Salto de pared | contra la pared en el aire (se desliza) y Espacio | ídem | contra la pared, arrastrar hacia arriba | ídem |
+| Golpe al suelo | S + J en el aire | palanca abajo + X | en el aire, dedo abajo y tocar atacar | ídem |
+
+**Lo que hay ahora.**
+
+- **`AbilityNotice`** (`src/ui/overlays/`, un *chunk* diferido: **+37 B** en el arranque en frío): al ganar una habilidad, el nombre de lo aprendido y **una línea de cómo se hace con los atajos, los botones del mando o los dedos que estén en uso**, hecha con los atajos vigentes (una tecla reasignada ya está en la frase); las reliquias dicen qué hacen. Se detiene mientras el menú está abierto y se encolan de una en una. Textos en español e inglés en el catálogo de los *overlays*. Probado con modelo puro (`abilityNotice.test.ts`) y en el navegador (E2E `world`: el aviso del Impulso aéreo, mirado mientras está en pantalla).
+- **Controles:** filas del salto doble, el salto de pared, la esquiva aérea y el golpe al suelo (teclado y mando) y **tres líneas táctiles** (salto doble y de pared, golpe al suelo, esquiva aérea); y el texto viejo de la pausa táctil, corregido.
+- **`tests/integration/abilityDevices.test.ts`:** las cuatro maniobras hechas con los gestos de cada dispositivo (el pulgar arrastrado hacia arriba, vuelto a bajar y arrastrado de nuevo; el pulgar abajo mientras el otro toca atacar; la palanca abajo y X; B dos veces en el aire) **tienen el efecto que con las teclas, y sin la habilidad no tienen ninguno**. Dos defectos del propio test, encontrados al escribirlo: un tercer toque contado cuando el héroe ya había aterrizado, y una sala demasiado baja para tres esquivas en una caída.
+
+**Lo que no cuenta.** `grapple` (gancho) y `swim` (nadar) están **declaradas** en `ABILITIES` con `implemented: false` y **nada del juego las usa**: ninguna puerta, sello ni objeto las pide ni las enseña (lo comprueba `progressionOrder.test.ts`, §7), no salen en ninguna pantalla y no cuentan entre las seis. Si algún día se implementan, serán otra tarea.
+
+**Lo que no se ha verificado.** El gesto de los dedos del golpe al suelo (dedo abajo + tocar atacar con el otro pulgar) está probado con **dedos simulados** (`TouchRig`), no con una mano en una pantalla real: que sea cómodo en un teléfono es una pregunta física (§16).
+
+---
+
+## 7 · El mundo no tiene trampas (T5)
+
+**La pregunta.** Con el solucionador (`tests/helpers/reach.ts`: lo que un héroe puede hacer en el aire con lo que tiene) y el modelo de progresión (`analyzeProgression`), ¿hay algún lugar del mundo del que **no se pueda salir**, o algún orden de habilidades que **deje fuera de alcance el final o el principio**?
+
+| Prueba | Qué comprueba | Resultado |
+|---|---|---|
+| `tests/integration/deadEnds.test.ts` (`deadEnds` en `tests/helpers/audit.ts`) | Desde **cada lugar al que un héroe puede llegar** en una sala (por un salto que se quedó corto, una caída de una repisa, una patada a la pared que no llegó), con lo que tiene al llegar, hay un camino a una salida **que no espera una palanca**. Lo que hiere **no es una trampa**: se cruza a costa de vida, y quien muere vuelve al santuario; solo es trampa un **lugar seguro del que nada sale**. | **Las 64 salas lo cumplen.** El solucionador ganó los pasillos para agacharse (`crouchLinks`, `reachFromCrawling`, que antes eran del piloto): `r1_gate` es el caso. |
+| `tests/integration/progressionOrder.test.ts` | Desde **cada una de las 64 salas**, con **solo** lo que pedía el camino hasta ella, el resto del mundo —el final y el principio— sigue alcanzándose; cada puerta tiene su vuelta abierta a quien la cruzó; ninguna puerta, sello o recogida pide ni enseña el gancho ni la natación; cada habilidad que pide el camino se enseñó en la sala que se deja o antes. | Cumplido. **Dos puertas piden una habilidad que se enseña más adelante**: el Relicario (`ru_reliquary`, en las Ruinas) pide el salto doble, que se enseña en la Cámara del Eco (`rt_echo`, Raíces), y el Escondrijo (`rt_hideout`, en las Raíces) pide el salto de pared, que se enseña en el Sumidero (`mr_sink`, Cenagal): ambas llevan a salas **que no hacen falta para terminar** (los lugares a los que volver con lo aprendido). El resto de las habilidades se enseñan donde dice la tabla de §6: Esquiva aérea en el Santuario (`r4_sanctum`, al caer el Custodio), Golpe al suelo en la Forja (`mn_forge`). |
+
+**Otros comprobados y que ya existían** (Prompt 21, `tests/unit/content/world.test.ts` y `worldRooms.test.ts`): el validador del mundo (toda referencia existe, ninguna entrada cae dentro de una salida, toda sala se alcanza y se deja, y **la aventura se puede terminar**), cada conexión es de dos sentidos, el camino principal de 56 salas con **atajos que solo lo acortan** una vez usadas sus palancas, **un santuario cada cuatro a ocho salas** y uno detrás de la arena de cada guardián, la salida este de cada arena que solo funciona al caer su guardián, ninguna entrada, llegada ni reaparición dentro de una trampa de pinchos, y que lo que el mundo puede escribir en un guardado cabe en **la mitad** de lo que un guardado admite.
+
+**Lo que no se afirma.** Que a una persona le resulte *claro* qué hacer en cada punto (los indicios del mundo —el mapa, las grietas, las palancas— no se han puesto delante de nadie) ni que no existan rincones **incómodos** (un salto que el solucionador resuelve y a una persona le cuesta). El modelo dice que **el mundo no se rompe**, no que **se entienda**.
+
+---
+
+## 8 · El tiempo jugado y la duración (T4b, y lo que se sabe de verdad)
+
+**Instrumentación.** Hasta ahora el perfil guardaba el total de ticks, derrotas, bajas y salas visitadas. Ahora `PlayStats` cuenta, de los eventos que la simulación ya emite y con su propio reloj: **los ticks vividos en cada zona, las derrotas en cada zona y el tiempo jugado en que cayó por primera vez cada guardián** (campos opcionales de las estadísticas guardadas: una partida guardada antes se lee igual y empieza a contar desde ahí; las tablas se limpian al leer —nombres válidos, cuentas positivas, un tope—, `tests/unit/save/golden/progress.v2.zones.json` fija el formato). El **Perfil** lo muestra («Tiempo en cada zona», «Tiempo hasta cada guardián»). El tiempo es el de la **simulación**: no cuenta la pausa, las pantallas de carga ni los menús.
+
+**`npm run session:report -- <archivo…>`** (`tools/sessionReport.ts`): lee una o varias partidas exportadas desde «Partidas guardadas → Exportar» y dice el tiempo total, **por zona**, las derrotas y el tiempo hasta cada guardián; con varias, el más corto, la mediana y el más largo de cada zona. **Es como se mide la duración real de quienes jueguen**: ninguna simulación la da.
+
+**Lo que se mide hoy** (§5): el jugador de guion tarda **26 – 38 minutos** de la partida nueva a la salida (**27,5 / 37,7 / 26,2** con tres semillas), de los que **6 – 11 minutos son combate**, con 2 – 16 derrotas.
+
+| Qué | Lo que se sabe | Lo que NO se sabe |
+|---|---|---|
+| Travesía pura (sin combates, sin objetos, sin muertes) de las 55 salas | 32 019 ticks = **8,9 min** (§3) | — |
+| Partida completa del jugador de guion | **26 – 38 min** | Es **una cota inferior**: un jugador con el mapa de memoria, que no explora, no duda y no se equivoca de tecla. |
+| Duración **de una persona** | **desconocida** | Hay 8 salas opcionales, secretos, vasijas, atajos y una segunda mitad que se vuelve a recorrer; una persona que descubre el mundo, muere aprendiendo a los jefes y explora puede tardar varias veces más. |
+| «3 – 5 h el camino, 5 – 7 h con lo opcional» (objetivo del encargo) | **No se ha comprobado ni se da por cumplido** | Hacen falta partidas humanas medidas con `session:report`. |
+
+**Lo que se puede decir con honestidad:** el mundo **es lo bastante grande para que una persona tarde bastante más de 30 minutos** (64 salas, siete zonas, siete jefes, y un camino de 56 salas con combates que cuestan vida al que no los lee), y **no hay ninguna medición que respalde las 3 – 5 horas**. Si al medir con personas resultara corto, **el ajuste es de datos** (más criaturas, jefes con más vida, más salas) y no de arquitectura; **no se ha tocado ninguna vida ni daño** para fingir duración.
+
+**Balance, lo que ya se vio** (§4): cuatro criaturas (baba de tinta, campanero, tejedor, sombra del velo) **no cuestan nada ni al héroe ingenuo en una sala vacía**; el Lomo de piedra mata al ingenuo; el jefe que más desgasta es el Custodio de la Campana (7 – 10 puntos de vida con 1 – 3 botellas) y el más largo, el Motor (80 – 115 s). La Fundición es donde el jugador de guion más cae (15 caídas en una semilla).
