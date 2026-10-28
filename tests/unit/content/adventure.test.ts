@@ -13,15 +13,15 @@ const graph = buildWorldGraph(WORLD, ROOMS);
 const paper = analyzeProgression(graph, ROOMS);
 
 describe('the world', () => {
-  it('is 64 rooms in 7 zones, every one reachable on paper, every one with an entrance and a way out, and no two with the same picture', () => {
-    expect(rooms).toHaveLength(64);
+  it('is 67 rooms in 7 zones, every one reachable on paper, every one with an entrance and a way out, and no two with the same picture', () => {
+    expect(rooms).toHaveLength(67);
     expect(paper.unreachable).toEqual([]);
     for (const r of rooms) {
       expect(r.entries.length, r.id).toBeGreaterThan(0);
       expect((r.exits ?? []).length, r.id).toBeGreaterThan(0);
     }
     const pictures = rooms.map((r) => JSON.stringify(r.solids.map((s) => s.rect)));
-    expect(new Set(pictures).size).toBe(64);
+    expect(new Set(pictures).size).toBe(67);
   });
 
   it('no two rooms are the same room with different numbers: each differs from every other in the things it holds, not only in how big it is', () => {
@@ -63,7 +63,7 @@ describe('the creatures', () => {
 
   it('and the enemies that guard a way — a door that opens when they fall — are kept by a flag that is theirs alone', () => {
     const keepers = rooms.flatMap((r) => (r.spawns ?? []).filter((s) => s.defeatFlag).map((s) => `${r.id}/${s.id}`));
-    expect(keepers).toEqual(['r1_gate/slime_1', 'r2_hall/slime_1', 'mr_lanterns/toad_key', 'fd_vats/keeper']);
+    expect(keepers).toEqual(['r1_gate/slime_1', 'r2_hall/slime_1', 'mr_lanterns/toad_key', 'fd_vats/keeper', 'ih_atrium/weaver_key']);
   });
 });
 

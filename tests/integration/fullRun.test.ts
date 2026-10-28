@@ -109,9 +109,9 @@ describe('the whole adventure, from a new game to the way out of the world', () 
     report['reloads'] = { minutes: minutes(r.now), deaths: r.deaths, reloads: r.reloads };
   }, 120_000);
 
-  it('the world the run goes through is the whole of it: 7 zones, the 56 rooms of the road, and the 8 optional rooms it does not need', () => {
+  it('the world the run goes through is the whole of it: 7 zones, the 59 rooms of the road, and the 8 optional rooms it does not need', () => {
     expect(new Set(ROAD.map((id) => ROOMS[id]!.regionId.replace('ancient_forest_sanctum', 'ancient_forest_ruins'))).size).toBe(7);
-    expect(ROAD.length).toBe(56);
+    expect(ROAD.length).toBe(59);
     expect(WORLD.rooms.length - ROAD.length).toBe(8);
   });
 });

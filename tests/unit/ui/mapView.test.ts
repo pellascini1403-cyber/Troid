@@ -127,11 +127,11 @@ describe('the map view', () => {
 
     it('says in words what it shows, for a screen reader: where the hero is and how many rooms are known', () => {
       view.update(two());
-      expect(q(view.root, 'map-summary').textContent).toBe('Estás en Galería de Raíces. Salas descubiertas: 2 de 64.');
+      expect(q(view.root, 'map-summary').textContent).toBe('Estás en Galería de Raíces. Salas descubiertas: 2 de 67.');
       expect(all(view.root, '[data-testid="map-rooms"] li').map((li) => li.textContent)).toEqual(['Puerta de las Ruinas', 'Estás en Galería de Raíces']);
       expect(view.root.getAttribute('aria-label')).toBe('Mapa del mundo');
       tr.setLocale('en');
-      expect(q(view.root, 'map-summary').textContent).toBe('You are in Root Gallery. Rooms discovered: 2 of 64.');
+      expect(q(view.root, 'map-summary').textContent).toBe('You are in Root Gallery. Rooms discovered: 2 of 67.');
     });
 
     it('with nothing to show says so, and offers no zoom', () => {

@@ -7,7 +7,7 @@ import { lever } from './kit';
  * THE HEART OF THE INK (docs/PROMPT21-LOG.md): where the ink comes from. Black, quiet, and it beats. The last zone asks of the hero everything the others did — a ladder of Double Jumps over spikes, a chimney that only the Wall Jump climbs — and puts
  * the creatures of all of them against them, with a new one among them: the Veil Shade, which vanishes when the hero comes close and comes back behind them. It ends with the INKHEART SOVEREIGN, and after the Sovereign, the end.
  *
- *   fd_arena → ih_threshold → ih_veins → ih_shrine → ih_ascent → ih_approach → ih_arena → ih_end → (the end of the adventure)
+ *   fd_arena → ih_threshold → ih_veins → ih_shrine → ih_atrium → ih_ascent → ih_approach → ih_arena → ih_end → (the end of the adventure)
  *                ↑ ╲ a door that the lever in the antechamber opens                  ┆ shrine ┆ shrine, lever ┆ the last rest
  *                │   └──────────────────────────────────────────────────────────────┘
  */
@@ -74,8 +74,34 @@ export function pulse(): RoomDefinition {
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('rest', 'q', 1)],
       spawns: [m.spawn('leech_1', 'floor_leech', 'l')],
-      exits: [m.exitSide('west', 'west', 'a', { room: 'ih_veins', entry: 'east' }), m.exitSide('east', 'east', 'b', { room: 'ih_ascent', entry: 'bottom' })],
+      exits: [m.exitSide('west', 'west', 'a', { room: 'ih_veins', entry: 'east' }), m.exitSide('east', 'east', 'b', { room: 'ih_atrium', entry: 'west' })],
       interactables: [m.shrine('r')],
+    }),
+  );
+}
+
+// ---------------------------------------------------------------------------------------------------------------- the Atrium
+/**
+ * «Atrio»: 80 × 26 m. The hall that holds the way up: 70 m of black floor with an Ink Weaver in the middle of it, the keeper of the stone door in the east wall — the door opens when it falls — and a Veil Shade on each side of it. A plank hangs 3 m over the middle of the hall and
+ * two stumps a jump high stand between it and the door, for whoever wants something under their feet while the shades come and go. Everything in the hall is awake, and the keeper weaves: the order the hero takes them in is the room.
+ */
+export function atrium(): RoomDefinition {
+  const c = new RoomCanvas('ih_atrium', 80, 26).walls().ground(1, 79, 2);
+  c.plat(36, 44, 5); // the plank over the middle of the hall
+  c.rock(52, 2, 54, 5).rock(60, 2, 62, 5); // the two stumps
+  c.region('D', 70, 2, 71, 12); // the stone door
+  c.mark('a', 5, 2).mark('b', 75, 2).mark('k', 40, 2).mark('x', 20, 2).mark('y', 57, 2);
+  return mapRoom(
+    { id: 'ih_atrium', regionId: REGION, name: 'Atrium', nameKey: 'room.ih_atrium.name', art: { backdrop: 'heart', seed: 67 }, rows: c.rows(), materials: MATERIALS, regions: { D: { id: 'atrium_door', material: 'gate' } } },
+    (m) => ({
+      entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
+      spawns: [
+        m.spawn('weaver_key', 'ink_weaver', 'k', { facing: 1, defeatFlag: 'defeated:ih_atrium_keeper' }),
+        m.spawn('shade_1', 'veil_shade', 'x', { facing: 1 }),
+        m.spawn('shade_2', 'veil_shade', 'y'),
+      ],
+      gates: [m.gate('atrium_gate', 'atrium_door', 'defeated:ih_atrium_keeper')],
+      exits: [m.exitSide('west', 'west', 'a', { room: 'ih_shrine', entry: 'east' }), m.exitSide('east', 'east', 'b', { room: 'ih_ascent', entry: 'bottom' }, { requires: 'defeated:ih_atrium_keeper' })],
     }),
   );
 }
@@ -97,7 +123,7 @@ export function ascent(): RoomDefinition {
     (m) => ({
       entries: [m.entry('bottom', 'a', 1), m.entry('top', 'e', 1)],
       spawns: [m.spawn('shade_1', 'veil_shade', 'x', { facing: 1 }), m.spawn('wisp_1', 'lantern_wisp', 'p'), m.spawn('wisp_2', 'lantern_wisp', 'q')],
-      exits: [m.exitSide('bottom', 'west', 'a', { room: 'ih_shrine', entry: 'east' }), m.exitSide('top', 'west', 'e', { room: 'ih_approach', entry: 'west' })],
+      exits: [m.exitSide('bottom', 'west', 'a', { room: 'ih_atrium', entry: 'east' }), m.exitSide('top', 'west', 'e', { room: 'ih_approach', entry: 'west' })],
       needs: [{ target: 'exit:top', abilities: ['wall_jump'] }],
     }),
   );
@@ -170,4 +196,4 @@ export function rest(): RoomDefinition {
   );
 }
 
-export const HEART_ROOMS: readonly RoomDefinition[] = [threshold(), veins(), pulse(), ascent(), antechamber(), heart(), rest()];
+export const HEART_ROOMS: readonly RoomDefinition[] = [threshold(), veins(), pulse(), atrium(), ascent(), antechamber(), heart(), rest()];

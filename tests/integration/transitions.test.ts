@@ -113,7 +113,7 @@ describe('a transition: from touching an exit to having control again', () => {
 
   it('EVERY exit of the world that leads somewhere arrives at the entry it names (position, facing, on the ground), without bouncing back', () => {
     const graph = buildWorldGraph(WORLD, ROOMS);
-    expect(graph.edges.length, 'sixty-nine doors, each way').toBe(138);
+    expect(graph.edges.length, 'seventy-two doors, each way').toBe(144);
     for (const e of graph.edges) {
       // a hero who has what the way asks for (its flag: a guardian down, a lever pulled) and cannot be hurt on the way: this is about WHERE the exit puts them
       const d = world(e.from, undefined, { flags: [...FLAGS, ...(e.requires ? [e.requires] : [])] });

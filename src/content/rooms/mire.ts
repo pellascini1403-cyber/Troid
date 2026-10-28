@@ -8,7 +8,7 @@ import { lever, teach, vessel } from './kit';
  * THE GLOWMIRE (docs/PROMPT21-LOG.md): a swamp lit by lanterns that are not lanterns. Wood walkways over black water — a pit, to the hero: fall in and the hero is out of the world — and the creatures that live on them: the Mire Toad, which leaps where
  * the hero IS and shakes the floor where it lands, and the Lantern Wisp, which floats to the hero and goes off. It teaches the WALL JUMP (in the Sinkhole, which asks for it at once) and ends with the MIRE MATRIARCH.
  *
- *   rt_arena → mr_edge → mr_stilts → mr_lanterns → mr_toadpit → mr_shrine → mr_sink → mr_climb → mr_approach → mr_lair → (the Crystal Mines)
+ *   rt_arena → mr_edge → mr_stilts → mr_lanterns → mr_mangrove → mr_toadpit → mr_shrine → mr_sink → mr_climb → mr_approach → mr_lair → (the Crystal Mines)
  *                ↑  ╲ a door that the lever in the approach opens: the way home       ┆ the Slam                              ┆ shrine, lever, shortcut
  *                │    └ mr_den (a vessel of life, under the cracked floor of the stilts) ┘
  */
@@ -84,7 +84,27 @@ export function lanterns(): RoomDefinition {
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       spawns: [m.spawn('toad_key', 'mire_toad', 't', { defeatFlag: 'defeated:mr_lanterns_toad' }), m.spawn('wisp_1', 'lantern_wisp', 'w'), m.spawn('wisp_2', 'lantern_wisp', 'x'), m.spawn('wisp_3', 'lantern_wisp', 'y'), m.spawn('wisp_4', 'lantern_wisp', 'z')],
       gates: [m.gate('mire_gate', 'mire_door', 'defeated:mr_lanterns_toad')],
-      exits: [m.exitSide('west', 'west', 'a', { room: 'mr_stilts', entry: 'east' }), m.exitSide('east', 'east', 'b', { room: 'mr_toadpit', entry: 'west' }, { requires: 'defeated:mr_lanterns_toad' })],
+      exits: [m.exitSide('west', 'west', 'a', { room: 'mr_stilts', entry: 'east' }), m.exitSide('east', 'east', 'b', { room: 'mr_mangrove', entry: 'west' }, { requires: 'defeated:mr_lanterns_toad' })],
+    }),
+  );
+}
+
+// ---------------------------------------------------------------------------------------------------------------- the Mangrove
+/**
+ * «Manglar»: 56 × 34 m. The Lanterns open on a mangrove, and the way on is UP: seven planks of root, each 3 m above the last and 3 m beyond it, over black water — a fall is only a walk back — climb 20 m to the ledge of the Toad Pit, which hangs over the swamp at that height. A toad
+ * keeps the broad plank in the middle, two wisps hang in the gaps and a glow spore sits at the top of the climb: every jump is a jump AND a creature to deal with, and the only floor to stand and fight on is the planks themselves.
+ */
+export function mangrove(): RoomDefinition {
+  const c = new RoomCanvas('mr_mangrove', 56, 34).walls().ground(1, 9, 2).pit(9, 50);
+  c.plat(9, 13, 4).plat(16, 20, 7).plat(23, 29, 10).plat(32, 36, 13).plat(39, 43, 16).plat(46, 50, 19); // the planks, 3 m up and 3 m on
+  c.rock(50, 2, 55, 22); // the trunk the climb comes out on, and the ledge on top of it
+  c.mark('a', 4, 2).mark('b', 51, 22).mark('t', 26, 10).mark('p', 41, 16).mark('x', 21, 10).mark('y', 37, 17);
+  return mapRoom(
+    { id: 'mr_mangrove', regionId: REGION, name: 'Mangrove', nameKey: 'room.mr_mangrove.name', art: { backdrop: 'mire', seed: 65 }, rows: c.rows(), materials: MATERIALS },
+    (m) => ({
+      entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
+      spawns: [m.spawn('toad_1', 'mire_toad', 't'), m.spawn('spore_1', 'glow_spore', 'p'), m.spawn('wisp_1', 'lantern_wisp', 'x'), m.spawn('wisp_2', 'lantern_wisp', 'y')],
+      exits: [m.exitSide('west', 'west', 'a', { room: 'mr_lanterns', entry: 'east' }), m.exitSide('east', 'east', 'b', { room: 'mr_toadpit', entry: 'west' })],
     }),
   );
 }
@@ -106,7 +126,7 @@ export function toadpit(): RoomDefinition {
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       spawns: [m.spawn('toad_1', 'mire_toad', 't'), m.spawn('toad_2', 'mire_toad', 'v')],
-      exits: [m.exitSide('west', 'west', 'a', { room: 'mr_lanterns', entry: 'east' }), m.exitSide('east', 'east', 'b', { room: 'mr_shrine', entry: 'west' })],
+      exits: [m.exitSide('west', 'west', 'a', { room: 'mr_mangrove', entry: 'east' }), m.exitSide('east', 'east', 'b', { room: 'mr_shrine', entry: 'west' })],
     }),
   );
 }
@@ -247,4 +267,4 @@ export function den(): RoomDefinition {
   );
 }
 
-export const MIRE_ROOMS: readonly RoomDefinition[] = [edge(), stilts(), lanterns(), toadpit(), landing(), sink(), walls(), approach(), lair(), den()];
+export const MIRE_ROOMS: readonly RoomDefinition[] = [edge(), stilts(), lanterns(), mangrove(), toadpit(), landing(), sink(), walls(), approach(), lair(), den()];

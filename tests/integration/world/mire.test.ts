@@ -11,7 +11,7 @@ import { at, bare, describeArena, expectSound, killEnemy, registry, SLOW, throug
 vi.setConfig({ testTimeout: SLOW });
 
 /**
- * THE GLOWMIRE (src/content/rooms/mire.ts), through the real session: ten rooms that the audit finds sound and crossable, the Wall Jump that is handed out in the Sinkhole and asked for at once, the walls of the next room that need it, the cracked floor that
+ * THE GLOWMIRE (src/content/rooms/mire.ts), through the real session: eleven rooms that the audit finds sound and crossable, the Wall Jump that is handed out in the Sinkhole and asked for at once, the walls of the next room that need it, the cracked floor that
  * leads to the Den, the door a toad keeps, the lever that opens the way home, and the arena of the Mire Matriarch.
  */
 const ROOMS = registry(MIRE_ROOMS);
@@ -20,15 +20,15 @@ const BARE = registry(MIRE_ROOMS.map(bare));
 /** What the hero has had since the Sanctum and the Echo Chamber. */
 const HELD = ['air_dash', 'double_jump'];
 
-describe('the ten rooms', () => {
+describe('the eleven rooms', () => {
   it('are sound, can be crossed from every entrance with what each one asks of the hero, and ask for exactly that', () => {
     expectSound(MIRE_ROOMS, {}, HELD);
   });
 
-  it('every room has its name in every language, and they are ten different rooms with ten different pictures', () => {
-    expect(MIRE_ROOMS).toHaveLength(10);
+  it('every room has its name in every language, and they are eleven different rooms with eleven different pictures', () => {
+    expect(MIRE_ROOMS).toHaveLength(11);
     for (const r of MIRE_ROOMS) for (const [lang, catalog] of Object.entries(CATALOGS)) expect(catalog[r.nameKey!], `${lang}: ${r.id}`).toBeTruthy();
-    expect(new Set(MIRE_ROOMS.map((r) => JSON.stringify(r.solids.map((s) => s.rect)))).size).toBe(10);
+    expect(new Set(MIRE_ROOMS.map((r) => JSON.stringify(r.solids.map((s) => s.rect)))).size).toBe(11);
   });
 
   it('are peopled by the creatures of the swamp: toads, wisps, spores, leeches and spitters', () => {
@@ -81,7 +81,7 @@ describe('the Lanterns: a door that a toad keeps', () => {
     expect(d.session.flags.has('defeated:mr_lanterns_toad')).toBe(true);
     d.right();
     d.step(60);
-    expect(d.session.room.id, 'through the door and out: the exit works').toBe('mr_toadpit');
+    expect(d.session.room.id, 'through the door and out: the exit works').toBe('mr_mangrove');
 
     const later = at(ROOMS, 'mr_lanterns', 'west', ['dash'], ['defeated:mr_lanterns_toad']);
     later.session.godMode = true;
@@ -90,7 +90,7 @@ describe('the Lanterns: a door that a toad keeps', () => {
     later.settle();
     later.right();
     later.step(60);
-    expect(later.session.room.id, 'a door that is open from the start').toBe('mr_toadpit');
+    expect(later.session.room.id, 'a door that is open from the start').toBe('mr_mangrove');
   });
 });
 

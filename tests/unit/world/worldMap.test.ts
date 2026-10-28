@@ -319,8 +319,8 @@ describe('the map of the shipped world', () => {
   const layout = buildMapLayout(WORLD, ROOMS);
   const ids = WORLD.rooms;
 
-  it('places the 64 rooms along the road, the first at the origin, no two on top of each other (nor closer than the gap), and the four rooms of the slice in a line, each door level with the one it leads to', () => {
-    expect(layout.rooms.size).toBe(64);
+  it('places the 67 rooms along the road, the first at the origin, no two on top of each other (nor closer than the gap), and the four rooms of the slice in a line, each door level with the one it leads to', () => {
+    expect(layout.rooms.size).toBe(67);
     expect([...layout.rooms.keys()].slice(0, 4)).toEqual(['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum']);
     expect(room_(layout, 'r1_gate').rect).toMatchObject({ x0: 0, y0: 0 });
     const boxes = [...layout.rooms.values()];
@@ -344,7 +344,7 @@ describe('the map of the shipped world', () => {
 
   it('the ROAD places the rooms, not the shortcuts: each room stands next to the room by which it first opens on paper, and a shortcut is a line between two rooms that are already there', () => {
     const road = analyzeProgression(buildWorldGraph(WORLD, ROOMS), ROOMS).via;
-    expect(road.size).toBe(63);
+    expect(road.size).toBe(66);
     for (const [to, way] of road) {
       const a = room_(layout, way.from).rect;
       const b = room_(layout, to).rect;
@@ -396,7 +396,7 @@ describe('the map of the shipped world', () => {
     expect(s.links).toEqual([]);
     expect(s.rooms[0]!.doors[0]).toMatchObject({ exit: 'east', state: 'locked', known: false });
     expect(s.rooms[0]!.pois).toEqual([]);
-    expect([s.discovered, s.total]).toEqual([1, 64]);
+    expect([s.discovered, s.total]).toEqual([1, 67]);
   });
 
   it('knows what is worth a mark: the fifteen shrines, the seven guardians, the two wards that only the Bolt breaks — and not the split stone, which is a secret', () => {

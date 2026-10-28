@@ -8,7 +8,7 @@ import { lever, teach } from './kit';
  * THE BELL SPIRE (docs/PROMPT21-LOG.md): a tower of bronze and stone that rises out of the mines, where the bells ring by themselves. Here the hero has everything they will have — the dash and the air dash, the two jumps in the air, the wall, the slam — and
  * the tower asks for it: shafts that only the Wall Jump climbs, a ledge that only the Double Jump reaches, a bridge over nothing. Its creatures are the Bell Toller, which tolls waves along the floor to a rhythm, the bats and the wisps. It ends with the BELL WARDEN.
  *
- *   mn_arena → sp_foot → sp_gallery → sp_stair → sp_shrine → sp_chimney → sp_belfry → sp_bridge → sp_approach → sp_arena → (the Ink Foundry)
+ *   mn_arena → sp_foot → sp_gallery → sp_stair → sp_shrine → sp_chimney → sp_belfry → sp_roofs → sp_bridge → sp_approach → sp_arena → (the Ink Foundry)
  *                ↑ ╲ a door that the lever in the antechamber opens                            ┆ cracked island ┆ shrine, lever
  *                │   └─ sp_loft (Piercing Ink, under the cracked island of the bridge) ────────┘
  */
@@ -155,9 +155,34 @@ export function belfry(): RoomDefinition {
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       spawns: [m.spawn('toller_1', 'bell_toller', 'x', { facing: 1 }), m.spawn('wisp_1', 'lantern_wisp', 'y'), m.spawn('bat_1', 'cave_bat', 'p', { facing: 1 }), m.spawn('bat_2', 'cave_bat', 'q')],
       gates: [m.gate('door_1', 'bell_door_1', 'lever:sp_bell_1'), m.gate('door_2', 'bell_door_2', 'lever:sp_bell_2')],
-      exits: [m.exitSide('west', 'west', 'a', { room: 'sp_chimney', entry: 'east' }), m.exitSide('east', 'east', 'b', { room: 'sp_bridge', entry: 'west' }, { requires: 'lever:sp_bell_2' })],
+      exits: [m.exitSide('west', 'west', 'a', { room: 'sp_chimney', entry: 'east' }), m.exitSide('east', 'east', 'b', { room: 'sp_roofs', entry: 'west' }, { requires: 'lever:sp_bell_2' })],
       interactables: [lever(m, 'lever_1', 'l', 'lever:sp_bell_1'), { ...lever(m, 'lever_2', 'm', 'lever:sp_bell_2'), whenSet: 'lever:sp_bell_1' }],
       needs: [{ target: 'item:lever_1', abilities: ['double_jump'] }, { target: 'item:lever_2', abilities: ['wall_jump'] }],
+    }),
+  );
+}
+
+// ---------------------------------------------------------------------------------------------------------------- the Roofs
+/**
+ * «Tejados»: 96 × 30 m. Out of the Belfry the way on is over the roofs of the tower: three gables of stone, stepped like stairs — 2 m a step up and 2 m a step down, and the third 3 m a step to a ledge 8 m up, where the Windy Bridge begins — with a gutter of floor between
+ * them, a strip of the rusted nails of the roof in the first and a toller ringing it, and a toller on the ridge of the second. The wisp over the second gutter and the bats under the eaves make the steps a choice: up and over, or down and wait for the bell.
+ */
+export function roofs(): RoomDefinition {
+  const c = new RoomCanvas('sp_roofs', 96, 30).walls().ground(1, 95, 2);
+  // the first gable: 2 m a step to a ridge 6 m up
+  c.rock(14, 2, 18, 4).rock(18, 2, 22, 6).rock(22, 2, 26, 8).rock(26, 2, 30, 6).rock(30, 2, 34, 4);
+  c.spikes(37, 40, 2); // the nails of the roof, in the gutter
+  // the second gable: a ridge 9 m up, in 3 m steps
+  c.rock(42, 2, 46, 5).rock(46, 2, 50, 8).rock(50, 2, 54, 11).rock(54, 2, 58, 8).rock(58, 2, 62, 5);
+  // the third: 2 m a step to the ledge the bridge begins on
+  c.rock(70, 2, 74, 4).rock(74, 2, 78, 6).rock(78, 2, 82, 8).rock(82, 2, 95, 10);
+  c.mark('a', 5, 2).mark('b', 90, 10).mark('x', 35, 2).mark('y', 52, 11).mark('w', 66, 8).mark('p', 28, 28).mark('q', 60, 28);
+  return mapRoom(
+    { id: 'sp_roofs', regionId: REGION, name: 'Roofs', nameKey: 'room.sp_roofs.name', art: { backdrop: 'spire', seed: 66 }, rows: c.rows(), materials: MATERIALS },
+    (m) => ({
+      entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
+      spawns: [m.spawn('toller_1', 'bell_toller', 'x', { facing: 1 }), m.spawn('toller_2', 'bell_toller', 'y'), m.spawn('wisp_1', 'lantern_wisp', 'w'), m.spawn('bat_1', 'cave_bat', 'p', { facing: 1 }), m.spawn('bat_2', 'cave_bat', 'q')],
+      exits: [m.exitSide('west', 'west', 'a', { room: 'sp_belfry', entry: 'east' }), m.exitSide('east', 'east', 'b', { room: 'sp_bridge', entry: 'west' })],
     }),
   );
 }
@@ -181,7 +206,7 @@ export function bridge(): RoomDefinition {
       gates: [m.gate('crack_gate', 'crack_floor', 'broken:sp_bridge_crack')],
       seals: [m.seal('crack', 'k', { area: rect(36.9, 4.4, 40.1, 5.4), style: 'crack', accepts: ['slam', 'slam_dive'], flag: 'broken:sp_bridge_crack', needs: abilityFlag('ground_slam') })],
       exits: [
-        m.exitSide('west', 'west', 'a', { room: 'sp_belfry', entry: 'east' }),
+        m.exitSide('west', 'west', 'a', { room: 'sp_roofs', entry: 'east' }),
         m.exitSide('east', 'east', 'b', { room: 'sp_approach', entry: 'west' }),
         m.exitShaft('loft', 'south', 'k', { room: 'sp_loft', entry: 'north' }, { width: 3, depth: 1, requires: 'broken:sp_bridge_crack' }),
       ],
@@ -262,4 +287,4 @@ export function loft(): RoomDefinition {
   );
 }
 
-export const SPIRE_ROOMS: readonly RoomDefinition[] = [foot(), gallery(), stair(), sacristy(), chimney(), belfry(), bridge(), approach(), summit(), loft()];
+export const SPIRE_ROOMS: readonly RoomDefinition[] = [foot(), gallery(), stair(), sacristy(), chimney(), belfry(), roofs(), bridge(), approach(), summit(), loft()];

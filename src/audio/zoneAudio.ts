@@ -166,19 +166,19 @@ export const ZONES: Readonly<Record<string, ZoneAudio>> = Object.fromEntries([
   ...each(['rt_echo'], like(DAMP_EARTH, { room: { rt60: 2.6, damp: 0.5, predelayMs: 16, wet: 0.4 } })),
   ...each(['rt_arena'], arena(DAMP_EARTH)),
   // the Glowmire
-  ...each(['mr_edge', 'mr_stilts', 'mr_lanterns', 'mr_toadpit', 'mr_shrine', 'mr_sink', 'mr_climb', 'mr_approach', 'mr_den'], MIRE),
+  ...each(['mr_edge', 'mr_stilts', 'mr_lanterns', 'mr_mangrove', 'mr_toadpit', 'mr_shrine', 'mr_sink', 'mr_climb', 'mr_approach', 'mr_den'], MIRE),
   ...each(['mr_lair'], arena(MIRE)),
   // the Crystal Mines
   ...each(['mn_gate', 'mn_seam', 'mn_hall', 'mn_camp', 'mn_forge', 'mn_descent', 'mn_rails', 'mn_approach', 'mn_vault'], MINES),
   ...each(['mn_arena'], arena(MINES)),
   // the Bell Spire
-  ...each(['sp_foot', 'sp_gallery', 'sp_stair', 'sp_shrine', 'sp_chimney', 'sp_belfry', 'sp_bridge', 'sp_approach', 'sp_loft'], SPIRE),
+  ...each(['sp_foot', 'sp_gallery', 'sp_stair', 'sp_shrine', 'sp_chimney', 'sp_belfry', 'sp_roofs', 'sp_bridge', 'sp_approach', 'sp_loft'], SPIRE),
   ...each(['sp_arena'], arena(SPIRE)),
   // the Ink Foundry
   ...each(['fd_gate', 'fd_line', 'fd_press', 'fd_furnace', 'fd_vats', 'fd_workshop', 'fd_catwalks', 'fd_control', 'fd_scrap'], FOUNDRY),
   ...each(['fd_arena'], arena(FOUNDRY)),
   // the Heart of the Ink, and the last room, where the quiet is the Sanctum's
-  ...each(['ih_threshold', 'ih_veins', 'ih_shrine', 'ih_ascent', 'ih_approach', 'ih_end'], HEART),
+  ...each(['ih_threshold', 'ih_veins', 'ih_shrine', 'ih_atrium', 'ih_ascent', 'ih_approach', 'ih_end'], HEART),
   ...each(['ih_arena'], arena(HEART)),
 ]);
 

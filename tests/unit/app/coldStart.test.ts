@@ -90,13 +90,14 @@ describe('the registries: the core is the first chapter, the rest arrives and ad
     expect(Object.keys(core.BOSSES)).toEqual(['ink_warden']);
     expect(core.inCore('r4_sanctum')).toBe(true);
     expect(core.inCore('ru_nave')).toBe(false);
-    expect(core.WORLD.rooms).toHaveLength(64);
+    expect(core.WORLD.rooms, 'the list of the rooms of the first chapter: the rest of it comes with `beyond`').toEqual(['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum']);
     const { hasBrain } = await import('@/enemies/archetypes');
     expect(hasBrain('slime')).toBe(true);
     expect(hasBrain('crawler'), 'the other thirteen are taught by `beyond`').toBe(false);
 
     await import('@/content/beyond');
-    expect(Object.keys(core.ROOMS)).toHaveLength(7 + 60);
+    expect(Object.keys(core.ROOMS)).toHaveLength(7 + 63);
+    expect(core.WORLD.rooms, 'and the list of the world is whole').toHaveLength(67);
     for (const id of core.WORLD.rooms) expect(core.ROOMS[id], id).toBeDefined();
     expect(Object.keys(core.ENEMIES), 'fifteen definitions of fourteen archetypes (the shard a shardling breaks into is a slime of its own)').toHaveLength(15);
     expect(Object.keys(core.BOSSES)).toHaveLength(7);

@@ -13,6 +13,7 @@
     "mr_edge": "scenes/mr_edge.json",
     "mr_stilts": "scenes/mr_stilts.json",
     "mr_lanterns": "scenes/mr_lanterns.json",
+    "mr_mangrove": "scenes/mr_mangrove.json",
     "mr_toadpit": "scenes/mr_toadpit.json",
     "mr_shrine": "scenes/mr_shrine.json",
     "mr_sink": "scenes/mr_sink.json",
@@ -55,10 +56,10 @@
         0,
         1
       ],
-      "height": 21.602,
+      "height": 22.383,
       "frameSize": [
         1536,
-        553
+        573
       ],
       "missingClips": "placeholder",
       "tags": [
@@ -80,10 +81,10 @@
         0,
         1
       ],
-      "height": 28.08,
+      "height": 29.56,
       "frameSize": [
         1000,
-        702
+        739
       ],
       "missingClips": "placeholder",
       "tags": [

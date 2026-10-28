@@ -171,7 +171,7 @@ describe('the pause menu over the real game', () => {
       d.session.loadRoom('r2_hall');
       menu.open();
       q(parent, 'pause-profile').click();
-      expect(q(parent, 'profile-rooms').textContent).toBe('2 de 64');
+      expect(q(parent, 'profile-rooms').textContent).toBe('2 de 67');
     });
 
     it('counts the defeats and the enemies beaten from the events the simulation raises', async () => {
@@ -481,7 +481,7 @@ describe('the pause menu over the real game', () => {
       expect(q(parent, 'map-room-r2_hall').dataset['current']).toBe('1');
       expect(q(parent, 'map-hero').dataset['room']).toBe('r2_hall');
       expect(q(parent, 'map-door-r2_hall:west').dataset['known']).toBe('0'); // R1 is not on the map: the way back to it ends in a stub
-      expect(q(parent, 'map-summary').textContent).toContain('1 de 64');
+      expect(q(parent, 'map-summary').textContent).toContain('1 de 67');
     });
 
     it('a room the hero walks into is on the map the next time the menu opens — the counts are the game\'s own, the very ones the profile reads', async () => {

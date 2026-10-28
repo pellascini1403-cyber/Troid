@@ -16,6 +16,7 @@
     "sp_shrine": "scenes/sp_shrine.json",
     "sp_chimney": "scenes/sp_chimney.json",
     "sp_belfry": "scenes/sp_belfry.json",
+    "sp_roofs": "scenes/sp_roofs.json",
     "sp_bridge": "scenes/sp_bridge.json",
     "sp_approach": "scenes/sp_approach.json",
     "sp_arena": "scenes/sp_arena.json",

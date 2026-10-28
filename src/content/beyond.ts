@@ -10,6 +10,8 @@ import { MIRE_ROOMS } from './rooms/mire';
 import { ROOTS_ROOMS } from './rooms/roots';
 import { RUINS_ROOMS } from './rooms/ruins';
 import { SPIRE_ROOMS } from './rooms/spire';
+import { WORLD_ROOMS } from './world';
+import { BEYOND_ROOMS } from './worldRooms';
 
 /**
  * THE REST OF THE WORLD (docs/PROMPT21-LOG.md): the sixty rooms past the Sanctum — a file of rooms for each zone, in the order the hero meets them —, the thirteen creatures after the Ink Slime with the brains that run them
@@ -20,3 +22,4 @@ import { SPIRE_ROOMS } from './rooms/spire';
 Object.assign(ROOMS, Object.fromEntries([...RUINS_ROOMS, ...ROOTS_ROOMS, ...MIRE_ROOMS, ...MINES_ROOMS, ...SPIRE_ROOMS, ...FOUNDRY_ROOMS, ...HEART_ROOMS].map((r) => [r.id, r])));
 Object.assign(ENEMIES, Object.fromEntries(CREATURES.map((c) => [c.id, c])));
 Object.assign(BOSSES, ENGINE_BOSSES);
+WORLD_ROOMS.push(...BEYOND_ROOMS);

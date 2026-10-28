@@ -11,7 +11,7 @@ import { at, bare, describeArena, expectSound, log, registry, SLOW, through } fr
 vi.setConfig({ testTimeout: SLOW });
 
 /**
- * THE HEART OF THE INK (src/content/rooms/heart.ts), through the real session: seven rooms that the audit finds sound and crossable, the ladder of Double Jumps over spikes, the double chimney that only the Wall Jump climbs, the shrines and the way home, the arena of the
+ * THE HEART OF THE INK (src/content/rooms/heart.ts), through the real session: eight rooms that the audit finds sound and crossable, the ladder of Double Jumps over spikes, the double chimney that only the Wall Jump climbs, the shrines and the way home, the arena of the
  * Inkheart Sovereign — and, past it, the room with the way out of the world.
  */
 const ROOMS = registry(HEART_ROOMS);
@@ -20,15 +20,15 @@ const BARE = registry(HEART_ROOMS.map(bare));
 const HELD = ['air_dash', 'double_jump', 'wall_jump', 'ground_slam'];
 const KIT = ['dash', ...HELD];
 
-describe('the seven rooms', () => {
+describe('the eight rooms', () => {
   it('are sound, can be crossed from every entrance with what each one asks of the hero, and ask for exactly that', () => {
     expectSound(HEART_ROOMS, {}, HELD);
   });
 
-  it('every room has its name in every language, and they are seven different rooms with seven different pictures', () => {
-    expect(HEART_ROOMS).toHaveLength(7);
+  it('every room has its name in every language, and they are eight different rooms with eight different pictures', () => {
+    expect(HEART_ROOMS).toHaveLength(8);
     for (const r of HEART_ROOMS) for (const [lang, catalog] of Object.entries(CATALOGS)) expect(catalog[r.nameKey!], `${lang}: ${r.id}`).toBeTruthy();
-    expect(new Set(HEART_ROOMS.map((r) => JSON.stringify(r.solids.map((s) => s.rect)))).size).toBe(7);
+    expect(new Set(HEART_ROOMS.map((r) => JSON.stringify(r.solids.map((s) => s.rect)))).size).toBe(8);
   });
 
   it('are peopled by the Veil Shade, the one creature that is new here, and by the weavers, tollers, wisps and the leech of the zones before: shades come back behind whoever comes close', () => {

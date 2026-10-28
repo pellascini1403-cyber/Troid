@@ -13,6 +13,7 @@
     "ih_threshold": "scenes/ih_threshold.json",
     "ih_veins": "scenes/ih_veins.json",
     "ih_shrine": "scenes/ih_shrine.json",
+    "ih_atrium": "scenes/ih_atrium.json",
     "ih_ascent": "scenes/ih_ascent.json",
     "ih_approach": "scenes/ih_approach.json",
     "ih_arena": "scenes/ih_arena.json",

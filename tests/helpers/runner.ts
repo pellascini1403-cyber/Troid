@@ -146,10 +146,13 @@ export class Runner {
   private watch(): void {
     const bus = this.d.session.bus;
     const on = <K extends keyof GameEvents>(n: K, f: (e: GameEvents[K]) => void): void => void bus.on(n, f);
-    on('room:entered', (e) => {
+    // a room is LOADED whenever the world puts the hero in one — by a door (and then `room:entered` follows, the same tick) or by the shrine that brings them back after a defeat (and then it does not): the page counts the time from the load, so the runner does too
+    on('room:loaded', (e) => {
       this.closeRoom();
       this.enteredAt = this.d.session.now;
       this.inRoom = e.roomId;
+    });
+    on('room:entered', (e) => {
       const t = this.roomTime(e.roomId);
       t.visits++;
       this.say(`enters ${e.roomId} from ${e.from}`);

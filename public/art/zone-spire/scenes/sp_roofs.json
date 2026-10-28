@@ -1,0 +1,226 @@
+{
+  "sceneVersion": 1,
+  "room": "sp_roofs",
+  "layers": {
+    "propsBack": [
+      {
+        "sprite": "pinnacle_stone_b",
+        "x": 36.39,
+        "y": 2,
+        "scale": 1.03,
+        "flip": true
+      },
+      {
+        "sprite": "bell_frame_b",
+        "x": 65.03,
+        "y": 2,
+        "scale": 1.02,
+        "flip": false
+      },
+      {
+        "sprite": "tower_stub_a",
+        "x": 86.21,
+        "y": 10,
+        "scale": 1.1,
+        "flip": false
+      }
+    ],
+    "terrain": [
+      {
+        "sprite": "stone_blocks_b",
+        "x": 51.44,
+        "y": 11,
+        "scale": 1.18,
+        "flip": true
+      },
+      {
+        "sprite": "stone_blocks_a",
+        "x": 86.73,
+        "y": 10,
+        "scale": 1.14,
+        "flip": true
+      },
+      {
+        "sprite": "rope_coil_b",
+        "x": 47.42,
+        "y": 8,
+        "scale": 1.06,
+        "flip": false
+      },
+      {
+        "sprite": "stone_blocks_a",
+        "x": 55.42,
+        "y": 8,
+        "scale": 0.93,
+        "flip": true
+      },
+      {
+        "sprite": "stone_blocks_a",
+        "x": 79.38,
+        "y": 8,
+        "scale": 1.07,
+        "flip": true
+      },
+      {
+        "sprite": "stone_blocks_a",
+        "x": 19.47,
+        "y": 6,
+        "scale": 0.95,
+        "flip": false
+      },
+      {
+        "sprite": "stone_blocks_b",
+        "x": 27.57,
+        "y": 6,
+        "scale": 1.17,
+        "flip": false
+      },
+      {
+        "sprite": "rope_coil_b",
+        "x": 75.73,
+        "y": 6,
+        "scale": 0.96,
+        "flip": true
+      },
+      {
+        "sprite": "stone_blocks_b",
+        "x": 31.22,
+        "y": 4,
+        "scale": 1.09,
+        "flip": false
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "banners_a",
+        "x": 11.62,
+        "y": 30.86,
+        "scale": 1.21,
+        "flip": false
+      },
+      {
+        "sprite": "banners_b",
+        "x": 33.31,
+        "y": 30.94,
+        "scale": 1.29,
+        "flip": false
+      },
+      {
+        "sprite": "banners_b",
+        "x": 56,
+        "y": 30.32,
+        "scale": 1.4,
+        "flip": false
+      },
+      {
+        "sprite": "banners_a",
+        "x": 81.88,
+        "y": 30.82,
+        "scale": 1.23,
+        "flip": true
+      },
+      {
+        "sprite": "banners_b",
+        "x": 102.71,
+        "y": 31.44,
+        "scale": 1.04,
+        "flip": false
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 9.6,
+        "y": -2.2,
+        "alpha": 0.29,
+        "flip": false
+      },
+      {
+        "sprite": "beam_b",
+        "x": 28.8,
+        "y": -2.2,
+        "alpha": 0.28,
+        "flip": true
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 7.5,
+        "y": 1.8,
+        "alpha": 0.18,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 38,
+        "y": 1.8,
+        "alpha": 0.14,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 66,
+        "y": 1.8,
+        "alpha": 0.19,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 0.89,
+        "alpha": 0.27,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 33.52,
+        "y": 0.5,
+        "scale": 0.93,
+        "alpha": 0.26,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 52.43,
+        "y": 0.5,
+        "scale": 1.06,
+        "alpha": 0.21,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 71.56,
+        "y": 0.5,
+        "scale": 1.1,
+        "alpha": 0.25,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 95.64,
+        "y": 0.5,
+        "scale": 1.1,
+        "alpha": 0.25,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      }
+    ]
+  }
+}

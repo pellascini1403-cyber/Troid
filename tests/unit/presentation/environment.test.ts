@@ -136,11 +136,11 @@ describe('what the world asks of the art, read from the rooms\' data', () => {
   it('says which rooms use each piece, and how many pieces of data it draws', () => {
     const roomsOf = (role: string, subject: string | null, part: string): string[] => find(role, subject, part)?.rooms ?? [];
     expect(find('door', 'seal', 'body')).toMatchObject({ rooms: ['r3_chamber'], uses: 1 });
-    // the spikes of R2 and of thirteen rooms of the zones after it
-    expect(roomsOf('hazard', 'spikes', 'cell')).toHaveLength(14);
+    // the spikes of R2 and of fourteen rooms of the zones after it
+    expect(roomsOf('hazard', 'spikes', 'cell')).toHaveLength(15);
     expect(roomsOf('hazard', 'spikes', 'cell')[0]).toBe('r2_hall');
     // the doors that a flag opens: the stone door of R1, the wall of R4 and every arena and shortcut door of the rest
-    expect(roomsOf('door', 'gate', 'body')).toHaveLength(18);
+    expect(roomsOf('door', 'gate', 'body')).toHaveLength(19);
     expect(roomsOf('door', 'gate', 'body').slice(0, 2)).toEqual(['r1_gate', 'r4_sanctum']);
     // split stone, which has no piece of its own yet (the blockout draws it)
     expect(roomsOf('door', 'stone', 'body')).toEqual(['ru_nave', 'rt_tangle', 'mr_stilts', 'mn_hall', 'mn_forge', 'mn_descent', 'sp_bridge', 'fd_line']);

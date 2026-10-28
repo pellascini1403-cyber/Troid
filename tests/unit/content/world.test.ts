@@ -9,7 +9,7 @@ import { validateRoom } from '@/world/validateRoom';
 import { analyzeProgression, buildWorldGraph, destinationOf, edgesFrom, routeBetween, validateWorld, worldEnds, worldGrantedFlags } from '@/world/worldGraph';
 
 /**
- * The shipped world (docs/PROMPT6-LOG.md S22, docs/PROMPT21-LOG.md): the four rooms of the slice in a line, each connected to the next and back, and past the Sanctum six more zones — sixty-four rooms in all — every connection naming the entry the
+ * The shipped world (docs/PROMPT6-LOG.md S22, docs/PROMPT21-LOG.md): the four rooms of the slice in a line, each connected to the next and back, and past the Sanctum six more zones — sixty-seven rooms in all — every connection naming the entry the
  * player appears at. The graph is read from the data of the rooms; nothing here knows what comes after what.
  */
 const player = { halfWidth: PLAYER.body.halfWidth, height: PLAYER.body.height };
@@ -28,12 +28,12 @@ describe('the world as shipped', () => {
     expect(ROOMS['ih_end']!.entries.map((e) => e.id)).toContain('west');
   });
 
-  it('is sixty-four rooms in seven zones, the first four those of the slice, in the order the player meets them: R1 → R2 → R3 → R4 → the Collapsed Nave', () => {
-    expect(WORLD.rooms).toHaveLength(64);
+  it('is sixty-seven rooms in seven zones, the first four those of the slice, in the order the player meets them: R1 → R2 → R3 → R4 → the Collapsed Nave', () => {
+    expect(WORLD.rooms).toHaveLength(67);
     expect(WORLD.rooms.slice(0, 5)).toEqual(['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum', 'ru_nave']);
     const p = analyzeProgression(graph, ROOMS);
     expect(p.order.slice(0, 5)).toEqual(['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum', 'ru_nave']);
-    expect(p.order, 'every room can be reached on paper').toHaveLength(64);
+    expect(p.order, 'every room can be reached on paper').toHaveLength(67);
     expect(p.unreachable).toEqual([]);
   });
 
@@ -41,7 +41,7 @@ describe('the world as shipped', () => {
     const zones: Record<string, string[]> = {};
     const prefix = (id: string): string => (/^r[1-4]_/.test(id) ? 'ru' : id.split('_')[0]!);
     for (const id of WORLD.rooms) (zones[prefix(id)] ??= []).push(id);
-    expect(Object.fromEntries(Object.entries(zones).map(([z, r]) => [z, r.length]))).toEqual({ ru: 8, rt: 9, mr: 10, mn: 10, sp: 10, fd: 10, ih: 7 });
+    expect(Object.fromEntries(Object.entries(zones).map(([z, r]) => [z, r.length]))).toEqual({ ru: 8, rt: 9, mr: 11, mn: 10, sp: 11, fd: 10, ih: 8 });
   });
 
   it('every room of the world is registered under its own id, and the registry also keeps the playgrounds', () => {
@@ -82,11 +82,11 @@ describe('the world as shipped', () => {
 const SPINE = [
   'r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum', 'ru_nave',
   'rt_mouth', 'rt_tangle', 'rt_hollow', 'rt_cellar', 'rt_bridge', 'rt_echo', 'rt_gallery', 'rt_arena',
-  'mr_edge', 'mr_stilts', 'mr_lanterns', 'mr_toadpit', 'mr_shrine', 'mr_sink', 'mr_climb', 'mr_approach', 'mr_lair',
+  'mr_edge', 'mr_stilts', 'mr_lanterns', 'mr_mangrove', 'mr_toadpit', 'mr_shrine', 'mr_sink', 'mr_climb', 'mr_approach', 'mr_lair',
   'mn_gate', 'mn_seam', 'mn_hall', 'mn_camp', 'mn_forge', 'mn_descent', 'mn_rails', 'mn_approach', 'mn_arena',
-  'sp_foot', 'sp_gallery', 'sp_stair', 'sp_shrine', 'sp_chimney', 'sp_belfry', 'sp_bridge', 'sp_approach', 'sp_arena',
+  'sp_foot', 'sp_gallery', 'sp_stair', 'sp_shrine', 'sp_chimney', 'sp_belfry', 'sp_roofs', 'sp_bridge', 'sp_approach', 'sp_arena',
   'fd_gate', 'fd_line', 'fd_press', 'fd_furnace', 'fd_vats', 'fd_workshop', 'fd_catwalks', 'fd_control', 'fd_arena',
-  'ih_threshold', 'ih_veins', 'ih_shrine', 'ih_ascent', 'ih_approach', 'ih_arena', 'ih_end',
+  'ih_threshold', 'ih_veins', 'ih_shrine', 'ih_atrium', 'ih_ascent', 'ih_approach', 'ih_arena', 'ih_end',
 ];
 
 describe('the connections', () => {
@@ -146,10 +146,10 @@ describe('the connections', () => {
     expect(routeBetween(graph, 'r4_sanctum', 'r1_gate', flags)).toEqual(['r4_sanctum', 'r3_chamber', 'r2_hall', 'r1_gate']);
   });
 
-  it('the road from the first room to the end is the spine of the design — fifty-six rooms, each joined to the next — and the shortcuts make it shorter once their levers have been used, never before', () => {
+  it('the road from the first room to the end is the spine of the design — fifty-nine rooms, each joined to the next — and the shortcuts make it shorter once their levers have been used, never before', () => {
     const flags = analyzeProgression(graph, ROOMS).flags;
     for (let i = 0; i + 1 < SPINE.length; i++) expect(edgesFrom(graph, SPINE[i]!).some((e) => e.to.room === SPINE[i + 1]), `${SPINE[i]} → ${SPINE[i + 1]}`).toBe(true);
-    expect(SPINE).toHaveLength(56);
+    expect(SPINE).toHaveLength(59);
     expect(SPINE[0]).toBe('r1_gate');
     expect(SPINE[SPINE.length - 1]).toBe('ih_end');
     // with the levers of the shortcuts still unused, the shortest way is the spine itself, room for room
@@ -199,7 +199,7 @@ describe('what the first room asks of the player', () => {
     expect(r1.gates![0]!.openWhen).toBe('defeated:r1_slime');
     expect(graph.edges.find((e) => e.from === 'r1_gate')!.requires).toBe('defeated:r1_slime');
     // so, with no flags, the paper player is stuck in R1; with the slime beaten, the world opens
-    expect(analyzeProgression(graph, ROOMS).order).toHaveLength(64);
+    expect(analyzeProgression(graph, ROOMS).order).toHaveLength(67);
     const shut = { ...ROOMS, r1_gate: { ...r1, spawns: [{ ...r1.spawns![0]!, defeatFlag: undefined }] } };
     // (without a defeat flag nothing sets the one the exit requires: the validator says so)
     expect(validateWorld(WORLD, shut as typeof ROOMS, { player }).map((i) => i.code)).toEqual(expect.arrayContaining(['flag-ungranted', 'room-unreachable']));
@@ -389,7 +389,7 @@ describe('the Spirit Bolt and its seal (S28)', () => {
     // take the card out of the world and R4 is out of reach, which is exactly what the validator is for
     const noCard = { ...ROOMS, r3_chamber: { ...R3, interactables: [] } };
     const stuck = analyzeProgression(buildWorldGraph(WORLD, noCard as typeof ROOMS), noCard as typeof ROOMS);
-    expect(stuck.unreachable, 'R4 and everything past it').toHaveLength(61);
+    expect(stuck.unreachable, 'R4 and everything past it').toHaveLength(64);
     expect(stuck.unreachable).toContain('r4_sanctum');
     expect(stuck.unreachable).toContain('ih_end');
     expect(validateWorld(WORLD, noCard as typeof ROOMS, { player }).map((i) => i.code)).toEqual(expect.arrayContaining(['room-unreachable']));

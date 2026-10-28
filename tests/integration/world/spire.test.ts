@@ -11,7 +11,7 @@ import { at, bare, describeArena, expectSound, registry, SLOW, through } from '.
 vi.setConfig({ testTimeout: SLOW });
 
 /**
- * THE BELL SPIRE (src/content/rooms/spire.ts), through the real session: ten rooms that the audit finds sound and crossable, the shafts that only the Wall Jump climbs, the plank that only the Double Jump gets onto, the two levers of the Belfry
+ * THE BELL SPIRE (src/content/rooms/spire.ts), through the real session: eleven rooms that the audit finds sound and crossable, the shafts that only the Wall Jump climbs, the plank that only the Double Jump gets onto, the two levers of the Belfry
  * (the second works only after the first), the cracked island of the bridge and the Loft under it, the shrines and the way home, and the arena of the Bell Warden.
  */
 const ROOMS = registry(SPIRE_ROOMS);
@@ -20,15 +20,15 @@ const BARE = registry(SPIRE_ROOMS.map(bare));
 const HELD = ['air_dash', 'double_jump', 'wall_jump', 'ground_slam'];
 const KIT = ['dash', ...HELD];
 
-describe('the ten rooms', () => {
+describe('the eleven rooms', () => {
   it('are sound, can be crossed from every entrance with what each one asks of the hero, and ask for exactly that', () => {
     expectSound(SPIRE_ROOMS, {}, HELD);
   });
 
-  it('every room has its name in every language, and they are ten different rooms with ten different pictures', () => {
-    expect(SPIRE_ROOMS).toHaveLength(10);
+  it('every room has its name in every language, and they are eleven different rooms with eleven different pictures', () => {
+    expect(SPIRE_ROOMS).toHaveLength(11);
     for (const r of SPIRE_ROOMS) for (const [lang, catalog] of Object.entries(CATALOGS)) expect(catalog[r.nameKey!], `${lang}: ${r.id}`).toBeTruthy();
-    expect(new Set(SPIRE_ROOMS.map((r) => JSON.stringify(r.solids.map((s) => s.rect)))).size).toBe(10);
+    expect(new Set(SPIRE_ROOMS.map((r) => JSON.stringify(r.solids.map((s) => s.rect)))).size).toBe(11);
   });
 
   it('are peopled by the creatures of the tower: tollers that ring waves along the floor, bats and wisps', () => {
@@ -111,7 +111,7 @@ describe('the Belfry: two levers, two doors, and the second lever works only aft
     open.teleport(45.5, 2);
     open.settle();
     through(open, 'east');
-    expect(open.session.room.id).toBe('sp_bridge');
+    expect(open.session.room.id).toBe('sp_roofs');
   });
 });
 
