@@ -37,3 +37,22 @@ export function legOf(index: number): { entry: string; exit: string | null; next
   const entry = index === 0 ? WORLD.start.entry : PAPER.via.get(id)!.to.entry;
   return { entry, exit: next ? PAPER.via.get(next)!.exit : null, next };
 }
+
+/**
+ * What a hero can have when they are in `room`, at the least — the abilities (beyond the dash) and the world flags: on the road, what the road before it handed out; off the road, what was handed out up to the room it branches from and by that room itself (the
+ * hero may have taken it before going off the road), and what the way into the room asks (an ability). The question "can they get out of here" is asked with THESE — more abilities only add ways, so it is the hard case.
+ */
+export function heldFor(room: string): { abilities: string[]; flags: string[] } {
+  if (ROAD.includes(room)) {
+    const h = heldAt(room);
+    return { abilities: h.abilities.filter((a) => a !== 'dash'), flags: h.flags };
+  }
+  const via = PAPER.via.get(room);
+  if (!via) return { abilities: [], flags: [] };
+  const before = heldFor(via.from);
+  const own = grantedFlags(ROOMS[via.from]!);
+  return {
+    abilities: [...new Set([...before.abilities, ...own.filter((f) => f.startsWith('ability:')).map((f) => f.slice(8)), ...(via.needs ?? [])])],
+    flags: [...new Set([...before.flags, ...own.filter((f) => !f.startsWith('ability:') && !f.startsWith('~'))])],
+  };
+}

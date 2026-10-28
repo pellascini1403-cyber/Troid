@@ -24,6 +24,8 @@ import type { RoomDefinition } from '@/world/RoomDefinition';
  */
 
 const HALF = PLAYER.body.halfWidth;
+/** The height of the body crouched (m): a passage this low is walked through bent over. */
+const CROUCHED = PLAYER.movement.crouch.height;
 const HEIGHT = PLAYER.body.height;
 const TICK = 1 / 60;
 /** How far past the edge of a ledge the centre of the body can be and still stand on it (the ground probe is the body's width less a hair). */
@@ -492,6 +494,46 @@ export class RoomPhysics {
           }
         }
       }
+    }
+    return { start: start.index, surfaces: reached, hops };
+  }
+
+  /**
+   * The passages that a hero goes through bent over: two places on the same floor with a stretch between them where the standing body does not fit and the crouched one does. Both ways. The solver's hops are jumps; a crawl is a link of its own
+   * (`script: 'crouch'`), played by the pilot and counted by the audits of places a hero cannot leave.
+   */
+  crouchLinks(): Hop[] {
+    const out: Hop[] = [];
+    for (const a of this.surfaces) {
+      for (const b of this.surfaces) {
+        if (a === b || a.oneway || b.oneway || Math.abs(a.y - b.y) > 0.01 || b.x0 <= a.x1 || b.x0 - a.x1 > 24) continue;
+        if (this.world.overlapsSolid({ x0: a.x1, x1: b.x0, y0: a.y + 0.02, y1: a.y + CROUCHED })) continue;
+        let floor = true;
+        for (let x = a.x1; x <= b.x0 && floor; x += 0.5) floor = this.world.overlapsSolid({ x0: x - 0.01, x1: x + 0.01, y0: a.y - 0.05, y1: a.y - 0.01 });
+        if (!floor) continue;
+        out.push({ from: a.index, to: b.index, x: a.x1, script: 'crouch', landX: b.x0 });
+        out.push({ from: b.index, to: a.index, x: b.x0, script: 'crouch', landX: a.x1 });
+      }
+    }
+    return out;
+  }
+
+  /** Every place the hero can come to from `start`, by jumps and by crawling under low roofs. */
+  reachFromCrawling(start: Surface, has: ReadonlySet<string>, opts: { dense?: boolean } = {}): Reach {
+    const links = this.crouchLinks();
+    const reached = new Set<number>();
+    const hops: Hop[] = [];
+    const queue = [start];
+    for (let q = 0; q < queue.length; q++) {
+      const s = queue[q]!;
+      if (reached.has(s.index)) continue;
+      const r = this.reachFrom(s, has, undefined, opts);
+      hops.push(...r.hops);
+      for (const i of r.surfaces) {
+        if (!reached.has(i)) reached.add(i);
+      }
+      for (const l of links) if (reached.has(l.from) && !reached.has(l.to)) queue.push(this.surfaces[l.to]!);
+      for (const l of links) if (reached.has(l.from)) hops.push(l);
     }
     return { start: start.index, surfaces: reached, hops };
   }

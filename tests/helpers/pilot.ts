@@ -23,8 +23,6 @@ const JUMP_REACH = 2.9;
 const JUMP_REACH_TWICE = 5.0;
 /** How far in from the end of a ledge a run-up begins, and a standing take-off stands (m). */
 const EDGE = 0.1;
-/** The height of the body crouched (m): a passage this low is walked through bent over. */
-const CROUCHED = PLAYER.movement.crouch.height;
 
 export type Goal = { zone: Rect } | { stand: { x: number; y: number } };
 type Mode = 'stand' | 'touch' | 'hole' | 'above';
@@ -351,7 +349,7 @@ export class Pilot {
    */
   private plan(phys: RoomPhysics, here: Surface, has: ReadonlySet<string>, targets: Candidate[]): Hop[] | null {
     const want = (r: ReadonlySet<number>): boolean => targets.some((t) => r.has(t.surface.index));
-    const links = this.links(phys);
+    const links = phys.crouchLinks();
     const chains = new Map<number, Hop[]>([[here.index, []]]);
     const queue = [here.index];
     let firstHops: readonly Hop[] = [];
@@ -381,23 +379,6 @@ export class Pilot {
   private steady(phys: RoomPhysics, hops: readonly Hop[], chain: Hop[], has: ReadonlySet<string>): Hop[] {
     const first = chain[0]!;
     return first.script === 'crouch' ? chain : [this.steadiest(phys, hops, first, has), ...chain.slice(1)];
-  }
-
-  /** The passages that a hero goes through bent over: two places on the same floor with a stretch between them where the standing body does not fit and the crouched one does. Both ways. */
-  private links(phys: RoomPhysics): Hop[] {
-    const out: Hop[] = [];
-    for (const a of phys.surfaces) {
-      for (const b of phys.surfaces) {
-        if (a === b || a.oneway || b.oneway || Math.abs(a.y - b.y) > 0.01 || b.x0 <= a.x1 || b.x0 - a.x1 > 24) continue;
-        if (phys.world.overlapsSolid({ x0: a.x1, x1: b.x0, y0: a.y + 0.02, y1: a.y + CROUCHED })) continue;
-        let floor = true;
-        for (let x = a.x1; x <= b.x0 && floor; x += 0.5) floor = phys.world.overlapsSolid({ x0: x - 0.01, x1: x + 0.01, y0: a.y - 0.05, y1: a.y - 0.01 });
-        if (!floor) continue;
-        out.push({ from: a.index, to: b.index, x: a.x1, script: 'crouch', landX: b.x0 });
-        out.push({ from: b.index, to: a.index, x: b.x0, script: 'crouch', landX: a.x1 });
-      }
-    }
-    return out;
   }
 
   /**

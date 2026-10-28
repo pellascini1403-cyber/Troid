@@ -171,9 +171,9 @@ export function destinationOf(graph: WorldGraph, roomId: string, exitId: string)
 /**
  * Plays the world on paper. From the first room: every flag a reachable room can hand out (a guardian that can be beaten, a
  * pickup that can be taken once its own flag condition holds) is collected, and every exit whose `requires` is collected opens
- * its destination. It repeats until nothing changes, so the order of the rooms in the data does not matter.
+ * its destination. It repeats until nothing changes, so the order of the rooms in the data does not matter. `from` is the room it begins in (the first of the world by default): what a hero who is somewhere else, with the flags they have, can still come to.
  */
-export function analyzeProgression(graph: WorldGraph, rooms: RoomRegistry, startFlags: Iterable<string> = []): Progression {
+export function analyzeProgression(graph: WorldGraph, rooms: RoomRegistry, startFlags: Iterable<string> = [], from: string = graph.start.room): Progression {
   const flags = new Set(startFlags);
   const reached = new Set<string>();
   const order: string[] = [];
@@ -186,7 +186,7 @@ export function analyzeProgression(graph: WorldGraph, rooms: RoomRegistry, start
     if (by) via.set(id, by);
     changed = true;
   };
-  open(graph.start.room);
+  open(from);
   while (changed) {
     changed = false;
     for (const id of [...reached]) {

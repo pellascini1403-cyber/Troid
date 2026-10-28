@@ -3,7 +3,7 @@ import { BOSSES, ENEMIES } from '@/content/enemies';
 import { PLAYER } from '@/content/player';
 import { BOTTLE_DEFINITIONS, CARDS } from '@/content/resources';
 import type { Rect } from '@/core/math';
-import { abilityFlag, needsOf } from '@/world/worldGraph';
+import { abilityFlag, grantedFlags, needsOf } from '@/world/worldGraph';
 import { pictureOf } from '@/world/roomMap';
 import type { RoomDefinition } from '@/world/RoomDefinition';
 import { validateRoom, type RoomIssue } from '@/world/validateRoom';
@@ -174,6 +174,48 @@ export function auditRoom(room: RoomDefinition, opts: AuditOptions = {}): Audit 
   }
   for (const [k, used] of exempt) if (!used) issues.push({ room: room.id, code: 'one-way-unknown', message: `[${room.id}] the one-way ${k.replace('|', ' → ')} names an entrance or a target the room does not have` });
   return { room: room.id, issues, unreachable, loose, crossesExit, free };
+}
+
+/**
+ * THE PLACES A HERO CANNOT LEAVE (docs/PROMPT22-LOG.md §7). `auditRoom` asks whether a hero who comes in by an entrance can reach everything; this asks the other half of a soft-lock — whether a hero who has come to a place in the room (by a
+ * jump, a fall off a ledge, a kick that fell short) can still get OUT of it. Every place reachable from an entrance is tried with the abilities the hero has when they get here (`held`): from each one, a way out must be reachable — one that is always
+ * open (the shortcuts that wait for a lever do not count: they may be shut; a door that a creature holds, or the room's own lever or card, counts: the hero can win it there).
+ *
+ * What hurts is not a trap: a floor of spikes can be walked across at the cost of life, and a hero who dies comes back at the shrine — so the spikes are NOT walls here, and only a place that is itself SAFE (not under a hazard) can be one. A hero stuck in a place where
+ * nothing hurts them and from which nothing leads out is the one thing that nobody can leave, because there is no defeat to bring them back. Returns one line for each such place.
+ */
+export function deadEnds(room: RoomDefinition, held: readonly string[] = [], flags: Iterable<string> = []): string[] {
+  const open = new Set([...flags, ...grantedFlags(room)]);
+  const safe = new RoomPhysics(room, 'open');
+  const phys = new RoomPhysics({ ...room, hazards: [] }, 'open');
+  const has = abilitySet(...START_ABILITIES, ...held);
+  const exits = targetsOf(room).filter((t) => {
+    if (!t.id.startsWith('exit:')) return false;
+    const x = (room.exits ?? []).find((e) => `exit:${e.id}` === t.id);
+    return x !== undefined && (x.requires === undefined || open.has(x.requires));
+  });
+  const reached = new Set<number>();
+  for (const e of room.entries) for (const i of phys.reachFromCrawling(phys.entrySurface(e.id), has).surfaces) reached.add(i);
+  /** How much of a place is NOT under a hazard (m). */
+  const bare = (s: { x0: number; x1: number; y: number }): number => {
+    let covered = 0;
+    const spans = (room.hazards ?? []).filter((h) => h.rect.y0 < s.y + 0.6 && h.rect.y1 > s.y - 0.05 && h.rect.x1 > s.x0 && h.rect.x0 < s.x1).map((h) => [Math.max(s.x0, h.rect.x0), Math.min(s.x1, h.rect.x1)] as const).sort((a, b) => a[0] - b[0]);
+    let end = -Infinity;
+    for (const [a, b] of spans) {
+      covered += Math.max(0, b - Math.max(a, end));
+      end = Math.max(end, b);
+    }
+    return s.x1 - s.x0 - covered;
+  };
+  void safe;
+  const out: string[] = [];
+  for (const i of [...reached].sort((a, b) => a - b)) {
+    const s = phys.surfaces[i]!;
+    if (bare(s) < 0.8) continue; // a floor of spikes: whoever is on it is hurt, and a hero who falls is brought back
+    const r = phys.reachFromCrawling(s, has);
+    if (!exits.some((t) => reaches(phys, r, t))) out.push(`[${room.id}] the place at y ${s.y.toFixed(1)}, x ${s.x0.toFixed(1)}…${s.x1.toFixed(1)} has no way out with ${[...has].join('+')}`);
+  }
+  return out;
 }
 
 /** The room as letters, with what is placed on it: `e` entrances, `X` ways out, `!` things to take, `S` shrines, `~` seals, `B` bosses, and the first letter of each enemy (lower case), over the solids, platforms and spikes. For reading and for tests. */
