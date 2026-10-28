@@ -206,6 +206,20 @@ describe('migrations and golden files', () => {
     expect(serializeProgress(p)).toBe(golden.trim());
   });
 
+  it('a golden file of a game that counted where its time went pins the extra fields — the time in each zone, the falls in each, the time each guardian took — and writing it again is the same file, byte for byte', () => {
+    const golden = readFileSync(new URL('./golden/progress.v2.zones.json', import.meta.url), 'utf8');
+    const p = parseProgress(golden)!;
+    expect(p.stats.zones).toEqual({ ancient_forest_ruins: 3600, ancient_forest_sanctum: 2500, sunken_roots: 15700, glowmire: 10200, crystal_mines: 21400, bell_spire: 4100 });
+    expect(p.stats.falls).toEqual({ sunken_roots: 1, crystal_mines: 3, bell_spire: 1 });
+    expect(p.stats.guardians).toEqual({ ink_warden: 5700, boss_root_tyrant: 21400, boss_mire_matriarch: 31600, boss_colossus: 53000 });
+    expect(p.abilities, 'the six moves of the hero, sorted').toEqual(['air_dash', 'dash', 'double_jump', 'ground_slam', 'magic_attack', 'wall_jump']);
+    expect(serializeProgress(p)).toBe(golden.trim());
+    // and a game saved BEFORE they were counted (the golden of version 2) still loads, with none of them — and is written back without inventing any
+    const before = parseProgress(readFileSync(new URL('./golden/progress.v2.json', import.meta.url), 'utf8'))!;
+    expect(before.stats.zones).toBeUndefined();
+    expect(serializeProgress(before)).not.toMatch(/zones|falls|guardians/);
+  });
+
   it('a migration chain upgrades one version at a time, and a hole in it is null (nothing safe to do)', () => {
     const v1 = { saveVersion: 1, at: start, checkpoint: start, flags: ['a'], abilities: [], cards: { owned: [], equipped: null }, bottleSlots: 3 };
     const migrations = { 1: (d: Record<string, unknown>) => ({ ...d, saveVersion: 2, bottleSlots: 4 }), 2: (d: Record<string, unknown>) => ({ ...d, saveVersion: 3, flags: [...(d['flags'] as string[]), 'migrated'] }) };
