@@ -438,6 +438,29 @@ describe('Foundry Engine: the vent on its back opens when its charge ends agains
     expect(walled, 'recovery of a charge that hit the wall: 50 + 90').toBeGreaterThanOrEqual(130);
   });
 
+  it('a charge that stops a hair short of the wall is stunned like one that touches it (by the clock or by the wall is a matter of a centimetre: found in Prompt 22)', () => {
+    const f = fight(E, { god: true });
+    const wall = W - 1 - E.body.halfWidth; // the farthest its centre gets: the wall of the arena is at W − 1 and it is 1.8 m to a side
+    const start = wall - (E.attacks['charge']!.params['speed'] as number) * (E.attacks['charge']!.params['ticks'] as number) / 60 - 0.2; // it ends 0.2 m short of the wall
+    let recovery = -1;
+    const place = (): void => {
+      f.boss.body.x = start;
+      f.boss.facing = 1;
+      f.d.teleport(start + 6, 2);
+    };
+    place();
+    for (let i = 0; i < 14000 && recovery < 0; i++) {
+      f.d.step(1);
+      if (f.boss.attackId === 'charge' && f.boss.state === 'attack') {
+        until(f, 'recover', 200);
+        const t0 = f.d.session.now;
+        until(f, 'choose', 400);
+        recovery = f.d.session.now - t0;
+      } else if (f.boss.state === 'choose') place();
+    }
+    expect(recovery, 'recovery of a charge that stopped 0.2 m short of the wall: 50 + 90').toBeGreaterThanOrEqual(130);
+  });
+
   it('the pistons come up in alternate rows, and the other rows the next time', () => {
     const f = fight(E, { god: true });
     const rowsOf = (): number[] => f.boss.telegraphMarks.map((m) => Math.round(m.x));

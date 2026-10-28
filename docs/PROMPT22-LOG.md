@@ -88,3 +88,55 @@ Lo que **sí** se comprobó cierto: botón de pausa arriba a la derecha, el mapa
 
 **Lo que no se afirma.** El piloto *no es una persona*: sus saltos son los que encuentra un solucionador y los ejecuta con precisión de máquina. Demuestra que **cada sala del camino se cruza con las entradas que una persona tiene** (no que a una persona le resulte fácil); la chimenea, por ejemplo, tiene **un único** salto que la sube con los guiones del solucionador (hay más maneras humanas, con una espera en la pared, que el solucionador no prueba). Quien la juegue dirá si su dificultad es la que se quería (§11: pendiente de medición humana).
 
+---
+
+## 4 · Los encuentros, ganados por un héroe mortal (T2)
+
+**El problema (D1).** Hasta el Prompt 21 la prueba de que un jefe o una criatura «se podía vencer» era un héroe que no podía morir (`godMode`), uno que estaba quieto o un golpe de 1 000 000 puesto a mano en el jefe. Solo el Custodio de Tinta tenía un luchador de guion. Nada demostraba que **un héroe con cinco puntos de vida, tres botellas y las entradas de una persona** pudiera con los seis jefes del motor ni con las catorce criaturas.
+
+**Lo que hay ahora.** Un luchador que lee lo que la criatura *está haciendo* (su estado es el aviso que dibuja la imagen) y responde como dice el contenido:
+
+| Pieza | Qué hace |
+|---|---|
+| `tests/helpers/brawler.ts` | Las entradas de quien pelea: caminar, saltar, atacar (un golpe cada 15 ticks), dash, golpe al suelo, botella; percibe criaturas y proyectiles; esquiva olas (salto) y escupitajos. |
+| `tests/helpers/tactics.ts` | **Una táctica por criatura** (14), leída de su estado y de los números de su definición: *esperar fuera del alcance y golpear en la recuperación* (baba, esquirla, sanguijuela, sombra), *saltar la embestida* (reptador, esquirlón), *correr del lugar de caída* (sapo), *golpear cuando baja el escudo o por la espalda* (Lomo de piedra), *esperar a que la nube se disipe* (espora), *saltar el disparo y acercarse* (escupidor, campanero), *atravesar con el dash la picada* (murciélago), *apagarlo antes de que estalle o correr* (fuego fatuo), *salirse de la línea y golpear al pistón clavado* (pistón), *ir a por quien fabrica criaturas* (tejedor). Hay también un luchador **ingenuo** (`NAIVE`: solo camina y golpea) como línea de base. |
+| `tests/helpers/bossFight.ts` | El luchador de **un guardián del motor**, el mismo para los seis: lee los avisos del suelo (columnas, carriles, caída, aterrizaje del salto), sale de ellos (con dash si no hay tiempo), salta el temblor del suelo, cruza bajo la embestida y la sigue, espera a que pasen los proyectiles que vuelan, bebe cuando la vida es baja y nada va a caer, y **golpea el punto débil cuando se abre** (de pie, con salto y tajo en el aire, o con el **golpe al suelo desde arriba** si ya lo tiene el héroe). Perfiles escritos una vez para lo que un jefe exige de más (el Coloso: pegarse a él, dentro del anillo donde caen sus esquirlas, y saltar el temblor). |
+| `tests/helpers/hall.ts`, `tests/helpers/road.ts` | La sala larga donde se prueba una criatura sola y la descripción del camino principal (lo que el héroe tiene al llegar a cada sala), compartidas por las pruebas. |
+| `tests/integration/encounters.test.ts` | 22 pruebas. Catorce criaturas × tres distancias × tres semillas; el mismo combate con el luchador ingenuo; seis jefes × cuatro semillas, en **su propia sala del mundo**, con las habilidades y vasijas que el camino ha dado hasta ahí. |
+
+**Resultados** (`ENCOUNTERS_REPORT=<archivo> npx vitest run tests/integration/encounters.test.ts` los escribe):
+
+| Criatura | Vida perdida (media / máx.) | Ingenuo (media) | Notas |
+|---|---|---|---|
+| Baba de tinta | 0 / 0 | 0 | indulgente: muere antes de terminar el aviso de 24 ticks |
+| Reptador espinoso | 0 / 0 | 1 | |
+| Sapo del cenagal | 0 / 0 | 0,7 | |
+| Lomo de piedra | 0 / 0 | **5 y pierde 9 de 9** | el escudo exige respuesta |
+| Espora luminosa | 0 / 0 | 1 | |
+| Escupidor de Tinta | 0,3 / 1 | 1 | |
+| Murciélago de cueva | 0 / 0 | 1 | |
+| Fuego fatuo de farol | 0 / 0 | 2 | |
+| Campanero | 0 / 0 | 0 | indulgente: muere antes de su segundo toque |
+| Esquirlón | 0 / 0 | 3 | |
+| Dron de pistón | 0 / 0 | 2 | pelea larga (≈ 20 s) |
+| Sanguijuela del suelo | 0 / 0 | 2 | |
+| Tejedor de tinta | 0 / 0 | 0 | indulgente |
+| Sombra del velo | 0 / 0 | 0 | indulgente: el golpe la interrumpe |
+
+**Lectura honesta.** Las catorce se vencen sin pérdida con el luchador que las lee; **nueve cuestan vida al que no las lee** y una (el Lomo de Piedra) lo mata: ahí hay un encuentro de verdad. **Cuatro (baba de tinta, campanero, tejedor, sombra del velo) no cuestan nada ni al ingenuo en una sala vacía**: no son un defecto, pero tampoco una amenaza por sí solas (cuentan en conjunto, en las salas del camino, §5); si la persona que juega los siente blandos, es un ajuste de datos, no de arquitectura. No se ha cambiado ninguna vida ni daño de criatura.
+
+| Jefe (sala) | Semillas ganadas | Duración (s) | Vida perdida (con botellas) | Botellas | Fase final |
+|---|---|---|---|---|---|
+| Tirano de Raíces (`rt_arena`, 6 de vida) | 4 / 4 | 82 – 95 | 0 – 4 | 0 – 1 | 2 |
+| Matriarca del Cenagal (`mr_lair`, 7) | 4 / 4 | 41 – 82 | 2 – 4 | 0 – 1 | 2 |
+| Coloso de Cristal (`mn_arena`, 7) | 4 / 4 | 32 – 50 | 2 | 0 | 2 |
+| Custodio de la Campana (`sp_arena`, 7) | 4 / 4 | 36 – 42 | 7 – 10 | 1 – 3 | 2 |
+| Motor de la Fundición (`fd_arena`, 7) | 4 / 4 | 80 – 115 | 0 – 2 | 0 | 3 |
+| Soberano del Corazón de Tinta (`ih_arena`, 7) | 4 / 4 | 44 – 48 | 4 – 8 | 1 – 3 | 3 |
+
+El Custodio de Tinta (`r4_sanctum`) sigue probándose con `fightTheWarden` en `bossWorld.test.ts` (doce semillas). **Ningún jefe deja al héroe por debajo de 2 puntos de vida**; el que más desgasta es el Custodio de la Campana (sus olas de suelo tras la picada) y el Soberano (el abanico de orbes a quemarropa).
+
+**Un defecto real, encontrado al hacer ganable el Motor.** El Motor de la Fundición se anuncia como *«la ventilación de su espalda se abre cuando su embestida acaba contra una pared (aturdimiento largo)»*. La embestida mide 11,0 m y, **después de una embestida desde la pared, la siguiente de vuelta mide exactamente 11,0 m hasta ella**: que el último tick del reloj fuera también el tick en que el cuerpo toca la pared dependía de **menos de un centímetro**, y desde la segunda embestida el aturdimiento *casi nunca* llegaba (el luchador, con 267 s de pelea, no pasaba de 52/60). `handlers.ts` (`charge`) ahora trata como chocada la embestida que acaba a menos de medio metro de un muro; prueba nueva en `bosses.test.ts` (*«a charge that stops a hair short of the wall is stunned like one that touches it»*, falla sin el arreglo). Con ello el Motor cae en 80 – 115 s.
+
+**Lo que no se afirma.** Que *a una persona* estos combates le parezcan justos o divertidos: el luchador no se cansa, no se equivoca de tecla y ve todo el estado interno de las criaturas (no solo la imagen). Demuestran **que cada encuentro tiene una respuesta, que esa respuesta cuesta poco al que la conoce y que el que no la conoce paga**. La dificultad humana (y sus tiempos) queda para la medición con personas (§11).
+

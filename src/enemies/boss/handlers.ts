@@ -99,7 +99,12 @@ const charge: BossHandler = {
   tick(c, t) {
     c.body.vx = c.facing * c.num('speed');
     c.submitMelee();
-    const blocked = c.facing > 0 ? c.body.hitRight : c.body.hitLeft;
+    // a surge that stops within half a metre of a wall has run into it: whether the last tick of the clock was also the tick the body touched the wall is a matter of a hair (found in Prompt 22: after one surge from the wall the next
+    // one, back to it, ends exactly at it — the stun that is this boss's whole opening came or did not by less than a centimetre)
+    const b = c.body;
+    const edge = c.facing > 0 ? b.x + b.halfW : b.x - b.halfW;
+    const ahead = { x0: Math.min(edge, edge + c.facing * 0.5), x1: Math.max(edge, edge + c.facing * 0.5), y0: b.y + 0.2, y1: b.y + b.height - 0.2 };
+    const blocked = (c.facing > 0 ? b.hitRight : b.hitLeft) || c.sim.collision.overlapsSolid(ahead);
     if (blocked) c.memo['wall'] = 1;
     return t + 1 >= c.num('ticks') || blocked;
   },
