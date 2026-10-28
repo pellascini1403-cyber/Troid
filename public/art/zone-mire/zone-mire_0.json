@@ -1,0 +1,510 @@
+{
+  "frames": {
+    "backdrop_far_00": {
+      "frame": {
+        "x": 2,
+        "y": 554,
+        "w": 1200,
+        "h": 347
+      },
+      "sourceSize": {
+        "w": 1200,
+        "h": 347
+      }
+    },
+    "backdrop_mid_00": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 1536,
+        "h": 548
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 1536,
+        "h": 548
+      },
+      "sourceSize": {
+        "w": 1536,
+        "h": 553
+      }
+    },
+    "backdrop_near_00": {
+      "frame": {
+        "x": 2,
+        "y": 905,
+        "w": 1120,
+        "h": 780
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 1120,
+        "h": 780
+      },
+      "sourceSize": {
+        "w": 1120,
+        "h": 786
+      }
+    },
+    "beam_a_00": {
+      "frame": {
+        "x": 1751,
+        "y": 2,
+        "w": 232,
+        "h": 498
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 8,
+        "y": 3,
+        "w": 232,
+        "h": 498
+      },
+      "sourceSize": {
+        "w": 256,
+        "h": 512
+      }
+    },
+    "beam_b_00": {
+      "frame": {
+        "x": 1751,
+        "y": 504,
+        "w": 231,
+        "h": 498
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 8,
+        "y": 3,
+        "w": 231,
+        "h": 498
+      },
+      "sourceSize": {
+        "w": 256,
+        "h": 512
+      }
+    },
+    "dead_tree_a_00": {
+      "frame": {
+        "x": 1126,
+        "y": 922,
+        "w": 262,
+        "h": 482
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 26,
+        "y": 36,
+        "w": 262,
+        "h": 482
+      },
+      "sourceSize": {
+        "w": 326,
+        "h": 518
+      }
+    },
+    "dead_tree_b_00": {
+      "frame": {
+        "x": 1542,
+        "y": 2,
+        "w": 205,
+        "h": 504
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 59,
+        "y": 14,
+        "w": 205,
+        "h": 504
+      },
+      "sourceSize": {
+        "w": 326,
+        "h": 518
+      }
+    },
+    "giant_mushroom_a_00": {
+      "frame": {
+        "x": 1573,
+        "y": 1006,
+        "w": 384,
+        "h": 384
+      },
+      "sourceSize": {
+        "w": 384,
+        "h": 384
+      }
+    },
+    "giant_mushroom_b_00": {
+      "frame": {
+        "x": 1307,
+        "y": 1408,
+        "w": 384,
+        "h": 384
+      },
+      "sourceSize": {
+        "w": 384,
+        "h": 384
+      }
+    },
+    "lantern_post_a_00": {
+      "frame": {
+        "x": 1392,
+        "y": 922,
+        "w": 177,
+        "h": 442
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 177,
+        "h": 442
+      },
+      "sourceSize": {
+        "w": 230,
+        "h": 442
+      }
+    },
+    "lantern_post_b_00": {
+      "frame": {
+        "x": 1126,
+        "y": 1408,
+        "w": 177,
+        "h": 442
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 177,
+        "h": 442
+      },
+      "sourceSize": {
+        "w": 230,
+        "h": 442
+      }
+    },
+    "mist_bank_00": {
+      "frame": {
+        "x": 2,
+        "y": 1689,
+        "w": 1004,
+        "h": 183
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 11,
+        "y": 4,
+        "w": 1004,
+        "h": 183
+      },
+      "sourceSize": {
+        "w": 1024,
+        "h": 192
+      }
+    },
+    "moss_curtain_a_00": {
+      "frame": {
+        "x": 2,
+        "y": 1876,
+        "w": 230,
+        "h": 136
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 1,
+        "y": 0,
+        "w": 230,
+        "h": 136
+      },
+      "sourceSize": {
+        "w": 240,
+        "h": 163
+      }
+    },
+    "moss_curtain_b_00": {
+      "frame": {
+        "x": 236,
+        "y": 1876,
+        "w": 221,
+        "h": 125
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 221,
+        "h": 125
+      },
+      "sourceSize": {
+        "w": 240,
+        "h": 163
+      }
+    },
+    "motes_zone_00": {
+      "frame": {
+        "x": 1206,
+        "y": 554,
+        "w": 508,
+        "h": 364
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 20,
+        "w": 508,
+        "h": 364
+      },
+      "sourceSize": {
+        "w": 512,
+        "h": 384
+      }
+    },
+    "mud_cap_00": {
+      "frame": {
+        "x": 1794,
+        "y": 1937,
+        "w": 192,
+        "h": 105
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 192,
+        "h": 105
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 106
+      }
+    },
+    "mud_cap_01": {
+      "frame": {
+        "x": 461,
+        "y": 1876,
+        "w": 192,
+        "h": 100
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 5,
+        "w": 192,
+        "h": 100
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 106
+      }
+    },
+    "mud_cap_02": {
+      "frame": {
+        "x": 657,
+        "y": 1876,
+        "w": 192,
+        "h": 99
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 6,
+        "w": 192,
+        "h": 99
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 106
+      }
+    },
+    "mud_edge_l_00": {
+      "frame": {
+        "x": 1990,
+        "y": 394,
+        "w": 35,
+        "h": 192
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 5,
+        "y": 0,
+        "w": 35,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 40,
+        "h": 192
+      }
+    },
+    "mud_edge_l_01": {
+      "frame": {
+        "x": 1990,
+        "y": 2,
+        "w": 36,
+        "h": 192
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 4,
+        "y": 0,
+        "w": 36,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 40,
+        "h": 192
+      }
+    },
+    "mud_edge_r_00": {
+      "frame": {
+        "x": 1990,
+        "y": 590,
+        "w": 35,
+        "h": 192
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 35,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 40,
+        "h": 192
+      }
+    },
+    "mud_edge_r_01": {
+      "frame": {
+        "x": 1990,
+        "y": 198,
+        "w": 36,
+        "h": 192
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 36,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 40,
+        "h": 192
+      }
+    },
+    "mud_fill_00": {
+      "frame": {
+        "x": 1010,
+        "y": 1854,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "mud_fill_01": {
+      "frame": {
+        "x": 1206,
+        "y": 1854,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "mud_fill_02": {
+      "frame": {
+        "x": 1402,
+        "y": 1796,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "mud_fill_03": {
+      "frame": {
+        "x": 1598,
+        "y": 1796,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "mud_fill_04": {
+      "frame": {
+        "x": 1794,
+        "y": 1741,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "reed_clump_a_00": {
+      "frame": {
+        "x": 853,
+        "y": 1876,
+        "w": 114,
+        "h": 153
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 18,
+        "y": 19,
+        "w": 114,
+        "h": 153
+      },
+      "sourceSize": {
+        "w": 173,
+        "h": 173
+      }
+    },
+    "stilt_pile_a_00": {
+      "frame": {
+        "x": 1695,
+        "y": 1394,
+        "w": 244,
+        "h": 343
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 43,
+        "y": 22,
+        "w": 244,
+        "h": 343
+      },
+      "sourceSize": {
+        "w": 326,
+        "h": 365
+      }
+    }
+  },
+  "meta": {
+    "app": "troid-assets",
+    "version": "1",
+    "image": "zone-mire_0.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 2028,
+      "h": 2048
+    },
+    "scale": "1"
+  }
+}

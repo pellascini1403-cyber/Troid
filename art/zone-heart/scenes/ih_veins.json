@@ -1,0 +1,235 @@
+{
+  "sceneVersion": 1,
+  "room": "ih_veins",
+  "layers": {
+    "propsBack": [
+      {
+        "sprite": "crystal_spire_b",
+        "x": 21.11,
+        "y": 2,
+        "scale": 1,
+        "flip": true
+      },
+      {
+        "sprite": "rib_arch_b",
+        "x": 37.02,
+        "y": 2,
+        "scale": 1.01,
+        "flip": true
+      },
+      {
+        "sprite": "cyst_pod_b",
+        "x": 46.58,
+        "y": 2,
+        "scale": 1.04,
+        "flip": false
+      },
+      {
+        "sprite": "crystal_spire_b",
+        "x": 62.96,
+        "y": 2,
+        "scale": 0.95,
+        "flip": true
+      }
+    ],
+    "terrain": [
+      {
+        "sprite": "bone_shards_b",
+        "x": 44.94,
+        "y": 2,
+        "scale": 0.87,
+        "flip": false
+      },
+      {
+        "sprite": "bone_shards_a",
+        "x": 14.73,
+        "y": 2,
+        "scale": 1,
+        "flip": false
+      },
+      {
+        "sprite": "crystals_violet_a",
+        "x": 28.76,
+        "y": 2,
+        "scale": 1.06,
+        "flip": false
+      },
+      {
+        "sprite": "bone_shards_b",
+        "x": 35.02,
+        "y": 2,
+        "scale": 0.85,
+        "flip": false
+      },
+      {
+        "sprite": "bone_shards_a",
+        "x": 40.59,
+        "y": 2,
+        "scale": 0.89,
+        "flip": false
+      },
+      {
+        "sprite": "bone_shards_a",
+        "x": 44.4,
+        "y": 2,
+        "scale": 1.11,
+        "flip": true
+      },
+      {
+        "sprite": "bone_shards_a",
+        "x": 48.19,
+        "y": 2,
+        "scale": 1.16,
+        "flip": false
+      },
+      {
+        "sprite": "crystals_violet_a",
+        "x": 61.41,
+        "y": 2,
+        "scale": 0.9,
+        "flip": false
+      },
+      {
+        "sprite": "crystals_violet_a",
+        "x": 65.75,
+        "y": 2,
+        "scale": 1.06,
+        "flip": false
+      },
+      {
+        "sprite": "bone_shards_b",
+        "x": 71.04,
+        "y": 2,
+        "scale": 0.97,
+        "flip": true
+      },
+      {
+        "sprite": "crystals_violet_a",
+        "x": 75.05,
+        "y": 2,
+        "scale": 1.18,
+        "flip": false
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "veins_b",
+        "x": 6.06,
+        "y": 23.32,
+        "scale": 1.29,
+        "flip": true
+      },
+      {
+        "sprite": "veins_b",
+        "x": 27.58,
+        "y": 24.2,
+        "scale": 1.02,
+        "flip": false
+      },
+      {
+        "sprite": "veins_b",
+        "x": 44.25,
+        "y": 23.68,
+        "scale": 1.16,
+        "flip": false
+      },
+      {
+        "sprite": "veins_a",
+        "x": 60.78,
+        "y": 22.7,
+        "scale": 1.41,
+        "flip": true
+      },
+      {
+        "sprite": "veins_a",
+        "x": 76.56,
+        "y": 24.32,
+        "scale": 1.07,
+        "flip": false
+      },
+      {
+        "sprite": "veins_a",
+        "x": 90.46,
+        "y": 23.94,
+        "scale": 1.21,
+        "flip": true
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 8.4,
+        "y": -2.2,
+        "alpha": 0.27,
+        "flip": false
+      },
+      {
+        "sprite": "beam_b",
+        "x": 25.2,
+        "y": -2.2,
+        "alpha": 0.38,
+        "flip": true
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 21.5,
+        "y": 1.8,
+        "alpha": 0.14,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 62.5,
+        "y": 1.8,
+        "alpha": 0.19,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 1.19,
+        "alpha": 0.25,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 34.22,
+        "y": 0.5,
+        "scale": 0.94,
+        "alpha": 0.25,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 58.25,
+        "y": 0.5,
+        "scale": 0.89,
+        "alpha": 0.31,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 81.06,
+        "y": 0.5,
+        "scale": 1.03,
+        "alpha": 0.22,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      }
+    ]
+  }
+}

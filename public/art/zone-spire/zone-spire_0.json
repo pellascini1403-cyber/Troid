@@ -1,0 +1,755 @@
+{
+  "frames": {
+    "backdrop_mid_00": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 1536,
+        "h": 753
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 1536,
+        "h": 753
+      },
+      "sourceSize": {
+        "w": 1536,
+        "h": 758
+      }
+    },
+    "backdrop_near_00": {
+      "frame": {
+        "x": 2,
+        "y": 759,
+        "w": 1120,
+        "h": 1200
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 1120,
+        "h": 1200
+      },
+      "sourceSize": {
+        "w": 1120,
+        "h": 1206
+      }
+    },
+    "banner_pole_a_00": {
+      "frame": {
+        "x": 1126,
+        "y": 1439,
+        "w": 128,
+        "h": 500
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 45,
+        "y": 36,
+        "w": 128,
+        "h": 500
+      },
+      "sourceSize": {
+        "w": 211,
+        "h": 538
+      }
+    },
+    "banner_pole_b_00": {
+      "frame": {
+        "x": 1258,
+        "y": 1439,
+        "w": 128,
+        "h": 500
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 45,
+        "y": 36,
+        "w": 128,
+        "h": 500
+      },
+      "sourceSize": {
+        "w": 211,
+        "h": 538
+      }
+    },
+    "banners_a_00": {
+      "frame": {
+        "x": 1638,
+        "y": 1266,
+        "w": 135,
+        "h": 159
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 31,
+        "y": 0,
+        "w": 135,
+        "h": 159
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 173
+      }
+    },
+    "beam_a_00": {
+      "frame": {
+        "x": 1810,
+        "y": 546,
+        "w": 232,
+        "h": 498
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 8,
+        "y": 3,
+        "w": 232,
+        "h": 498
+      },
+      "sourceSize": {
+        "w": 256,
+        "h": 512
+      }
+    },
+    "beam_b_00": {
+      "frame": {
+        "x": 1810,
+        "y": 1048,
+        "w": 231,
+        "h": 498
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 8,
+        "y": 3,
+        "w": 231,
+        "h": 498
+      },
+      "sourceSize": {
+        "w": 256,
+        "h": 512
+      }
+    },
+    "beam_body_00": {
+      "frame": {
+        "x": 1302,
+        "y": 2015,
+        "w": 192,
+        "h": 30
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 9,
+        "w": 192,
+        "h": 30
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 64
+      }
+    },
+    "beam_body_01": {
+      "frame": {
+        "x": 1390,
+        "y": 1512,
+        "w": 192,
+        "h": 32
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 9,
+        "w": 192,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 64
+      }
+    },
+    "beam_body_02": {
+      "frame": {
+        "x": 1586,
+        "y": 1510,
+        "w": 192,
+        "h": 32
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 9,
+        "w": 192,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 64
+      }
+    },
+    "beam_body_03": {
+      "frame": {
+        "x": 1126,
+        "y": 955,
+        "w": 192,
+        "h": 32
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 9,
+        "w": 192,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 64
+      }
+    },
+    "beam_cap_l_00": {
+      "frame": {
+        "x": 1777,
+        "y": 1266,
+        "w": 29,
+        "h": 31
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 9,
+        "y": 9,
+        "w": 29,
+        "h": 31
+      },
+      "sourceSize": {
+        "w": 38,
+        "h": 64
+      }
+    },
+    "beam_cap_r_00": {
+      "frame": {
+        "x": 1777,
+        "y": 1301,
+        "w": 29,
+        "h": 31
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 9,
+        "w": 29,
+        "h": 31
+      },
+      "sourceSize": {
+        "w": 38,
+        "h": 64
+      }
+    },
+    "bell_frame_a_00": {
+      "frame": {
+        "x": 1390,
+        "y": 1550,
+        "w": 346,
+        "h": 461
+      },
+      "sourceSize": {
+        "w": 346,
+        "h": 461
+      }
+    },
+    "buttress_stub_a_00": {
+      "frame": {
+        "x": 1740,
+        "y": 1550,
+        "w": 288,
+        "h": 318
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 28,
+        "w": 288,
+        "h": 318
+      },
+      "sourceSize": {
+        "w": 326,
+        "h": 346
+      }
+    },
+    "flagstone_cap_00": {
+      "frame": {
+        "x": 910,
+        "y": 1963,
+        "w": 192,
+        "h": 73
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 3,
+        "w": 192,
+        "h": 73
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 77
+      }
+    },
+    "flagstone_cap_01": {
+      "frame": {
+        "x": 1586,
+        "y": 1439,
+        "w": 192,
+        "h": 67
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 9,
+        "w": 192,
+        "h": 67
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 77
+      }
+    },
+    "flagstone_cap_02": {
+      "frame": {
+        "x": 518,
+        "y": 1963,
+        "w": 192,
+        "h": 75
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 1,
+        "w": 192,
+        "h": 75
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 77
+      }
+    },
+    "flagstone_cap_03": {
+      "frame": {
+        "x": 322,
+        "y": 1963,
+        "w": 192,
+        "h": 76
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 192,
+        "h": 76
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 77
+      }
+    },
+    "flagstone_edge_l_00": {
+      "frame": {
+        "x": 2002,
+        "y": 2,
+        "w": 40,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 40,
+        "h": 192
+      }
+    },
+    "flagstone_edge_l_01": {
+      "frame": {
+        "x": 2002,
+        "y": 198,
+        "w": 40,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 40,
+        "h": 192
+      }
+    },
+    "flagstone_edge_r_00": {
+      "frame": {
+        "x": 1676,
+        "y": 1070,
+        "w": 40,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 40,
+        "h": 192
+      }
+    },
+    "flagstone_edge_r_01": {
+      "frame": {
+        "x": 1720,
+        "y": 1070,
+        "w": 40,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 40,
+        "h": 192
+      }
+    },
+    "flagstone_fill_00": {
+      "frame": {
+        "x": 1126,
+        "y": 759,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "flagstone_fill_01": {
+      "frame": {
+        "x": 1322,
+        "y": 759,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "masonry_cap_00": {
+      "frame": {
+        "x": 1106,
+        "y": 1963,
+        "w": 192,
+        "h": 70
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 6,
+        "w": 192,
+        "h": 70
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 77
+      }
+    },
+    "masonry_cap_01": {
+      "frame": {
+        "x": 1740,
+        "y": 1945,
+        "w": 192,
+        "h": 70
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 6,
+        "w": 192,
+        "h": 70
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 77
+      }
+    },
+    "masonry_cap_02": {
+      "frame": {
+        "x": 714,
+        "y": 1963,
+        "w": 192,
+        "h": 74
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 2,
+        "w": 192,
+        "h": 74
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 77
+      }
+    },
+    "masonry_cap_03": {
+      "frame": {
+        "x": 1390,
+        "y": 1439,
+        "w": 192,
+        "h": 69
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 7,
+        "w": 192,
+        "h": 69
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 77
+      }
+    },
+    "masonry_edge_l_00": {
+      "frame": {
+        "x": 1764,
+        "y": 1070,
+        "w": 40,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 40,
+        "h": 192
+      }
+    },
+    "motes_zone_00": {
+      "frame": {
+        "x": 1126,
+        "y": 1071,
+        "w": 508,
+        "h": 364
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 20,
+        "w": 508,
+        "h": 364
+      },
+      "sourceSize": {
+        "w": 512,
+        "h": 384
+      }
+    },
+    "pinnacle_stone_a_00": {
+      "frame": {
+        "x": 1542,
+        "y": 546,
+        "w": 130,
+        "h": 521
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 31,
+        "y": 17,
+        "w": 130,
+        "h": 521
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 538
+      }
+    },
+    "pinnacle_stone_b_00": {
+      "frame": {
+        "x": 1676,
+        "y": 546,
+        "w": 130,
+        "h": 520
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 31,
+        "y": 18,
+        "w": 130,
+        "h": 520
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 538
+      }
+    },
+    "rope_coil_a_00": {
+      "frame": {
+        "x": 1936,
+        "y": 1945,
+        "w": 103,
+        "h": 89
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 89,
+        "y": 45,
+        "w": 103,
+        "h": 89
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 134
+      }
+    },
+    "rope_coil_b_00": {
+      "frame": {
+        "x": 1322,
+        "y": 955,
+        "w": 102,
+        "h": 89
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 90,
+        "y": 45,
+        "w": 102,
+        "h": 89
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 134
+      }
+    },
+    "spikes_cell_00": {
+      "frame": {
+        "x": 1126,
+        "y": 991,
+        "w": 48,
+        "h": 72
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 72
+      }
+    },
+    "spikes_cell_01": {
+      "frame": {
+        "x": 1178,
+        "y": 991,
+        "w": 48,
+        "h": 72
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 72
+      }
+    },
+    "spikes_cell_02": {
+      "frame": {
+        "x": 1230,
+        "y": 991,
+        "w": 48,
+        "h": 72
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 72
+      }
+    },
+    "spikes_cell_03": {
+      "frame": {
+        "x": 1428,
+        "y": 955,
+        "w": 48,
+        "h": 71
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 1,
+        "w": 48,
+        "h": 71
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 72
+      }
+    },
+    "stone_blocks_a_00": {
+      "frame": {
+        "x": 2,
+        "y": 1963,
+        "w": 316,
+        "h": 78
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 21,
+        "y": 37,
+        "w": 316,
+        "h": 78
+      },
+      "sourceSize": {
+        "w": 346,
+        "h": 115
+      }
+    },
+    "stone_blocks_b_00": {
+      "frame": {
+        "x": 1740,
+        "y": 1872,
+        "w": 301,
+        "h": 69
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 20,
+        "y": 46,
+        "w": 301,
+        "h": 69
+      },
+      "sourceSize": {
+        "w": 346,
+        "h": 115
+      }
+    },
+    "tower_stub_a_00": {
+      "frame": {
+        "x": 1542,
+        "y": 2,
+        "w": 226,
+        "h": 540
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 31,
+        "y": 17,
+        "w": 226,
+        "h": 540
+      },
+      "sourceSize": {
+        "w": 288,
+        "h": 557
+      }
+    },
+    "tower_stub_b_00": {
+      "frame": {
+        "x": 1772,
+        "y": 2,
+        "w": 226,
+        "h": 540
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 31,
+        "y": 17,
+        "w": 226,
+        "h": 540
+      },
+      "sourceSize": {
+        "w": 288,
+        "h": 557
+      }
+    }
+  },
+  "meta": {
+    "app": "troid-assets",
+    "version": "1",
+    "image": "zone-spire_0.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 2044,
+      "h": 2048
+    },
+    "scale": "1"
+  }
+}

@@ -401,7 +401,8 @@ function readSprite(r: Reader, v: unknown, path: string, atlasIds: ReadonlyMap<s
     r.info(`${path}.artPxPerMeter`, 'not declared: nominal 100 px/m until the art is delivered (the delivered pack declares the real one)');
   } else artPxPerMeter = r.number(o['artPxPerMeter'], `${path}.artPxPerMeter`, { min: 0, exclusiveMin: true, max: 2000 });
   const scale = o['scale'] === undefined ? 1 : r.number(o['scale'], `${path}.scale`, { min: 0.25, max: 4 });
-  const height = r.number(o['height'], `${path}.height`, { min: 0, exclusiveMin: true, max: 40 });
+  // metres of the picture: a creature or a prop is a few, and the strip of a backdrop is as tall as the highest camera range of its zone asks (the tallest room of the world shows 52 m)
+  const height = r.number(o['height'], `${path}.height`, { min: 0, exclusiveMin: true, max: 64 });
   if (o['facing'] !== undefined && o['facing'] !== 'right') r.error(`${path}.facing`, 'the art must face right ("right"): the engine mirrors it by the facing');
 
   // the frame size (untrimmed), the pivot (normalised, or in pixels of the frame)

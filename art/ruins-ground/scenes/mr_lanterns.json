@@ -224,15 +224,6 @@
         "y": 5,
         "scale": 0.9
       }
-    ],
-    "propsBack": [
-      {
-        "sprite": "column_broken_a",
-        "x": 22.54,
-        "y": 2,
-        "scale": 1.11,
-        "flip": false
-      }
     ]
   }
 }

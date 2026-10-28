@@ -1,0 +1,85 @@
+{
+  "sceneVersion": 1,
+  "room": "mr_sink",
+  "layers": {
+    "propsBack": [
+      {
+        "sprite": "giant_mushroom_a",
+        "x": 10.38,
+        "y": 2,
+        "scale": 1.04,
+        "flip": false
+      }
+    ],
+    "terrain": [
+      {
+        "sprite": "spore_pods_a",
+        "x": 17.33,
+        "y": 27,
+        "scale": 1.14,
+        "flip": true
+      },
+      {
+        "sprite": "reed_clump_b",
+        "x": 14.25,
+        "y": 2,
+        "scale": 1.06,
+        "flip": false
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "moss_curtain_b",
+        "x": 5.3,
+        "y": 34.11,
+        "scale": 1.07,
+        "flip": false
+      },
+      {
+        "sprite": "moss_curtain_a",
+        "x": 19.23,
+        "y": 33.05,
+        "scale": 1.34,
+        "flip": true
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 4.8,
+        "y": -2.2,
+        "alpha": 0.29,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 12,
+        "y": 1.8,
+        "alpha": 0.14,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 0.89,
+        "alpha": 0.26,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "glow_zone",
+        "x": 6.5,
+        "y": 3.3,
+        "scale": 0.7,
+        "alpha": 0.4,
+        "motion": "pulse"
+      }
+    ]
+  }
+}

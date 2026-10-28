@@ -1,0 +1,89 @@
+{
+  "sceneVersion": 1,
+  "room": "rt_tangle",
+  "layers": {
+    "propsBack": [
+      {
+        "sprite": "root_pillar_a",
+        "x": 33.94,
+        "y": 2,
+        "scale": 0.99,
+        "flip": true
+      }
+    ],
+    "terrain": [
+      {
+        "sprite": "root_crawl_c",
+        "x": 31.73,
+        "y": 2,
+        "scale": 1.06,
+        "flip": true
+      },
+      {
+        "sprite": "root_crawl_c",
+        "x": 56.25,
+        "y": 15,
+        "scale": 1.14,
+        "flip": false
+      },
+      {
+        "sprite": "root_crawl_c",
+        "x": 18.31,
+        "y": 2,
+        "scale": 0.96,
+        "flip": false
+      },
+      {
+        "sprite": "root_crawl_c",
+        "x": 24.19,
+        "y": 2,
+        "scale": 1,
+        "flip": false
+      },
+      {
+        "sprite": "root_crawl_a",
+        "x": 30.33,
+        "y": 2,
+        "scale": 0.91,
+        "flip": false
+      },
+      {
+        "sprite": "root_crawl_c",
+        "x": 35.98,
+        "y": 2,
+        "scale": 1.07,
+        "flip": false
+      },
+      {
+        "sprite": "root_crawl_b",
+        "x": 39.38,
+        "y": 2,
+        "scale": 1.15,
+        "flip": false
+      },
+      {
+        "sprite": "root_crawl_c",
+        "x": 48.9,
+        "y": 2,
+        "scale": 1.15,
+        "flip": false
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "fore_roots_c",
+        "x": 37.7,
+        "y": 15.91,
+        "scale": 1.22,
+        "flip": true
+      },
+      {
+        "sprite": "fore_roots_a",
+        "x": 73.03,
+        "y": 15.66,
+        "scale": 1.35,
+        "flip": false
+      }
+    ]
+  }
+}

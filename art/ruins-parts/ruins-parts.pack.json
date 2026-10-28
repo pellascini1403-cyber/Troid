@@ -1,0 +1,91 @@
+{
+  "manifestVersion": 1,
+  "id": "ruins-parts",
+  "category": "environment",
+  "status": "provisional",
+  "comment": "THE PARTS of the shortcuts: the wall of split stone (the door of the material \"stone\": a column 1.5 m wide that glows from its cracks) and the lever (two frames: at rest, lit). Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.",
+  "tags": [
+    "ruins",
+    "generated"
+  ],
+  "atlasMode": "shared",
+  "atlases": [],
+  "sprites": [
+    {
+      "id": "stone_body",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 3,
+      "frameSize": [
+        144,
+        288
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:door",
+        "material:stone",
+        "part:body"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "stone_body_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "stone_glow",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 8,
+      "frameSize": [
+        128,
+        256
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:door",
+        "material:stone",
+        "part:glow",
+        "blend:add",
+        "reach:0.4"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "stone_glow_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "lever_activate",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.396,
+      "frameSize": [
+        106,
+        134
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:interactive",
+        "kind:activate"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "lever_activate_",
+          "count": 2
+        }
+      }
+    }
+  ]
+}

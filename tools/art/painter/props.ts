@@ -6,7 +6,7 @@ import { alphaOf } from './ground';
 import { makeField } from './field';
 import { Rng } from './rng';
 import { blade, blobPath, leaf, roughen, taper, wander, wrapX, type Pt } from './shapes';
-import { MOSS, STONE } from './masonry';
+import { skin } from './skins';
 
 /** Pieces that stand on their own — platforms, doors, edges of blocks. Each makes lit pixels from a mask drawn in white and a recipe for its colour. */
 
@@ -36,6 +36,7 @@ export interface PlatformOptions {
 /** An ancient timber platform: planks bound with moss, roots hanging below. */
 export function platform(o: PlatformOptions): Layers {
   const { w, h, ppm, seed, rise, body } = o;
+  const S = skin();
   const rng = new Rng(seed);
   const mask = surface(w, h);
   const ctx = mask.ctx;
@@ -65,7 +66,7 @@ export function platform(o: PlatformOptions): Layers {
     ctx.globalCompositeOperation = 'source-over';
   }
   // roots and rope hanging from the underside
-  const hang = Math.round(w / (ppm * 0.6));
+  const hang = Math.round((w / (ppm * 0.6)) * S.platform.hang);
   for (let i = 0; i < hang; i++) {
     const x = o.kind === 'end' ? rng.range(left + ppm * 0.05, w) : rng.range(0, w);
     const pts = wander(rng, x, lowEdge(x) - 2, Math.PI / 2 + rng.gauss() * 0.25, ppm * rng.range(0.12, 0.28), ppm * 0.03, 0.25);
@@ -75,7 +76,7 @@ export function platform(o: PlatformOptions): Layers {
     else draw(0);
   }
   // moss on top
-  const lumps = Math.round(w / (ppm * 0.45));
+  const lumps = Math.round((w / (ppm * 0.45)) * S.platform.moss);
   for (let k = 0; k < lumps; k++) {
     const x = rng.range(left, w);
     const r = ppm * rng.range(0.04, 0.09);
@@ -99,7 +100,7 @@ export function platform(o: PlatformOptions): Layers {
       const plank = Math.floor(x / plankW);
       const jx = x - plank * plankW;
       const plankTone = (((plank * 2654435761) >>> 0) % 1000) / 1000;
-      let v = 0.27 + 0.1 * (plankTone - 0.5) + 0.14 * (grain - 0.5) + 0.12 * (1 - smoothstep(0, ppm * 0.05, y - top));
+      let v = S.platform.tone + 0.1 * (plankTone - 0.5) + 0.14 * (grain - 0.5) + 0.12 * (1 - smoothstep(0, ppm * 0.05, y - top));
       let hgt = height.d[i]! * ppm * 0.035 + (grain - 0.5) * 1.6;
       if (jx < 2 && o.kind === 'body') {
         v *= 0.4; // the gap between two planks
@@ -107,9 +108,9 @@ export function platform(o: PlatformOptions): Layers {
       }
       const depth = y - top;
       const mossy = (1 - smoothstep(0, ppm * 0.07, depth)) * smoothstep(0.35, 0.65, fbm((x / w) * grainCells.cx * 2, 0.3, seed + 5, { octaves: 3, px: periodicX ? grainCells.cx * 2 : 0, py: 1 }));
-      let c: Rgb = STONE(clamp01(v));
+      let c: Rgb = S.stone(clamp01(v));
       if (mossy > 0) {
-        const mc = MOSS(0.45 + 0.4 * grain);
+        const mc = S.moss(0.45 + 0.4 * grain);
         c = [c[0] + (mc[0] - c[0]) * mossy, c[1] + (mc[1] - c[1]) * mossy, c[2] + (mc[2] - c[2]) * mossy];
       }
       albedo[i * 3] = c[0];
@@ -136,6 +137,7 @@ export interface EdgeOptions {
 /** The side of a block that faces the air: a ragged edge with chips, moss and hanging roots, periodic down its length, fading out inward into the fill. It faces left. */
 export function edge(o: EdgeOptions): Layers {
   const { w, h, ppm, seed, reach } = o;
+  const S = skin();
   const rng = new Rng(seed);
   const mask = surface(w, h);
   const ctx = mask.ctx;
@@ -187,10 +189,10 @@ export function edge(o: EdgeOptions): Layers {
       const n = fbm((x / w) * 2, (y / h) * g.cx, seed + 4, { octaves: 4, px: 2, py: g.cx });
       const m = fbm((x / w) * 2, (y / h) * g.cx * 0.5, seed + 6, { octaves: 3, px: 2, py: Math.max(1, Math.round(g.cx * 0.5)) });
       const v = (o.style === 'stone' ? 0.3 : 0.2) + 0.2 * (n - 0.5);
-      let c: Rgb = STONE(clamp01(v));
+      let c: Rgb = S.stone(clamp01(v));
       const mossy = smoothstep(0.5, 0.72, m) * (1 - smoothstep(reach, reach + ppm * 0.25, x));
       if (mossy > 0) {
-        const mc = MOSS(0.4 + 0.5 * n);
+        const mc = S.moss(0.4 + 0.5 * n);
         c = [c[0] + (mc[0] - c[0]) * mossy, c[1] + (mc[1] - c[1]) * mossy, c[2] + (mc[2] - c[2]) * mossy];
       }
       albedo[i * 3] = c[0];

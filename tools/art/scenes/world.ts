@@ -16,6 +16,9 @@ import { choose, foregroundTop, push, round2, sceneOf, scatterMotes, surfacesOf,
  * a room somebody composed by hand. That is the honest state of the art for the zones after the Sanctum, and the document says it.
  */
 
+/** The materials of the ground that are soil, in the ruins' and in every zone past them: what the veil darkens and what grows on. */
+const EARTHY: ReadonlySet<string> = new Set(['earth', 'mud', 'gravel', 'flagstone', 'slag', 'inksoil']);
+
 /** The zones, by the prefix of the id of their rooms. */
 export type ZoneKind = 'ruins' | 'roots' | 'mire' | 'mines' | 'spire' | 'foundry' | 'heart';
 
@@ -54,14 +57,15 @@ const HANDS: Readonly<Record<ZoneKind, Hand>> = {
   ruins: { flora: [['fern', 30], ['grass', 34], ['rubble', 12], ['mushrooms', 6], ['crystals', 4], ['none', 14]], landmarks: [['column_whole_a', 3], ['column_broken_a', 3], ['column_broken_b', 2], ['rune_stone_a', 2], ['effigy_a', 1]], every: 15, roots: true, arches: 34, leaves: 14, motes: [0xd8f0ff, 0xbfe6ff], glow: 'glow_cyan', mist: 1 / 60 },
   roots: { flora: [['fern', 40], ['grass', 20], ['rubble', 6], ['mushrooms', 14], ['crystals', 4], ['none', 16]], landmarks: [['column_broken_a', 3], ['column_broken_b', 3], ['rune_stone_a', 2]], every: 22, roots: true, arches: 38, leaves: 12, motes: [0xa8f0d8, 0x9fe6ff], glow: 'glow_cyan', mist: 1 / 45 },
   mire: { flora: [['fern', 22], ['grass', 14], ['rubble', 4], ['mushrooms', 40], ['crystals', 8], ['none', 12]], landmarks: [['rune_stone_a', 3], ['column_broken_b', 3], ['column_broken_a', 2]], every: 20, roots: true, arches: 40, leaves: 11, motes: [0xa8f0d8, 0xc8ffe6], glow: 'glow_cyan', mist: 1 / 24 },
-  mines: { flora: [['fern', 2], ['grass', 2], ['rubble', 28], ['mushrooms', 8], ['crystals', 44], ['none', 16]], landmarks: [['column_broken_a', 3], ['column_broken_b', 3], ['rune_stone_a', 1]], every: 24, roots: false, arches: 44, leaves: 0, motes: [0xbfe6ff, 0x9fd8ff], glow: 'glow_cyan', mist: 1 / 40 },
-  spire: { flora: [['grass', 12], ['rubble', 30], ['mushrooms', 2], ['crystals', 6], ['none', 50]], landmarks: [['column_whole_a', 4], ['column_broken_a', 2], ['effigy_a', 2]], every: 13, roots: false, arches: 30, leaves: 0, motes: [0xd8f0ff, 0xf0f6ff], glow: 'glow_cyan', mist: 1 / 70 },
-  foundry: { flora: [['rubble', 46], ['crystals', 4], ['none', 50]], landmarks: [['column_broken_a', 3], ['column_broken_b', 3], ['column_whole_a', 1]], every: 18, roots: false, arches: 46, leaves: 0, motes: [0xffc9a0, 0xffb080], glow: 'glow_violet', mist: 1 / 50 },
-  heart: { flora: [['grass', 2], ['rubble', 12], ['mushrooms', 10], ['crystals', 30], ['none', 46]], landmarks: [['effigy_a', 4], ['rune_stone_a', 3], ['column_whole_a', 2]], every: 16, roots: false, arches: 36, leaves: 0, motes: [0xc9a8ff, 0xb08cff], glow: 'glow_violet', mist: 1 / 36 },
+  // from here on the ground is the zone's own: the scatter of ferns and moss is for the forest, and the zone's pieces (`packs/zones.ts`) are what grows, lies and stands on it
+  mines: { flora: [['rubble', 20], ['crystals', 40], ['none', 40]], landmarks: [['column_broken_a', 3], ['column_broken_b', 3], ['rune_stone_a', 1]], every: 24, roots: false, arches: 44, leaves: 0, motes: [0xbfe6ff, 0x9fd8ff], glow: 'glow_cyan', mist: 1 / 40 },
+  spire: { flora: [['none', 100]], landmarks: [['column_whole_a', 4], ['column_broken_a', 2], ['effigy_a', 2]], every: 13, roots: false, arches: 30, leaves: 0, motes: [0xffe6c0, 0xffd8a0], glow: 'glow_cyan', mist: 1 / 70 },
+  foundry: { flora: [['none', 100]], landmarks: [['column_broken_a', 3], ['column_broken_b', 3], ['column_whole_a', 1]], every: 18, roots: false, arches: 46, leaves: 0, motes: [0xffc9a0, 0xffb080], glow: 'glow_violet', mist: 1 / 50 },
+  heart: { flora: [['none', 100]], landmarks: [['effigy_a', 4], ['rune_stone_a', 3], ['column_whole_a', 2]], every: 16, roots: false, arches: 36, leaves: 0, motes: [0xc9a8ff, 0xb08cff], glow: 'glow_violet', mist: 1 / 36 },
 };
 
 /** A room as the composers read it: its own data, nothing else. */
-interface Ctx {
+export interface Ctx {
   room: RoomDefinition;
   zone: ZoneKind;
   hand: Hand;
@@ -80,7 +84,7 @@ interface Ctx {
   clear: ReadonlyArray<readonly [number, number]>;
 }
 
-function contextOf(room: RoomDefinition): Ctx {
+export function contextOf(room: RoomDefinition): Ctx {
   const cam = room.camera?.bounds ?? room.bounds;
   const tops = surfacesOf(room).filter((s) => s.y < cam.y1 - 1.2 && s.b > cam.x0 && s.a < cam.x1 && s.y >= cam.y0 - 0.01);
   // the floor most of the room stands on: the height of the longest stretch of open ground
@@ -95,8 +99,8 @@ function contextOf(room: RoomDefinition): Ctx {
   return { room, zone: zoneOf(room.id), hand: HANDS[zoneOf(room.id)], x0: cam.x0, x1: cam.x1, y0: cam.y0, y1: cam.y1, tops, floor, arena: boss ? { x0: boss.arena.x0, x1: boss.arena.x1 } : null, clear };
 }
 
-const isClear = (c: Ctx, x: number, margin = 0): boolean => !c.clear.some(([a, b]) => x >= a - margin && x <= b + margin);
-const inArena = (c: Ctx, x: number): boolean => c.arena !== null && x >= c.arena.x0 && x <= c.arena.x1;
+export const isClear = (c: Ctx, x: number, margin = 0): boolean => !c.clear.some(([a, b]) => x >= a - margin && x <= b + margin);
+export const inArena = (c: Ctx, x: number): boolean => c.arena !== null && x >= c.arena.x0 && x <= c.arena.x1;
 
 /** The ground: the veil under the earth, what grows on the open tops, the platforms with their roots, and the landmarks that stand behind the walk. */
 export function groundScene(room: RoomDefinition): (pack: PackSpec) => RoomScene {
@@ -107,13 +111,13 @@ export function groundScene(room: RoomDefinition): (pack: PackSpec) => RoomScene
     const here = (sprite: string, x: number, y: number, o: Partial<Placement> = {}): void => push(layers, 'terrain', { sprite, x: round2(x), y: round2(y), ...o });
     // ---- the ground sinks into the dark: a veil along every open stretch of earth (it is under what grows there)
     for (const s of c.tops) {
-      if (s.solid.material !== 'earth') continue;
+      if (!EARTHY.has(s.solid.material ?? 'stone')) continue;
       const depth = Math.min(5.2, s.solid.rect.y1 - s.solid.rect.y0);
       here('ground_veil', (s.a + s.b) / 2, s.y - depth, { w: round2(s.b - s.a), h: round2(depth) });
     }
     // ---- what grows and lies on every open top: the zone's hand, never where the hero comes in or something is to be taken, and never where a guardian is fought
     for (const s of c.tops) {
-      const isEarth = s.solid.material === 'earth';
+      const isEarth = EARTHY.has(s.solid.material ?? 'stone');
       for (let x = s.a + rng.range(0.3, 1.2); x < s.b - 0.4; x += rng.range(1.9, 4.6)) {
         if (!isClear(c, x) || inArena(c, x)) continue;
         const kind = choose(rng, c.hand.flora.map(([k, w]) => [k, k === 'fern' && !isEarth ? w / 2 : w] as const));
@@ -136,7 +140,7 @@ export function groundScene(room: RoomDefinition): (pack: PackSpec) => RoomScene
     // ---- the landmarks behind the walk: along the long stretches of open ground, one every so many metres, with the ways in and the shrines left clear
     const long = c.tops.filter((s) => s.b - s.a >= 6);
     const reach = long.reduce((n, s) => n + (s.b - s.a), 0);
-    const count = Math.min(7, Math.floor(reach / c.hand.every));
+    const count = c.zone === 'ruins' ? Math.min(7, Math.floor(reach / c.hand.every)) : 0;
     for (let i = 0; i < count; i++) {
       const s = long[Math.floor(((i + 0.5) / count) * long.length) % long.length]!;
       const x = s.a + (s.b - s.a) * rng.range(0.15, 0.85);
@@ -144,7 +148,7 @@ export function groundScene(room: RoomDefinition): (pack: PackSpec) => RoomScene
       push(layers, 'propsBack', { sprite: choose(rng, c.hand.landmarks), x: round2(x), y: s.y, scale: round2(rng.range(0.95, 1.15)), flip: rng.chance(0.5) });
     }
     // ---- the arena shows what has been fought in it: a broken column at each door, with rubble at its foot
-    if (c.arena) {
+    if (c.arena && c.zone === 'ruins') {
       for (const [x, flip] of [[c.arena.x0 + 1.4, false], [c.arena.x1 - 1.4, true]] as const) {
         const s = c.tops.find((t) => t.a <= x && t.b >= x);
         if (!s) continue;
@@ -231,7 +235,10 @@ export function lightScene(room: RoomDefinition): (pack: PackSpec) => RoomScene 
 export const DRESSED_BY_COMPOSER: readonly string[] = WORLD.rooms.filter((id) => !['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum'].includes(id));
 
 type Compose = (pack: PackSpec) => RoomScene;
-const forAll = (make: (room: RoomDefinition) => Compose): Record<string, Compose> => Object.fromEntries(DRESSED_BY_COMPOSER.map((id) => [id, make(ROOMS[id]!)]));
+const forAll = (make: (room: RoomDefinition) => Compose, only?: (id: string) => boolean): Record<string, Compose> => Object.fromEntries(DRESSED_BY_COMPOSER.filter((id) => !only || only(id)).map((id) => [id, make(ROOMS[id]!)]));
 
-/** The scenes the packs of the ruins get for the rest of the world. */
-export const WORLD_SCENES = { ground: forAll(groundScene), back: forAll(backScene), light: forAll(lightScene) };
+/**
+ * The scenes the packs of the ruins get for the rest of the world. The ground and the light are shared by every zone (the ferns, the rubble, the motes); the BACK of the ruins — the colossal arches and the leaves in front
+ * — is the Ruins' own: the zones past them have a backdrop and a set of pieces of their own (`packs/zones.ts`).
+ */
+export const WORLD_SCENES = { ground: forAll(groundScene), back: forAll(backScene, (id) => zoneOf(id) === 'ruins'), light: forAll(lightScene, (id) => zoneOf(id) === 'ruins') };

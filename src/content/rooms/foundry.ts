@@ -12,6 +12,8 @@ import { ANY_BLOW, lever, teach, vessel } from './kit';
  *                │   └─────────────────────── fd_scrap (a vessel of magic, behind the cracked wall of the line)
  */
 const REGION = 'ink_foundry';
+/** What the squares of the canvas are made of here (the plates of the foundry, its slag and the grating of its catwalks): a material is a piece of art (docs/PROMPT23-LOG.md §5). */
+const MATERIALS = { '#': 'iron', G: 'slag', '-': 'grate' } as const;
 
 // ---------------------------------------------------------------------------------------------------------------- the Gate
 /**
@@ -24,7 +26,7 @@ export function gate(): RoomDefinition {
   c.rock(22, 2, 24, 4).rock(38, 2, 40, 4).rock(50, 2, 52, 3);
   c.mark('a', 5, 2).mark('b', 58, 2).mark('s', 6, 7).mark('g', 31, 2).mark('x', 26, 12).mark('y', 40, 12);
   return mapRoom(
-    { id: 'fd_gate', regionId: REGION, name: 'Foundry Gate', nameKey: 'room.fd_gate.name', art: { backdrop: 'ruins', seed: 48 }, rows: c.rows(), regions: { D: { id: 'home_door', material: 'gate' } } },
+    { id: 'fd_gate', regionId: REGION, name: 'Foundry Gate', nameKey: 'room.fd_gate.name', art: { backdrop: 'foundry', seed: 48 }, rows: c.rows(), materials: MATERIALS, regions: { D: { id: 'home_door', material: 'gate' } } },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('shortcut', 's', 1)],
       spawns: [m.spawn('stoneback_1', 'stoneback', 'g', { facing: 1 }), m.spawn('piston_1', 'piston_drone', 'x'), m.spawn('piston_2', 'piston_drone', 'y')],
@@ -51,7 +53,7 @@ export function line(): RoomDefinition {
   c.rock(82, 6, 90, 12).air(83, 7, 89, 11).region('W', 82, 7, 83, 11); // the block with the passage in it, shut by the split wall
   c.mark('a', 5, 2).mark('b', 78, 2).mark('x', 22, 2).mark('y', 54, 2).mark('l', 30, 2).mark('m', 62, 2).mark('s', 48, 6).mark('k', 81, 7).mark('r', 85, 7);
   return mapRoom(
-    { id: 'fd_line', regionId: REGION, name: 'Assembly Line', nameKey: 'room.fd_line.name', art: { backdrop: 'ruins', seed: 49 }, rows: c.rows(), regions: { W: { id: 'scrap_wall', material: 'stone', tag: 'crack' } } },
+    { id: 'fd_line', regionId: REGION, name: 'Assembly Line', nameKey: 'room.fd_line.name', art: { backdrop: 'foundry', seed: 49 }, rows: c.rows(), materials: MATERIALS, regions: { W: { id: 'scrap_wall', material: 'stone', tag: 'crack' } } },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('scrap', 'r', -1)],
       spawns: [m.spawn('weaver_1', 'ink_weaver', 'x', { facing: 1 }), m.spawn('weaver_2', 'ink_weaver', 'y'), m.spawn('leech_1', 'floor_leech', 'l'), m.spawn('leech_2', 'floor_leech', 'm'), m.spawn('spitter_1', 'ink_spitter', 's')],
@@ -77,7 +79,7 @@ export function press(): RoomDefinition {
   c.rock(1, 10, 3, 11).spikes(1, 3, 11).rock(1, 16, 3, 17).spikes(1, 3, 17).rock(1, 22, 3, 23).spikes(1, 3, 23).rock(1, 28, 3, 29).spikes(1, 3, 29).rock(1, 34, 3, 35).spikes(1, 3, 35); // from the wall
   c.mark('a', 4, 2).mark('e', 9, 38).mark('p', 4, 20);
   return mapRoom(
-    { id: 'fd_press', regionId: REGION, name: 'The Press', nameKey: 'room.fd_press.name', art: { backdrop: 'ruins', seed: 50 }, rows: c.rows() },
+    { id: 'fd_press', regionId: REGION, name: 'The Press', nameKey: 'room.fd_press.name', art: { backdrop: 'foundry', seed: 50 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'e', -1)],
       spawns: [m.spawn('piston_1', 'piston_drone', 'p')],
@@ -97,7 +99,7 @@ export function furnace(): RoomDefinition {
   c.plat(12, 18, 6).plat(20, 26, 10).plat(28, 34, 14).plat(36, 42, 10).plat(44, 50, 6);
   c.mark('a', 5, 2).mark('b', 60, 2).mark('x', 23, 10).mark('y', 31, 14).mark('z', 47, 6).mark('l', 57, 2).mark('d', 31, 21);
   return mapRoom(
-    { id: 'fd_furnace', regionId: REGION, name: 'Furnace', nameKey: 'room.fd_furnace.name', art: { backdrop: 'ruins', seed: 51 }, rows: c.rows() },
+    { id: 'fd_furnace', regionId: REGION, name: 'Furnace', nameKey: 'room.fd_furnace.name', art: { backdrop: 'foundry', seed: 51 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       spawns: [m.spawn('spitter_1', 'ink_spitter', 'x', { facing: 1 }), m.spawn('spitter_2', 'ink_spitter', 'y'), m.spawn('spitter_3', 'ink_spitter', 'z'), m.spawn('leech_1', 'floor_leech', 'l'), m.spawn('piston_1', 'piston_drone', 'd')],
@@ -117,7 +119,7 @@ export function vats(): RoomDefinition {
   c.rock(20, 2, 22, 4).plat(22, 28, 6).region('D', 48, 2, 49, 21);
   c.mark('a', 5, 2).mark('b', 54, 2).mark('x', 25, 2).mark('s', 25, 6).mark('g', 43, 2);
   return mapRoom(
-    { id: 'fd_vats', regionId: REGION, name: 'Ink Vats', nameKey: 'room.fd_vats.name', art: { backdrop: 'ruins', seed: 52 }, rows: c.rows(), regions: { D: { id: 'vat_door', material: 'gate' } } },
+    { id: 'fd_vats', regionId: REGION, name: 'Ink Vats', nameKey: 'room.fd_vats.name', art: { backdrop: 'foundry', seed: 52 }, rows: c.rows(), materials: MATERIALS, regions: { D: { id: 'vat_door', material: 'gate' } } },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       spawns: [m.spawn('weaver_1', 'ink_weaver', 'x', { facing: 1 }), m.spawn('spitter_1', 'ink_spitter', 's'), m.spawn('keeper', 'stoneback', 'g', { facing: 1, defeatFlag: 'defeated:fd_vats_keeper' })],
@@ -136,7 +138,7 @@ export function workshop(): RoomDefinition {
   c.rock(10, 2, 15, 3).rock(26, 2, 29, 4);
   c.mark('a', 5, 2).mark('b', 34, 2).mark('q', 18, 2).mark('r', 20, 2).mark('l', 27, 4);
   return mapRoom(
-    { id: 'fd_workshop', regionId: REGION, name: 'Workshop', nameKey: 'room.fd_workshop.name', art: { backdrop: 'ruins', seed: 53 }, rows: c.rows() },
+    { id: 'fd_workshop', regionId: REGION, name: 'Workshop', nameKey: 'room.fd_workshop.name', art: { backdrop: 'foundry', seed: 53 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('rest', 'q', 1)],
       spawns: [m.spawn('leech_1', 'floor_leech', 'l')],
@@ -155,7 +157,7 @@ export function catwalks(): RoomDefinition {
   c.rock(18, 11, 27, 12).rock(32, 10, 38, 11).rock(43, 12, 51, 13).rock(56, 10, 62, 11).rock(66, 11, 72, 12);
   c.mark('a', 5, 10).mark('b', 80, 10).mark('g', 22, 12).mark('s', 47, 13).mark('t', 58, 11).mark('x', 34, 20).mark('y', 58, 20);
   return mapRoom(
-    { id: 'fd_catwalks', regionId: REGION, name: 'Iron Catwalks', nameKey: 'room.fd_catwalks.name', art: { backdrop: 'ruins', seed: 54 }, rows: c.rows() },
+    { id: 'fd_catwalks', regionId: REGION, name: 'Iron Catwalks', nameKey: 'room.fd_catwalks.name', art: { backdrop: 'foundry', seed: 54 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       spawns: [m.spawn('stoneback_1', 'stoneback', 'g', { facing: 1 }), m.spawn('spitter_1', 'ink_spitter', 's'), m.spawn('spitter_2', 'ink_spitter', 't'), m.spawn('piston_1', 'piston_drone', 'x'), m.spawn('piston_2', 'piston_drone', 'y')],
@@ -175,7 +177,7 @@ export function control(): RoomDefinition {
   c.rock(18, 2, 20, 4).rock(36, 2, 38, 3);
   c.mark('a', 5, 2).mark('b', 50, 2).mark('s', 6, 7).mark('l', 9, 7).mark('x', 22, 2).mark('w', 28, 2).mark('y', 34, 2).mark('m', 39, 2).mark('q', 46, 2).mark('r', 48, 2);
   return mapRoom(
-    { id: 'fd_control', regionId: REGION, name: 'Control Room', nameKey: 'room.fd_control.name', art: { backdrop: 'ruins', seed: 55 }, rows: c.rows() },
+    { id: 'fd_control', regionId: REGION, name: 'Control Room', nameKey: 'room.fd_control.name', art: { backdrop: 'foundry', seed: 55 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('rest', 'q', 1), m.entry('shortcut', 's', 1)],
       spawns: [m.spawn('stoneback_1', 'stoneback', 'x', { facing: 1 }), m.spawn('weaver_1', 'ink_weaver', 'w', { facing: 1 }), m.spawn('stoneback_2', 'stoneback', 'y'), m.spawn('leech_1', 'floor_leech', 'm')],
@@ -200,7 +202,7 @@ export function engineRoom(): RoomDefinition {
   c.plat(16, 21, 5).plat(31, 36, 5).plat(46, 51, 5); // three gantries of iron, 3 m up: out of the way of the charge, with the pistons under them
   c.mark('a', 4, 2).mark('b', 67, 2).mark('l', 11, 2).mark('r', 64, 2).mark('k', 56, 2).mark('v', 60, 2);
   return mapRoom(
-    { id: 'fd_arena', regionId: REGION, name: 'Engine Room', nameKey: 'room.fd_arena.name', art: { backdrop: 'ruins', seed: 56 }, rows: c.rows(), regions: { A: { id: 'door_w', material: 'gate' }, B: { id: 'door_e', material: 'gate' } } },
+    { id: 'fd_arena', regionId: REGION, name: 'Engine Room', nameKey: 'room.fd_arena.name', art: { backdrop: 'foundry', seed: 56 }, rows: c.rows(), materials: MATERIALS, regions: { A: { id: 'door_w', material: 'gate' }, B: { id: 'door_e', material: 'gate' } } },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       gates: [
@@ -225,7 +227,7 @@ export function scrap(): RoomDefinition {
   c.rock(34, 2, 38, 4); // the pedestal
   c.mark('a', 5, 2).mark('v', 36, 4).mark('g', 16, 2).mark('x', 24, 12).mark('y', 31, 14);
   return mapRoom(
-    { id: 'fd_scrap', regionId: REGION, name: 'Scrapyard', nameKey: 'room.fd_scrap.name', art: { backdrop: 'ruins', seed: 57 }, rows: c.rows() },
+    { id: 'fd_scrap', regionId: REGION, name: 'Scrapyard', nameKey: 'room.fd_scrap.name', art: { backdrop: 'foundry', seed: 57 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1)],
       spawns: [m.spawn('stoneback_1', 'stoneback', 'g', { facing: 1 }), m.spawn('piston_1', 'piston_drone', 'x'), m.spawn('piston_2', 'piston_drone', 'y')],

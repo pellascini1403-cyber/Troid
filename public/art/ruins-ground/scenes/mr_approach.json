@@ -183,15 +183,6 @@
         "y": 4,
         "scale": 0.9
       }
-    ],
-    "propsBack": [
-      {
-        "sprite": "column_broken_b",
-        "x": 16.23,
-        "y": 2,
-        "scale": 0.99,
-        "flip": true
-      }
     ]
   }
 }

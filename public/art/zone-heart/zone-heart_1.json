@@ -1,0 +1,96 @@
+{
+  "frames": {
+    "backdrop_near_00": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 1120,
+        "h": 1164
+      },
+      "sourceSize": {
+        "w": 1120,
+        "h": 1164
+      }
+    },
+    "crystals_violet_a_00": {
+      "frame": {
+        "x": 2,
+        "y": 1170,
+        "w": 192,
+        "h": 154
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 154
+      }
+    },
+    "crystals_violet_b_00": {
+      "frame": {
+        "x": 198,
+        "y": 1170,
+        "w": 192,
+        "h": 151
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 3,
+        "w": 192,
+        "h": 151
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 154
+      }
+    },
+    "glow_rest_00": {
+      "frame": {
+        "x": 394,
+        "y": 1170,
+        "w": 120,
+        "h": 120
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 4,
+        "y": 4,
+        "w": 120,
+        "h": 120
+      },
+      "sourceSize": {
+        "w": 128,
+        "h": 128
+      }
+    },
+    "glow_zone_00": {
+      "frame": {
+        "x": 518,
+        "y": 1170,
+        "w": 120,
+        "h": 120
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 4,
+        "y": 4,
+        "w": 120,
+        "h": 120
+      },
+      "sourceSize": {
+        "w": 128,
+        "h": 128
+      }
+    }
+  },
+  "meta": {
+    "app": "troid-assets",
+    "version": "1",
+    "image": "zone-heart_1.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1124,
+      "h": 1328
+    },
+    "scale": "1"
+  }
+}

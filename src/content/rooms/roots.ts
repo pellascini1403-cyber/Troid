@@ -27,7 +27,7 @@ export function mouth(): RoomDefinition {
   c.region('D', 21, 29, 22, 33); // the door of the way home
   c.mark('n', 16, 29).mark('s', 24, 29).mark('e', 24, 2).mark('c', 10, 2).mark('x', 4, 34).mark('y', 9, 34);
   return mapRoom(
-    { id: 'rt_mouth', regionId: REGION, name: 'Mouth of the Roots', nameKey: 'room.rt_mouth.name', art: { backdrop: 'ruins', seed: 9 }, rows: c.rows(), regions: { D: { id: 'home_door', material: 'gate' } } },
+    { id: 'rt_mouth', regionId: REGION, name: 'Mouth of the Roots', nameKey: 'room.rt_mouth.name', art: { backdrop: 'roots', seed: 9 }, rows: c.rows(), regions: { D: { id: 'home_door', material: 'gate' } } },
     (m) => ({
       entries: [m.entry('north', 'n', 1), m.entry('shortcut', 's', -1), m.entry('east', 'e', -1)],
       spawns: [m.spawn('crawler_1', 'bramble_crawler', 'c'), m.spawn('bat_1', 'cave_bat', 'x', { facing: 1 }), m.spawn('bat_2', 'cave_bat', 'y')],
@@ -53,7 +53,7 @@ export function tangle(): RoomDefinition {
   c.rock(55, 9, 63, 15).air(56, 10, 62, 14).region('W', 55, 10, 56, 14); // the block and its hollow, shut by the split wall
   c.mark('a', 5, 2).mark('b', 59, 2).mark('c', 19, 2).mark('d', 45, 2).mark('l', 28, 2).mark('x', 37, 16).mark('w', 54, 10).mark('v', 59, 10);
   return mapRoom(
-    { id: 'rt_tangle', regionId: REGION, name: 'Tangle', nameKey: 'room.rt_tangle.name', art: { backdrop: 'ruins', seed: 10 }, rows: c.rows(), regions: { W: { id: 'nook_wall', material: 'stone', tag: 'crack' } } },
+    { id: 'rt_tangle', regionId: REGION, name: 'Tangle', nameKey: 'room.rt_tangle.name', art: { backdrop: 'roots', seed: 10 }, rows: c.rows(), regions: { W: { id: 'nook_wall', material: 'stone', tag: 'crack' } } },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       spawns: [m.spawn('crawler_1', 'bramble_crawler', 'c'), m.spawn('leech_1', 'floor_leech', 'l'), m.spawn('crawler_2', 'bramble_crawler', 'd'), m.spawn('bat_1', 'cave_bat', 'x')],
@@ -80,7 +80,7 @@ export function hollow(): RoomDefinition {
   }
   c.mark('a', 5, 2).mark('e', 22, 38).mark('p', 22, 10).mark('q', 7, 20).mark('r', 22, 30).mark('x', 6, 42).mark('y', 15, 42);
   return mapRoom(
-    { id: 'rt_hollow', regionId: REGION, name: 'Hollow Trunk', nameKey: 'room.rt_hollow.name', art: { backdrop: 'ruins', seed: 11 }, rows: c.rows() },
+    { id: 'rt_hollow', regionId: REGION, name: 'Hollow Trunk', nameKey: 'room.rt_hollow.name', art: { backdrop: 'roots', seed: 11 }, rows: c.rows() },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'e', -1)],
       spawns: [m.spawn('spore_1', 'glow_spore', 'p'), m.spawn('spore_2', 'glow_spore', 'q'), m.spawn('spore_3', 'glow_spore', 'r'), m.spawn('bat_1', 'cave_bat', 'x', { facing: 1 }), m.spawn('bat_2', 'cave_bat', 'y')],
@@ -100,7 +100,7 @@ export function cellar(): RoomDefinition {
   c.plat(1, 14, 7).plat(16, 20, 4);
   c.mark('a', 5, 2).mark('b', 43, 2).mark('q', 22, 2).mark('r', 24, 2).mark('s', 5, 7).mark('l', 9, 7);
   return mapRoom(
-    { id: 'rt_cellar', regionId: REGION, name: 'Seed Cellar', nameKey: 'room.rt_cellar.name', art: { backdrop: 'ruins', seed: 12 }, rows: c.rows() },
+    { id: 'rt_cellar', regionId: REGION, name: 'Seed Cellar', nameKey: 'room.rt_cellar.name', art: { backdrop: 'roots', seed: 12 }, rows: c.rows() },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('rest', 'q', 1), m.entry('shortcut', 's', 1)],
       exits: [
@@ -123,7 +123,7 @@ export function bridge(): RoomDefinition {
   c.plat(15, 20, 8).plat(24, 29, 9).plat(33, 38, 10).plat(42, 47, 9).plat(51, 56, 8);
   c.mark('a', 5, 8).mark('b', 66, 8).mark('s', 52, 8).mark('x', 22, 16).mark('y', 36, 16).mark('z', 49, 16);
   return mapRoom(
-    { id: 'rt_bridge', regionId: REGION, name: 'Root Bridge', nameKey: 'room.rt_bridge.name', art: { backdrop: 'ruins', seed: 13 }, rows: c.rows() },
+    { id: 'rt_bridge', regionId: REGION, name: 'Root Bridge', nameKey: 'room.rt_bridge.name', art: { backdrop: 'roots', seed: 13 }, rows: c.rows() },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       spawns: [m.spawn('spitter_1', 'ink_spitter', 's'), m.spawn('bat_1', 'cave_bat', 'x', { facing: 1 }), m.spawn('bat_2', 'cave_bat', 'y'), m.spawn('bat_3', 'cave_bat', 'z')],
@@ -144,7 +144,7 @@ export function echo(): RoomDefinition {
   c.plat(5, 10, 8).plat(19, 24, 8);
   c.mark('a', 5, 2).mark('b', 44, 6).mark('r', 14, 4).mark('x', 7, 8).mark('y', 21, 8);
   return mapRoom(
-    { id: 'rt_echo', regionId: REGION, name: 'Echo Chamber', nameKey: 'room.rt_echo.name', art: { backdrop: 'ruins', seed: 14 }, rows: c.rows() },
+    { id: 'rt_echo', regionId: REGION, name: 'Echo Chamber', nameKey: 'room.rt_echo.name', art: { backdrop: 'roots', seed: 14 }, rows: c.rows() },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       spawns: [m.spawn('spitter_1', 'ink_spitter', 'x', { facing: 1 }), m.spawn('spitter_2', 'ink_spitter', 'y')],
@@ -168,7 +168,7 @@ export function gallery(): RoomDefinition {
   c.air(22, 21, 27, 22); // the hole in the roof over it
   c.mark('a', 5, 2).mark('b', 59, 2).mark('l', 9, 2).mark('m', 20, 2).mark('c', 36, 2).mark('p', 43, 2).mark('q', 50, 2).mark('r', 52, 2).mark('k', 24, 17);
   return mapRoom(
-    { id: 'rt_gallery', regionId: REGION, name: 'Tyrant Gallery', nameKey: 'room.rt_gallery.name', art: { backdrop: 'ruins', seed: 15 }, rows: c.rows() },
+    { id: 'rt_gallery', regionId: REGION, name: 'Tyrant Gallery', nameKey: 'room.rt_gallery.name', art: { backdrop: 'roots', seed: 15 }, rows: c.rows() },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('rest', 'q', 1), m.entry('hideout', 'k', 1)],
       spawns: [m.spawn('leech_1', 'floor_leech', 'l'), m.spawn('leech_2', 'floor_leech', 'm'), m.spawn('crawler_1', 'bramble_crawler', 'c'), m.spawn('spore_1', 'glow_spore', 'p')],
@@ -192,7 +192,7 @@ export function hideout(): RoomDefinition {
   c.rock(28, 2, 32, 4);
   c.mark('s', 4, 2).mark('h', 9, 2).mark('l', 16, 2).mark('m', 22, 2).mark('r', 30, 4);
   return mapRoom(
-    { id: 'rt_hideout', regionId: REGION, name: 'Hideout', nameKey: 'room.rt_hideout.name', art: { backdrop: 'ruins', seed: 16 }, rows: c.rows() },
+    { id: 'rt_hideout', regionId: REGION, name: 'Hideout', nameKey: 'room.rt_hideout.name', art: { backdrop: 'roots', seed: 16 }, rows: c.rows() },
     (m) => ({
       entries: [m.entry('south', 's', 1)],
       spawns: [m.spawn('leech_1', 'floor_leech', 'l'), m.spawn('leech_2', 'floor_leech', 'm')],
@@ -213,7 +213,7 @@ export function arena(): RoomDefinition {
   c.plat(18, 25, 5).plat(47, 54, 5); // two arches of root, 3 m up: above the sweep of the Tyrant, a place to wait out its march
   c.mark('a', 4, 2).mark('b', 67, 2).mark('l', 11, 2).mark('r', 64, 2).mark('k', 56, 2).mark('v', 60, 2);
   return mapRoom(
-    { id: 'rt_arena', regionId: REGION, name: 'Root Throne', nameKey: 'room.rt_arena.name', art: { backdrop: 'ruins', seed: 17 }, rows: c.rows(), regions: { A: { id: 'door_w', material: 'gate' }, B: { id: 'door_e', material: 'gate' } } },
+    { id: 'rt_arena', regionId: REGION, name: 'Root Throne', nameKey: 'room.rt_arena.name', art: { backdrop: 'roots', seed: 17 }, rows: c.rows(), regions: { A: { id: 'door_w', material: 'gate' }, B: { id: 'door_e', material: 'gate' } } },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       gates: [

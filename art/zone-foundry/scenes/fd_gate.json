@@ -1,0 +1,201 @@
+{
+  "sceneVersion": 1,
+  "room": "fd_gate",
+  "layers": {
+    "propsBack": [
+      {
+        "sprite": "pipe_stand_b",
+        "x": 26.88,
+        "y": 2,
+        "scale": 0.94,
+        "flip": false
+      },
+      {
+        "sprite": "girder_post_b",
+        "x": 35.88,
+        "y": 2,
+        "scale": 1.07,
+        "flip": true
+      },
+      {
+        "sprite": "tank_drum_a",
+        "x": 42.85,
+        "y": 2,
+        "scale": 1.07,
+        "flip": false
+      },
+      {
+        "sprite": "chimney_stub_a",
+        "x": 54.47,
+        "y": 2,
+        "scale": 1.11,
+        "flip": true
+      }
+    ],
+    "terrain": [
+      {
+        "sprite": "scrap_pile_b",
+        "x": 24.47,
+        "y": 2,
+        "scale": 0.97,
+        "flip": false
+      },
+      {
+        "sprite": "scrap_pile_b",
+        "x": 23.16,
+        "y": 4,
+        "scale": 0.94,
+        "flip": false
+      },
+      {
+        "sprite": "scrap_pile_a",
+        "x": 31,
+        "y": 2,
+        "scale": 0.9,
+        "flip": true
+      },
+      {
+        "sprite": "slag_mound_b",
+        "x": 36.28,
+        "y": 2,
+        "scale": 1.02,
+        "flip": false
+      },
+      {
+        "sprite": "scrap_pile_b",
+        "x": 44,
+        "y": 2,
+        "scale": 0.95,
+        "flip": true
+      },
+      {
+        "sprite": "slag_mound_b",
+        "x": 48.56,
+        "y": 2,
+        "scale": 0.92,
+        "flip": false
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "chains_a",
+        "x": 7.04,
+        "y": 19.38,
+        "scale": 1.06,
+        "flip": false
+      },
+      {
+        "sprite": "chains_b",
+        "x": 23.55,
+        "y": 18.41,
+        "scale": 1.25,
+        "flip": false
+      },
+      {
+        "sprite": "chains_a",
+        "x": 37.4,
+        "y": 17.78,
+        "scale": 1.44,
+        "flip": false
+      },
+      {
+        "sprite": "chains_b",
+        "x": 56.63,
+        "y": 19.09,
+        "scale": 1.17,
+        "flip": false
+      },
+      {
+        "sprite": "chains_a",
+        "x": 67.63,
+        "y": 18.38,
+        "scale": 1.37,
+        "flip": true
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 6.4,
+        "y": -2.2,
+        "alpha": 0.33,
+        "flip": false
+      },
+      {
+        "sprite": "beam_b",
+        "x": 19.2,
+        "y": -2.2,
+        "alpha": 0.37,
+        "flip": true
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 11.5,
+        "y": 1.8,
+        "alpha": 0.17,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 31,
+        "y": 1.8,
+        "alpha": 0.15,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 45,
+        "y": 1.8,
+        "alpha": 0.18,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 57.5,
+        "y": 1.8,
+        "alpha": 0.13,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 1.04,
+        "alpha": 0.3,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 32.75,
+        "y": 0.5,
+        "scale": 1.16,
+        "alpha": 0.33,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 53.63,
+        "y": 0.5,
+        "scale": 0.93,
+        "alpha": 0.22,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      }
+    ]
+  }
+}

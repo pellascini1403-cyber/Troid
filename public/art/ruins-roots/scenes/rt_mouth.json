@@ -1,0 +1,36 @@
+{
+  "sceneVersion": 1,
+  "room": "rt_mouth",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "root_crawl_b",
+        "x": 7.68,
+        "y": 2,
+        "scale": 1.12,
+        "flip": true
+      },
+      {
+        "sprite": "root_crawl_c",
+        "x": 2.44,
+        "y": 2,
+        "scale": 1.1,
+        "flip": true
+      },
+      {
+        "sprite": "root_crawl_a",
+        "x": 7.18,
+        "y": 2,
+        "scale": 1.11,
+        "flip": true
+      },
+      {
+        "sprite": "root_crawl_c",
+        "x": 12.53,
+        "y": 2,
+        "scale": 1.15,
+        "flip": true
+      }
+    ]
+  }
+}

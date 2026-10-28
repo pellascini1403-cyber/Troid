@@ -1,0 +1,112 @@
+{
+  "sceneVersion": 1,
+  "room": "rt_echo",
+  "layers": {
+    "propsBack": [
+      {
+        "sprite": "root_knot_a",
+        "x": 19.97,
+        "y": 2,
+        "scale": 1.03,
+        "flip": false
+      },
+      {
+        "sprite": "trunk_stub_b",
+        "x": 35.35,
+        "y": 6,
+        "scale": 0.96,
+        "flip": false
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "tendrils_a",
+        "x": 7.45,
+        "y": 21.84,
+        "scale": 1.04,
+        "flip": false
+      },
+      {
+        "sprite": "tendrils_b",
+        "x": 36.77,
+        "y": 21.82,
+        "scale": 1.08,
+        "flip": true
+      },
+      {
+        "sprite": "tendrils_a",
+        "x": 56.9,
+        "y": 21.51,
+        "scale": 1.1,
+        "flip": true
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 10.4,
+        "y": -2.2,
+        "alpha": 0.35,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 6.5,
+        "y": 1.8,
+        "alpha": 0.15,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 25,
+        "y": 1.8,
+        "alpha": 0.13,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 1.17,
+        "alpha": 0.26,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 31.96,
+        "y": 0.5,
+        "scale": 1.08,
+        "alpha": 0.3,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 51.25,
+        "y": 0.5,
+        "scale": 0.88,
+        "alpha": 0.3,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "glow_zone",
+        "x": 14.5,
+        "y": 3.3,
+        "scale": 0.7,
+        "alpha": 0.4,
+        "motion": "pulse"
+      }
+    ]
+  }
+}

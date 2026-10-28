@@ -1,0 +1,720 @@
+{
+  "manifestVersion": 1,
+  "id": "zone-mire",
+  "category": "environment",
+  "status": "provisional",
+  "comment": "THE GLOWMIRE: black water and teal fog — dead trees, stilts, lanterns on posts and giant mushrooms that shine under their caps. What makes the zone that zone: the three seamless strips of its backdrop, tall enough for the camera of every room of it; the ground its rooms are built of; the pieces that stand, lie and hang in them; and the light in its colour. Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.",
+  "tags": [
+    "mire",
+    "generated"
+  ],
+  "atlasMode": "shared",
+  "scenes": {
+    "mr_edge": "scenes/mr_edge.json",
+    "mr_stilts": "scenes/mr_stilts.json",
+    "mr_lanterns": "scenes/mr_lanterns.json",
+    "mr_toadpit": "scenes/mr_toadpit.json",
+    "mr_shrine": "scenes/mr_shrine.json",
+    "mr_sink": "scenes/mr_sink.json",
+    "mr_climb": "scenes/mr_climb.json",
+    "mr_approach": "scenes/mr_approach.json",
+    "mr_lair": "scenes/mr_lair.json",
+    "mr_den": "scenes/mr_den.json"
+  },
+  "atlases": [],
+  "sprites": [
+    {
+      "id": "backdrop_far",
+      "artPxPerMeter": 20,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 17.35,
+      "frameSize": [
+        1200,
+        347
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:backdrop",
+        "backdrop:mire",
+        "part:far"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "backdrop_far_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "backdrop_mid",
+      "artPxPerMeter": 25.6,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 21.602,
+      "frameSize": [
+        1536,
+        553
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:backdrop",
+        "backdrop:mire",
+        "part:mid"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "backdrop_mid_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "backdrop_near",
+      "artPxPerMeter": 28,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 28.071,
+      "frameSize": [
+        1120,
+        786
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:backdrop",
+        "backdrop:mire",
+        "part:near"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "backdrop_near_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "mud_fill",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 2,
+      "frameSize": [
+        192,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:mud",
+        "part:fill",
+        "grid:4x2"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "mud_fill_",
+          "count": 8
+        }
+      }
+    },
+    {
+      "id": "mud_cap",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 1.104,
+      "frameSize": [
+        192,
+        106
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:mud",
+        "part:cap",
+        "grid:4x1",
+        "rise:0.34"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "mud_cap_",
+          "count": 4
+        }
+      }
+    },
+    {
+      "id": "mud_edge_l",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 2,
+      "frameSize": [
+        40,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:mud",
+        "part:edge-l",
+        "grid:1x2",
+        "reach:0.12"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "mud_edge_l_",
+          "count": 2
+        }
+      }
+    },
+    {
+      "id": "mud_edge_r",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 2,
+      "frameSize": [
+        40,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:mud",
+        "part:edge-r",
+        "grid:1x2",
+        "reach:0.12"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "mud_edge_r_",
+          "count": 2
+        }
+      }
+    },
+    {
+      "id": "lantern_post_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4.604,
+      "frameSize": [
+        230,
+        442
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "lantern_post_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "lantern_post_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4.604,
+      "frameSize": [
+        230,
+        442
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "lantern_post_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "giant_mushroom_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4,
+      "frameSize": [
+        384,
+        384
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "giant_mushroom_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "giant_mushroom_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4,
+      "frameSize": [
+        384,
+        384
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "giant_mushroom_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "stilt_pile_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3.802,
+      "frameSize": [
+        326,
+        365
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "stilt_pile_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "stilt_pile_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3.802,
+      "frameSize": [
+        326,
+        365
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "stilt_pile_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "dead_tree_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 5.396,
+      "frameSize": [
+        326,
+        518
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "dead_tree_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "dead_tree_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 5.396,
+      "frameSize": [
+        326,
+        518
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "dead_tree_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "reed_clump_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.802,
+      "frameSize": [
+        173,
+        173
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "reed_clump_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "reed_clump_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.802,
+      "frameSize": [
+        173,
+        173
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "reed_clump_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "spore_pods_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.396,
+      "frameSize": [
+        154,
+        134
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "spore_pods_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "spore_pods_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.396,
+      "frameSize": [
+        154,
+        134
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "spore_pods_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "moss_curtain_a",
+      "artPxPerMeter": 48,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3.396,
+      "frameSize": [
+        240,
+        163
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:foreground"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "moss_curtain_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "moss_curtain_b",
+      "artPxPerMeter": 48,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3.396,
+      "frameSize": [
+        240,
+        163
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:foreground"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "moss_curtain_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "beam_a",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 16,
+      "frameSize": [
+        256,
+        512
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-mid",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "beam_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "beam_b",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 16,
+      "frameSize": [
+        256,
+        512
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-mid",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "beam_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "mist_bank",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 6,
+      "frameSize": [
+        1024,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "mist_bank_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "motes_zone",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 12,
+      "frameSize": [
+        512,
+        384
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "motes_zone_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "glow_zone",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4,
+      "frameSize": [
+        128,
+        128
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "glow_zone_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "glow_rest",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4,
+      "frameSize": [
+        128,
+        128
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "glow_rest_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "glow_boss",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4,
+      "frameSize": [
+        128,
+        128
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "glow_boss_",
+          "count": 1
+        }
+      }
+    }
+  ]
+}

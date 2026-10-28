@@ -1,0 +1,578 @@
+{
+  "frames": {
+    "chains_a_00": {
+      "frame": {
+        "x": 1068,
+        "y": 398,
+        "w": 174,
+        "h": 146
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 9,
+        "y": 0,
+        "w": 174,
+        "h": 146
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 182
+      }
+    },
+    "chains_b_00": {
+      "frame": {
+        "x": 1033,
+        "y": 1018,
+        "w": 174,
+        "h": 146
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 9,
+        "y": 0,
+        "w": 174,
+        "h": 146
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 182
+      }
+    },
+    "furnace_mouth_a_00": {
+      "frame": {
+        "x": 2,
+        "y": 588,
+        "w": 346,
+        "h": 269
+      },
+      "sourceSize": {
+        "w": 346,
+        "h": 269
+      }
+    },
+    "furnace_mouth_b_00": {
+      "frame": {
+        "x": 2,
+        "y": 861,
+        "w": 346,
+        "h": 269
+      },
+      "sourceSize": {
+        "w": 346,
+        "h": 269
+      }
+    },
+    "gear_half_a_00": {
+      "frame": {
+        "x": 284,
+        "y": 189,
+        "w": 297,
+        "h": 118
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 16,
+        "y": 55,
+        "w": 297,
+        "h": 118
+      },
+      "sourceSize": {
+        "w": 346,
+        "h": 173
+      }
+    },
+    "grate_body_00": {
+      "frame": {
+        "x": 1033,
+        "y": 865,
+        "w": 192,
+        "h": 58
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 6,
+        "w": 192,
+        "h": 58
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 64
+      }
+    },
+    "grate_body_01": {
+      "frame": {
+        "x": 1033,
+        "y": 975,
+        "w": 192,
+        "h": 39
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 2,
+        "w": 192,
+        "h": 39
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 64
+      }
+    },
+    "grate_body_02": {
+      "frame": {
+        "x": 1033,
+        "y": 927,
+        "w": 192,
+        "h": 44
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 2,
+        "w": 192,
+        "h": 44
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 64
+      }
+    },
+    "iron_cap_00": {
+      "frame": {
+        "x": 837,
+        "y": 674,
+        "w": 192,
+        "h": 73
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 3,
+        "w": 192,
+        "h": 73
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 77
+      }
+    },
+    "iron_cap_01": {
+      "frame": {
+        "x": 837,
+        "y": 594,
+        "w": 192,
+        "h": 76
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 192,
+        "h": 76
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 77
+      }
+    },
+    "iron_cap_02": {
+      "frame": {
+        "x": 641,
+        "y": 1169,
+        "w": 192,
+        "h": 72
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 4,
+        "w": 192,
+        "h": 72
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 77
+      }
+    },
+    "iron_cap_03": {
+      "frame": {
+        "x": 1033,
+        "y": 790,
+        "w": 192,
+        "h": 71
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 5,
+        "w": 192,
+        "h": 71
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 77
+      }
+    },
+    "iron_fill_00": {
+      "frame": {
+        "x": 284,
+        "y": 311,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "iron_fill_01": {
+      "frame": {
+        "x": 585,
+        "y": 189,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "iron_fill_02": {
+      "frame": {
+        "x": 781,
+        "y": 189,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "iron_fill_03": {
+      "frame": {
+        "x": 977,
+        "y": 202,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "iron_fill_04": {
+      "frame": {
+        "x": 480,
+        "y": 385,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "iron_fill_05": {
+      "frame": {
+        "x": 676,
+        "y": 385,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "iron_fill_06": {
+      "frame": {
+        "x": 872,
+        "y": 398,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "iron_fill_07": {
+      "frame": {
+        "x": 445,
+        "y": 581,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "mist_bank_00": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 1004,
+        "h": 183
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 11,
+        "y": 4,
+        "w": 1004,
+        "h": 183
+      },
+      "sourceSize": {
+        "w": 1024,
+        "h": 192
+      }
+    },
+    "scrap_pile_a_00": {
+      "frame": {
+        "x": 226,
+        "y": 1134,
+        "w": 215,
+        "h": 112
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 39,
+        "y": 42,
+        "w": 215,
+        "h": 112
+      },
+      "sourceSize": {
+        "w": 288,
+        "h": 154
+      }
+    },
+    "scrap_pile_b_00": {
+      "frame": {
+        "x": 2,
+        "y": 1134,
+        "w": 220,
+        "h": 112
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 34,
+        "y": 42,
+        "w": 220,
+        "h": 112
+      },
+      "sourceSize": {
+        "w": 288,
+        "h": 154
+      }
+    },
+    "slag_cap_00": {
+      "frame": {
+        "x": 284,
+        "y": 507,
+        "w": 192,
+        "h": 68
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 8,
+        "w": 192,
+        "h": 68
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 77
+      }
+    },
+    "slag_cap_01": {
+      "frame": {
+        "x": 445,
+        "y": 1169,
+        "w": 192,
+        "h": 73
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 3,
+        "w": 192,
+        "h": 73
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 77
+      }
+    },
+    "slag_cap_02": {
+      "frame": {
+        "x": 837,
+        "y": 1169,
+        "w": 192,
+        "h": 72
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 4,
+        "w": 192,
+        "h": 72
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 77
+      }
+    },
+    "slag_fill_00": {
+      "frame": {
+        "x": 641,
+        "y": 581,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "slag_fill_01": {
+      "frame": {
+        "x": 352,
+        "y": 777,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "slag_fill_02": {
+      "frame": {
+        "x": 445,
+        "y": 973,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "slag_fill_03": {
+      "frame": {
+        "x": 548,
+        "y": 777,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "slag_fill_04": {
+      "frame": {
+        "x": 641,
+        "y": 973,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "slag_fill_05": {
+      "frame": {
+        "x": 744,
+        "y": 777,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "slag_fill_06": {
+      "frame": {
+        "x": 837,
+        "y": 973,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "slag_fill_07": {
+      "frame": {
+        "x": 1033,
+        "y": 594,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "slag_mound_a_00": {
+      "frame": {
+        "x": 1010,
+        "y": 2,
+        "w": 230,
+        "h": 96
+      },
+      "sourceSize": {
+        "w": 230,
+        "h": 96
+      }
+    },
+    "slag_mound_b_00": {
+      "frame": {
+        "x": 1010,
+        "y": 102,
+        "w": 230,
+        "h": 96
+      },
+      "sourceSize": {
+        "w": 230,
+        "h": 96
+      }
+    },
+    "tank_drum_b_00": {
+      "frame": {
+        "x": 2,
+        "y": 189,
+        "w": 278,
+        "h": 395
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 29,
+        "y": 8,
+        "w": 278,
+        "h": 395
+      },
+      "sourceSize": {
+        "w": 307,
+        "h": 403
+      }
+    }
+  },
+  "meta": {
+    "app": "troid-assets",
+    "version": "1",
+    "image": "zone-foundry_1.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1244,
+      "h": 1248
+    },
+    "scale": "1"
+  }
+}

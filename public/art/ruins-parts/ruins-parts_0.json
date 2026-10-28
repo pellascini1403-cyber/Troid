@@ -1,0 +1,84 @@
+{
+  "frames": {
+    "lever_activate_00": {
+      "frame": {
+        "x": 255,
+        "y": 244,
+        "w": 79,
+        "h": 117
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 12,
+        "y": 15,
+        "w": 79,
+        "h": 117
+      },
+      "sourceSize": {
+        "w": 106,
+        "h": 134
+      }
+    },
+    "lever_activate_01": {
+      "frame": {
+        "x": 150,
+        "y": 244,
+        "w": 101,
+        "h": 134
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 101,
+        "h": 134
+      },
+      "sourceSize": {
+        "w": 106,
+        "h": 134
+      }
+    },
+    "stone_body_00": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 144,
+        "h": 288
+      },
+      "sourceSize": {
+        "w": 144,
+        "h": 288
+      }
+    },
+    "stone_glow_00": {
+      "frame": {
+        "x": 150,
+        "y": 2,
+        "w": 120,
+        "h": 238
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 4,
+        "y": 9,
+        "w": 120,
+        "h": 238
+      },
+      "sourceSize": {
+        "w": 128,
+        "h": 256
+      }
+    }
+  },
+  "meta": {
+    "app": "troid-assets",
+    "version": "1",
+    "image": "ruins-parts_0.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 336,
+      "h": 380
+    },
+    "scale": "1"
+  }
+}

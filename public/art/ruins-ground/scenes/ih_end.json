@@ -16,36 +16,6 @@
         "y": 1,
         "w": 21,
         "h": 1
-      },
-      {
-        "sprite": "crystals_b",
-        "x": 27.43,
-        "y": 2,
-        "scale": 0.88,
-        "flip": true
-      },
-      {
-        "sprite": "crystals_a",
-        "x": 29.79,
-        "y": 2,
-        "scale": 1.07,
-        "flip": false
-      }
-    ],
-    "propsBack": [
-      {
-        "sprite": "rune_stone_a",
-        "x": 10.99,
-        "y": 2,
-        "scale": 0.96,
-        "flip": false
-      },
-      {
-        "sprite": "effigy_a",
-        "x": 32.25,
-        "y": 2,
-        "scale": 1.1,
-        "flip": false
       }
     ]
   }

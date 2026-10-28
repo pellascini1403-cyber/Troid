@@ -1,0 +1,52 @@
+{
+  "sceneVersion": 1,
+  "room": "sp_chimney",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "rope_coil_a",
+        "x": 6.94,
+        "y": 34,
+        "scale": 0.89,
+        "flip": true
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "banners_b",
+        "x": 1.98,
+        "y": 43.02,
+        "scale": 1.2,
+        "flip": true
+      },
+      {
+        "sprite": "banners_b",
+        "x": 10.85,
+        "y": 43.22,
+        "scale": 1.22,
+        "flip": false
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 2.8,
+        "y": 10.6,
+        "alpha": 0.33,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 32.5,
+        "scale": 1.02,
+        "alpha": 0.28,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      }
+    ]
+  }
+}

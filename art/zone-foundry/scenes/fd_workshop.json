@@ -1,0 +1,134 @@
+{
+  "sceneVersion": 1,
+  "room": "fd_workshop",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "scrap_pile_a",
+        "x": 27.17,
+        "y": 4,
+        "scale": 0.94,
+        "flip": false
+      },
+      {
+        "sprite": "scrap_pile_a",
+        "x": 10.84,
+        "y": 3,
+        "scale": 1.05,
+        "flip": false
+      },
+      {
+        "sprite": "scrap_pile_a",
+        "x": 15.66,
+        "y": 2,
+        "scale": 1.18,
+        "flip": false
+      }
+    ],
+    "propsBack": [
+      {
+        "sprite": "pipe_stand_b",
+        "x": 16.9,
+        "y": 2,
+        "scale": 1,
+        "flip": false
+      },
+      {
+        "sprite": "furnace_mouth_b",
+        "x": 24.1,
+        "y": 2,
+        "scale": 1,
+        "flip": true
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "chains_a",
+        "x": 8.75,
+        "y": 13.25,
+        "scale": 1.4,
+        "flip": false
+      },
+      {
+        "sprite": "chains_b",
+        "x": 21.86,
+        "y": 14.98,
+        "scale": 1.01,
+        "flip": true
+      },
+      {
+        "sprite": "chains_b",
+        "x": 37.99,
+        "y": 14.87,
+        "scale": 1.06,
+        "flip": true
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 8,
+        "y": -2.2,
+        "alpha": 0.37,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 5.5,
+        "y": 1.8,
+        "alpha": 0.15,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 20.5,
+        "y": 1.8,
+        "alpha": 0.15,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 34,
+        "y": 1.8,
+        "alpha": 0.16,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 0.88,
+        "alpha": 0.26,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 29.61,
+        "y": 0.5,
+        "scale": 0.91,
+        "alpha": 0.23,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "glow_rest",
+        "x": 20.5,
+        "y": 0.9,
+        "scale": 1.1,
+        "alpha": 0.34,
+        "motion": "pulse"
+      }
+    ]
+  }
+}

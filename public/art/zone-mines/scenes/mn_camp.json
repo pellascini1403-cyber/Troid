@@ -1,0 +1,109 @@
+{
+  "sceneVersion": 1,
+  "room": "mn_camp",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "rubble_blue_b",
+        "x": 9.51,
+        "y": 3,
+        "scale": 1.01,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_blue_a",
+        "x": 15.77,
+        "y": 2,
+        "scale": 1.08,
+        "flip": true
+      }
+    ],
+    "propsBack": [
+      {
+        "sprite": "crystals_tall_b",
+        "x": 25.9,
+        "y": 2,
+        "scale": 1,
+        "flip": false
+      },
+      {
+        "sprite": "timber_prop_a",
+        "x": 33.1,
+        "y": 2,
+        "scale": 1,
+        "flip": true
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "stalactites_b",
+        "x": 10.34,
+        "y": 13.56,
+        "scale": 1.35,
+        "flip": false
+      },
+      {
+        "sprite": "stalactites_b",
+        "x": 21.02,
+        "y": 13.86,
+        "scale": 1.28,
+        "flip": false
+      },
+      {
+        "sprite": "stalactites_a",
+        "x": 42.11,
+        "y": 13.48,
+        "scale": 1.4,
+        "flip": true
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 8,
+        "y": -2.2,
+        "alpha": 0.36,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 30.5,
+        "y": 1.8,
+        "alpha": 0.15,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 0.91,
+        "alpha": 0.33,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 34.5,
+        "y": 0.5,
+        "scale": 1.11,
+        "alpha": 0.2,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "glow_rest",
+        "x": 29.5,
+        "y": 4.9,
+        "scale": 1.1,
+        "alpha": 0.34,
+        "motion": "pulse"
+      }
+    ]
+  }
+}

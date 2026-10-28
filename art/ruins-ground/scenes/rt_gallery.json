@@ -115,15 +115,6 @@
         "scale": 1.02,
         "flip": false
       }
-    ],
-    "propsBack": [
-      {
-        "sprite": "rune_stone_a",
-        "x": 17.24,
-        "y": 2,
-        "scale": 1.12,
-        "flip": false
-      }
     ]
   }
 }

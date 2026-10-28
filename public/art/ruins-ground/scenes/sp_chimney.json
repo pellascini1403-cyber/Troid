@@ -9,13 +9,6 @@
         "y": 1,
         "w": 5,
         "h": 1
-      },
-      {
-        "sprite": "rubble_c",
-        "x": 6.68,
-        "y": 34,
-        "scale": 1.18,
-        "flip": false
       }
     ]
   }

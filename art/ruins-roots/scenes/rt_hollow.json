@@ -1,0 +1,129 @@
+{
+  "sceneVersion": 1,
+  "room": "rt_hollow",
+  "layers": {
+    "propsBack": [
+      {
+        "sprite": "root_pillar_b",
+        "x": 19.2,
+        "y": 14,
+        "scale": 1.03,
+        "flip": true
+      }
+    ],
+    "terrain": [
+      {
+        "sprite": "root_crawl_a",
+        "x": 11.4,
+        "y": 36,
+        "scale": 1.07,
+        "flip": false
+      },
+      {
+        "sprite": "root_crawl_c",
+        "x": 8.08,
+        "y": 32,
+        "scale": 0.88,
+        "flip": true
+      },
+      {
+        "sprite": "root_crawl_b",
+        "x": 11.46,
+        "y": 32,
+        "scale": 1.09,
+        "flip": true
+      },
+      {
+        "sprite": "root_crawl_a",
+        "x": 7.77,
+        "y": 24,
+        "scale": 0.91,
+        "flip": false
+      },
+      {
+        "sprite": "root_crawl_c",
+        "x": 13.08,
+        "y": 24,
+        "scale": 1.18,
+        "flip": true
+      },
+      {
+        "sprite": "root_crawl_a",
+        "x": 7.78,
+        "y": 20,
+        "scale": 0.87,
+        "flip": false
+      },
+      {
+        "sprite": "root_crawl_a",
+        "x": 11.13,
+        "y": 20,
+        "scale": 0.86,
+        "flip": false
+      },
+      {
+        "sprite": "root_crawl_a",
+        "x": 18.17,
+        "y": 18,
+        "scale": 1.2,
+        "flip": false
+      },
+      {
+        "sprite": "root_crawl_c",
+        "x": 18.14,
+        "y": 14,
+        "scale": 0.96,
+        "flip": false
+      },
+      {
+        "sprite": "root_crawl_b",
+        "x": 7.74,
+        "y": 12,
+        "scale": 1.1,
+        "flip": true
+      },
+      {
+        "sprite": "root_crawl_b",
+        "x": 18.72,
+        "y": 10,
+        "scale": 0.94,
+        "flip": false
+      },
+      {
+        "sprite": "root_crawl_b",
+        "x": 11.09,
+        "y": 8,
+        "scale": 0.85,
+        "flip": false
+      },
+      {
+        "sprite": "root_crawl_c",
+        "x": 7.37,
+        "y": 4,
+        "scale": 1,
+        "flip": false
+      },
+      {
+        "sprite": "root_crawl_c",
+        "x": 12.32,
+        "y": 4,
+        "scale": 1.2,
+        "flip": true
+      },
+      {
+        "sprite": "root_crawl_b",
+        "x": 10.27,
+        "y": 2,
+        "scale": 0.86,
+        "flip": false
+      },
+      {
+        "sprite": "root_crawl_c",
+        "x": 17.41,
+        "y": 2,
+        "scale": 1,
+        "flip": false
+      }
+    ]
+  }
+}

@@ -25,8 +25,9 @@ export interface StoneOptions {
   moss: number;
   cracks: number;
   stains: number;
-  /** How much cyan light the cracks give out (0 = none). */
+  /** How much light the cracks give out (0 = none), and its colour (cyan unless a skin says otherwise). */
   energy: number;
+  energyRgb?: Rgb;
   stone: (v: number) => Rgb;
   mossRamp: (v: number) => Rgb;
   /** Base value of the stone (0..1) and how much it varies from block to block. */
@@ -159,6 +160,7 @@ export function stone(o: StoneOptions): Layers {
   const jointPx = Math.max(2, o.jointM * ppm);
   const bevelPx = Math.max(3, ppm * 0.07);
   const mossAmount = new Float32Array(w * h);
+  const er: Rgb = o.energyRgb ?? [0.05, 0.36, 0.46];
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -199,9 +201,9 @@ export function stone(o: StoneOptions): Layers {
           for (let k = 0; k < 3; k++) albedo[i * 3 + k] = albedo[i * 3 + k]! * (1 - 0.75 * f);
           if (o.energy > 0 && cell.id < 0.03 + 0.05 * o.energy) {
             // a little light in the deepest cracks
-            emissive[i * 3] = 0.05 * f * o.energy;
-            emissive[i * 3 + 1] = 0.36 * f * o.energy;
-            emissive[i * 3 + 2] = 0.46 * f * o.energy;
+            emissive[i * 3] = er[0] * f * o.energy;
+            emissive[i * 3 + 1] = er[1] * f * o.energy;
+            emissive[i * 3 + 2] = er[2] * f * o.energy;
           }
         }
       }

@@ -115,7 +115,8 @@ const ruins: BackdropBuilder = (layers, { bounds, seed }) => {
   return made;
 };
 
-const BUILDERS: Readonly<Record<string, BackdropBuilder>> = { ruins };
+/** The blockout of a zone is the ruins' one: what tells the zones apart is the art's (the strips of `art/<zone>-back`), and the blockout only stands in for it. */
+const BUILDERS: Readonly<Record<string, BackdropBuilder>> = { ruins, roots: ruins, mire: ruins, mines: ruins, spire: ruins, foundry: ruins, heart: ruins };
 
 /** Draws the named backdrop into the parallax layers. Returns what it made, so the caller can destroy it. Unknown id: nothing. */
 export function buildBackdrop(id: string, layers: Layers, opts: BackdropOptions): Graphics[] {

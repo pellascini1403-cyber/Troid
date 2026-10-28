@@ -1,0 +1,104 @@
+{
+  "sceneVersion": 1,
+  "room": "ih_shrine",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "bone_shards_a",
+        "x": 12.61,
+        "y": 3,
+        "scale": 1,
+        "flip": false
+      },
+      {
+        "sprite": "bone_shards_a",
+        "x": 26.76,
+        "y": 2,
+        "scale": 1.1,
+        "flip": false
+      }
+    ],
+    "propsBack": [
+      {
+        "sprite": "cyst_pod_b",
+        "x": 15.9,
+        "y": 2,
+        "scale": 1,
+        "flip": false
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "veins_b",
+        "x": 12.7,
+        "y": 13.38,
+        "scale": 1.42,
+        "flip": false
+      },
+      {
+        "sprite": "veins_b",
+        "x": 31.53,
+        "y": 13.52,
+        "scale": 1.31,
+        "flip": false
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 7.2,
+        "y": -2.2,
+        "alpha": 0.35,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 6.5,
+        "y": 1.8,
+        "alpha": 0.2,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 30,
+        "y": 1.8,
+        "alpha": 0.19,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 1,
+        "alpha": 0.26,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 33.51,
+        "y": 0.5,
+        "scale": 0.88,
+        "alpha": 0.33,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "glow_rest",
+        "x": 19.5,
+        "y": 0.9,
+        "scale": 1.1,
+        "alpha": 0.34,
+        "motion": "pulse"
+      }
+    ]
+  }
+}

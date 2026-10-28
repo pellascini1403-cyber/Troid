@@ -97,63 +97,7 @@
         "ru_nave",
         "ru_archive",
         "ru_cistern",
-        "ru_reliquary",
-        "rt_mouth",
-        "rt_tangle",
-        "rt_hollow",
-        "rt_cellar",
-        "rt_bridge",
-        "rt_echo",
-        "rt_gallery",
-        "rt_hideout",
-        "rt_arena",
-        "mr_edge",
-        "mr_stilts",
-        "mr_lanterns",
-        "mr_toadpit",
-        "mr_shrine",
-        "mr_sink",
-        "mr_climb",
-        "mr_approach",
-        "mr_lair",
-        "mr_den",
-        "mn_gate",
-        "mn_seam",
-        "mn_hall",
-        "mn_camp",
-        "mn_forge",
-        "mn_descent",
-        "mn_rails",
-        "mn_approach",
-        "mn_arena",
-        "mn_vault",
-        "sp_foot",
-        "sp_gallery",
-        "sp_stair",
-        "sp_shrine",
-        "sp_chimney",
-        "sp_belfry",
-        "sp_bridge",
-        "sp_approach",
-        "sp_arena",
-        "sp_loft",
-        "fd_gate",
-        "fd_line",
-        "fd_press",
-        "fd_furnace",
-        "fd_vats",
-        "fd_workshop",
-        "fd_catwalks",
-        "fd_control",
-        "fd_arena",
-        "fd_scrap",
-        "ih_threshold",
-        "ih_veins",
-        "ih_shrine",
-        "ih_ascent",
-        "ih_approach",
-        "ih_arena",
-        "ih_end"
+        "ru_reliquary"
       ],
       "manifest": "ruins-back/ruins-back.pack.json",
       "tags": [
@@ -241,36 +185,35 @@
       "load": "zone",
       "zones": [
         "r2_hall",
-        "ru_archive",
         "ru_cistern",
         "ru_reliquary",
         "rt_tangle",
         "rt_hollow",
+        "mr_stilts",
+        "mr_toadpit",
+        "ru_archive",
         "rt_cellar",
         "rt_gallery",
         "rt_arena",
-        "mr_stilts",
-        "mr_toadpit",
         "mr_shrine",
         "mr_approach",
         "mr_lair",
         "mr_den",
-        "mn_seam",
         "mn_camp",
         "mn_approach",
         "mn_vault",
         "sp_shrine",
-        "sp_chimney",
         "sp_approach",
-        "fd_press",
-        "fd_furnace",
         "fd_workshop",
         "fd_control",
         "fd_scrap",
-        "ih_veins",
         "ih_shrine",
         "ih_approach",
-        "ih_end"
+        "ih_end",
+        "rt_mouth",
+        "rt_bridge",
+        "rt_echo",
+        "rt_hideout"
       ],
       "manifest": "ruins-roots/ruins-roots.pack.json",
       "tags": [
@@ -360,6 +303,154 @@
       "manifest": "vfx-flipbooks/vfx-flipbooks.pack.json",
       "tags": [
         "vfx"
+      ]
+    },
+    {
+      "id": "ruins-parts",
+      "category": "environment",
+      "load": "zone",
+      "zones": [
+        "ru_nave",
+        "rt_tangle",
+        "rt_cellar",
+        "mr_stilts",
+        "mr_approach",
+        "mn_hall",
+        "mn_forge",
+        "mn_descent",
+        "mn_approach",
+        "sp_belfry",
+        "sp_bridge",
+        "sp_approach",
+        "fd_line",
+        "fd_control",
+        "ih_approach"
+      ],
+      "manifest": "ruins-parts/ruins-parts.pack.json",
+      "tags": [
+        "ruins"
+      ]
+    },
+    {
+      "id": "zone-roots",
+      "category": "environment",
+      "load": "zone",
+      "zones": [
+        "rt_mouth",
+        "rt_tangle",
+        "rt_hollow",
+        "rt_cellar",
+        "rt_bridge",
+        "rt_echo",
+        "rt_gallery",
+        "rt_hideout",
+        "rt_arena"
+      ],
+      "manifest": "zone-roots/zone-roots.pack.json",
+      "tags": [
+        "roots"
+      ]
+    },
+    {
+      "id": "zone-mire",
+      "category": "environment",
+      "load": "zone",
+      "zones": [
+        "mr_edge",
+        "mr_stilts",
+        "mr_lanterns",
+        "mr_toadpit",
+        "mr_shrine",
+        "mr_sink",
+        "mr_climb",
+        "mr_approach",
+        "mr_lair",
+        "mr_den"
+      ],
+      "manifest": "zone-mire/zone-mire.pack.json",
+      "tags": [
+        "mire"
+      ]
+    },
+    {
+      "id": "zone-mines",
+      "category": "environment",
+      "load": "zone",
+      "zones": [
+        "mn_gate",
+        "mn_seam",
+        "mn_hall",
+        "mn_camp",
+        "mn_forge",
+        "mn_descent",
+        "mn_rails",
+        "mn_approach",
+        "mn_arena",
+        "mn_vault"
+      ],
+      "manifest": "zone-mines/zone-mines.pack.json",
+      "tags": [
+        "mines"
+      ]
+    },
+    {
+      "id": "zone-spire",
+      "category": "environment",
+      "load": "zone",
+      "zones": [
+        "sp_foot",
+        "sp_gallery",
+        "sp_stair",
+        "sp_shrine",
+        "sp_chimney",
+        "sp_belfry",
+        "sp_bridge",
+        "sp_approach",
+        "sp_arena",
+        "sp_loft"
+      ],
+      "manifest": "zone-spire/zone-spire.pack.json",
+      "tags": [
+        "spire"
+      ]
+    },
+    {
+      "id": "zone-foundry",
+      "category": "environment",
+      "load": "zone",
+      "zones": [
+        "fd_gate",
+        "fd_line",
+        "fd_press",
+        "fd_furnace",
+        "fd_vats",
+        "fd_workshop",
+        "fd_catwalks",
+        "fd_control",
+        "fd_arena",
+        "fd_scrap"
+      ],
+      "manifest": "zone-foundry/zone-foundry.pack.json",
+      "tags": [
+        "foundry"
+      ]
+    },
+    {
+      "id": "zone-heart",
+      "category": "environment",
+      "load": "zone",
+      "zones": [
+        "ih_threshold",
+        "ih_veins",
+        "ih_shrine",
+        "ih_ascent",
+        "ih_approach",
+        "ih_arena",
+        "ih_end"
+      ],
+      "manifest": "zone-heart/zone-heart.pack.json",
+      "tags": [
+        "heart"
       ]
     }
   ]

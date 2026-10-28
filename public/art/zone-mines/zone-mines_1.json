@@ -1,0 +1,366 @@
+{
+  "frames": {
+    "crystals_tall_a_00": {
+      "frame": {
+        "x": 2,
+        "y": 189,
+        "w": 307,
+        "h": 367
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 36,
+        "w": 307,
+        "h": 367
+      },
+      "sourceSize": {
+        "w": 307,
+        "h": 403
+      }
+    },
+    "gravel_cap_01": {
+      "frame": {
+        "x": 394,
+        "y": 952,
+        "w": 192,
+        "h": 71
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 5,
+        "w": 192,
+        "h": 71
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 77
+      }
+    },
+    "gravel_cap_03": {
+      "frame": {
+        "x": 590,
+        "y": 973,
+        "w": 192,
+        "h": 65
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 11,
+        "w": 192,
+        "h": 65
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 77
+      }
+    },
+    "gravel_fill_01": {
+      "frame": {
+        "x": 2,
+        "y": 893,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "gravel_fill_02": {
+      "frame": {
+        "x": 198,
+        "y": 893,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "gravel_fill_03": {
+      "frame": {
+        "x": 239,
+        "y": 560,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "gravel_fill_04": {
+      "frame": {
+        "x": 394,
+        "y": 756,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "gravel_fill_05": {
+      "frame": {
+        "x": 313,
+        "y": 189,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "gravel_fill_06": {
+      "frame": {
+        "x": 435,
+        "y": 385,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "gravel_fill_07": {
+      "frame": {
+        "x": 509,
+        "y": 189,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "mist_bank_00": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 1004,
+        "h": 183
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 11,
+        "y": 4,
+        "w": 1004,
+        "h": 183
+      },
+      "sourceSize": {
+        "w": 1024,
+        "h": 192
+      }
+    },
+    "rock_cap_03": {
+      "frame": {
+        "x": 394,
+        "y": 1027,
+        "w": 192,
+        "h": 69
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 7,
+        "w": 192,
+        "h": 69
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 77
+      }
+    },
+    "rock_fill_00": {
+      "frame": {
+        "x": 705,
+        "y": 189,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "rock_fill_01": {
+      "frame": {
+        "x": 901,
+        "y": 189,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "rock_fill_02": {
+      "frame": {
+        "x": 631,
+        "y": 385,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "rock_fill_03": {
+      "frame": {
+        "x": 827,
+        "y": 385,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "rock_fill_04": {
+      "frame": {
+        "x": 590,
+        "y": 581,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "rock_fill_05": {
+      "frame": {
+        "x": 786,
+        "y": 581,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "rock_fill_06": {
+      "frame": {
+        "x": 590,
+        "y": 777,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "rock_fill_07": {
+      "frame": {
+        "x": 786,
+        "y": 777,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "stalagmites_b_00": {
+      "frame": {
+        "x": 2,
+        "y": 560,
+        "w": 233,
+        "h": 329
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 10,
+        "y": 17,
+        "w": 233,
+        "h": 329
+      },
+      "sourceSize": {
+        "w": 250,
+        "h": 346
+      }
+    },
+    "timber_body_00": {
+      "frame": {
+        "x": 590,
+        "y": 1042,
+        "w": 192,
+        "h": 43
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 9,
+        "w": 192,
+        "h": 43
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 64
+      }
+    },
+    "timber_body_01": {
+      "frame": {
+        "x": 786,
+        "y": 973,
+        "w": 192,
+        "h": 39
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 9,
+        "w": 192,
+        "h": 39
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 64
+      }
+    },
+    "timber_body_02": {
+      "frame": {
+        "x": 786,
+        "y": 1016,
+        "w": 192,
+        "h": 32
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 9,
+        "w": 192,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 64
+      }
+    }
+  },
+  "meta": {
+    "app": "troid-assets",
+    "version": "1",
+    "image": "zone-mines_1.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1096,
+      "h": 1100
+    },
+    "scale": "1"
+  }
+}

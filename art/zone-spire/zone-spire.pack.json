@@ -1,0 +1,1030 @@
+{
+  "manifestVersion": 1,
+  "id": "zone-spire",
+  "category": "environment",
+  "status": "provisional",
+  "comment": "THE BELL SPIRE: the bronze of old metal in the wind — towers and pinnacles in a warm dusk, the buttresses that hold them, bells on their yokes and the arcades of the stair. What makes the zone that zone: the three seamless strips of its backdrop, tall enough for the camera of every room of it; the ground its rooms are built of; the pieces that stand, lie and hang in them; the spikes of its ditches; and the light in its colour. Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.",
+  "tags": [
+    "spire",
+    "generated"
+  ],
+  "atlasMode": "shared",
+  "scenes": {
+    "sp_foot": "scenes/sp_foot.json",
+    "sp_gallery": "scenes/sp_gallery.json",
+    "sp_stair": "scenes/sp_stair.json",
+    "sp_shrine": "scenes/sp_shrine.json",
+    "sp_chimney": "scenes/sp_chimney.json",
+    "sp_belfry": "scenes/sp_belfry.json",
+    "sp_bridge": "scenes/sp_bridge.json",
+    "sp_approach": "scenes/sp_approach.json",
+    "sp_arena": "scenes/sp_arena.json",
+    "sp_loft": "scenes/sp_loft.json"
+  },
+  "atlases": [],
+  "sprites": [
+    {
+      "id": "backdrop_far",
+      "artPxPerMeter": 20,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 20.55,
+      "frameSize": [
+        1200,
+        411
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:backdrop",
+        "backdrop:spire",
+        "part:far"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "backdrop_far_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "backdrop_mid",
+      "artPxPerMeter": 25.6,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 29.609,
+      "frameSize": [
+        1536,
+        758
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:backdrop",
+        "backdrop:spire",
+        "part:mid"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "backdrop_mid_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "backdrop_near",
+      "artPxPerMeter": 28,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 43.071,
+      "frameSize": [
+        1120,
+        1206
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:backdrop",
+        "backdrop:spire",
+        "part:near"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "backdrop_near_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "masonry_fill",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 2,
+      "frameSize": [
+        192,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:masonry",
+        "part:fill",
+        "grid:4x2"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "masonry_fill_",
+          "count": 8
+        }
+      }
+    },
+    {
+      "id": "masonry_cap",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 0.802,
+      "frameSize": [
+        192,
+        77
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:masonry",
+        "part:cap",
+        "grid:4x1",
+        "rise:0.12"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "masonry_cap_",
+          "count": 4
+        }
+      }
+    },
+    {
+      "id": "masonry_edge_l",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 2,
+      "frameSize": [
+        40,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:masonry",
+        "part:edge-l",
+        "grid:1x2",
+        "reach:0.12"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "masonry_edge_l_",
+          "count": 2
+        }
+      }
+    },
+    {
+      "id": "masonry_edge_r",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 2,
+      "frameSize": [
+        40,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:masonry",
+        "part:edge-r",
+        "grid:1x2",
+        "reach:0.12"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "masonry_edge_r_",
+          "count": 2
+        }
+      }
+    },
+    {
+      "id": "flagstone_fill",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 2,
+      "frameSize": [
+        192,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:flagstone",
+        "part:fill",
+        "grid:4x2"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "flagstone_fill_",
+          "count": 8
+        }
+      }
+    },
+    {
+      "id": "flagstone_cap",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 0.802,
+      "frameSize": [
+        192,
+        77
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:flagstone",
+        "part:cap",
+        "grid:4x1",
+        "rise:0.12"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "flagstone_cap_",
+          "count": 4
+        }
+      }
+    },
+    {
+      "id": "flagstone_edge_l",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 2,
+      "frameSize": [
+        40,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:flagstone",
+        "part:edge-l",
+        "grid:1x2",
+        "reach:0.12"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "flagstone_edge_l_",
+          "count": 2
+        }
+      }
+    },
+    {
+      "id": "flagstone_edge_r",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 2,
+      "frameSize": [
+        40,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:flagstone",
+        "part:edge-r",
+        "grid:1x2",
+        "reach:0.12"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "flagstone_edge_r_",
+          "count": 2
+        }
+      }
+    },
+    {
+      "id": "beam_body",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 0.667,
+      "frameSize": [
+        192,
+        64
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:platform",
+        "material:beam",
+        "part:body",
+        "grid:4x1",
+        "rise:0.1"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "beam_body_",
+          "count": 4
+        }
+      }
+    },
+    {
+      "id": "beam_cap_l",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 0.667,
+      "frameSize": [
+        38,
+        64
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:platform",
+        "material:beam",
+        "part:cap-l",
+        "reach:0.05",
+        "rise:0.1"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "beam_cap_l_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "beam_cap_r",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 0.667,
+      "frameSize": [
+        38,
+        64
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:platform",
+        "material:beam",
+        "part:cap-r",
+        "reach:0.05",
+        "rise:0.1"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "beam_cap_r_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "spikes_cell",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 0.75,
+      "frameSize": [
+        48,
+        72
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:hazard",
+        "kind:spikes",
+        "part:cell",
+        "grid:4x1"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "spikes_cell_",
+          "count": 4
+        }
+      }
+    },
+    {
+      "id": "bell_frame_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4.802,
+      "frameSize": [
+        346,
+        461
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "bell_frame_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "bell_frame_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4.802,
+      "frameSize": [
+        346,
+        461
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "bell_frame_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "pinnacle_stone_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 5.604,
+      "frameSize": [
+        192,
+        538
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "pinnacle_stone_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "pinnacle_stone_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 5.604,
+      "frameSize": [
+        192,
+        538
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "pinnacle_stone_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "broken_arcade_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4.198,
+      "frameSize": [
+        480,
+        403
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "broken_arcade_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "broken_arcade_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4.198,
+      "frameSize": [
+        480,
+        403
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "broken_arcade_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "tower_stub_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 5.802,
+      "frameSize": [
+        288,
+        557
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "tower_stub_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "tower_stub_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 5.802,
+      "frameSize": [
+        288,
+        557
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "tower_stub_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "banner_pole_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 5.604,
+      "frameSize": [
+        211,
+        538
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "banner_pole_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "banner_pole_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 5.604,
+      "frameSize": [
+        211,
+        538
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "banner_pole_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "buttress_stub_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3.604,
+      "frameSize": [
+        326,
+        346
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "buttress_stub_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "buttress_stub_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3.604,
+      "frameSize": [
+        326,
+        346
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "buttress_stub_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "stone_blocks_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.198,
+      "frameSize": [
+        346,
+        115
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "stone_blocks_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "stone_blocks_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.198,
+      "frameSize": [
+        346,
+        115
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "stone_blocks_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "rope_coil_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.396,
+      "frameSize": [
+        192,
+        134
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "rope_coil_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "rope_coil_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.396,
+      "frameSize": [
+        192,
+        134
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "rope_coil_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "banners_a",
+      "artPxPerMeter": 48,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3.604,
+      "frameSize": [
+        192,
+        173
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:foreground"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "banners_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "banners_b",
+      "artPxPerMeter": 48,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3.604,
+      "frameSize": [
+        192,
+        173
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:foreground"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "banners_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "beam_a",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 16,
+      "frameSize": [
+        256,
+        512
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-mid",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "beam_a_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "beam_b",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 16,
+      "frameSize": [
+        256,
+        512
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-mid",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "beam_b_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "mist_bank",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 6,
+      "frameSize": [
+        1024,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "mist_bank_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "motes_zone",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 12,
+      "frameSize": [
+        512,
+        384
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "motes_zone_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "glow_zone",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4,
+      "frameSize": [
+        128,
+        128
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "glow_zone_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "glow_rest",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4,
+      "frameSize": [
+        128,
+        128
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "glow_rest_",
+          "count": 1
+        }
+      }
+    },
+    {
+      "id": "glow_boss",
+      "artPxPerMeter": 32,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4,
+      "frameSize": [
+        128,
+        128
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "glow_boss_",
+          "count": 1
+        }
+      }
+    }
+  ]
+}

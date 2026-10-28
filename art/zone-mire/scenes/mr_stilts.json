@@ -1,0 +1,204 @@
+{
+  "sceneVersion": 1,
+  "room": "mr_stilts",
+  "layers": {
+    "propsBack": [
+      {
+        "sprite": "lantern_post_a",
+        "x": 10.93,
+        "y": 2,
+        "scale": 1.01,
+        "flip": false
+      },
+      {
+        "sprite": "dead_tree_b",
+        "x": 18.84,
+        "y": 2,
+        "scale": 0.99,
+        "flip": false
+      },
+      {
+        "sprite": "stilt_pile_b",
+        "x": 29.46,
+        "y": 2,
+        "scale": 1.01,
+        "flip": true
+      },
+      {
+        "sprite": "giant_mushroom_b",
+        "x": 39.3,
+        "y": 2,
+        "scale": 1.05,
+        "flip": true
+      },
+      {
+        "sprite": "stilt_pile_a",
+        "x": 53.22,
+        "y": 2,
+        "scale": 1.1,
+        "flip": false
+      }
+    ],
+    "terrain": [
+      {
+        "sprite": "reed_clump_b",
+        "x": 12.68,
+        "y": 2,
+        "scale": 1.08,
+        "flip": true
+      },
+      {
+        "sprite": "reed_clump_a",
+        "x": 27.21,
+        "y": 2,
+        "scale": 1.02,
+        "flip": true
+      },
+      {
+        "sprite": "reed_clump_a",
+        "x": 12.43,
+        "y": 2,
+        "scale": 1.06,
+        "flip": false
+      },
+      {
+        "sprite": "reed_clump_b",
+        "x": 19.36,
+        "y": 2,
+        "scale": 0.98,
+        "flip": true
+      },
+      {
+        "sprite": "reed_clump_b",
+        "x": 32.92,
+        "y": 2,
+        "scale": 0.93,
+        "flip": false
+      },
+      {
+        "sprite": "reed_clump_a",
+        "x": 45.27,
+        "y": 2,
+        "scale": 1.12,
+        "flip": true
+      },
+      {
+        "sprite": "reed_clump_b",
+        "x": 48.83,
+        "y": 2,
+        "scale": 1,
+        "flip": false
+      },
+      {
+        "sprite": "spore_pods_a",
+        "x": 67.04,
+        "y": 2,
+        "scale": 1,
+        "flip": true
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "moss_curtain_a",
+        "x": 11.63,
+        "y": 22.18,
+        "scale": 1.07,
+        "flip": true
+      },
+      {
+        "sprite": "moss_curtain_b",
+        "x": 26,
+        "y": 20.72,
+        "scale": 1.43,
+        "flip": true
+      },
+      {
+        "sprite": "moss_curtain_a",
+        "x": 44.06,
+        "y": 22.65,
+        "scale": 1.02,
+        "flip": true
+      },
+      {
+        "sprite": "moss_curtain_b",
+        "x": 65.33,
+        "y": 21.73,
+        "scale": 1.24,
+        "flip": false
+      },
+      {
+        "sprite": "moss_curtain_b",
+        "x": 79.99,
+        "y": 21.11,
+        "scale": 1.41,
+        "flip": true
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 7.6,
+        "y": -2.2,
+        "alpha": 0.37,
+        "flip": false
+      },
+      {
+        "sprite": "beam_b",
+        "x": 22.8,
+        "y": -2.2,
+        "alpha": 0.27,
+        "flip": true
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 28.5,
+        "y": 1.8,
+        "alpha": 0.14,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 67,
+        "y": 1.8,
+        "alpha": 0.17,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 1.09,
+        "alpha": 0.23,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 33.54,
+        "y": 0.5,
+        "scale": 0.85,
+        "alpha": 0.21,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 56.67,
+        "y": 0.5,
+        "scale": 1.13,
+        "alpha": 0.29,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      }
+    ]
+  }
+}

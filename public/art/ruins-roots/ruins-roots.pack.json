@@ -10,7 +10,16 @@
   ],
   "atlasMode": "shared",
   "scenes": {
-    "r2_hall": "scenes/r2_hall.json"
+    "r2_hall": "scenes/r2_hall.json",
+    "rt_mouth": "scenes/rt_mouth.json",
+    "rt_tangle": "scenes/rt_tangle.json",
+    "rt_hollow": "scenes/rt_hollow.json",
+    "rt_cellar": "scenes/rt_cellar.json",
+    "rt_bridge": "scenes/rt_bridge.json",
+    "rt_echo": "scenes/rt_echo.json",
+    "rt_gallery": "scenes/rt_gallery.json",
+    "rt_hideout": "scenes/rt_hideout.json",
+    "rt_arena": "scenes/rt_arena.json"
   },
   "atlases": [
     {

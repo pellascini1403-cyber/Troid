@@ -113,4 +113,36 @@ Medida con el Chromium del proyecto (1023 × 436 px; `scratchpad`, no se guarda 
 
 ---
 
-*(El resto del documento —alcance de las dos mitades, plan por fases y cada fase— se escribe al ejecutarla.)*
+## 5 · Fase 1 (primera mitad), bloque 1: cada zona tiene su escenario
+
+### 5.1 · El punto de partida, medido
+
+El repaso visual de las 64 salas dio el hallazgo que ordena todo lo demás: **todas las salas compartían un único fondo** (tres tiras pintadas para las cuatro salas del corte vertical). Una captura de las Minas de Cristal y otra de la Fundición eran la misma imagen —el mismo bosque azulado, las mismas «vainas» colgando— con otro suelo en un sitio. Las medidas, con `scratchpad/p23/metrics.mts` leyendo los paquetes confirmados y los datos de las salas:
+
+| | Antes | Después |
+|---|---|---|
+| Conjuntos de fondo distintos en el mundo | **1** | **7** (Ruinas + 6 zonas) |
+| Capas de fondo más cortas que lo que la cámara necesita (de 192; sobre ellas se ve el cielo) | **82** (14 lejanas, 25 medias y 43 cercanas) | **3** (las tres en las Ruinas, cuyas tiras no se tocan; la altura de cada tira de las demás zonas sale de la cámara más alta de la zona: `planStrip`) |
+| Piezas de decorado por detrás del paso (en las 64 salas) | 109, de **3 – 5 tipos por zona** | **186**, de **5 – 13 tipos por zona** |
+| Cuota de la pieza más repetida de una zona | 25 – **71 %** | 17 – 44 % |
+| Pares de piezas vecinas dentro de una sala que son la misma | 15 – 50 % | 0 – 20 % |
+| Primer plano (lo que cuelga delante de la cámara) | 3 imágenes en 3 zonas; **ninguna en 4** (y en ellas se veían las «vainas» provisionales del borrador de formas) | de 2 a 5 imágenes en **todas** |
+| Materiales del suelo por zona | 3 (piedra, tierra, madera) | 4 – 5 (el suelo de la Fundición es hierro y escoria; el del Corazón, tinta y hueso) |
+
+### 5.2 · Qué se hizo
+
+- **Un fondo por zona** (`tools/art/painter/zones.ts`, `motifs.ts`): las tres tiras —lejos, medio, cerca— de las Raíces (verde-negro, troncos y raíces en arco), la Ciénaga (verde-azulado, hongos que brillan bajo el sombrero, farolas, juncos), las Minas (azul frío, techo con dientes, cristales, vigas), la Aguja (bronce de un ocaso con viento, torres, campanas, contrafuertes), la Fundición (rojo-negro de un horno enfriado, chimeneas, depósitos, tuberías, engranajes) y el Corazón (violeta-negro, costillas, venas que brillan, quistes). **Mismo lenguaje que el de las Ruinas, otro tono**: siluetas oscuras iluminadas desde arriba, bruma delante del suelo para que el héroe se lea, lo lejano más pálido; el tono de cada zona es el que ya nombraba su ambiente (`content/atmosphere.ts`). Las tres tiras de las Ruinas **no se tocaron**: el paquete se reconstruyó y los PNG salieron idénticos byte a byte.
+- **El suelo que cada zona pisa**: nuevos materiales de dato (`materials` de `mapRoom`: piedra `rock`/`masonry`/`iron`/`ink`, tierra `mud`/`gravel`/`flagstone`/`slag`/`inksoil`, plataforma `timber`/`beam`/`grate`/`bone`: 13 en total) y las pieles correspondientes en el pintor (`painter/skins.ts`: la rampa de la piedra, la de lo que crece, la luz de las grietas y la luz con que se ilumina). Las pieles son parámetros de los mismos generadores de siempre, con la piel de las Ruinas por defecto: **los PNG de las Ruinas salieron idénticos**.
+- **El decorado de cada zona** (`painter/zoneProps.ts`, `scenes/zones.ts`): de 3 a 6 clases de pieza que se levantan detrás del paso (las Raíces reutilizan además los pilares y las raíces rastreras del paquete de la Galería de Raíces, que ya eran suyas) (un cristal tan alto como una casa, un depósito sobre sus patas, una campana en su marco, una farola sobre un poste, una costilla que sale del suelo…), 2 que yacen, 1 – 2 que cuelgan delante de la cámara, las puntas de los fosos en el material de la zona (cristal, hierro, tinta; las Raíces y la Ciénaga conservan las zarzas) y la luz en el color de la zona. **El compositor** ya no esparce seis piezas donde caiga la semilla: recorre el suelo abierto de la sala como lo haría quien la diseñó (una pieza cada tantos metros, distinta de las dos anteriores; un par que enmarca el santuario; las dos puertas de la arena marcadas), y solo lee los datos de la sala, así que reconstruir no cambia nada.
+- **Las dos piezas que el contrato pedía y nadie pintaba** desde el Prompt 21: la **piedra partida** (`door:stone`: un muro de polígonos con grietas que dan luz, más pálido que la piedra que lo rodea, para que se lea como lo que se va a romper en cualquier zona) y la **palanca** (`interactive:activate`: dos cuadros, en reposo y encendida mientras se puede tirar de ella). `STILL_THE_BLOCKOUT` queda **vacío**.
+- **Los tamaños de las tiras vienen de los datos**, no de una cifra a ojo: la sala más alta del mundo muestra 52 m de cámara (la Aguja), y la tira que la cubre mide 43 m. El límite del manifiesto para la altura de una pieza (40 m) pasó a 64 m con esa razón escrita.
+
+### 5.3 · Lo que no cambió (y la prueba)
+
+Colisiones, salidas, puertas, jefes, enemigos y habilidades **no se tocaron**: el único cambio en los datos de sala es el nombre del fondo y de los materiales (`art.backdrop`, `materials`), que son piel. Las pruebas que fijaban *«las dieciséis piezas sin las cuales las 64 salas no están vestidas»* ahora fijan las **cuarenta y siete** (las 16 de las Ruinas, las 18 tiras de los fondos de las zonas y los 13 materiales del suelo), con la lista escrita pieza a pieza. Presupuesto del arranque en frío tras este bloque: **204 682 B de 204 800** (quedan 118 B; el bloque cuesta 42 B: seis alias de fondo en el borrador de `render/backdrops`).
+
+### 5.4 · Lo que sigue siendo provisional (dicho, no escondido)
+
+Todo lo pintado por `tools/art` lleva el estado `provisional` y se cuenta como tal: los seis fondos, los 13 materiales nuevos, las 42 clases de pieza de decorado (84 imágenes: dos variantes de cada una), la palanca, la piedra partida y las puntas. Son **arte generado por código, coherente con el de las Ruinas y suficiente para jugar y juzgar el conjunto, no arte final**: un ilustrador podría sustituir cualquiera de ellos por una pieza pintada a mano sin tocar una línea del juego (el contrato lo permite pieza a pieza). Siguen sin arte propio **13 criaturas y 6 guardianes** (siluetas por código). Las tiras cercanas de las zonas nuevas se pintan a 28 px/m (las de las Ruinas, a 38,4): la sala más alta del mundo pide 43 m de tira, y a la densidad de las Ruinas serían 10 MB de memoria solo para esa capa.
+
+*(El resto del documento se escribe al ejecutar cada fase.)*

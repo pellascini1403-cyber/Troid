@@ -2,8 +2,9 @@ import { R1_SCENES } from '../scenes/r1';
 import { R2_SCENES } from '../scenes/r2';
 import { R3_SCENES } from '../scenes/r3';
 import { R4_SCENES } from '../scenes/r4';
-import { DRESSED_BY_COMPOSER, WORLD_SCENES } from '../scenes/world';
+import { DRESSED_BY_COMPOSER, WORLD_SCENES, zoneOf } from '../scenes/world';
 import { ROOMS, WORLD } from '../../../src/content';
+import { ROOTS_SCENES_IN_RUINS_ROOTS, SPIKES } from './zones';
 import { environmentSlots, slotKey } from '../../../src/presentation/environment';
 import { SLIME_EYES, SLIME_SIGIL } from '../painter/slime';
 import type { PackSpec, SpriteSpec } from '../spec';
@@ -23,6 +24,8 @@ import type { PackSpec, SpriteSpec } from '../spec';
 const SLICE_ROOMS = ['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum'];
 /** The rooms of the slice, composed by hand, and the sixty after them, composed by `scenes/world.ts` from their data (docs/PROMPT21-LOG.md): every room of the world is dressed. */
 const DRESSED_ROOMS = [...SLICE_ROOMS, ...DRESSED_BY_COMPOSER];
+/** The Ruins proper (the slice, the Nave and the rooms around it): the only rooms that keep the backdrop of the ruins — each zone after them has its own (`packs/zones.ts`). */
+const RUINS_ROOMS = WORLD.rooms.filter((id) => zoneOf(id) === 'ruins');
 const SEED = 7;
 
 /**
@@ -131,7 +134,7 @@ export const RUINS_GROUND: PackSpec = {
 
 export const RUINS_BACK: PackSpec = {
   id: 'ruins-back',
-  zones: DRESSED_ROOMS,
+  zones: RUINS_ROOMS,
   ppm: 32,
   comment:
     'THE BACK of the ruins: the three seamless strips of the parallax layers (far haze, middle trunks, near colonnade), the colossal ruins that stand in the layers behind the action ' +
@@ -175,7 +178,8 @@ export const RUINS_LIGHT: PackSpec = {
  */
 export const RUINS_ROOTS: PackSpec = {
   id: 'ruins-roots',
-  zones: ['r2_hall', ...roomsAsking('hazard:spikes:cell', 'interactive:rest:', 'interactive:pickup:bottle')],
+  // the Root Gallery, every room that asks for one of its small pieces, and the rooms of the Sunken Roots, whose zone is made of what this pack holds (docs/PROMPT23-LOG.md §5)
+  zones: [...new Set(['r2_hall', ...roomsAsking('hazard:spikes:cell').filter((id) => !(zoneOf(id) in SPIKES)), ...roomsAsking('interactive:rest:', 'interactive:pickup:bottle'), ...WORLD.rooms.filter((id) => zoneOf(id) === 'roots')])],
   ppm: 96,
   comment:
     'THE ROOTS of the Root Gallery: root arches, curtains, wound columns, roots on the ground, tendrils in the foreground, and the thorns, the shrine and the vial of that room. ' +
@@ -200,7 +204,7 @@ export const RUINS_ROOTS: PackSpec = {
     // the fourth bottle: a vial of light that floats over the spot its data names (the layer that draws it is additive)
     { id: 'vial_bottle', tags: ['role:interactive', 'kind:pickup', 'variant:bottle'], piece: 'vial', params: { seed: SEED + 42 }, sizeM: [0.7, 1.2], pivot: [0.5, 1] },
   ],
-  scenes: { r2_hall: R2_SCENES.roots },
+  scenes: { r2_hall: R2_SCENES.roots, ...ROOTS_SCENES_IN_RUINS_ROOTS },
 };
 
 /**
@@ -345,4 +349,23 @@ export const INK_SLIME: PackSpec = {
   ],
 };
 
-export const PACKS: readonly PackSpec[] = [RUINS_GROUND, RUINS_BACK, RUINS_LIGHT, RUINS_ROOTS, RUINS_SEAL, RUINS_SANCTUM, INK_WARDEN, INK_SLIME];
+/**
+ * THE PARTS the rooms past the Sanctum ask for that no room of the slice did (docs/PROMPT23-LOG.md §5): the wall of split stone that the Ground Slam brings down — a door of the material `stone`, paler than the stone
+ * around it and lit from inside by its cracks, so that it reads as the part that will break in a wall of any zone — and the lever of a shortcut, lit while it can still be pulled. The two pieces the contract listed as
+ * "the blockout draws it" since Prompt 21. Fetched only for the rooms that ask.
+ */
+export const RUINS_PARTS: PackSpec = {
+  id: 'ruins-parts',
+  zones: roomsAsking('door:stone:body', 'interactive:activate:'),
+  ppm: 96,
+  comment:
+    'THE PARTS of the shortcuts: the wall of split stone (the door of the material "stone": a column 1.5 m wide that glows from its cracks) and the lever (two frames: at rest, lit). ' +
+    'Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.',
+  sprites: [
+    { id: 'stone_body', tags: ['role:door', 'material:stone', 'part:body'], piece: 'crackedDoor', params: { seed: SEED + 700 }, pivot: [0, 1] },
+    { id: 'stone_glow', tags: ['role:door', 'material:stone', 'part:glow', 'blend:add', 'reach:0.4'], piece: 'lightGlow', params: { w: 128, h: 256, tint: CYAN }, ppm: 32, pivot: [0, 1] },
+    { id: 'lever_activate', tags: ['role:interactive', 'kind:activate'], piece: 'lever', params: { seed: SEED + 701 }, cols: 2, rows: 1, pivot: [0.5, 1] },
+  ],
+};
+
+export const PACKS: readonly PackSpec[] = [RUINS_GROUND, RUINS_BACK, RUINS_LIGHT, RUINS_ROOTS, RUINS_SEAL, RUINS_SANCTUM, RUINS_PARTS, INK_WARDEN, INK_SLIME];

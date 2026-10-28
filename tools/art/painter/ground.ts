@@ -5,7 +5,8 @@ import { bevel, type Layers } from './light';
 import { makeField, type Field } from './field';
 import { Rng } from './rng';
 import { blade, taper, wander, wrapX, blobPath, roughen, type Pt } from './shapes';
-import { MOSS, STONE, stone } from './masonry';
+import { stone } from './masonry';
+import { skin } from './skins';
 
 /** The coverage of a white-on-transparent mask surface, 0..1. */
 export function alphaOf(s: Surface): Field {
@@ -48,9 +49,10 @@ export interface EarthOptions {
 /** Soil over rubble: big dark cyclopean stones with grit between them, strata of damp earth and a mat of roots, periodic in both directions. */
 export function earth(o: EarthOptions): Layers {
   const { w, h, ppm, seed } = o;
+  const S = skin();
   const base = stone({
     w, h, ppm, seed, style: 'cyclopean', courseM: [1.5, 1.5], blockM: [1, 1], jointM: 0.1,
-    moss: 0.25, cracks: 0.25, stains: 0.5, energy: 0.35, stone: STONE, mossRamp: MOSS, tone: 0.2, toneSpread: 0.07,
+    moss: S.earth.moss, cracks: 0.25, stains: 0.5, energy: S.earth.energy, energyRgb: S.energyRgb, stone: S.stone, mossRamp: S.moss, tone: S.earth.tone, toneSpread: 0.07,
   });
   const strataN = Math.max(1, Math.round(h / (ppm * 0.9)));
   const warp = periodic(w, h, w / (ppm * 1.4));
@@ -70,7 +72,7 @@ export function earth(o: EarthOptions): Layers {
       height.d[i] = height.d[i]! + (g - 0.5) * 1.6;
       const r = roots.d[i]!;
       if (r > 0.01) {
-        const rc = STONE(0.2 + 0.1 * g);
+        const rc = S.stone(0.2 + 0.1 * g);
         for (let c = 0; c < 3; c++) albedo[i * 3 + c] = albedo[i * 3 + c]! + (rc[c]! - albedo[i * 3 + c]!) * r;
         height.d[i] = height.d[i]! + rootHeight.d[i]! * ppm * 0.05;
       }
@@ -94,6 +96,7 @@ export interface CapOptions {
 /** The top edge of a solid: an irregular surface line with grass or moss standing on it, periodic along x, fading out below so it joins the fill. */
 export function cap(o: CapOptions): Layers {
   const { w, h, ppm, seed, rise } = o;
+  const S = skin();
   const rng = new Rng(seed);
   const mask = surface(w, h);
   const ctx = mask.ctx;
@@ -154,15 +157,15 @@ export function cap(o: CapOptions): Layers {
       if (o.style === 'turf') {
         // above the line / just under it: grass and moss; deeper: soil
         const grass = 1 - smoothstep(0, ppm * 0.35, depth);
-        col = MOSS(clamp01(0.4 + 0.5 * m + 0.2 * grass + 0.15 * (grain - 0.5)));
-        const soil = STONE(clamp01(0.14 + 0.1 * m));
+        col = S.moss(clamp01(0.4 + 0.5 * m + 0.2 * grass + 0.15 * (grain - 0.5)));
+        const soil = S.stone(clamp01(0.14 + 0.1 * m));
         const k = smoothstep(ppm * 0.12, ppm * 0.4, depth);
         col = [col[0] + (soil[0] - col[0]) * k, col[1] + (soil[1] - col[1]) * k, col[2] + (soil[2] - col[2]) * k];
       } else {
         const lip = 1 - smoothstep(0, ppm * 0.06, depth);
-        col = STONE(clamp01(0.3 + 0.18 * m + 0.14 * lip + 0.1 * (grain - 0.5)));
+        col = S.stone(clamp01(0.3 + 0.18 * m + 0.14 * lip + 0.1 * (grain - 0.5)));
         const mossy = smoothstep(0.55, 0.8, m) * (1 - smoothstep(0, ppm * 0.22, depth));
-        const mc = MOSS(0.4 + 0.5 * m);
+        const mc = S.moss(0.4 + 0.5 * m);
         col = [col[0] + (mc[0] - col[0]) * mossy, col[1] + (mc[1] - col[1]) * mossy, col[2] + (mc[2] - col[2]) * mossy];
       }
       albedo[i * 3] = col[0];

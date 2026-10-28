@@ -1,0 +1,109 @@
+{
+  "sceneVersion": 1,
+  "room": "fd_scrap",
+  "layers": {
+    "propsBack": [
+      {
+        "sprite": "gear_half_a",
+        "x": 17.09,
+        "y": 2,
+        "scale": 0.97,
+        "flip": false
+      }
+    ],
+    "terrain": [
+      {
+        "sprite": "scrap_pile_b",
+        "x": 20.75,
+        "y": 4,
+        "scale": 0.95,
+        "flip": false
+      },
+      {
+        "sprite": "scrap_pile_b",
+        "x": 13.97,
+        "y": 2,
+        "scale": 0.95,
+        "flip": false
+      },
+      {
+        "sprite": "scrap_pile_b",
+        "x": 31.01,
+        "y": 2,
+        "scale": 0.93,
+        "flip": false
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "chains_a",
+        "x": 10.9,
+        "y": 18.11,
+        "scale": 1.4,
+        "flip": true
+      },
+      {
+        "sprite": "chains_a",
+        "x": 22.01,
+        "y": 19.39,
+        "scale": 1.06,
+        "flip": false
+      },
+      {
+        "sprite": "chains_a",
+        "x": 40.77,
+        "y": 19.54,
+        "scale": 1.06,
+        "flip": false
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 8,
+        "y": -2.2,
+        "alpha": 0.36,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 5.5,
+        "y": 1.8,
+        "alpha": 0.2,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 1.15,
+        "alpha": 0.23,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 29.43,
+        "y": 0.5,
+        "scale": 0.92,
+        "alpha": 0.28,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "glow_zone",
+        "x": 36.5,
+        "y": 3.3,
+        "scale": 0.7,
+        "alpha": 0.4,
+        "motion": "pulse"
+      }
+    ]
+  }
+}

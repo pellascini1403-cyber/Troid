@@ -26,94 +26,72 @@
       },
       {
         "sprite": "crystals_b",
-        "x": 34.38,
-        "y": 4,
-        "scale": 1.01,
-        "flip": false
-      },
-      {
-        "sprite": "mushrooms_b",
-        "x": 47.14,
+        "x": 46.67,
         "y": 3,
-        "scale": 1.07,
+        "scale": 1.22,
+        "flip": true
+      },
+      {
+        "sprite": "crystals_b",
+        "x": 12.77,
+        "y": 2,
+        "scale": 1.16,
+        "flip": true
+      },
+      {
+        "sprite": "crystals_b",
+        "x": 15.95,
+        "y": 2,
+        "scale": 0.99,
         "flip": false
       },
       {
-        "sprite": "fern_b",
-        "x": 14.73,
+        "sprite": "rubble_a",
+        "x": 17.94,
+        "y": 2,
+        "scale": 0.88,
+        "flip": true
+      },
+      {
+        "sprite": "crystals_a",
+        "x": 20.06,
         "y": 2,
         "scale": 1.08,
         "flip": false
       },
       {
-        "sprite": "crystals_a",
-        "x": 17.55,
-        "y": 2,
-        "scale": 0.85,
-        "flip": true
-      },
-      {
         "sprite": "rubble_a",
-        "x": 19.68,
+        "x": 26.18,
         "y": 2,
-        "scale": 0.95,
+        "scale": 1.13,
         "flip": true
-      },
-      {
-        "sprite": "crystals_a",
-        "x": 26.24,
-        "y": 2,
-        "scale": 0.87,
-        "flip": true
-      },
-      {
-        "sprite": "rubble_a",
-        "x": 30.01,
-        "y": 2,
-        "scale": 1.21,
-        "flip": true
-      },
-      {
-        "sprite": "crystals_a",
-        "x": 33.35,
-        "y": 2,
-        "scale": 1.14,
-        "flip": false
-      },
-      {
-        "sprite": "rubble_a",
-        "x": 38.76,
-        "y": 2,
-        "scale": 0.95,
-        "flip": false
       },
       {
         "sprite": "crystals_b",
-        "x": 43.28,
+        "x": 31.36,
         "y": 2,
-        "scale": 0.86,
+        "scale": 0.92,
         "flip": false
       },
       {
-        "sprite": "crystals_a",
-        "x": 48.55,
+        "sprite": "rubble_c",
+        "x": 36.39,
+        "y": 2,
+        "scale": 0.93,
+        "flip": true
+      },
+      {
+        "sprite": "crystals_b",
+        "x": 38.7,
         "y": 2,
         "scale": 1.24,
         "flip": true
       },
       {
-        "sprite": "grass_a",
-        "x": 14.29,
-        "y": 4,
-        "scale": 0.9
-      }
-    ],
-    "propsBack": [
-      {
-        "sprite": "column_broken_b",
-        "x": 20.22,
+        "sprite": "rubble_c",
+        "x": 43.01,
         "y": 2,
-        "scale": 1.07,
+        "scale": 1.13,
         "flip": true
       }
     ]

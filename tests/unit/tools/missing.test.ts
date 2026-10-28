@@ -142,10 +142,10 @@ describe('readEnvironmentDelivery', () => {
     if (files) for (const x of sprites) put(join(src, 'forest', x.id, `${x.id}_00.png`), encodePng(noiseFrame(1, { x: 2, y: 2, w: 6, h: 6 }, 16, 16)));
   };
 
-  it('with no art folder at all, none of the sixteen required pieces is delivered, and it says so without throwing', () => {
+  it('with no art folder at all, none of the forty-seven required pieces is delivered, and it says so without throwing', () => {
     const r = readEnvironmentDelivery(join(root, 'nowhere'), slots);
     expect(r).toMatchObject({ packs: [], delivered: 0, total: REQUIRED });
-    expect(REQUIRED).toBe(16);
+    expect(REQUIRED).toBe(47);
     expect(r.rows.every((x) => !x.delivered)).toBe(true);
   });
 
@@ -185,7 +185,7 @@ describe('readEnvironmentDelivery', () => {
     declareScenery('provisional', [{ id: 'stone_fill', tags: ['role:solid', 'material:stone', 'part:fill'] }]);
     const text = formatEnvironmentDelivery(readEnvironmentDelivery(src, slots));
     expect(text).toMatch(/pack "forest" \(provisional\)/);
-    expect(text).toMatch(/Delivered: 1 of 16 required pieces\. The game draws the rest with its blockout\./);
+    expect(text).toMatch(/Delivered: 1 of 47 required pieces\. The game draws the rest with its blockout\./);
     expect(text).toMatch(/solid stone · fill .*required .*delivered \(forest\/stone_fill\)/);
     expect(text).toMatch(/solid earth · fill .*required .*NOT DELIVERED/);
     expect(text).toMatch(/solid stone · cap .*optional/);

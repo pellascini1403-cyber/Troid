@@ -1,0 +1,215 @@
+{
+  "sceneVersion": 1,
+  "room": "mr_approach",
+  "layers": {
+    "propsBack": [
+      {
+        "sprite": "giant_mushroom_b",
+        "x": 15.76,
+        "y": 2,
+        "scale": 1.03,
+        "flip": true
+      },
+      {
+        "sprite": "lantern_post_a",
+        "x": 28.36,
+        "y": 2,
+        "scale": 1.07,
+        "flip": true
+      },
+      {
+        "sprite": "lantern_post_b",
+        "x": 51.9,
+        "y": 2,
+        "scale": 1,
+        "flip": false
+      },
+      {
+        "sprite": "giant_mushroom_b",
+        "x": 59.1,
+        "y": 2,
+        "scale": 1,
+        "flip": true
+      }
+    ],
+    "terrain": [
+      {
+        "sprite": "spore_pods_a",
+        "x": 13.22,
+        "y": 2,
+        "scale": 0.91,
+        "flip": true
+      },
+      {
+        "sprite": "spore_pods_b",
+        "x": 22.78,
+        "y": 4,
+        "scale": 1.03,
+        "flip": false
+      },
+      {
+        "sprite": "spore_pods_b",
+        "x": 13.78,
+        "y": 2,
+        "scale": 1.1,
+        "flip": false
+      },
+      {
+        "sprite": "reed_clump_b",
+        "x": 16.68,
+        "y": 2,
+        "scale": 0.88,
+        "flip": true
+      },
+      {
+        "sprite": "reed_clump_a",
+        "x": 25.32,
+        "y": 2,
+        "scale": 0.98,
+        "flip": true
+      },
+      {
+        "sprite": "reed_clump_b",
+        "x": 33.57,
+        "y": 2,
+        "scale": 0.98,
+        "flip": false
+      },
+      {
+        "sprite": "spore_pods_b",
+        "x": 44.83,
+        "y": 2,
+        "scale": 1.11,
+        "flip": false
+      },
+      {
+        "sprite": "spore_pods_a",
+        "x": 51.72,
+        "y": 2,
+        "scale": 1.07,
+        "flip": true
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "moss_curtain_a",
+        "x": 11.69,
+        "y": 18.54,
+        "scale": 1.41,
+        "flip": true
+      },
+      {
+        "sprite": "moss_curtain_a",
+        "x": 30.24,
+        "y": 19.69,
+        "scale": 1.13,
+        "flip": false
+      },
+      {
+        "sprite": "moss_curtain_a",
+        "x": 45.4,
+        "y": 18.59,
+        "scale": 1.36,
+        "flip": false
+      },
+      {
+        "sprite": "moss_curtain_b",
+        "x": 67.76,
+        "y": 19.22,
+        "scale": 1.23,
+        "flip": true
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 6.4,
+        "y": -2.2,
+        "alpha": 0.31,
+        "flip": false
+      },
+      {
+        "sprite": "beam_b",
+        "x": 19.2,
+        "y": -2.2,
+        "alpha": 0.26,
+        "flip": true
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 11.5,
+        "y": 1.8,
+        "alpha": 0.12,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 35,
+        "y": 1.8,
+        "alpha": 0.16,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 55.5,
+        "y": 1.8,
+        "alpha": 0.17,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 0.9,
+        "alpha": 0.23,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 29.55,
+        "y": 0.5,
+        "scale": 0.95,
+        "alpha": 0.27,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 48.63,
+        "y": 0.5,
+        "scale": 1.19,
+        "alpha": 0.28,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "glow_rest",
+        "x": 55.5,
+        "y": 0.9,
+        "scale": 1.1,
+        "alpha": 0.34,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "glow_rest",
+        "x": 9.5,
+        "y": 6.9,
+        "scale": 0.4,
+        "alpha": 0.32,
+        "motion": "pulse"
+      }
+    ]
+  }
+}

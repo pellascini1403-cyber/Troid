@@ -20,16 +20,16 @@ export interface StripOptions {
 }
 
 /** Light for the layers behind the action: softer than the ground's, so they never fight the hero for contrast. */
-const BACK: Look = { ...DAY, key: [0.5, 0.74, 0.9], ambient: [0.24, 0.34, 0.46], rim: 0.55, bump: 0.8, cavity: 0.2 };
+export const BACK: Look = { ...DAY, key: [0.5, 0.74, 0.9], ambient: [0.24, 0.34, 0.46], rim: 0.55, bump: 0.8, cavity: 0.2 };
 
-const gradient = (ctx: CanvasRenderingContext2D, h: number, stops: ReadonlyArray<readonly [number, string]>): CanvasGradient => {
+export const gradient = (ctx: CanvasRenderingContext2D, h: number, stops: ReadonlyArray<readonly [number, string]>): CanvasGradient => {
   const g = ctx.createLinearGradient(0, 0, 0, h);
   for (const [at, c] of stops) g.addColorStop(at, c);
   return g;
 };
 
 /** Mist: soft horizontal bands, periodic in x, as an alpha on a colour — over a surface that already holds the picture. */
-function mist(s: Surface, seed: number, y0: number, y1: number, colour: Rgb, strength: number, ppm: number): void {
+export function mist(s: Surface, seed: number, y0: number, y1: number, colour: Rgb, strength: number, ppm: number): void {
   const img = readPixels(s);
   const cells = Math.max(2, Math.round(s.w / (ppm * 6)));
   for (let y = Math.max(0, Math.floor(y0)); y < Math.min(s.h, Math.ceil(y1)); y++) {
@@ -47,7 +47,7 @@ function mist(s: Surface, seed: number, y0: number, y1: number, colour: Rgb, str
 }
 
 /** Soft diagonal beams of cold light, periodic in x: light falling through a canopy that is not in the picture. */
-function shafts(ctx: CanvasRenderingContext2D, rng: Rng, w: number, h: number, count: number, peak: number): void {
+export function shafts(ctx: CanvasRenderingContext2D, rng: Rng, w: number, h: number, count: number, peak: number): void {
   for (let i = 0; i < count; i++) {
     const x = rng.range(0, w);
     const wid = rng.range(0.025, 0.07) * w;
@@ -149,7 +149,7 @@ export function farStrip(o: StripOptions): Surface {
 }
 
 /** Shapes → lit pixels on a transparent surface, with the layer's fog. */
-function finish(layer: SilhouetteLayer, look: Look, fog: Rgb, fogAmount: number): Surface {
+export function finish(layer: SilhouetteLayer, look: Look, fog: Rgb, fogAmount: number): Surface {
   const img = shade(layer.layers(), look, true);
   grade(img, { fog, fogAmount });
   const s = surface(layer.w, layer.h);

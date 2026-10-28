@@ -1,0 +1,189 @@
+{
+  "frames": {
+    "glow_boss_00": {
+      "frame": {
+        "x": 198,
+        "y": 545,
+        "w": 120,
+        "h": 120
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 4,
+        "y": 4,
+        "w": 120,
+        "h": 120
+      },
+      "sourceSize": {
+        "w": 128,
+        "h": 128
+      }
+    },
+    "glow_rest_00": {
+      "frame": {
+        "x": 322,
+        "y": 545,
+        "w": 120,
+        "h": 120
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 4,
+        "y": 4,
+        "w": 120,
+        "h": 120
+      },
+      "sourceSize": {
+        "w": 128,
+        "h": 128
+      }
+    },
+    "glow_zone_00": {
+      "frame": {
+        "x": 394,
+        "y": 336,
+        "w": 120,
+        "h": 120
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 4,
+        "y": 4,
+        "w": 120,
+        "h": 120
+      },
+      "sourceSize": {
+        "w": 128,
+        "h": 128
+      }
+    },
+    "mud_cap_03": {
+      "frame": {
+        "x": 2,
+        "y": 545,
+        "w": 192,
+        "h": 98
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 7,
+        "w": 192,
+        "h": 98
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 106
+      }
+    },
+    "mud_fill_05": {
+      "frame": {
+        "x": 2,
+        "y": 349,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "mud_fill_06": {
+      "frame": {
+        "x": 198,
+        "y": 349,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "mud_fill_07": {
+      "frame": {
+        "x": 394,
+        "y": 2,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "reed_clump_b_00": {
+      "frame": {
+        "x": 242,
+        "y": 2,
+        "w": 139,
+        "h": 152
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 29,
+        "y": 20,
+        "w": 139,
+        "h": 152
+      },
+      "sourceSize": {
+        "w": 173,
+        "h": 173
+      }
+    },
+    "spore_pods_a_00": {
+      "frame": {
+        "x": 242,
+        "y": 198,
+        "w": 154,
+        "h": 134
+      },
+      "sourceSize": {
+        "w": 154,
+        "h": 134
+      }
+    },
+    "spore_pods_b_00": {
+      "frame": {
+        "x": 400,
+        "y": 198,
+        "w": 154,
+        "h": 134
+      },
+      "sourceSize": {
+        "w": 154,
+        "h": 134
+      }
+    },
+    "stilt_pile_b_00": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 236,
+        "h": 343
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 50,
+        "y": 22,
+        "w": 236,
+        "h": 343
+      },
+      "sourceSize": {
+        "w": 326,
+        "h": 365
+      }
+    }
+  },
+  "meta": {
+    "app": "troid-assets",
+    "version": "1",
+    "image": "zone-mire_1.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 588,
+      "h": 668
+    },
+    "scale": "1"
+  }
+}

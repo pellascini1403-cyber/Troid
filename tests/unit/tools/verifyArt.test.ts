@@ -326,7 +326,8 @@ describe('environment art', () => {
 
   it('a sprite that does not say what it draws fails the build, naming the pack and the sprite', () => {
     build(scenery());
-    manifest((m) => void (m['sprites'][3].tags = []));
+    // the body of the door of a gate: the piece whose loss the last line names (found by what it says, not by its place in the list — which is the order of what the world asks for)
+    manifest((m) => void (m['sprites'].find((x: { tags: string[] }) => x.tags.includes('role:door') && x.tags.includes('material:gate') && x.tags.includes('part:body')).tags = []));
     const v = verifyArtFolder(out);
     expect(v.ok).toBe(false);
     expect(errors(v).filter((e) => /^forest sprites\.[a-z_]+: says nothing of what it draws/.test(e))).toHaveLength(1);

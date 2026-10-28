@@ -59,15 +59,6 @@
         "scale": 1.12,
         "flip": true
       }
-    ],
-    "propsBack": [
-      {
-        "sprite": "column_broken_a",
-        "x": 21.4,
-        "y": 2,
-        "scale": 1.08,
-        "flip": false
-      }
     ]
   }
 }

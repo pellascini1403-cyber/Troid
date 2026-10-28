@@ -23,57 +23,6 @@
         "y": 1,
         "w": 23,
         "h": 1
-      },
-      {
-        "sprite": "rubble_b",
-        "x": 22.67,
-        "y": 2,
-        "scale": 1.14,
-        "flip": true
-      },
-      {
-        "sprite": "rubble_c",
-        "x": 26.11,
-        "y": 2,
-        "scale": 1.09,
-        "flip": true
-      },
-      {
-        "sprite": "rubble_b",
-        "x": 36.41,
-        "y": 2,
-        "scale": 1.04,
-        "flip": true
-      },
-      {
-        "sprite": "rubble_a",
-        "x": 43.38,
-        "y": 2,
-        "scale": 0.86,
-        "flip": true
-      },
-      {
-        "sprite": "rubble_c",
-        "x": 47.24,
-        "y": 2,
-        "scale": 0.92,
-        "flip": true
-      },
-      {
-        "sprite": "rubble_b",
-        "x": 51.29,
-        "y": 2,
-        "scale": 1.19,
-        "flip": true
-      }
-    ],
-    "propsBack": [
-      {
-        "sprite": "column_broken_b",
-        "x": 40.92,
-        "y": 2,
-        "scale": 1.04,
-        "flip": true
       }
     ]
   }

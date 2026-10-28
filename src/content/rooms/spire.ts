@@ -13,6 +13,8 @@ import { lever, teach } from './kit';
  *                │   └─ sp_loft (Piercing Ink, under the cracked island of the bridge) ────────┘
  */
 const REGION = 'bell_spire';
+/** What the squares of the canvas are made of here (the dressed stone of the spire, its flagstones and its beams): a material is a piece of art (docs/PROMPT23-LOG.md §5). */
+const MATERIALS = { '#': 'masonry', G: 'flagstone', '-': 'beam' } as const;
 
 // ---------------------------------------------------------------------------------------------------------------- the Foot
 /**
@@ -26,7 +28,7 @@ export function foot(): RoomDefinition {
   c.rock(23, 5, 24, 30).rock(28, 2, 39, 30);
   c.mark('a', 5, 2).mark('s', 6, 7).mark('e', 34, 30).mark('x', 21, 2).mark('p', 6, 32).mark('q', 26, 32);
   return mapRoom(
-    { id: 'sp_foot', regionId: REGION, name: 'Foot of the Spire', nameKey: 'room.sp_foot.name', art: { backdrop: 'ruins', seed: 38 }, rows: c.rows(), regions: { D: { id: 'home_door', material: 'gate' } } },
+    { id: 'sp_foot', regionId: REGION, name: 'Foot of the Spire', nameKey: 'room.sp_foot.name', art: { backdrop: 'spire', seed: 38 }, rows: c.rows(), materials: MATERIALS, regions: { D: { id: 'home_door', material: 'gate' } } },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'e', -1), m.entry('shortcut', 's', 1)],
       spawns: [m.spawn('toller_1', 'bell_toller', 'x', { facing: 1 }), m.spawn('bat_1', 'cave_bat', 'p', { facing: 1 }), m.spawn('bat_2', 'cave_bat', 'q')],
@@ -52,7 +54,7 @@ export function gallery(): RoomDefinition {
   c.plat(10, 18, 6).plat(26, 34, 6).plat(42, 50, 6).plat(52, 60, 6);
   c.mark('a', 5, 2).mark('b', 70, 2).mark('x', 21, 2).mark('y', 30, 6).mark('z', 47, 2).mark('w', 53, 6).mark('p', 20, 18).mark('q', 48, 18);
   return mapRoom(
-    { id: 'sp_gallery', regionId: REGION, name: 'Gallery of Bells', nameKey: 'room.sp_gallery.name', art: { backdrop: 'ruins', seed: 39 }, rows: c.rows() },
+    { id: 'sp_gallery', regionId: REGION, name: 'Gallery of Bells', nameKey: 'room.sp_gallery.name', art: { backdrop: 'spire', seed: 39 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       spawns: [m.spawn('toller_1', 'bell_toller', 'x', { facing: 1 }), m.spawn('toller_2', 'bell_toller', 'y', { facing: 1 }), m.spawn('toller_3', 'bell_toller', 'z'), m.spawn('toller_4', 'bell_toller', 'w'), m.spawn('bat_1', 'cave_bat', 'p', { facing: 1 }), m.spawn('bat_2', 'cave_bat', 'q')],
@@ -84,7 +86,7 @@ export function stair(): RoomDefinition {
   });
   c.mark('a', 4, 2).mark('e', 5, 44).mark('x', 20, 2).mark('p', 14, 12).mark('q', 8, 24).mark('r', 14, 30).mark('t', 15, 38);
   return mapRoom(
-    { id: 'sp_stair', regionId: REGION, name: 'Spiral Stair', nameKey: 'room.sp_stair.name', art: { backdrop: 'ruins', seed: 40 }, rows: c.rows() },
+    { id: 'sp_stair', regionId: REGION, name: 'Spiral Stair', nameKey: 'room.sp_stair.name', art: { backdrop: 'spire', seed: 40 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('bottom', 'a', 1), m.entry('top', 'e', 1)],
       spawns: [m.spawn('toller_1', 'bell_toller', 'x', { facing: 1 }), m.spawn('wisp_1', 'lantern_wisp', 'p'), m.spawn('bat_1', 'cave_bat', 'q'), m.spawn('wisp_2', 'lantern_wisp', 'r'), m.spawn('toller_2', 'bell_toller', 't', { facing: 1 })],
@@ -103,7 +105,7 @@ export function sacristy(): RoomDefinition {
   c.spikes(9, 12, 2); // the nails of the pews
   c.mark('a', 5, 2).mark('b', 30, 2).mark('q', 19, 4).mark('r', 21, 4);
   return mapRoom(
-    { id: 'sp_shrine', regionId: REGION, name: 'Sacristy', nameKey: 'room.sp_shrine.name', art: { backdrop: 'ruins', seed: 41 }, rows: c.rows() },
+    { id: 'sp_shrine', regionId: REGION, name: 'Sacristy', nameKey: 'room.sp_shrine.name', art: { backdrop: 'spire', seed: 41 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('rest', 'q', 1)],
       exits: [m.exitSide('west', 'west', 'a', { room: 'sp_stair', entry: 'top' }), m.exitSide('east', 'east', 'b', { room: 'sp_chimney', entry: 'west' })],
@@ -123,7 +125,7 @@ export function chimney(): RoomDefinition {
   c.rock(4, 12, 6, 13).spikes(4, 6, 13).rock(4, 20, 6, 21).spikes(4, 6, 21).rock(4, 28, 6, 29).spikes(4, 6, 29);
   c.mark('a', 4, 2).mark('e', 9, 34).mark('p', 3, 24);
   return mapRoom(
-    { id: 'sp_chimney', regionId: REGION, name: 'Bronze Chimney', nameKey: 'room.sp_chimney.name', art: { backdrop: 'ruins', seed: 42 }, rows: c.rows() },
+    { id: 'sp_chimney', regionId: REGION, name: 'Bronze Chimney', nameKey: 'room.sp_chimney.name', art: { backdrop: 'spire', seed: 42 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'e', -1)],
       spawns: [m.spawn('wisp_1', 'lantern_wisp', 'p')],
@@ -148,7 +150,7 @@ export function belfry(): RoomDefinition {
   c.rock(36, 5, 37, 20).rock(40, 5, 47, 20); // the chimney of the second lever: a wall, a block hanging over the floor, and a passage under it
   c.mark('a', 5, 2).mark('b', 51, 2).mark('l', 19, 6).mark('m', 43, 20).mark('x', 24, 2).mark('y', 33, 14).mark('p', 33, 28).mark('q', 44, 28);
   return mapRoom(
-    { id: 'sp_belfry', regionId: REGION, name: 'Belfry', nameKey: 'room.sp_belfry.name', art: { backdrop: 'ruins', seed: 43 }, rows: c.rows(), regions: { D: { id: 'bell_door_1', material: 'gate' }, E: { id: 'bell_door_2', material: 'gate' } } },
+    { id: 'sp_belfry', regionId: REGION, name: 'Belfry', nameKey: 'room.sp_belfry.name', art: { backdrop: 'spire', seed: 43 }, rows: c.rows(), materials: MATERIALS, regions: { D: { id: 'bell_door_1', material: 'gate' }, E: { id: 'bell_door_2', material: 'gate' } } },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       spawns: [m.spawn('toller_1', 'bell_toller', 'x', { facing: 1 }), m.spawn('wisp_1', 'lantern_wisp', 'y'), m.spawn('bat_1', 'cave_bat', 'p', { facing: 1 }), m.spawn('bat_2', 'cave_bat', 'q')],
@@ -172,7 +174,7 @@ export function bridge(): RoomDefinition {
   c.plat(32, 36, 7); // a step from the island back up to the road
   c.mark('a', 5, 10).mark('b', 73, 10).mark('u', 40, 9).mark('k', 38, 5).mark('x', 22, 10).mark('y', 22, 16).mark('z', 48, 17).mark('p', 14, 24).mark('q', 58, 24);
   return mapRoom(
-    { id: 'sp_bridge', regionId: REGION, name: 'Windy Bridge', nameKey: 'room.sp_bridge.name', art: { backdrop: 'ruins', seed: 44 }, rows: c.rows(), regions: { F: { id: 'crack_floor', material: 'stone', tag: 'crack' } } },
+    { id: 'sp_bridge', regionId: REGION, name: 'Windy Bridge', nameKey: 'room.sp_bridge.name', art: { backdrop: 'spire', seed: 44 }, rows: c.rows(), materials: MATERIALS, regions: { F: { id: 'crack_floor', material: 'stone', tag: 'crack' } } },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('loft', 'u', 1)],
       spawns: [m.spawn('toller_1', 'bell_toller', 'x'), m.spawn('wisp_1', 'lantern_wisp', 'y'), m.spawn('wisp_2', 'lantern_wisp', 'z'), m.spawn('bat_1', 'cave_bat', 'p', { facing: 1 }), m.spawn('bat_2', 'cave_bat', 'q')],
@@ -198,7 +200,7 @@ export function approach(): RoomDefinition {
   c.rock(30, 2, 32, 4).rock(34, 2, 36, 3);
   c.mark('a', 5, 2).mark('b', 46, 2).mark('s', 6, 7).mark('l', 9, 7).mark('x', 22, 2).mark('y', 25, 2).mark('p', 28, 20).mark('q', 41, 2).mark('r', 43, 2);
   return mapRoom(
-    { id: 'sp_approach', regionId: REGION, name: 'Antechamber', nameKey: 'room.sp_approach.name', art: { backdrop: 'ruins', seed: 45 }, rows: c.rows() },
+    { id: 'sp_approach', regionId: REGION, name: 'Antechamber', nameKey: 'room.sp_approach.name', art: { backdrop: 'spire', seed: 45 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('rest', 'q', 1), m.entry('shortcut', 's', 1)],
       spawns: [m.spawn('toller_1', 'bell_toller', 'x', { facing: 1 }), m.spawn('toller_2', 'bell_toller', 'y'), m.spawn('bat_1', 'cave_bat', 'p')],
@@ -222,7 +224,7 @@ export function summit(): RoomDefinition {
   c.region('A', 8, 2, 9, 35).region('B', 65, 2, 66, 35); // doors to the roof
   c.mark('a', 4, 2).mark('b', 67, 2).mark('l', 11, 2).mark('r', 64, 2).mark('k', 56, 2).mark('v', 60, 2);
   return mapRoom(
-    { id: 'sp_arena', regionId: REGION, name: 'Summit of the Spire', nameKey: 'room.sp_arena.name', art: { backdrop: 'ruins', seed: 46 }, rows: c.rows(), regions: { A: { id: 'door_w', material: 'gate' }, B: { id: 'door_e', material: 'gate' } } },
+    { id: 'sp_arena', regionId: REGION, name: 'Summit of the Spire', nameKey: 'room.sp_arena.name', art: { backdrop: 'spire', seed: 46 }, rows: c.rows(), materials: MATERIALS, regions: { A: { id: 'door_w', material: 'gate' }, B: { id: 'door_e', material: 'gate' } } },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       gates: [
@@ -250,7 +252,7 @@ export function loft(): RoomDefinition {
   c.rock(3, 2, 7, 4); // the pedestal
   c.mark('n', 31, 13).mark('v', 5, 4).mark('x', 12, 2).mark('y', 17, 2);
   return mapRoom(
-    { id: 'sp_loft', regionId: REGION, name: 'Loft', nameKey: 'room.sp_loft.name', art: { backdrop: 'ruins', seed: 47 }, rows: c.rows() },
+    { id: 'sp_loft', regionId: REGION, name: 'Loft', nameKey: 'room.sp_loft.name', art: { backdrop: 'spire', seed: 47 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('north', 'n', -1)],
       spawns: [m.spawn('toller_1', 'bell_toller', 'x', { facing: 1 }), m.spawn('toller_2', 'bell_toller', 'y')],

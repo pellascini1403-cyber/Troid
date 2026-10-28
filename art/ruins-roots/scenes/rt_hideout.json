@@ -1,0 +1,31 @@
+{
+  "sceneVersion": 1,
+  "room": "rt_hideout",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "root_crawl_c",
+        "x": 1.85,
+        "y": 2,
+        "scale": 1,
+        "flip": true
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "fore_roots_b",
+        "x": 7.59,
+        "y": 15.45,
+        "scale": 1.44,
+        "flip": false
+      },
+      {
+        "sprite": "fore_roots_c",
+        "x": 31.15,
+        "y": 16.28,
+        "scale": 1.26,
+        "flip": true
+      }
+    ]
+  }
+}

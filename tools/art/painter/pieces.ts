@@ -1,9 +1,13 @@
 import { surface, writePixels, type Surface } from './canvas';
 import { farStrip, midStrip, nearStrip } from './backdrop';
+import { ZONE_IDS, zoneFar, zoneMid, zoneNear, type ZoneId } from './zones';
+import { zoneHanging, zoneProp } from './zoneProps';
+import { crackedDoor, lever, spikeStrip, type SpikeKind } from './mechanisms';
 import { hex } from './color';
 import { cap, earth } from './ground';
 import { DAY, shade, type Layers } from './light';
 import { MOSS, STONE, stone } from './masonry';
+import { skin, withSkin } from './skins';
 import { door, edge, lit, platform } from './props';
 import { columnProp, crystals, effigy, ferns, foreLeaves, grass, hangingRoots, mushrooms, rubble, ruinedArch, runeStone } from './flora';
 import { beam, glow, mistBank, motes, shaft, veil } from './lights';
@@ -23,52 +27,58 @@ export type PieceMaker = (params: Record<string, unknown>) => Promise<Surface>;
 const num = (p: Record<string, unknown>, k: string, d: number): number => (typeof p[k] === 'number' ? (p[k] as number) : d);
 const str = <T extends string>(p: Record<string, unknown>, k: string, allowed: readonly T[], d: T): T => (typeof p[k] === 'string' && (allowed as readonly string[]).includes(p[k] as string) ? (p[k] as T) : d);
 
-/** Stone as a periodic super-tile of `cols` × `rows` cells of 2 m. */
-const stoneGrid: PieceMaker = async (p) => {
-  const ppm = num(p, 'ppm', 96);
-  const w = Math.round(2 * ppm * num(p, 'cols', 4));
-  const h = Math.round(2 * ppm * num(p, 'rows', 2));
-  const cyclopean = p['style'] === 'cyclopean';
-  const layers = stone({
-    w, h, ppm, seed: num(p, 'seed', 1),
-    style: cyclopean ? 'cyclopean' : 'courses',
-    courseM: cyclopean ? [0.95, 0.95] : [0.5, 1.0], blockM: [0.6, 1.9], jointM: 0.06,
-    moss: num(p, 'moss', 0.7), cracks: 0.6, stains: 0.8, energy: num(p, 'energy', 0.6),
-    stone: STONE, mossRamp: MOSS, tone: 0.34, toneSpread: 0.09,
+/** Stone as a periodic super-tile of `cols` × `rows` cells of 2 m. A piece names a `skin` when the ground it dresses is not the ruins'. */
+const stoneGrid: PieceMaker = async (p) =>
+  withSkin(p['skin'], () => {
+    const S = skin();
+    const ppm = num(p, 'ppm', 96);
+    const w = Math.round(2 * ppm * num(p, 'cols', 4));
+    const h = Math.round(2 * ppm * num(p, 'rows', 2));
+    const cyclopean = p['style'] === 'cyclopean';
+    const layers = stone({
+      w, h, ppm, seed: num(p, 'seed', 1),
+      style: cyclopean ? 'cyclopean' : 'courses',
+      courseM: cyclopean ? [0.95, 0.95] : [0.5, 1.0], blockM: [0.6, 1.9], jointM: 0.06,
+      moss: num(p, 'moss', 0.7), cracks: num(p, 'cracks', 0.6), stains: num(p, 'stains', 0.8), energy: num(p, 'energy', 0.6), energyRgb: S.energyRgb,
+      stone: S.stone, mossRamp: S.moss, tone: num(p, 'tone', 0.34), toneSpread: 0.09,
+    });
+    return lit(layers, true, S.look);
   });
-  return lit(layers, true);
-};
 
 /** Soil as a periodic super-tile. */
-const earthGrid: PieceMaker = async (p) => {
-  const ppm = num(p, 'ppm', 96);
-  return lit(earth({ w: Math.round(2 * ppm * num(p, 'cols', 4)), h: Math.round(2 * ppm * num(p, 'rows', 2)), ppm, seed: num(p, 'seed', 3) }), true);
-};
+const earthGrid: PieceMaker = async (p) =>
+  withSkin(p['skin'], () => {
+    const ppm = num(p, 'ppm', 96);
+    return lit(earth({ w: Math.round(2 * ppm * num(p, 'cols', 4)), h: Math.round(2 * ppm * num(p, 'rows', 2)), ppm, seed: num(p, 'seed', 3) }), true, skin().look);
+  });
 
 /** The top edge of the ground: turf or a dressed slab, 8 m before it repeats. */
-const capStrip: PieceMaker = async (p) => {
-  const ppm = num(p, 'ppm', 96);
-  const style = str(p, 'style', ['turf', 'stone'] as const, 'turf');
-  const rise = Math.round(ppm * (style === 'turf' ? 0.34 : 0.12));
-  return lit(cap({ w: Math.round(2 * ppm * num(p, 'cols', 4)), h: Math.round(ppm * (style === 'turf' ? 1.1 : 0.8)), ppm, seed: num(p, 'seed', 5), rise, style }), true);
-};
+const capStrip: PieceMaker = async (p) =>
+  withSkin(p['skin'], () => {
+    const ppm = num(p, 'ppm', 96);
+    const style = str(p, 'style', ['turf', 'stone'] as const, 'turf');
+    const rise = Math.round(ppm * (style === 'turf' ? 0.34 : 0.12));
+    return lit(cap({ w: Math.round(2 * ppm * num(p, 'cols', 4)), h: Math.round(ppm * (style === 'turf' ? 1.1 : 0.8)), ppm, seed: num(p, 'seed', 5), rise, style }), true, skin().look);
+  });
 
 /** The side of a block: `rows` cells of 2 m down, 0.4 m wide, `reach` of it outside the edge. */
-const edgeStrip: PieceMaker = async (p) => {
-  const ppm = num(p, 'ppm', 96);
-  const style = str(p, 'style', ['stone', 'earth'] as const, 'stone');
-  return lit(edge({ w: Math.round(ppm * 0.42), h: Math.round(2 * ppm * num(p, 'rows', 2)), ppm, seed: num(p, 'seed', 9), reach: Math.round(ppm * 0.12), style }), true);
-};
+const edgeStrip: PieceMaker = async (p) =>
+  withSkin(p['skin'], () => {
+    const ppm = num(p, 'ppm', 96);
+    const style = str(p, 'style', ['stone', 'earth'] as const, 'stone');
+    return lit(edge({ w: Math.round(ppm * 0.42), h: Math.round(2 * ppm * num(p, 'rows', 2)), ppm, seed: num(p, 'seed', 9), reach: Math.round(ppm * 0.12), style }), true, skin().look);
+  });
 
 /** A timber platform: the body repeats along x (8 m before it does), the end is one piece. */
-const platformPiece: PieceMaker = async (p) => {
-  const ppm = num(p, 'ppm', 96);
-  const kind = str(p, 'kind', ['body', 'end'] as const, 'body');
-  const rise = Math.round(ppm * 0.1);
-  const body = Math.round(ppm * 0.3);
-  const w = kind === 'body' ? Math.round(2 * ppm * num(p, 'cols', 4)) : Math.round(ppm * 0.4);
-  return lit(platform({ w, h: rise + body + Math.round(ppm * 0.26), ppm, seed: num(p, 'seed', 11), rise, body, kind }), kind === 'body');
-};
+const platformPiece: PieceMaker = async (p) =>
+  withSkin(p['skin'], () => {
+    const ppm = num(p, 'ppm', 96);
+    const kind = str(p, 'kind', ['body', 'end'] as const, 'body');
+    const rise = Math.round(ppm * 0.1);
+    const body = Math.round(ppm * 0.3);
+    const w = kind === 'body' ? Math.round(2 * ppm * num(p, 'cols', 4)) : Math.round(ppm * 0.4);
+    return lit(platform({ w, h: rise + body + Math.round(ppm * 0.26), ppm, seed: num(p, 'seed', 11), rise, body, kind }), kind === 'body', skin().look);
+  });
 
 /** The door of a gate, by part. */
 const doorPiece: PieceMaker = async (p) => {
@@ -101,6 +111,11 @@ const sealDoorPiece: PieceMaker = async (p) => {
 };
 
 const strip = (make: typeof farStrip, defaults: { w: number; h: number; ppm: number }): PieceMaker => async (p) => make({ w: num(p, 'w', defaults.w), h: num(p, 'h', defaults.h), ppm: num(p, 'ppm', defaults.ppm), seed: num(p, 'seed', 21) });
+
+const zoneStrip = (make: typeof zoneFar, defaults: { w: number; h: number; ppm: number }): PieceMaker => async (p) => {
+  const zone = str(p, 'zone', ZONE_IDS as readonly ZoneId[], 'roots');
+  return make({ w: num(p, 'w', defaults.w), h: num(p, 'h', defaults.h), ppm: num(p, 'ppm', defaults.ppm), seed: num(p, 'seed', 21), zone });
+};
 
 /** A prop: its size in metres and a seed; the painter makes the picture at the pack's density. */
 const prop = (make: (o: { w: number; h: number; ppm: number; seed: number }) => Surface, wM: number, hM: number): PieceMaker => async (p) => {
@@ -270,6 +285,34 @@ export const PIECES: Record<string, PieceMaker> = {
   farStrip: strip(farStrip, { w: 1200, h: 340, ppm: 20 }),
   midStrip: strip(midStrip, { w: 1536, h: 448, ppm: 25.6 }),
   nearStrip: strip(nearStrip, { w: 1536, h: 691, ppm: 38.4 }),
+  /** The strips of a zone past the Ruins (`zone`: which), at the size the rooms of the zone ask for (`h` is a decision of the pack). */
+  zoneFar: zoneStrip(zoneFar, { w: 1200, h: 340, ppm: 20 }),
+  zoneMid: zoneStrip(zoneMid, { w: 1536, h: 448, ppm: 25.6 }),
+  zoneNear: zoneStrip(zoneNear, { w: 1536, h: 691, ppm: 38.4 }),
+  /** A prop of a zone that stands on the ground (`kind`: which; its size in metres) and one that hangs in front of the camera. */
+  zoneProp: async (p) => {
+    const ppm = num(p, 'ppm', 96);
+    return zoneProp({ w: Math.round(num(p, 'wM', 2) * ppm), h: Math.round(num(p, 'hM', 3) * ppm), ppm, seed: num(p, 'seed', 5), zone: str(p, 'zone', ZONE_IDS as readonly ZoneId[], 'roots'), kind: typeof p['kind'] === 'string' ? p['kind'] : '' });
+  },
+  /** The wall of split stone: a column 1.5 m wide of stone that glows from its cracks. */
+  crackedDoor: async (p) => {
+    const ppm = num(p, 'ppm', 96);
+    return crackedDoor({ w: Math.round(1.5 * ppm), h: Math.round(3 * ppm), ppm, seed: num(p, 'seed', 5) });
+  },
+  /** The lever of a shortcut: two frames of 1.1 × 1.4 m (at rest, lit). */
+  lever: async (p) => {
+    const ppm = num(p, 'ppm', 96);
+    return lever({ w: Math.round(1.1 * ppm) * 2, h: Math.round(1.4 * ppm), ppm, seed: num(p, 'seed', 5) });
+  },
+  /** A ditch of spikes where it is not forest: `cols` cells of half a metre. */
+  spikeStrip: async (p) => {
+    const ppm = num(p, 'ppm', 96);
+    return spikeStrip({ w: Math.round(ppm * 0.5 * num(p, 'cols', 4)), h: Math.round(ppm * 0.75), ppm, seed: num(p, 'seed', 5), kind: str(p, 'kind', ['crystal', 'iron', 'ink'] as readonly SpikeKind[], 'iron') });
+  },
+  zoneHanging: async (p) => {
+    const ppm = num(p, 'ppm', 48);
+    return zoneHanging({ w: Math.round(num(p, 'wM', 5) * ppm), h: Math.round(num(p, 'hM', 3.4) * ppm), ppm, seed: num(p, 'seed', 5), zone: str(p, 'zone', ZONE_IDS as readonly ZoneId[], 'roots'), kind: typeof p['kind'] === 'string' ? p['kind'] : '' });
+  },
 };
 
 export type { Layers };

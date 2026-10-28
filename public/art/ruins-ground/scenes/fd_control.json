@@ -23,41 +23,6 @@
         "y": 1,
         "w": 17,
         "h": 1
-      },
-      {
-        "sprite": "rubble_a",
-        "x": 36.62,
-        "y": 3,
-        "scale": 1.25,
-        "flip": false
-      },
-      {
-        "sprite": "rubble_b",
-        "x": 16.37,
-        "y": 2,
-        "scale": 1.2,
-        "flip": false
-      },
-      {
-        "sprite": "rubble_a",
-        "x": 26.98,
-        "y": 2,
-        "scale": 1.07,
-        "flip": true
-      },
-      {
-        "sprite": "rubble_b",
-        "x": 34.84,
-        "y": 2,
-        "scale": 1.14,
-        "flip": true
-      },
-      {
-        "sprite": "rubble_b",
-        "x": 40.95,
-        "y": 2,
-        "scale": 0.87,
-        "flip": true
       }
     ]
   }

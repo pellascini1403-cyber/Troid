@@ -1,0 +1,52 @@
+{
+  "sceneVersion": 1,
+  "room": "rt_hollow",
+  "layers": {
+    "foreground": [
+      {
+        "sprite": "tendrils_a",
+        "x": 9.62,
+        "y": 46.78,
+        "scale": 1.41,
+        "flip": false
+      },
+      {
+        "sprite": "tendrils_b",
+        "x": 23.47,
+        "y": 47.78,
+        "scale": 1.26,
+        "flip": true
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 5.6,
+        "y": -2.2,
+        "alpha": 0.28,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 14,
+        "y": 1.8,
+        "alpha": 0.18,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 1.02,
+        "alpha": 0.2,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      }
+    ]
+  }
+}

@@ -1,0 +1,129 @@
+{
+  "sceneVersion": 1,
+  "room": "mr_toadpit",
+  "layers": {
+    "propsBack": [
+      {
+        "sprite": "giant_mushroom_b",
+        "x": 16.29,
+        "y": 2,
+        "scale": 1.04,
+        "flip": true
+      },
+      {
+        "sprite": "dead_tree_a",
+        "x": 27.81,
+        "y": 2,
+        "scale": 1.07,
+        "flip": false
+      }
+    ],
+    "terrain": [
+      {
+        "sprite": "reed_clump_a",
+        "x": 18.91,
+        "y": 2,
+        "scale": 0.97,
+        "flip": true
+      },
+      {
+        "sprite": "reed_clump_b",
+        "x": 25.45,
+        "y": 2,
+        "scale": 0.98,
+        "flip": true
+      },
+      {
+        "sprite": "reed_clump_b",
+        "x": 7.42,
+        "y": 2,
+        "scale": 0.9,
+        "flip": true
+      },
+      {
+        "sprite": "spore_pods_b",
+        "x": 14.62,
+        "y": 2,
+        "scale": 1.12,
+        "flip": false
+      },
+      {
+        "sprite": "reed_clump_b",
+        "x": 20.27,
+        "y": 2,
+        "scale": 0.88,
+        "flip": true
+      },
+      {
+        "sprite": "spore_pods_a",
+        "x": 25.71,
+        "y": 2,
+        "scale": 0.89,
+        "flip": true
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "moss_curtain_a",
+        "x": 11.17,
+        "y": 30.75,
+        "scale": 1.4,
+        "flip": true
+      },
+      {
+        "sprite": "moss_curtain_b",
+        "x": 25.43,
+        "y": 31.89,
+        "scale": 1.12,
+        "flip": true
+      },
+      {
+        "sprite": "moss_curtain_a",
+        "x": 41.37,
+        "y": 31.93,
+        "scale": 1.09,
+        "flip": false
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 8.8,
+        "y": -2.2,
+        "alpha": 0.36,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 22,
+        "y": 1.8,
+        "alpha": 0.14,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 0.85,
+        "alpha": 0.33,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 29.73,
+        "y": 0.5,
+        "scale": 0.87,
+        "alpha": 0.23,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      }
+    ]
+  }
+}

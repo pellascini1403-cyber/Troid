@@ -120,22 +120,6 @@
         "y": 8,
         "scale": 0.9
       }
-    ],
-    "propsBack": [
-      {
-        "sprite": "column_broken_a",
-        "x": 36.68,
-        "y": 6,
-        "scale": 1.08,
-        "flip": false
-      },
-      {
-        "sprite": "column_broken_a",
-        "x": 19.7,
-        "y": 2,
-        "scale": 1.12,
-        "flip": false
-      }
     ]
   }
 }

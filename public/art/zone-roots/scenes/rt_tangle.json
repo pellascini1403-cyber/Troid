@@ -1,0 +1,110 @@
+{
+  "sceneVersion": 1,
+  "room": "rt_tangle",
+  "layers": {
+    "propsBack": [
+      {
+        "sprite": "root_knot_a",
+        "x": 18.27,
+        "y": 2,
+        "scale": 1.07,
+        "flip": false
+      },
+      {
+        "sprite": "trunk_stub_a",
+        "x": 49.62,
+        "y": 2,
+        "scale": 1.11,
+        "flip": false
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "tendrils_a",
+        "x": 9.01,
+        "y": 16.06,
+        "scale": 1.33,
+        "flip": false
+      },
+      {
+        "sprite": "tendrils_b",
+        "x": 25.73,
+        "y": 16.63,
+        "scale": 1.22,
+        "flip": true
+      },
+      {
+        "sprite": "tendrils_b",
+        "x": 55.1,
+        "y": 16.69,
+        "scale": 1.08,
+        "flip": false
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 6.6,
+        "y": -2.2,
+        "alpha": 0.35,
+        "flip": false
+      },
+      {
+        "sprite": "beam_b",
+        "x": 19.8,
+        "y": -2.2,
+        "alpha": 0.3,
+        "flip": true
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 33,
+        "y": 1.8,
+        "alpha": 0.2,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 1,
+        "alpha": 0.21,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 32.28,
+        "y": 0.5,
+        "scale": 0.98,
+        "alpha": 0.34,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 53.44,
+        "y": 0.5,
+        "scale": 0.94,
+        "alpha": 0.21,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "glow_zone",
+        "x": 59.5,
+        "y": 9.3,
+        "scale": 0.7,
+        "alpha": 0.4,
+        "motion": "pulse"
+      }
+    ]
+  }
+}

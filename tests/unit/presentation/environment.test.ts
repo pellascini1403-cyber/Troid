@@ -116,13 +116,15 @@ describe('what the world asks of the art, read from the rooms\' data', () => {
   const find = (role: string, subject: string | null, part: string): EnvSlot | undefined => slots.find((s) => s.role === role && s.subject === subject && s.part === part);
   const required = slots.filter((s) => s.required).map((s) => slotKey(s.role, s.subject, s.part));
 
-  it('the sixteen pieces without which the 64 rooms are not dressed — and no more (a pickup is asked for by what it gives: a bottle, a card, a rune; a split stone is a door of stone; a lever is the one new thing to touch)', () => {
-    expect(required.sort()).toEqual(
-      [
-        'solid:stone:fill', 'solid:earth:fill', 'platform:wood:body', 'door:gate:body', 'door:seal:body', 'door:stone:body', 'hazard:spikes:cell',
-        'backdrop:ruins:far', 'backdrop:ruins:mid', 'backdrop:ruins:near', 'interactive:pickup:bottle', 'interactive:pickup:card', 'interactive:pickup:rune', 'interactive:rest:', 'interactive:activate:', 'seal::',
-      ].sort(),
-    );
+  it('the forty-seven pieces without which the 64 rooms are not dressed — and no more: the sixteen the ruins asked for, the three strips of each of the six zones after them (a backdrop is the zone\'s own) and the thirteen materials of the ground those zones are built of (a pickup is asked for by what it gives: a bottle, a card, a rune; a split stone is a door of stone; a lever is the one new thing to touch)', () => {
+    const ruins = [
+      'solid:stone:fill', 'solid:earth:fill', 'platform:wood:body', 'door:gate:body', 'door:seal:body', 'door:stone:body', 'hazard:spikes:cell',
+      'backdrop:ruins:far', 'backdrop:ruins:mid', 'backdrop:ruins:near', 'interactive:pickup:bottle', 'interactive:pickup:card', 'interactive:pickup:rune', 'interactive:rest:', 'interactive:activate:', 'seal::',
+    ];
+    const zones = ['roots', 'mire', 'mines', 'spire', 'foundry', 'heart'].flatMap((z) => ['far', 'mid', 'near'].map((p) => `backdrop:${z}:${p}`));
+    // what the ground of a zone is made of: the mire has mud for earth; the others a stone, an earth and a platform of their own
+    const ground = ['solid:mud:fill', 'solid:rock:fill', 'solid:gravel:fill', 'platform:timber:body', 'solid:masonry:fill', 'solid:flagstone:fill', 'platform:beam:body', 'solid:iron:fill', 'solid:slag:fill', 'platform:grate:body', 'solid:ink:fill', 'solid:inksoil:fill', 'platform:bone:body'];
+    expect(required.sort()).toEqual([...ruins, ...zones, ...ground].sort());
   });
 
   it('the optional pieces: the cap and the edges of the ground, the ends of a platform, the top and bottom of a door, the foreground and the light of the exits', () => {
@@ -278,7 +280,7 @@ describe('environmentPackIssues: does a pack say what it draws, the way the cont
     const final = environmentPackIssues(pack(only, 'final'), slots);
     const provisional = environmentPackIssues(pack(only, 'provisional'), slots);
     expect(final.length).toBe(provisional.length);
-    expect(final.length).toBe(15); // the sixteen required, less the one it has
+    expect(final.length).toBe(46); // the forty-seven required, less the one it has
     expect(final.every((i) => i.level === 'error')).toBe(true);
     expect(provisional.every((i) => i.level === 'warn')).toBe(true);
     expect(final.some((i) => /the world asks for the "cell" of hazard "spikes" \(r2_hall, ru_cistern[^)]*\) and the pack does not have it$/.test(i.message))).toBe(true);

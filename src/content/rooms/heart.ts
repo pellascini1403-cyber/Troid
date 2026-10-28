@@ -12,6 +12,8 @@ import { lever } from './kit';
  *                │   └──────────────────────────────────────────────────────────────┘
  */
 const REGION = 'ink_heart';
+/** What the squares of the canvas are made of here (the stone of the ink, its soil and the bone it grows on): a material is a piece of art (docs/PROMPT23-LOG.md §5). */
+const MATERIALS = { '#': 'ink', G: 'inksoil', '-': 'bone' } as const;
 
 // ---------------------------------------------------------------------------------------------------------------- the Threshold
 /**
@@ -24,7 +26,7 @@ export function threshold(): RoomDefinition {
   c.rock(20, 2, 22, 4).rock(34, 2, 36, 4);
   c.mark('a', 5, 2).mark('b', 50, 2).mark('s', 6, 7).mark('x', 27, 2).mark('y', 38, 2);
   return mapRoom(
-    { id: 'ih_threshold', regionId: REGION, name: 'Threshold', nameKey: 'room.ih_threshold.name', art: { backdrop: 'ruins', seed: 58 }, rows: c.rows(), regions: { D: { id: 'home_door', material: 'gate' } } },
+    { id: 'ih_threshold', regionId: REGION, name: 'Threshold', nameKey: 'room.ih_threshold.name', art: { backdrop: 'heart', seed: 58 }, rows: c.rows(), materials: MATERIALS, regions: { D: { id: 'home_door', material: 'gate' } } },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('shortcut', 's', 1)],
       spawns: [m.spawn('shade_1', 'veil_shade', 'x', { facing: 1 }), m.spawn('shade_2', 'veil_shade', 'y')],
@@ -48,7 +50,7 @@ export function veins(): RoomDefinition {
   c.plat(12, 18, 6).plat(20, 26, 10).plat(28, 34, 14).plat(38, 44, 14).plat(48, 54, 14).plat(58, 64, 10).plat(66, 72, 6);
   c.mark('a', 5, 2).mark('b', 78, 2).mark('w', 31, 14).mark('x', 41, 14).mark('y', 51, 14).mark('t', 61, 10);
   return mapRoom(
-    { id: 'ih_veins', regionId: REGION, name: 'Veins', nameKey: 'room.ih_veins.name', art: { backdrop: 'ruins', seed: 59 }, rows: c.rows() },
+    { id: 'ih_veins', regionId: REGION, name: 'Veins', nameKey: 'room.ih_veins.name', art: { backdrop: 'heart', seed: 59 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       spawns: [m.spawn('weaver_1', 'ink_weaver', 'w', { facing: 1 }), m.spawn('shade_1', 'veil_shade', 'x', { facing: 1 }), m.spawn('shade_2', 'veil_shade', 'y'), m.spawn('toller_1', 'bell_toller', 't')],
@@ -68,7 +70,7 @@ export function pulse(): RoomDefinition {
   c.spikes(27, 29, 2); // the veins at the east end
   c.mark('a', 5, 2).mark('b', 30, 2).mark('q', 17, 2).mark('r', 19, 2).mark('l', 9, 2);
   return mapRoom(
-    { id: 'ih_shrine', regionId: REGION, name: 'Pulse', nameKey: 'room.ih_shrine.name', art: { backdrop: 'ruins', seed: 60 }, rows: c.rows() },
+    { id: 'ih_shrine', regionId: REGION, name: 'Pulse', nameKey: 'room.ih_shrine.name', art: { backdrop: 'heart', seed: 60 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('rest', 'q', 1)],
       spawns: [m.spawn('leech_1', 'floor_leech', 'l')],
@@ -91,7 +93,7 @@ export function ascent(): RoomDefinition {
   c.rock(1, 43, 17, 44); // the slab the second chimney comes out on
   c.mark('a', 4, 2).mark('e', 5, 44).mark('x', 11, 22).mark('p', 3, 12).mark('q', 26, 34);
   return mapRoom(
-    { id: 'ih_ascent', regionId: REGION, name: 'Ascent', nameKey: 'room.ih_ascent.name', art: { backdrop: 'ruins', seed: 61 }, rows: c.rows() },
+    { id: 'ih_ascent', regionId: REGION, name: 'Ascent', nameKey: 'room.ih_ascent.name', art: { backdrop: 'heart', seed: 61 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('bottom', 'a', 1), m.entry('top', 'e', 1)],
       spawns: [m.spawn('shade_1', 'veil_shade', 'x', { facing: 1 }), m.spawn('wisp_1', 'lantern_wisp', 'p'), m.spawn('wisp_2', 'lantern_wisp', 'q')],
@@ -112,7 +114,7 @@ export function antechamber(): RoomDefinition {
   c.rock(24, 2, 26, 4).rock(38, 2, 40, 3);
   c.mark('a', 5, 2).mark('b', 54, 2).mark('s', 6, 7).mark('l', 9, 7).mark('x', 20, 2).mark('y', 26, 2).mark('w', 30, 2).mark('t', 33, 2).mark('q', 49, 2).mark('r', 51, 2);
   return mapRoom(
-    { id: 'ih_approach', regionId: REGION, name: 'Antechamber', nameKey: 'room.ih_approach.name', art: { backdrop: 'ruins', seed: 62 }, rows: c.rows() },
+    { id: 'ih_approach', regionId: REGION, name: 'Antechamber', nameKey: 'room.ih_approach.name', art: { backdrop: 'heart', seed: 62 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('rest', 'q', 1), m.entry('shortcut', 's', 1)],
       spawns: [m.spawn('shade_1', 'veil_shade', 'x', { facing: 1 }), m.spawn('shade_2', 'veil_shade', 'y', { facing: 1 }), m.spawn('weaver_1', 'ink_weaver', 'w', { facing: 1 }), m.spawn('toller_1', 'bell_toller', 't')],
@@ -136,7 +138,7 @@ export function heart(): RoomDefinition {
   c.region('A', 8, 2, 9, 29).region('B', 65, 2, 66, 29); // doors to the roof
   c.mark('a', 4, 2).mark('b', 67, 2).mark('l', 11, 2).mark('r', 64, 2).mark('k', 56, 2);
   return mapRoom(
-    { id: 'ih_arena', regionId: REGION, name: 'The Heart', nameKey: 'room.ih_arena.name', art: { backdrop: 'ruins', seed: 63 }, rows: c.rows(), regions: { A: { id: 'door_w', material: 'gate' }, B: { id: 'door_e', material: 'gate' } } },
+    { id: 'ih_arena', regionId: REGION, name: 'The Heart', nameKey: 'room.ih_arena.name', art: { backdrop: 'heart', seed: 63 }, rows: c.rows(), materials: MATERIALS, regions: { A: { id: 'door_w', material: 'gate' }, B: { id: 'door_e', material: 'gate' } } },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       gates: [
@@ -159,7 +161,7 @@ export function rest(): RoomDefinition {
   c.rock(14, 2, 18, 3);
   c.mark('a', 5, 2).mark('b', 34, 2).mark('q', 20, 2).mark('r', 22, 2);
   return mapRoom(
-    { id: 'ih_end', regionId: REGION, name: 'Rest', nameKey: 'room.ih_end.name', art: { backdrop: 'ruins', seed: 64 }, rows: c.rows() },
+    { id: 'ih_end', regionId: REGION, name: 'Rest', nameKey: 'room.ih_end.name', art: { backdrop: 'heart', seed: 64 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('rest', 'q', 1)],
       exits: [m.exitSide('west', 'west', 'a', { room: 'ih_arena', entry: 'east' }), m.endSide('end', 'east', 'b', { requires: 'defeated:ih_boss' })],

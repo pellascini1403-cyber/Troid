@@ -39,138 +39,80 @@
         "flip": true
       },
       {
-        "sprite": "crystals_b",
-        "x": 30.91,
-        "y": 4,
-        "scale": 1.2,
-        "flip": true
-      },
-      {
-        "sprite": "crystals_b",
-        "x": 33.38,
-        "y": 4,
-        "scale": 1.15,
+        "sprite": "crystals_a",
+        "x": 29.19,
+        "y": 3,
+        "scale": 0.96,
         "flip": false
       },
       {
         "sprite": "rubble_a",
-        "x": 27.07,
+        "x": 47.07,
         "y": 3,
         "scale": 1.08,
         "flip": false
       },
       {
         "sprite": "rubble_b",
-        "x": 29.19,
+        "x": 49.19,
         "y": 3,
         "scale": 1.1,
         "flip": false
       },
       {
         "sprite": "rubble_c",
-        "x": 46.4,
+        "x": 60.4,
         "y": 3,
         "scale": 1.22,
         "flip": true
       },
       {
-        "sprite": "rubble_a",
-        "x": 48.74,
-        "y": 3,
-        "scale": 1.19,
+        "sprite": "rubble_b",
+        "x": 10.66,
+        "y": 2,
+        "scale": 0.98,
         "flip": true
       },
       {
-        "sprite": "mushrooms_a",
-        "x": 60.73,
-        "y": 3,
-        "scale": 0.92,
+        "sprite": "rubble_b",
+        "x": 15.13,
+        "y": 2,
+        "scale": 0.9,
         "flip": false
       },
       {
-        "sprite": "rubble_b",
-        "x": 10.32,
+        "sprite": "crystals_b",
+        "x": 17.08,
         "y": 2,
         "scale": 1.02,
         "flip": false
       },
       {
-        "sprite": "mushrooms_a",
-        "x": 13.71,
+        "sprite": "crystals_a",
+        "x": 20.47,
         "y": 2,
         "scale": 0.93,
         "flip": true
       },
       {
         "sprite": "crystals_b",
-        "x": 15.87,
+        "x": 22.63,
         "y": 2,
         "scale": 1.22,
         "flip": false
       },
       {
-        "sprite": "rubble_a",
-        "x": 19.1,
+        "sprite": "crystals_a",
+        "x": 50.48,
         "y": 2,
-        "scale": 0.9,
-        "flip": false
-      },
-      {
-        "sprite": "crystals_b",
-        "x": 23.17,
-        "y": 2,
-        "scale": 1.03,
+        "scale": 1.08,
         "flip": false
       },
       {
         "sprite": "rubble_b",
-        "x": 25.56,
+        "x": 59.5,
         "y": 2,
         "scale": 0.9,
-        "flip": false
-      },
-      {
-        "sprite": "crystals_a",
-        "x": 50.44,
-        "y": 2,
-        "scale": 1.09,
-        "flip": false
-      },
-      {
-        "sprite": "mushrooms_b",
-        "x": 53.47,
-        "y": 2,
-        "scale": 1.14,
-        "flip": false
-      },
-      {
-        "sprite": "crystals_a",
-        "x": 57,
-        "y": 2,
-        "scale": 0.96,
-        "flip": false
-      },
-      {
-        "sprite": "rubble_c",
-        "x": 63.44,
-        "y": 2,
-        "scale": 0.92,
-        "flip": true
-      }
-    ],
-    "propsBack": [
-      {
-        "sprite": "column_broken_a",
-        "x": 42.07,
-        "y": 4,
-        "scale": 1.02,
-        "flip": false
-      },
-      {
-        "sprite": "column_broken_b",
-        "x": 55.54,
-        "y": 2,
-        "scale": 1.07,
         "flip": false
       }
     ]

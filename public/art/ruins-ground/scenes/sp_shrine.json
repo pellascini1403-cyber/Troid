@@ -16,27 +16,6 @@
         "y": 1,
         "w": 11,
         "h": 1
-      },
-      {
-        "sprite": "rubble_c",
-        "x": 14.97,
-        "y": 3,
-        "scale": 1.16,
-        "flip": true
-      },
-      {
-        "sprite": "grass_b",
-        "x": 10.03,
-        "y": 2,
-        "scale": 1.13,
-        "flip": true
-      },
-      {
-        "sprite": "grass_b",
-        "x": 27.02,
-        "y": 2,
-        "scale": 1.04,
-        "flip": false
       }
     ]
   }

@@ -1,0 +1,59 @@
+{
+  "sceneVersion": 1,
+  "room": "rt_bridge",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "root_crawl_a",
+        "x": 59.62,
+        "y": 8,
+        "scale": 1.1,
+        "flip": false
+      },
+      {
+        "sprite": "root_crawl_c",
+        "x": 10.27,
+        "y": 8,
+        "scale": 0.9,
+        "flip": true
+      },
+      {
+        "sprite": "root_crawl_b",
+        "x": 60.12,
+        "y": 8,
+        "scale": 1.1,
+        "flip": false
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "fore_roots_c",
+        "x": 24.57,
+        "y": 16.33,
+        "scale": 1.13,
+        "flip": false
+      },
+      {
+        "sprite": "fore_roots_c",
+        "x": 44.1,
+        "y": 17.09,
+        "scale": 1.06,
+        "flip": true
+      },
+      {
+        "sprite": "fore_roots_b",
+        "x": 57.67,
+        "y": 15.91,
+        "scale": 1.26,
+        "flip": false
+      },
+      {
+        "sprite": "fore_roots_c",
+        "x": 80.56,
+        "y": 16.22,
+        "scale": 1.21,
+        "flip": false
+      }
+    ]
+  }
+}

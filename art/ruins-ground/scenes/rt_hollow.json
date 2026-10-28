@@ -199,29 +199,6 @@
         "scale": 1.08,
         "flip": false
       }
-    ],
-    "propsBack": [
-      {
-        "sprite": "rune_stone_a",
-        "x": 10.64,
-        "y": 20,
-        "scale": 0.99,
-        "flip": false
-      },
-      {
-        "sprite": "rune_stone_a",
-        "x": 19.55,
-        "y": 14,
-        "scale": 1.03,
-        "flip": true
-      },
-      {
-        "sprite": "column_broken_b",
-        "x": 10.22,
-        "y": 4,
-        "scale": 0.98,
-        "flip": false
-      }
     ]
   }
 }

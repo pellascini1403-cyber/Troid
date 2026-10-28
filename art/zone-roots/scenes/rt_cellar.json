@@ -1,0 +1,119 @@
+{
+  "sceneVersion": 1,
+  "room": "rt_cellar",
+  "layers": {
+    "propsBack": [
+      {
+        "sprite": "root_knot_a",
+        "x": 19.05,
+        "y": 2,
+        "scale": 1.05,
+        "flip": false
+      },
+      {
+        "sprite": "trunk_stub_b",
+        "x": 39.64,
+        "y": 2,
+        "scale": 1.02,
+        "flip": true
+      },
+      {
+        "sprite": "trunk_stub_a",
+        "x": 28.1,
+        "y": 2,
+        "scale": 1,
+        "flip": true
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "tendrils_a",
+        "x": 9.45,
+        "y": 13.62,
+        "scale": 1.3,
+        "flip": true
+      },
+      {
+        "sprite": "tendrils_a",
+        "x": 28.68,
+        "y": 14.67,
+        "scale": 1.08,
+        "flip": false
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 9.6,
+        "y": -2.2,
+        "alpha": 0.34,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 7.5,
+        "y": 1.8,
+        "alpha": 0.18,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 23.5,
+        "y": 1.8,
+        "alpha": 0.15,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 41.5,
+        "y": 1.8,
+        "alpha": 0.17,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 1.03,
+        "alpha": 0.21,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 28.57,
+        "y": 0.5,
+        "scale": 1.04,
+        "alpha": 0.23,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "glow_rest",
+        "x": 24.5,
+        "y": 0.9,
+        "scale": 1.1,
+        "alpha": 0.34,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "glow_rest",
+        "x": 9.5,
+        "y": 6.9,
+        "scale": 0.4,
+        "alpha": 0.32,
+        "motion": "pulse"
+      }
+    ]
+  }
+}

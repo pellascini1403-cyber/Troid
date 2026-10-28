@@ -13,6 +13,8 @@ import { lever, teach, vessel } from './kit';
  *               │   └─ mn_vault (a vessel of life, under the cracked floor of the hall)
  */
 const REGION = 'crystal_mines';
+/** What the squares of the canvas are made of here (the rock of the mine, the gravel of its floors and the timber that props it): a material is a piece of art (docs/PROMPT23-LOG.md §5). */
+const MATERIALS = { '#': 'rock', G: 'gravel', '-': 'timber' } as const;
 
 // ---------------------------------------------------------------------------------------------------------------- the Mine Mouth
 /**
@@ -26,7 +28,7 @@ export function gate(): RoomDefinition {
   c.plat(22, 28, 6).plat(42, 48, 6);
   c.mark('a', 5, 2).mark('b', 58, 2).mark('s', 6, 7).mark('x', 26, 2).mark('y', 36, 2).mark('z', 52, 16);
   return mapRoom(
-    { id: 'mn_gate', regionId: REGION, name: 'Mine Mouth', nameKey: 'room.mn_gate.name', art: { backdrop: 'ruins', seed: 28 }, rows: c.rows(), regions: { D: { id: 'home_door', material: 'gate' } } },
+    { id: 'mn_gate', regionId: REGION, name: 'Mine Mouth', nameKey: 'room.mn_gate.name', art: { backdrop: 'mines', seed: 28 }, rows: c.rows(), materials: MATERIALS, regions: { D: { id: 'home_door', material: 'gate' } } },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('shortcut', 's', 1)],
       spawns: [m.spawn('shardling_1', 'shardling', 'x'), m.spawn('shardling_2', 'shardling', 'y'), m.spawn('bat_1', 'cave_bat', 'z')],
@@ -55,7 +57,7 @@ export function seam(): RoomDefinition {
   c.spikes(22, 25, 12).spikes(22, 25, 20).spikes(1, 4, 14).spikes(1, 4, 22);
   c.mark('a', 4, 2).mark('e', 20, 32).mark('x', 19, 16).mark('y', 7, 22).mark('p', 3, 38).mark('q', 10, 38);
   return mapRoom(
-    { id: 'mn_seam', regionId: REGION, name: 'Crystal Seam', nameKey: 'room.mn_seam.name', art: { backdrop: 'ruins', seed: 29 }, rows: c.rows() },
+    { id: 'mn_seam', regionId: REGION, name: 'Crystal Seam', nameKey: 'room.mn_seam.name', art: { backdrop: 'mines', seed: 29 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'e', -1)],
       spawns: [m.spawn('stoneback_1', 'stoneback', 'x'), m.spawn('stoneback_2', 'stoneback', 'y', { facing: 1 }), m.spawn('bat_1', 'cave_bat', 'p', { facing: 1 }), m.spawn('bat_2', 'cave_bat', 'q')],
@@ -75,7 +77,7 @@ export function hall(): RoomDefinition {
   c.rock(26, 2, 30, 3).rock(46, 2, 50, 3).rock(8, 2, 10, 4).rock(60, 2, 63, 3);
   c.mark('a', 5, 2).mark('b', 66, 2).mark('k', 38, 4).mark('v', 35, 4).mark('x', 17, 2).mark('y', 54, 2).mark('p', 12, 22).mark('q', 58, 22);
   return mapRoom(
-    { id: 'mn_hall', regionId: REGION, name: 'Crystal Hall', nameKey: 'room.mn_hall.name', art: { backdrop: 'ruins', seed: 30 }, rows: c.rows(), regions: { F: { id: 'crack_floor', material: 'stone', tag: 'crack' } } },
+    { id: 'mn_hall', regionId: REGION, name: 'Crystal Hall', nameKey: 'room.mn_hall.name', art: { backdrop: 'mines', seed: 30 }, rows: c.rows(), materials: MATERIALS, regions: { F: { id: 'crack_floor', material: 'stone', tag: 'crack' } } },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('vault', 'v', 1)],
       spawns: [m.spawn('stoneback_1', 'stoneback', 'x', { facing: 1 }), m.spawn('stoneback_2', 'stoneback', 'y'), m.spawn('bat_1', 'cave_bat', 'p', { facing: 1 }), m.spawn('bat_2', 'cave_bat', 'q')],
@@ -100,7 +102,7 @@ export function camp(): RoomDefinition {
   c.rock(17, 2, 20, 3).rock(20, 2, 22, 4).plat(22, 35, 6);
   c.mark('a', 5, 2).mark('b', 34, 2).mark('q', 27, 6).mark('r', 29, 6).mark('g', 18, 3);
   return mapRoom(
-    { id: 'mn_camp', regionId: REGION, name: 'Miners Camp', nameKey: 'room.mn_camp.name', art: { backdrop: 'ruins', seed: 31 }, rows: c.rows() },
+    { id: 'mn_camp', regionId: REGION, name: 'Miners Camp', nameKey: 'room.mn_camp.name', art: { backdrop: 'mines', seed: 31 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('rest', 'q', 1)],
       spawns: [m.spawn('shardling_1', 'shardling', 'g', { facing: 1 })],
@@ -120,7 +122,7 @@ export function forge(): RoomDefinition {
   c.rock(8, 2, 13, 4); // the anvil
   c.mark('a', 5, 2).mark('d', 42, 2).mark('r', 10, 4).mark('x', 20, 2).mark('y', 27, 2).mark('k', 37, 2);
   return mapRoom(
-    { id: 'mn_forge', regionId: REGION, name: 'Old Forge', nameKey: 'room.mn_forge.name', art: { backdrop: 'ruins', seed: 32 }, rows: c.rows(), regions: { F: { id: 'crack_floor', material: 'stone', tag: 'crack' } } },
+    { id: 'mn_forge', regionId: REGION, name: 'Old Forge', nameKey: 'room.mn_forge.name', art: { backdrop: 'mines', seed: 32 }, rows: c.rows(), materials: MATERIALS, regions: { F: { id: 'crack_floor', material: 'stone', tag: 'crack' } } },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('down', 'd', 1)],
       spawns: [m.spawn('stoneback_1', 'stoneback', 'x', { facing: 1 }), m.spawn('stoneback_2', 'stoneback', 'y')],
@@ -144,7 +146,7 @@ export function well(): RoomDefinition {
   c.plat(26, 32, 4).plat(21, 27, 6).plat(16, 22, 7); // up to the hole in the floor
   c.mark('n', 21, 18).mark('b', 34, 2).mark('k', 18, 10).mark('x', 8, 10).mark('p', 33, 22).mark('y', 10, 2);
   return mapRoom(
-    { id: 'mn_descent', regionId: REGION, name: 'Coal Well', nameKey: 'room.mn_descent.name', art: { backdrop: 'ruins', seed: 33 }, rows: c.rows(), regions: { F: { id: 'crack_floor', material: 'stone', tag: 'crack' } } },
+    { id: 'mn_descent', regionId: REGION, name: 'Coal Well', nameKey: 'room.mn_descent.name', art: { backdrop: 'mines', seed: 33 }, rows: c.rows(), materials: MATERIALS, regions: { F: { id: 'crack_floor', material: 'stone', tag: 'crack' } } },
     (m) => ({
       entries: [m.entry('north', 'n', 1), m.entry('east', 'b', -1)],
       spawns: [m.spawn('shardling_1', 'shardling', 'x'), m.spawn('bat_1', 'cave_bat', 'p'), m.spawn('stoneback_1', 'stoneback', 'y')],
@@ -167,7 +169,7 @@ export function rails(): RoomDefinition {
   c.rock(14, 2, 16, 3).rock(40, 2, 42, 3).rock(60, 2, 62, 4);
   c.mark('a', 5, 2).mark('b', 78, 2).mark('x', 17, 2).mark('y', 32, 2).mark('g', 37, 2).mark('z', 56, 2);
   return mapRoom(
-    { id: 'mn_rails', regionId: REGION, name: 'Dead Line', nameKey: 'room.mn_rails.name', art: { backdrop: 'ruins', seed: 34 }, rows: c.rows() },
+    { id: 'mn_rails', regionId: REGION, name: 'Dead Line', nameKey: 'room.mn_rails.name', art: { backdrop: 'mines', seed: 34 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       spawns: [m.spawn('shardling_1', 'shardling', 'x'), m.spawn('shardling_2', 'shardling', 'y'), m.spawn('stoneback_1', 'stoneback', 'g', { facing: 1 }), m.spawn('shardling_3', 'shardling', 'z')],
@@ -186,7 +188,7 @@ export function approach(): RoomDefinition {
   c.rock(34, 2, 36, 4).rock(46, 2, 48, 3);
   c.mark('a', 5, 2).mark('b', 58, 2).mark('s', 6, 7).mark('l', 9, 7).mark('x', 23, 2).mark('y', 29, 2).mark('g', 40, 2).mark('w', 44, 18).mark('q', 53, 2).mark('r', 55, 2);
   return mapRoom(
-    { id: 'mn_approach', regionId: REGION, name: 'Coal Gallery', nameKey: 'room.mn_approach.name', art: { backdrop: 'ruins', seed: 35 }, rows: c.rows() },
+    { id: 'mn_approach', regionId: REGION, name: 'Coal Gallery', nameKey: 'room.mn_approach.name', art: { backdrop: 'mines', seed: 35 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('rest', 'q', 1), m.entry('shortcut', 's', 1)],
       spawns: [m.spawn('shardling_1', 'shardling', 'x'), m.spawn('stoneback_1', 'stoneback', 'y', { facing: 1 }), m.spawn('stoneback_2', 'stoneback', 'g'), m.spawn('bat_1', 'cave_bat', 'w')],
@@ -210,7 +212,7 @@ export function arena(): RoomDefinition {
   c.region('A', 8, 2, 9, 27).region('B', 65, 2, 66, 27); // doors to the roof: there is no climbing over a door with the Wall Jump
   c.mark('a', 4, 2).mark('b', 67, 2).mark('l', 11, 2).mark('r', 64, 2).mark('k', 56, 2).mark('v', 60, 2);
   return mapRoom(
-    { id: 'mn_arena', regionId: REGION, name: 'Colossus Chamber', nameKey: 'room.mn_arena.name', art: { backdrop: 'ruins', seed: 36 }, rows: c.rows(), regions: { A: { id: 'door_w', material: 'gate' }, B: { id: 'door_e', material: 'gate' } } },
+    { id: 'mn_arena', regionId: REGION, name: 'Colossus Chamber', nameKey: 'room.mn_arena.name', art: { backdrop: 'mines', seed: 36 }, rows: c.rows(), materials: MATERIALS, regions: { A: { id: 'door_w', material: 'gate' }, B: { id: 'door_e', material: 'gate' } } },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       gates: [
@@ -238,7 +240,7 @@ export function vault(): RoomDefinition {
   c.rock(3, 2, 7, 4); // the pedestal
   c.mark('n', 39, 16).mark('v', 5, 4).mark('x', 12, 2).mark('y', 16, 2).mark('g', 20, 2);
   return mapRoom(
-    { id: 'mn_vault', regionId: REGION, name: 'Armoured Vault', nameKey: 'room.mn_vault.name', art: { backdrop: 'ruins', seed: 37 }, rows: c.rows() },
+    { id: 'mn_vault', regionId: REGION, name: 'Armoured Vault', nameKey: 'room.mn_vault.name', art: { backdrop: 'mines', seed: 37 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('north', 'n', -1)],
       spawns: [m.spawn('shardling_1', 'shardling', 'x'), m.spawn('shardling_2', 'shardling', 'y'), m.spawn('stoneback_1', 'stoneback', 'g', { facing: 1 })],

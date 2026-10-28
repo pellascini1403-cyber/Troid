@@ -23,14 +23,10 @@ const root = fileURLToPath(new URL('../../../', import.meta.url));
 /** Packing the art of the repository is real work (a few seconds): the tests that do it say so. */
 const PACKING = 120_000;
 /**
- * What the rooms of the world ask of the environment and no pack has yet: the blockout draws each of these. Empty when the world is fully dressed. The 56 rooms past the Sanctum reuse the six `ruins-*` packs and add two things to touch or to break that the
- * generator has not painted yet: the body of a door of split stone and the lever of a shortcut (docs/PROMPT21-LOG.md).
+ * What the rooms of the world ask of the environment and no pack has yet: the blockout draws each of these. EMPTY: the wall of split stone and the lever of a shortcut — the two things the 56 rooms of Prompt 21 asked for that nothing
+ * painted — are delivered by `ruins-parts` (docs/PROMPT23-LOG.md §5), and every zone has the backdrop and the ground of its own.
  */
-const PACK = 'ruins-ground + ruins-back + ruins-light + ruins-roots + ruins-seal + ruins-sanctum';
-const STILL_THE_BLOCKOUT: string[] = [
-  `warn environment ${PACK}: the world asks for the "body" of door "stone" (ru_nave, rt_tangle, mr_stilts, mn_hall, mn_forge, mn_descent, sp_bridge, fd_line) and the pack does not have it: the blockout draws it`,
-  `warn environment ${PACK}: the world asks for the interactive "activate" (rt_cellar, mr_approach, mn_approach, sp_belfry, sp_approach, fd_control, ih_approach) and the pack does not have it: the blockout draws it`,
-];
+const STILL_THE_BLOCKOUT: string[] = [];
 /** The states the game asks of the protagonist that the character sheet has no drawing for (in the engine's names: the manifest would say `aerialAttack` and `crouchAttack`): not declared, drawn with the placeholder. */
 const NOT_IN_THE_SHEET = ['attack2', 'attackAir', 'crouch', 'attackCrouch', 'drink'] as const;
 /** What the game asks of the protagonist and the sheet has: the other ten of the fifteen. */
@@ -69,7 +65,7 @@ describe('the art of the repository', () => {
     const files = readdirSync(join(root, 'art', 'player', 'hero')).filter((f) => f.endsWith('.png'));
     expect(files).toHaveLength(44);
     expect(Object.values(hero.clips).reduce((n, c) => n + c!.count, 0)).toBe(44);
-    // the protagonist, the scenery of the four rooms, the boss, the Ink Slime and the light of the effects (shapes and flipbooks): all provisional, all shipped
+    // the protagonist, the scenery of the Ruins and the parts of the shortcuts, the boss, the Ink Slime, the light of the effects (shapes and flipbooks) and the set of each of the six zones after the Ruins: all provisional, all shipped
     expect(dryBuild().packs.map((p) => [p.id, p.status, p.shipped])).toEqual([
       ['player', 'provisional', true],
       ['ruins-ground', 'provisional', true],
@@ -82,6 +78,13 @@ describe('the art of the repository', () => {
       ['ink-slime', 'provisional', true],
       ['vfx-shapes', 'provisional', true],
       ['vfx-flipbooks', 'provisional', true],
+      ['ruins-parts', 'provisional', true],
+      ['zone-roots', 'provisional', true],
+      ['zone-mire', 'provisional', true],
+      ['zone-mines', 'provisional', true],
+      ['zone-spire', 'provisional', true],
+      ['zone-foundry', 'provisional', true],
+      ['zone-heart', 'provisional', true],
     ]);
     expect(existsSync(join(root, 'public', 'art', 'index.json')), 'the generated folder is committed: the game fetches it').toBe(true);
   }, PACKING);
@@ -121,7 +124,7 @@ describe('the art of the repository', () => {
     }
   }, PACKING);
 
-  it('verifies: what the game fetches is a valid art folder, with no warning but the one that says which clips of the protagonist the sheet does not have: and the two pieces the new rooms ask for that no pack paints yet, which the blockout draws', () => {
+  it('verifies: what the game fetches is a valid art folder, with no warning but the one that says which clips of the protagonist the sheet does not have: every piece of the environment the world asks for is delivered', () => {
     const v = verifyArtFolder(join(root, 'public', 'art'));
     const lacking = `warn player sprites.hero: the protagonist's art lacks ${NOT_IN_THE_SHEET.length} of the 15 clips the game asks of it: ${NOT_IN_THE_SHEET.join(', ')} — the placeholder draws those states`;
     expect(v.issues.filter((i) => i.level !== 'info').map((i) => `${i.level} ${i.path}: ${i.message}`)).toEqual([lacking, ...STILL_THE_BLOCKOUT]);

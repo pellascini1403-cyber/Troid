@@ -1,0 +1,246 @@
+{
+  "sceneVersion": 1,
+  "room": "sp_gallery",
+  "layers": {
+    "propsBack": [
+      {
+        "sprite": "banner_pole_b",
+        "x": 13,
+        "y": 2,
+        "scale": 1.04,
+        "flip": false
+      },
+      {
+        "sprite": "tower_stub_b",
+        "x": 30.04,
+        "y": 2,
+        "scale": 0.96,
+        "flip": true
+      },
+      {
+        "sprite": "bell_frame_a",
+        "x": 44.75,
+        "y": 2,
+        "scale": 1.01,
+        "flip": false
+      },
+      {
+        "sprite": "broken_arcade_b",
+        "x": 56.06,
+        "y": 2,
+        "scale": 1.07,
+        "flip": true
+      }
+    ],
+    "terrain": [
+      {
+        "sprite": "rope_coil_a",
+        "x": 11.25,
+        "y": 2,
+        "scale": 0.89,
+        "flip": false
+      },
+      {
+        "sprite": "stone_blocks_b",
+        "x": 47.65,
+        "y": 2,
+        "scale": 1.01,
+        "flip": false
+      },
+      {
+        "sprite": "rope_coil_b",
+        "x": 59.33,
+        "y": 2,
+        "scale": 1.01,
+        "flip": false
+      },
+      {
+        "sprite": "stone_blocks_b",
+        "x": 51.05,
+        "y": 4,
+        "scale": 1.15,
+        "flip": false
+      },
+      {
+        "sprite": "stone_blocks_b",
+        "x": 11,
+        "y": 2,
+        "scale": 1.09,
+        "flip": false
+      },
+      {
+        "sprite": "stone_blocks_a",
+        "x": 22.92,
+        "y": 2,
+        "scale": 0.92,
+        "flip": true
+      },
+      {
+        "sprite": "rope_coil_a",
+        "x": 26.75,
+        "y": 2,
+        "scale": 1.09,
+        "flip": true
+      },
+      {
+        "sprite": "rope_coil_b",
+        "x": 30.17,
+        "y": 2,
+        "scale": 1.04,
+        "flip": false
+      },
+      {
+        "sprite": "stone_blocks_a",
+        "x": 33.78,
+        "y": 2,
+        "scale": 1.05,
+        "flip": true
+      },
+      {
+        "sprite": "stone_blocks_a",
+        "x": 42.76,
+        "y": 2,
+        "scale": 0.89,
+        "flip": true
+      },
+      {
+        "sprite": "stone_blocks_b",
+        "x": 56.08,
+        "y": 2,
+        "scale": 1.11,
+        "flip": true
+      },
+      {
+        "sprite": "stone_blocks_a",
+        "x": 59.17,
+        "y": 2,
+        "scale": 1.05,
+        "flip": true
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "banners_b",
+        "x": 12.84,
+        "y": 19.42,
+        "scale": 1.22,
+        "flip": true
+      },
+      {
+        "sprite": "banners_b",
+        "x": 32.49,
+        "y": 18.47,
+        "scale": 1.38,
+        "flip": true
+      },
+      {
+        "sprite": "banners_a",
+        "x": 57.89,
+        "y": 19.27,
+        "scale": 1.08,
+        "flip": false
+      },
+      {
+        "sprite": "banners_a",
+        "x": 82.53,
+        "y": 19.1,
+        "scale": 1.28,
+        "flip": false
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 7.6,
+        "y": -2.2,
+        "alpha": 0.29,
+        "flip": false
+      },
+      {
+        "sprite": "beam_b",
+        "x": 22.8,
+        "y": -2.2,
+        "alpha": 0.26,
+        "flip": true
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 17,
+        "y": 1.8,
+        "alpha": 0.16,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 33,
+        "y": 1.8,
+        "alpha": 0.19,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 46,
+        "y": 1.8,
+        "alpha": 0.12,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 63.5,
+        "y": 1.8,
+        "alpha": 0.19,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 0.96,
+        "alpha": 0.27,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 28.75,
+        "y": 0.5,
+        "scale": 1.09,
+        "alpha": 0.3,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 49.25,
+        "y": 0.5,
+        "scale": 0.95,
+        "alpha": 0.25,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 70.53,
+        "y": 0.5,
+        "scale": 1.19,
+        "alpha": 0.26,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      }
+    ]
+  }
+}

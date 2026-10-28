@@ -13,6 +13,8 @@ import { lever, teach, vessel } from './kit';
  *                │    └ mr_den (a vessel of life, under the cracked floor of the stilts) ┘
  */
 const REGION = 'glowmire';
+/** What the squares of the canvas are made of here (the earth of the mire is mud (the stone and the timber are the ruins')): a material is a piece of art (docs/PROMPT23-LOG.md §5). */
+const MATERIALS = { G: 'mud' } as const;
 
 // ---------------------------------------------------------------------------------------------------------------- the Edge
 /**
@@ -25,7 +27,7 @@ export function edge(): RoomDefinition {
   c.plat(17, 21, 6).plat(25, 30, 6).plat(34, 39, 6).plat(43, 48, 6).plat(52, 57, 6); // the high road
   c.mark('a', 5, 2).mark('b', 58, 2).mark('s', 6, 7).mark('t', 28, 2).mark('u', 41, 2).mark('v', 44, 2);
   return mapRoom(
-    { id: 'mr_edge', regionId: REGION, name: 'Mire Edge', nameKey: 'room.mr_edge.name', art: { backdrop: 'ruins', seed: 18 }, rows: c.rows(), regions: { D: { id: 'home_door', material: 'gate' } } },
+    { id: 'mr_edge', regionId: REGION, name: 'Mire Edge', nameKey: 'room.mr_edge.name', art: { backdrop: 'mire', seed: 18 }, rows: c.rows(), materials: MATERIALS, regions: { D: { id: 'home_door', material: 'gate' } } },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('shortcut', 's', 1)],
       spawns: [m.spawn('toad_1', 'mire_toad', 't'), m.spawn('toad_2', 'mire_toad', 'u'), m.spawn('toad_3', 'mire_toad', 'v')],
@@ -50,7 +52,7 @@ export function stilts(): RoomDefinition {
   c.plat(9, 15, 4).plat(18, 24, 6).plat(27, 33, 8).plat(36, 42, 10).plat(45, 51, 8).plat(54, 60, 6).plat(63, 69, 4);
   c.mark('a', 5, 2).mark('b', 70, 2).mark('d', 60, 2).mark('k', 57, 2).mark('l', 30, 2).mark('t', 44, 2).mark('s', 48, 8).mark('x', 21, 13).mark('y', 39, 15).mark('z', 57, 12);
   return mapRoom(
-    { id: 'mr_stilts', regionId: REGION, name: 'Stilt Walkways', nameKey: 'room.mr_stilts.name', art: { backdrop: 'ruins', seed: 19 }, rows: c.rows(), regions: { F: { id: 'crack_floor', material: 'stone', tag: 'crack' } } },
+    { id: 'mr_stilts', regionId: REGION, name: 'Stilt Walkways', nameKey: 'room.mr_stilts.name', art: { backdrop: 'mire', seed: 19 }, rows: c.rows(), materials: MATERIALS, regions: { F: { id: 'crack_floor', material: 'stone', tag: 'crack' } } },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('den', 'd', 1)],
       spawns: [m.spawn('leech_1', 'floor_leech', 'l'), m.spawn('toad_1', 'mire_toad', 't'), m.spawn('spitter_1', 'ink_spitter', 's'), m.spawn('wisp_1', 'lantern_wisp', 'x'), m.spawn('wisp_2', 'lantern_wisp', 'y'), m.spawn('wisp_3', 'lantern_wisp', 'z')],
@@ -77,7 +79,7 @@ export function lanterns(): RoomDefinition {
   c.region('D', 52, 2, 53, 10);
   c.mark('a', 5, 2).mark('b', 55, 2).mark('t', 47, 2).mark('w', 16, 6).mark('x', 24, 9).mark('y', 34, 5).mark('z', 43, 10);
   return mapRoom(
-    { id: 'mr_lanterns', regionId: REGION, name: 'Lanterns', nameKey: 'room.mr_lanterns.name', art: { backdrop: 'ruins', seed: 20 }, rows: c.rows(), regions: { D: { id: 'mire_door', material: 'gate' } } },
+    { id: 'mr_lanterns', regionId: REGION, name: 'Lanterns', nameKey: 'room.mr_lanterns.name', art: { backdrop: 'mire', seed: 20 }, rows: c.rows(), materials: MATERIALS, regions: { D: { id: 'mire_door', material: 'gate' } } },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       spawns: [m.spawn('toad_key', 'mire_toad', 't', { defeatFlag: 'defeated:mr_lanterns_toad' }), m.spawn('wisp_1', 'lantern_wisp', 'w'), m.spawn('wisp_2', 'lantern_wisp', 'x'), m.spawn('wisp_3', 'lantern_wisp', 'y'), m.spawn('wisp_4', 'lantern_wisp', 'z')],
@@ -100,7 +102,7 @@ export function toadpit(): RoomDefinition {
   c.rock(1, 21, 9, 22); // the ledge
   c.mark('a', 5, 22).mark('b', 38, 2).mark('t', 27, 7).mark('v', 19, 13);
   return mapRoom(
-    { id: 'mr_toadpit', regionId: REGION, name: 'Toad Pit', nameKey: 'room.mr_toadpit.name', art: { backdrop: 'ruins', seed: 21 }, rows: c.rows() },
+    { id: 'mr_toadpit', regionId: REGION, name: 'Toad Pit', nameKey: 'room.mr_toadpit.name', art: { backdrop: 'mire', seed: 21 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       spawns: [m.spawn('toad_1', 'mire_toad', 't'), m.spawn('toad_2', 'mire_toad', 'v')],
@@ -118,7 +120,7 @@ export function landing(): RoomDefinition {
   c.rock(26, 2, 39, 4); // the pier
   c.mark('a', 5, 2).mark('b', 34, 4).mark('q', 29, 4).mark('r', 31, 4).mark('w', 16, 8);
   return mapRoom(
-    { id: 'mr_shrine', regionId: REGION, name: 'Landing', nameKey: 'room.mr_shrine.name', art: { backdrop: 'ruins', seed: 22 }, rows: c.rows() },
+    { id: 'mr_shrine', regionId: REGION, name: 'Landing', nameKey: 'room.mr_shrine.name', art: { backdrop: 'mire', seed: 22 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('rest', 'q', 1)],
       spawns: [m.spawn('wisp_1', 'lantern_wisp', 'w')],
@@ -140,7 +142,7 @@ export function sink(): RoomDefinition {
   c.rock(5, 2, 8, 4); // the pedestal
   c.mark('a', 4, 2).mark('e', 19, 27).mark('r', 6, 4).mark('l', 9, 2).mark('m', 14, 2);
   return mapRoom(
-    { id: 'mr_sink', regionId: REGION, name: 'Sinkhole', nameKey: 'room.mr_sink.name', art: { backdrop: 'ruins', seed: 23 }, rows: c.rows() },
+    { id: 'mr_sink', regionId: REGION, name: 'Sinkhole', nameKey: 'room.mr_sink.name', art: { backdrop: 'mire', seed: 23 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'e', -1)],
       spawns: [m.spawn('leech_1', 'floor_leech', 'l'), m.spawn('leech_2', 'floor_leech', 'm')],
@@ -161,7 +163,7 @@ export function walls(): RoomDefinition {
   c.rock(14, 2, 16, 10).rock(28, 2, 30, 10).rock(42, 2, 44, 10);
   c.mark('a', 5, 2).mark('b', 54, 2).mark('t', 20, 2).mark('p', 24, 2).mark('w', 38, 8).mark('u', 34, 2);
   return mapRoom(
-    { id: 'mr_climb', regionId: REGION, name: 'Mushroom Walls', nameKey: 'room.mr_climb.name', art: { backdrop: 'ruins', seed: 24 }, rows: c.rows() },
+    { id: 'mr_climb', regionId: REGION, name: 'Mushroom Walls', nameKey: 'room.mr_climb.name', art: { backdrop: 'mire', seed: 24 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       spawns: [m.spawn('toad_1', 'mire_toad', 't'), m.spawn('spore_1', 'glow_spore', 'p'), m.spawn('wisp_1', 'lantern_wisp', 'w'), m.spawn('toad_2', 'mire_toad', 'u')],
@@ -182,7 +184,7 @@ export function approach(): RoomDefinition {
   c.rock(22, 2, 24, 4).rock(46, 2, 48, 3);
   c.mark('a', 5, 2).mark('b', 58, 2).mark('s', 6, 7).mark('l', 9, 7).mark('t', 27, 2).mark('u', 31, 2).mark('p', 35, 2).mark('x', 39, 8).mark('w', 32, 12).mark('q', 53, 2).mark('r', 55, 2);
   return mapRoom(
-    { id: 'mr_approach', regionId: REGION, name: 'Deep Mire', nameKey: 'room.mr_approach.name', art: { backdrop: 'ruins', seed: 25 }, rows: c.rows() },
+    { id: 'mr_approach', regionId: REGION, name: 'Deep Mire', nameKey: 'room.mr_approach.name', art: { backdrop: 'mire', seed: 25 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('rest', 'q', 1), m.entry('shortcut', 's', 1)],
       spawns: [m.spawn('toad_1', 'mire_toad', 't'), m.spawn('toad_2', 'mire_toad', 'u'), m.spawn('spore_1', 'glow_spore', 'p'), m.spawn('spitter_1', 'ink_spitter', 'x'), m.spawn('wisp_1', 'lantern_wisp', 'w')],
@@ -207,7 +209,7 @@ export function lair(): RoomDefinition {
   c.plat(26, 46, 4); // an island of mud in the middle of the pool, 2 m up: out of the way of her tongue
   c.mark('a', 4, 2).mark('b', 67, 2).mark('l', 11, 2).mark('r', 64, 2).mark('k', 56, 2).mark('v', 60, 2);
   return mapRoom(
-    { id: 'mr_lair', regionId: REGION, name: 'Matriarch Pool', nameKey: 'room.mr_lair.name', art: { backdrop: 'ruins', seed: 26 }, rows: c.rows(), regions: { A: { id: 'door_w', material: 'gate' }, B: { id: 'door_e', material: 'gate' } } },
+    { id: 'mr_lair', regionId: REGION, name: 'Matriarch Pool', nameKey: 'room.mr_lair.name', art: { backdrop: 'mire', seed: 26 }, rows: c.rows(), materials: MATERIALS, regions: { A: { id: 'door_w', material: 'gate' }, B: { id: 'door_e', material: 'gate' } } },
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1)],
       gates: [
@@ -235,7 +237,7 @@ export function den(): RoomDefinition {
   c.rock(40, 2, 44, 4); // the pedestal
   c.mark('n', 5, 16).mark('v', 42, 4).mark('t', 26, 2).mark('u', 31, 2).mark('w', 36, 2);
   return mapRoom(
-    { id: 'mr_den', regionId: REGION, name: 'Toad Den', nameKey: 'room.mr_den.name', art: { backdrop: 'ruins', seed: 27 }, rows: c.rows() },
+    { id: 'mr_den', regionId: REGION, name: 'Toad Den', nameKey: 'room.mr_den.name', art: { backdrop: 'mire', seed: 27 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
       entries: [m.entry('north', 'n', 1)],
       spawns: [m.spawn('toad_1', 'mire_toad', 't'), m.spawn('toad_2', 'mire_toad', 'u'), m.spawn('toad_3', 'mire_toad', 'w')],

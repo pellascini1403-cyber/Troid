@@ -32,14 +32,14 @@
         "flip": true
       },
       {
-        "sprite": "rubble_c",
+        "sprite": "crystals_b",
         "x": 13.7,
         "y": 2,
         "scale": 1.13,
         "flip": false
       },
       {
-        "sprite": "grass_b",
+        "sprite": "rubble_c",
         "x": 16.37,
         "y": 2,
         "scale": 0.99,
@@ -53,7 +53,7 @@
         "flip": true
       },
       {
-        "sprite": "mushrooms_b",
+        "sprite": "crystals_b",
         "x": 24.66,
         "y": 2,
         "scale": 1.06,
@@ -93,15 +93,6 @@
         "y": 2,
         "scale": 0.92,
         "flip": true
-      }
-    ],
-    "propsBack": [
-      {
-        "sprite": "column_broken_b",
-        "x": 31.6,
-        "y": 2,
-        "scale": 1.11,
-        "flip": false
       }
     ]
   }
