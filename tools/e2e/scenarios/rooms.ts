@@ -5,7 +5,7 @@ import { frames } from '../frames';
 import type { GameState, Scenario } from '../scenario';
 
 /**
- * EVERY ROOM OF THE WORLD, IN A REAL BROWSER (docs/PROMPT21-LOG.md): the sixty-four rooms are built, one after the other, in ONE page — the way the game builds a room when a way on is taken — and each is held to what a player is owed of any room: it
+ * EVERY ROOM OF THE WORLD, IN A REAL BROWSER (docs/PROMPT21-LOG.md): the sixty-seven rooms are built, one after the other, in ONE page — the way the game builds a room when a way on is taken — and each is held to what a player is owed of any room: it
  * is built from the chunk the page asked for after its first frame, the hero stands on its ground and is alive, the art dresses it (the painted ground, the backdrop of its zone; only the two pieces no pack paints yet — the body of split
  * stone and the lever — are left to the blockout), the view is held to the limits the room declares, no more than 60 draw calls are spent, and the console stays clean (the runner fails the scenario otherwise). One picture per zone.
  */
@@ -67,7 +67,7 @@ export const rooms: Scenario = {
         await ctx.shot(`zone-${zone}-${id}`);
       }
     }
-    assert.equal(built, 64, 'every room of the world was built');
+    assert.equal(built, WORLD.rooms.length, 'every room of the world was built');
     assert.equal(shotOf.size, 7, 'and a picture of each of the seven zones was taken');
     assert.ok(worst <= 60, `draw calls peaked at ${worst} (budget 60)`);
     console.log(`  rooms: ${built} rooms built in one page, every one dressed by the art · what the blockout still draws: ${[...lacking].map(([k, n]) => `${k} ×${n}`).join(', ') || 'nothing'} · worst ${worst} draw calls (budget 60)`);
