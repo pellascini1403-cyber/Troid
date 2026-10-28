@@ -1,0 +1,29 @@
+{
+  "sceneVersion": 1,
+  "room": "ih_atrium",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 26.5,
+        "y": 1,
+        "w": 51,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 57,
+        "y": 1,
+        "w": 6,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 70.5,
+        "y": 1,
+        "w": 17,
+        "h": 1
+      }
+    ]
+  }
+}

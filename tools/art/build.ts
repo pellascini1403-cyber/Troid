@@ -4,12 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { build as bundle } from 'esbuild';
 import { chromium } from 'playwright-core';
 import { CHROMIUM_PATH } from '../e2e/harness';
-import { PACKS as RUINS_PACKS } from './packs/ruins';
-import { VFX_PACKS } from './packs/vfx';
-import { ZONE_PACKS } from './packs/zones';
-
-/** Every pack the painter makes: the scenery and the creatures of the ruins, the scenery of each zone after them, and the light of the effects. */
-const PACKS = [...RUINS_PACKS, ...ZONE_PACKS, ...VFX_PACKS];
+import { PACKS } from './packs/all';
 import type { PackSpec } from './spec';
 
 /**
