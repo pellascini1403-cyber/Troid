@@ -60,7 +60,7 @@ import { LateView } from '@/render/LateView';
 import { EnemyShotView, type EnemyShotLike } from '@/render/EnemyShotView';
 import { SealView, type SealLike } from '@/render/SealView';
 import { InteractableViews } from '@/render/InteractableViews';
-import { ProceduralActor } from '@/render/ProceduralActor';
+import { ProceduralActor, type CreatureArt } from '@/render/ProceduralActor';
 import { ProjectileView, type ProjectileLike } from '@/render/ProjectileView';
 import { Renderer2D } from '@/render/Renderer2D';
 import { RoomView2D } from '@/render/RoomView2D';
@@ -431,7 +431,13 @@ export class Game2D {
           const def = (e as Guardian | Boss).def;
           // the guardians of the engine (docs/PROMPT21-LOG.md) are drawn from the look their definition names; the Warden has its column
           const procedural = 'phases' in def ? PROCEDURAL_LOOKS[def.view.lookId] : undefined;
-          if (procedural) return new m.BossView(e as unknown as BossLike, procedural, { glow: vfxAtlas.frames.glow, marks: look });
+          if (procedural) {
+            const boss = new m.BossView(e as unknown as BossLike, procedural, { glow: vfxAtlas.frames.glow, marks: look });
+            // (its art is an ink creature's, in parts: the zone may already hold it)
+            const art = this.roomArtCover?.creatures.get(procedural.id);
+            if (art) boss.dress(art);
+            return boss;
+          }
           const view = new m.GuardianView(e as unknown as GuardianLike, { glow: vfxAtlas.frames.glow, marks: look });
           // the art of the zone may already be in memory (a boss that wakes after the room was dressed): it takes the parts at once
           const art = this.roomArtCover?.guardians.get(def.view.lookId);
@@ -860,7 +866,10 @@ export class Game2D {
     // the boss is an entity too: its own view takes the parts of the art (or keeps its shapes when the art has none for it). Its code may still be on the way (a `LateView`): it is dressed when it arrives
     this.entityViews.each('guardian', (entity, view) => {
       const inner = view instanceof LateView ? view.view : view;
-      (inner as unknown as { dress(art: GuardianArt | null): void } | null)?.dress(cover.guardians.get((entity as Guardian | Boss).def.view.lookId) ?? null);
+      const def = (entity as Guardian | Boss).def;
+      // the Warden's art is a boss's (its own parts); the guardians of the engine are drawn like the ink creatures, so theirs are a creature's
+      const art = 'phases' in def ? cover.creatures.get(def.view.lookId) : cover.guardians.get(def.view.lookId);
+      (inner as unknown as { dress(art: GuardianArt | CreatureArt | null): void } | null)?.dress(art ?? null);
     });
     // a developer is told what the art got wrong (a strip too short for the camera); a player's console stays quiet
     if (import.meta.env.DEV) for (const n of cover.notes) log.scope('art').warn(n);

@@ -24,6 +24,7 @@ import type { Ctx, GameState, Scenario } from '../scenario';
  *       once the Warden has fallen, the reward lights up when it falls, the scenery only READS the flags, and a room that opens with the Warden fallen does not fade its dead eye in
  *   J · the Ink Slimes (phase G): the one of R1 and the one of R2 are drawn by the parts of their art (and by their shapes with `?art=`, or in a room whose art has none), the bristle rises as one winds up, and
  *       the art follows the zone: it is let go when the hero leaves the rooms that hold it
+ *   K · the guardians of the engine (docs/PROMPT22-LOG.md §8): the art of a boss that is not the Warden comes in the six parts of an ink creature, tagged with the boss's look, and its view takes them — with `?art=` it keeps its shapes
  */
 const PHONE = { width: 844, height: 390, dpr: 1 };
 const R1 = ROOMS['r1_gate']!;
@@ -81,6 +82,37 @@ const slimeOf = (ctx: Ctx): Promise<{ found: boolean; shapes: number; sprites: n
       spines: !!shape && !!shape.children[1] && shape.children[1].renderPipeId === 'sprite' && shape.children[1].visible,
     };
   })()`) as Promise<{ found: boolean; shapes: number; sprites: number; spines: boolean }>;
+
+/** The view of a guardian of the engine (`BossView`: a creature of its look, at the size of a room): whether it has one, how many of its shapes (Graphics) are on and how many sprites it has. */
+const engineBossOf = (ctx: Ctx): Promise<{ found: boolean; shapes: number; sprites: number }> =>
+  ctx.page.evaluate(`(() => {
+    const find = (c, label) => (c.label === label ? c : (c.children || []).map((k) => find(k, label)).find(Boolean));
+    const root = find(window.__troid.game.renderer.layers.actors, 'boss');
+    if (!root) return { found: false, shapes: 0, sprites: 0 };
+    const actor = find(root, 'procedural');
+    const all = (c) => [c, ...(c.children || []).flatMap(all)];
+    const nodes = all(actor).filter((c) => c !== actor);
+    return { found: true, shapes: nodes.filter((c) => c.renderPipeId === 'graphics' && c.visible).length, sprites: nodes.filter((c) => c.renderPipeId === 'sprite').length };
+  })()`) as Promise<{ found: boolean; shapes: number; sprites: number }>;
+
+/** Synthetic art for the Root Tyrant of the Root Throne: the six parts of an ink creature, tagged with its look — noise, not a drawing (what a delivery looks like to the game, nothing more). */
+const TYRANT: FixturePack[] = [
+  // (the creatures are dressed with the room, and a room is dressed when its zone holds environment art: a sliver of earth is enough)
+  { id: 'rt-earth', category: 'environment', load: 'zone', zones: ['rt_arena'], sprites: [{ id: 'earth', canvas: [64, 64], clips: { idle: 1 }, prefix: 'earth_', extra: { pivot: [0, 0], artPxPerMeter: 32, tags: ['role:solid', 'material:earth', 'part:fill'] } }] },
+  {
+    id: 'tyrant',
+    category: 'enemies',
+    load: 'zone',
+    zones: ['rt_arena'],
+    sprites: (['body', 'flash', 'eyes', 'sigil', 'spines', 'pool'] as const).map((part) => ({
+      id: `tyrant_${part}`,
+      canvas: [96, 128] as [number, number],
+      prefix: `${part}_`,
+      clips: { idle: part === 'body' ? 4 : part === 'spines' ? 3 : 1 },
+      extra: { tags: ['enemy:boss_root_tyrant', `part:${part}`], ...(part === 'body' ? { anchors: { head: [0.35, 1.9], vfx_origin: [-0.1, 1.2] } } : {}) },
+    })),
+  },
+];
 
 const PARTIAL: FixturePack[] = [
   {
@@ -483,5 +515,34 @@ export const roomArt: Scenario = {
     const hall = await waitFor(ctx, 'R3 dressed with the art', (x) => x.roomArt !== null && x.roomArt !== undefined);
     assert.deepEqual(hall.roomArt!.creatures, [], 'R3 holds no Slime art');
     assert.equal(((await ctx.state()).art?.packList ?? []).find((p) => p.id === 'ink-slime') !== undefined, true, 'the pack is in the library');
+
+    // ================================================================================================ K · the guardians of the engine
+    const tyrant = createArtFixture(TYRANT);
+    try {
+      await ctx.open('room=rt_arena&paused=1&art=boss-test&visual=placeholder', { ...PHONE, prepare: async (context) => tyrant.serve(context, 'boss-test') });
+      const st = await waitFor(ctx, 'the room with the art of the Root Tyrant', (x) => x.roomArt !== null && x.roomArt !== undefined && (x.roomArt.creatures ?? []).length > 0);
+      assert.deepEqual(st.roomArt!.creatures, ['boss_root_tyrant'], 'the art has every part of the Root Tyrant: six parts tagged with the look of the boss, and both anchors on the body');
+      // (the view of a boss is a chunk of its own: it arrives after the room)
+      let dressed = await engineBossOf(ctx);
+      for (let i = 0; i < 200 && !(dressed.found && dressed.sprites > 0); i++) {
+        await ctx.page.waitForTimeout(50);
+        dressed = await engineBossOf(ctx);
+      }
+      assert.equal(dressed.found, true, 'the Root Tyrant has a view');
+      assert.equal(dressed.shapes, 0, 'drawn by the parts of its art: none of its shapes is on');
+      assert.ok(dressed.sprites >= 8, `and its parts are there: pool, body, bristle, sigil, eyes, flash and the soft lights (${dressed.sprites} sprites)`);
+      await ctx.shot('k-00-the-tyrant-with-art');
+    } finally {
+      tyrant.cleanup();
+    }
+    // with the blockout (`?art=`) the same boss is drawn by its shapes, as ever
+    await ctx.open('room=rt_arena&paused=1&art=', PHONE);
+    let blockoutBoss = await engineBossOf(ctx);
+    for (let i = 0; i < 200 && !blockoutBoss.found; i++) {
+      await ctx.page.waitForTimeout(50);
+      blockoutBoss = await engineBossOf(ctx);
+    }
+    assert.equal(blockoutBoss.found, true, 'the Root Tyrant has a view without art');
+    assert.ok(blockoutBoss.shapes >= 3, `and it is drawn by its shapes (${blockoutBoss.shapes})`);
   },
 };

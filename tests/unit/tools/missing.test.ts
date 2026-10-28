@@ -1,12 +1,13 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ROOMS, WORLD } from '@/content';
+import { BOSSES, ENEMIES, PROCEDURAL_LOOKS, ROOMS, WORLD } from '@/content';
 import { PLAYER_VISUAL } from '@/content/visuals';
 import { environmentSlots } from '@/presentation/environment';
 import { encodePng } from '../../../tools/assets/png';
-import { formatDelivery, formatEnvironmentDelivery, readDelivery, readEnvironmentDelivery } from '../../../tools/assets/missing';
+import { formatDelivery, formatEnvironmentDelivery, formatLookDelivery, looksNeeded, readDelivery, readEnvironmentDelivery, readLookDelivery, type LookNeed } from '../../../tools/assets/missing';
 import { json, noiseFrame, put } from '../../helpers/artSource';
 
 /**
@@ -190,5 +191,124 @@ describe('readEnvironmentDelivery', () => {
     expect(text).toMatch(/solid stone · cap .*optional/);
     expect(text).toMatch(/deliver-environment-art\.md/);
     expect(formatEnvironmentDelivery(readEnvironmentDelivery(join(root, 'nowhere'), slots))).toMatch(/no pack of it in art\//);
+  });
+});
+
+
+/**
+ * WHAT OF THE CREATURES' AND THE GUARDIANS' ART HAS BEEN DELIVERED (docs/PROMPT22-LOG.md §8): the looks the world's rooms place, read from the game's own data, against the packs of the `enemies` category. Until art comes the game draws all of them with shapes
+ * (a silhouette by code) — and the report says so, with where each one stands and how big it is, so that the day someone paints one the request is exactly what it needs.
+ */
+describe('looksNeeded', () => {
+  const needs = looksNeeded({ enemies: ENEMIES, bosses: BOSSES, rooms: ROOMS, order: WORLD.rooms, looks: PROCEDURAL_LOOKS });
+  const byKind = (k: LookNeed['kind']) => needs.filter((n) => n.kind === k);
+
+  it('lists every creature of the game, the six guardians of the engine and the Warden — and nothing else', () => {
+    expect(byKind('creature').map((n) => n.id).sort()).toEqual(Object.values(ENEMIES).map((e) => ('proceduralId' in e.view ? e.view.proceduralId : '')).sort());
+    expect(byKind('engine-boss').map((n) => n.id).sort()).toEqual(['boss_bell_warden', 'boss_colossus', 'boss_engine', 'boss_mire_matriarch', 'boss_root_tyrant', 'boss_sovereign']);
+    expect(byKind('warden').map((n) => n.id)).toEqual(['ink_warden']);
+    expect(byKind('creature')).toHaveLength(15);
+    expect(needs).toHaveLength(22);
+  });
+
+  it('says where each one is placed — in the order of the world — and the placements add up to every spawn and every boss of every room', () => {
+    const total = WORLD.rooms.reduce((n, id) => n + (ROOMS[id]!.spawns?.length ?? 0) + (ROOMS[id]!.bosses?.length ?? 0), 0);
+    expect(needs.reduce((n, x) => n + x.placements, 0)).toBe(total);
+    for (const need of needs) {
+      expect(need.rooms.every((r) => WORLD.rooms.includes(r)), need.id).toBe(true);
+      expect(need.rooms.map((r) => WORLD.rooms.indexOf(r)), `${need.id}: in the order of the world`).toEqual([...need.rooms.map((r) => WORLD.rooms.indexOf(r))].sort((a, b) => a - b));
+    }
+    expect(needs.find((n) => n.id === 'ink_slime')).toMatchObject({ rooms: ['r1_gate', 'r2_hall'], placements: 2 });
+    expect(needs.find((n) => n.id === 'ink_warden')).toMatchObject({ rooms: ['r4_sanctum'], placements: 1 });
+    // a boss is placed once, in its own arena; the crystal shard is made by another creature when it breaks, so it is placed nowhere
+    for (const boss of byKind('engine-boss')) expect(boss, boss.id).toMatchObject({ placements: 1 });
+    expect(needs.find((n) => n.id === 'crystal_shard')).toMatchObject({ rooms: [], placements: 0 });
+  });
+
+  it('gives each one the size its shapes have today (what the body of the art should fill) and the contract of its art', () => {
+    for (const need of byKind('creature')) expect(need.size, need.id).toEqual({ width: PROCEDURAL_LOOKS[need.id]!.width, height: PROCEDURAL_LOOKS[need.id]!.height });
+    expect(needs.find((n) => n.id === 'boss_root_tyrant')!.size).toEqual({ width: 3, height: 4.2 });
+    expect(byKind('creature')[0]!.parts).toEqual(['body', 'flash', 'eyes', 'sigil', 'spines', 'pool']);
+    expect(byKind('creature')[0]!.anchors).toEqual(['head', 'vfx_origin']);
+    expect(byKind('engine-boss')[0]!.parts).toEqual(['body', 'flash', 'eyes', 'sigil', 'spines', 'pool']); // (an ink creature's body at the size of a room)
+    expect(byKind('warden')[0]).toMatchObject({ parts: ['body', 'eye', 'crest', 'shard', 'pool'], anchors: [] });
+  });
+});
+
+describe('readLookDelivery', () => {
+  const need = (id: string, kind: LookNeed['kind'] = 'creature', rooms = ['r1_gate']): LookNeed => ({
+    id, kind, parts: kind === 'warden' ? ['body', 'eye', 'crest', 'shard', 'pool'] : ['body', 'flash', 'eyes', 'sigil', 'spines', 'pool'], anchors: kind === 'warden' ? [] : ['head', 'vfx_origin'], size: { width: 1, height: 1 }, rooms, placements: rooms.length,
+  });
+  const CREATURE = ['body', 'flash', 'eyes', 'sigil', 'spines', 'pool'];
+  const WARDEN = ['body', 'eye', 'crest', 'shard', 'pool'];
+  interface Set { part: string; tag: 'enemy' | 'boss'; look: string; anchors?: Record<string, [number, number]>; frames?: boolean }
+  const declareLooks = (status: string, zones: string[], sets: Set[]): void => {
+    rmSync(join(src, 'beasts'), { recursive: true, force: true });
+    put(join(src, 'index.json'), json({ manifestVersion: 1, packs: [{ id: 'beasts', category: 'enemies', load: 'zone', zones, manifest: 'beasts/beasts.pack.json' }] }));
+    put(
+      join(src, 'beasts', 'beasts.pack.json'),
+      json({ manifestVersion: 1, id: 'beasts', category: 'enemies', status, atlases: [], sprites: sets.map((x) => ({ id: `${x.look}_${x.part}`, atlases: [], height: 1, tags: [`${x.tag}:${x.look}`, `part:${x.part}`], ...(x.anchors ? { anchors: x.anchors } : {}), clips: { idle: { frames: `${x.look}_${x.part}_`, count: 1 } } })) }),
+    );
+    for (const x of sets) if (x.frames !== false) put(join(src, 'beasts', `${x.look}_${x.part}`, `${x.look}_${x.part}_00.png`), encodePng(noiseFrame(1, { x: 2, y: 2, w: 6, h: 6 }, 16, 16)));
+  };
+  const whole = (look: string, tag: 'enemy' | 'boss' = 'enemy'): Set[] =>
+    (tag === 'enemy' ? CREATURE : WARDEN).map((part) => ({ part, tag, look, ...(part === 'body' && tag === 'enemy' ? { anchors: { head: [0.3, 0.6] as [number, number], vfx_origin: [0, 0.4] as [number, number] } } : {}) }));
+
+  it('with no art folder at all, nobody is delivered, and it says so without throwing', () => {
+    const r = readLookDelivery(join(root, 'nowhere'), [need('a'), need('b', 'warden')]);
+    expect(r).toMatchObject({ packs: [], delivered: 0, total: 2 });
+    expect(r.rows.every((x) => !x.delivered && x.pack === null && x.lacking.length > 0)).toBe(true);
+    expect(formatLookDelivery(r)).toMatch(/no pack of it in art\//);
+  });
+
+  it('a creature is delivered when every part of it is drawn, the body says both anchors, the pack does not await its art and its zones cover the rooms it stands in', () => {
+    declareLooks('provisional', ['r1_gate'], whole('ember'));
+    const r = readLookDelivery(src, [need('ember'), need('other')]);
+    expect(r.rows[0]).toMatchObject({ delivered: true, lacking: [], anchorsLacking: [], outsideZones: [], pack: 'beasts', status: 'provisional' });
+    expect(r.rows[0]!.drawn['pool']).toBe('beasts/ember_pool');
+    expect(r.rows[1]).toMatchObject({ delivered: false, pack: null });
+    expect(r.delivered).toBe(1);
+  });
+
+  it('a part short, a frame not there, a body that says no anchor, a pack that awaits its art, a room outside the pack\'s zones: each one keeps it from being delivered, and the report says which', () => {
+    declareLooks('provisional', ['r1_gate'], whole('ember').filter((x) => x.part !== 'sigil'));
+    expect(readLookDelivery(src, [need('ember')]).rows[0]).toMatchObject({ delivered: false, lacking: ['sigil'] });
+    declareLooks('provisional', ['r1_gate'], whole('ember').map((x) => (x.part === 'eyes' ? { ...x, frames: false } : x)));
+    expect(readLookDelivery(src, [need('ember')]).rows[0]).toMatchObject({ delivered: false, lacking: ['eyes'] });
+    declareLooks('provisional', ['r1_gate'], whole('ember').map((x) => (x.part === 'body' ? { part: 'body', tag: 'enemy' as const, look: 'ember', anchors: { head: [0.3, 0.6] as [number, number] } } : x)));
+    expect(readLookDelivery(src, [need('ember')]).rows[0]).toMatchObject({ delivered: false, lacking: [], anchorsLacking: ['vfx_origin'] });
+    declareLooks('awaiting-art', ['r1_gate'], whole('ember'));
+    expect(readLookDelivery(src, [need('ember')]).rows[0]).toMatchObject({ delivered: false, pack: null });
+    declareLooks('provisional', ['r1_gate'], whole('ember'));
+    const far = readLookDelivery(src, [need('ember', 'creature', ['r1_gate', 'ru_nave', 'mn_hall'])]).rows[0]!;
+    expect(far).toMatchObject({ delivered: false, lacking: [], outsideZones: ['ru_nave', 'mn_hall'] });
+    expect(formatLookDelivery(readLookDelivery(src, [need('ember', 'creature', ['r1_gate', 'ru_nave'])]))).toMatch(/zones of "beasts" miss ru_nave/);
+  });
+
+  it('a creature\'s art does not stand for a guardian\'s and the other way round: each is read under its own tags (`enemy:` for creatures and guardians of the engine, `boss:` for the Warden)', () => {
+    declareLooks('provisional', ['r1_gate'], [...whole('ember'), ...whole('warden_like', 'boss')]);
+    const r = readLookDelivery(src, [need('ember'), need('warden_like', 'warden'), need('warden_like'), need('ember', 'warden')]);
+    expect(r.rows.map((x) => x.delivered)).toEqual([true, true, false, false]);
+  });
+
+  it('says it all in words for a person: how many are drawn by art, where each one stands, how big it is, and where to read how to deliver it', () => {
+    declareLooks('provisional', ['r1_gate'], whole('ember'));
+    const text = formatLookDelivery(readLookDelivery(src, [need('ember'), need('plain', 'engine-boss', ['rt_arena']), need('shard', 'creature', [])]));
+    expect(text).toMatch(/pack "beasts" \(provisional\)/);
+    expect(text).toMatch(/Delivered: 1 of 3 looks\. The game draws the other 2 with shapes/);
+    expect(text).toMatch(/ember .*creature .*delivered \(beasts, provisional\)/);
+    expect(text).toMatch(/plain .*guardian \(engine\) .*rt_arena .*shapes only — NOT DELIVERED/);
+    expect(text).toMatch(/shard .*\(made in a fight\)/);
+    expect(text).toMatch(/deliver-environment-art\.md/);
+  });
+
+  it('the repository\'s own art draws only looks the game really places: no pack paints a creature that does not exist', () => {
+    const needs = looksNeeded({ enemies: ENEMIES, bosses: BOSSES, rooms: ROOMS, order: WORLD.rooms, looks: PROCEDURAL_LOOKS });
+    const real = readLookDelivery(join(fileURLToPath(new URL('../../../', import.meta.url)), 'art'), needs);
+    expect(real.packs.map((p) => p.id).sort()).toEqual(['ink-slime', 'ink-warden']);
+    for (const p of real.packs) expect(p.status, `${p.id} is made by the repository's generator, not by a person`).toBe('provisional');
+    expect(real.rows.filter((r) => r.pack !== null).map((r) => r.need.id).sort()).toEqual(['ink_slime', 'ink_warden']);
+    // every look the game places has a row, and every one that has art is complete
+    for (const r of real.rows.filter((x) => x.pack !== null)) expect(r, r.need.id).toMatchObject({ delivered: true });
   });
 });

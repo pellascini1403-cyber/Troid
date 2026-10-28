@@ -4,7 +4,7 @@ import type { ProceduralLook } from '@/presentation/proceduralPose';
 import { viewY } from '@/presentation/worldTransform';
 import type { EntityView } from './EntityViews';
 import { GuardianMarks, type MarkShapes } from './GuardianMarks';
-import { ProceduralActor } from './ProceduralActor';
+import { ProceduralActor, type CreatureArt } from './ProceduralActor';
 
 /** The part of a boss of the engine the view reads (a structural type: the view never imports the entity class). */
 export interface BossLike {
@@ -44,8 +44,13 @@ export class BossView implements EntityView {
     this.root.addChild(this.marks.root, this.actor.root);
   }
 
-  /** The guardians of the engine have no painted parts yet: this exists so that the room's art can ask every boss alike. */
-  dress(_art: unknown): void {}
+  /**
+   * The art of the guardians of the engine is delivered like the art of an ink creature — the same six parts (`presentation/enemyArt`), tagged `enemy:<lookId>` with the look of the boss (`boss_engine`…) — because their body IS an ink creature's, at the
+   * size of a room: the actor that draws it takes the parts and moves them. Without art (`null`: the zone has none for this look, or the hero left it) it goes back to its shapes, exactly as before.
+   */
+  dress(art: CreatureArt | null): void {
+    this.actor.dress(art);
+  }
 
   sync(alpha: number, dt: number): void {
     this.time += dt;
