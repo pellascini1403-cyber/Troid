@@ -16,7 +16,9 @@ import type { PackSpec, SpriteSpec } from '../spec';
 const SEED = 7;
 const FAR_PPM = 20;
 const MID_PPM = 25.6;
-const NEAR_PPM = 28;
+/** The near strip is painted at 25 px/m, less where the tallest room of the zone asks for so much strip that it would not fit the memory of a zone (a room of 52 m of camera is 43 m of strip): never more than ~900 px tall. */
+const NEAR_PPM = 25;
+const NEAR_MAX_PX = 900;
 /** The strips repeat every 60 m (far, mid) and 40 m (near). */
 const FAR_W = 60;
 const MID_W = 60;
@@ -41,12 +43,13 @@ const px = (metres: number, ppm: number): number => Math.ceil(metres * ppm) + 2;
 /** The three strips of a zone's backdrop. */
 function strips(zone: ZoneId): SpriteSpec[] {
   const n = stripNeeds(zone);
+  const nearPpm = Math.min(NEAR_PPM, Math.floor(NEAR_MAX_PX / n.near));
   const base = SEED + 200 + ZONE_IDS.indexOf(zone) * 10;
   const tags = (part: string): string[] => ['role:backdrop', `backdrop:${zone}`, `part:${part}`];
   return [
     { id: 'backdrop_far', tags: tags('far'), piece: 'zoneFar', params: { zone, seed: base, w: FAR_W * FAR_PPM, h: px(n.far, FAR_PPM) }, ppm: FAR_PPM, pivot: [0, 1] },
     { id: 'backdrop_mid', tags: tags('mid'), piece: 'zoneMid', params: { zone, seed: base + 1, w: MID_W * MID_PPM, h: px(n.mid, MID_PPM) }, ppm: MID_PPM, pivot: [0, 1] },
-    { id: 'backdrop_near', tags: tags('near'), piece: 'zoneNear', params: { zone, seed: base + 2, w: NEAR_W * NEAR_PPM, h: px(n.near, NEAR_PPM) }, ppm: NEAR_PPM, pivot: [0, 1] },
+    { id: 'backdrop_near', tags: tags('near'), piece: 'zoneNear', params: { zone, seed: base + 2, w: NEAR_W * nearPpm, h: px(n.near, nearPpm) }, ppm: nearPpm, pivot: [0, 1] },
   ];
 }
 
@@ -174,7 +177,10 @@ function kitSprites(zone: ZoneId, pieces: readonly KitPiece[], layer: 'props-bac
     );
 }
 
-/** A piece of the light: a picture whose alpha is its intensity, in pixels (a light needs no more density than its softness), in the colour of the zone. */
+/**
+ * A piece of the light: a picture whose alpha is its intensity, in the colour of the zone. Painted at the density of the ruins' light and kept at half of it (`scale`): a light needs no more than its softness, and the sixty rooms past the
+ * Ruins each hold a set of their own, so what a zone costs in memory is mostly decided here (docs/PROMPT23-LOG.md §5.5).
+ */
 const lightPiece = (id: string, piece: string, wPx: number, hPx: number, tint: readonly [number, number, number], layer: string, seed: number): SpriteSpec => ({
   id,
   tags: ['role:decor', `layer:${layer}`, 'blend:add'],
@@ -182,6 +188,7 @@ const lightPiece = (id: string, piece: string, wPx: number, hPx: number, tint: r
   params: { w: wPx, h: hPx, seed, tint: [...tint] },
   sizeM: [wPx / 32, hPx / 32],
   ppm: 32,
+  scale: 0.5,
   pivot: [0.5, 1],
 });
 
@@ -212,6 +219,8 @@ export function zonePack(zone: ZoneId): PackSpec {
       lightPiece('glow_zone', 'lightGlow', 128, 128, kit.light, 'light-overlay', 1),
       lightPiece('glow_rest', 'lightGlow', 128, 128, CYAN, 'light-overlay', 1),
       lightPiece('glow_boss', 'lightGlow', 128, 128, VIOLET, 'light-overlay', 1),
+      // the shaft of light over a way out is the same in every zone (a way out is a way out), and it is the zone's own now: the pack of the ruins' light is only for the ruins
+      { id: 'exit_shaft', tags: ['role:light', 'blend:add'], piece: 'lightShaft', params: { w: 116, h: 320 }, sizeM: [116 / 32, 320 / 32], ppm: 32, scale: 0.5, pivot: [0.5, 1] },
     ],
     scenes: Object.fromEntries(roomsOf(zone).map((room) => [room, () => zoneSceneOf(ROOMS[room]!, id)])),
   };

@@ -26,16 +26,16 @@
       "id": "zone-spire_0",
       "source": "zone-spire_0.png",
       "data": "zone-spire_0.json",
-      "width": 2044,
-      "height": 2048,
+      "width": 2048,
+      "height": 2040,
       "resolution": 1
     },
     {
       "id": "zone-spire_1",
       "source": "zone-spire_1.png",
       "data": "zone-spire_1.json",
-      "width": 1464,
-      "height": 1440,
+      "width": 988,
+      "height": 980,
       "resolution": 1
     }
   ],
@@ -65,7 +65,7 @@
         }
       },
       "atlases": [
-        "zone-spire_1"
+        "zone-spire_0"
       ]
     },
     {
@@ -98,15 +98,15 @@
     },
     {
       "id": "backdrop_near",
-      "artPxPerMeter": 28,
+      "artPxPerMeter": 20,
       "pivot": [
         0,
         1
       ],
-      "height": 43.071,
+      "height": 43.1,
       "frameSize": [
-        1120,
-        1206
+        800,
+        862
       ],
       "missingClips": "placeholder",
       "tags": [
@@ -180,7 +180,7 @@
         }
       },
       "atlases": [
-        "zone-spire_0"
+        "zone-spire_1"
       ]
     },
     {
@@ -210,8 +210,7 @@
         }
       },
       "atlases": [
-        "zone-spire_0",
-        "zone-spire_1"
+        "zone-spire_0"
       ]
     },
     {
@@ -241,7 +240,7 @@
         }
       },
       "atlases": [
-        "zone-spire_1"
+        "zone-spire_0"
       ]
     },
     {
@@ -270,7 +269,6 @@
         }
       },
       "atlases": [
-        "zone-spire_0",
         "zone-spire_1"
       ]
     },
@@ -301,7 +299,7 @@
         }
       },
       "atlases": [
-        "zone-spire_0"
+        "zone-spire_1"
       ]
     },
     {
@@ -391,7 +389,8 @@
         }
       },
       "atlases": [
-        "zone-spire_0"
+        "zone-spire_0",
+        "zone-spire_1"
       ]
     },
     {
@@ -480,7 +479,8 @@
         }
       },
       "atlases": [
-        "zone-spire_0"
+        "zone-spire_0",
+        "zone-spire_1"
       ]
     },
     {
@@ -534,7 +534,7 @@
         }
       },
       "atlases": [
-        "zone-spire_1"
+        "zone-spire_0"
       ]
     },
     {
@@ -615,7 +615,7 @@
         }
       },
       "atlases": [
-        "zone-spire_1"
+        "zone-spire_0"
       ]
     },
     {
@@ -642,7 +642,7 @@
         }
       },
       "atlases": [
-        "zone-spire_1"
+        "zone-spire_0"
       ]
     },
     {
@@ -804,7 +804,7 @@
         }
       },
       "atlases": [
-        "zone-spire_1"
+        "zone-spire_0"
       ]
     },
     {
@@ -912,7 +912,7 @@
         }
       },
       "atlases": [
-        "zone-spire_0"
+        "zone-spire_1"
       ]
     },
     {
@@ -939,7 +939,7 @@
         }
       },
       "atlases": [
-        "zone-spire_0"
+        "zone-spire_1"
       ]
     },
     {
@@ -971,15 +971,15 @@
     },
     {
       "id": "beam_a",
-      "artPxPerMeter": 32,
+      "artPxPerMeter": 16,
       "pivot": [
         0.5,
         1
       ],
       "height": 16,
       "frameSize": [
-        256,
-        512
+        128,
+        256
       ],
       "missingClips": "placeholder",
       "tags": [
@@ -999,15 +999,15 @@
     },
     {
       "id": "beam_b",
-      "artPxPerMeter": 32,
+      "artPxPerMeter": 16,
       "pivot": [
         0.5,
         1
       ],
       "height": 16,
       "frameSize": [
-        256,
-        512
+        128,
+        256
       ],
       "missingClips": "placeholder",
       "tags": [
@@ -1027,15 +1027,15 @@
     },
     {
       "id": "mist_bank",
-      "artPxPerMeter": 32,
+      "artPxPerMeter": 16,
       "pivot": [
         0.5,
         1
       ],
       "height": 6,
       "frameSize": [
-        1024,
-        192
+        512,
+        96
       ],
       "missingClips": "placeholder",
       "tags": [
@@ -1050,20 +1050,20 @@
         }
       },
       "atlases": [
-        "zone-spire_1"
+        "zone-spire_0"
       ]
     },
     {
       "id": "motes_zone",
-      "artPxPerMeter": 32,
+      "artPxPerMeter": 16,
       "pivot": [
         0.5,
         1
       ],
       "height": 12,
       "frameSize": [
-        512,
-        384
+        256,
+        192
       ],
       "missingClips": "placeholder",
       "tags": [
@@ -1083,15 +1083,15 @@
     },
     {
       "id": "glow_zone",
-      "artPxPerMeter": 32,
+      "artPxPerMeter": 16,
       "pivot": [
         0.5,
         1
       ],
       "height": 4,
       "frameSize": [
-        128,
-        128
+        64,
+        64
       ],
       "missingClips": "placeholder",
       "tags": [
@@ -1111,15 +1111,15 @@
     },
     {
       "id": "glow_rest",
-      "artPxPerMeter": 32,
+      "artPxPerMeter": 16,
       "pivot": [
         0.5,
         1
       ],
       "height": 4,
       "frameSize": [
-        128,
-        128
+        64,
+        64
       ],
       "missingClips": "placeholder",
       "tags": [
@@ -1134,20 +1134,20 @@
         }
       },
       "atlases": [
-        "zone-spire_1"
+        "zone-spire_0"
       ]
     },
     {
       "id": "glow_boss",
-      "artPxPerMeter": 32,
+      "artPxPerMeter": 16,
       "pivot": [
         0.5,
         1
       ],
       "height": 4,
       "frameSize": [
-        128,
-        128
+        64,
+        64
       ],
       "missingClips": "placeholder",
       "tags": [
@@ -1162,7 +1162,34 @@
         }
       },
       "atlases": [
-        "zone-spire_1"
+        "zone-spire_0"
+      ]
+    },
+    {
+      "id": "exit_shaft",
+      "artPxPerMeter": 16,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 10,
+      "frameSize": [
+        58,
+        160
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:light",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "exit_shaft_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-spire_0"
       ]
     }
   ]

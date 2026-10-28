@@ -20,8 +20,10 @@ import { verifyArtFolder } from '../../../tools/assets/verify';
  * `NOT_IN_THE_SHEET` lists the clips of the protagonist the sheet has no drawing for.
  */
 const root = fileURLToPath(new URL('../../../', import.meta.url));
-/** Packing the art of the repository is real work (a few seconds): the tests that do it say so. */
+/** Packing the art of the repository is real work (a minute on a slow machine, with eighteen packs): the tests that do it say so. */
 const PACKING = 120_000;
+/** Verifying it decodes every page of every atlas the game fetches (3 s here, twice that on the CI runner): its limit is not the default five seconds. */
+const VERIFYING = 60_000;
 /**
  * What the rooms of the world ask of the environment and no pack has yet: the blockout draws each of these. EMPTY: the wall of split stone and the lever of a shortcut — the two things the 56 rooms of Prompt 21 asked for that nothing
  * painted — are delivered by `ruins-parts` (docs/PROMPT23-LOG.md §5), and every zone has the backdrop and the ground of its own.
@@ -129,5 +131,5 @@ describe('the art of the repository', () => {
     const lacking = `warn player sprites.hero: the protagonist's art lacks ${NOT_IN_THE_SHEET.length} of the 15 clips the game asks of it: ${NOT_IN_THE_SHEET.join(', ')} — the placeholder draws those states`;
     expect(v.issues.filter((i) => i.level !== 'info').map((i) => `${i.level} ${i.path}: ${i.message}`)).toEqual([lacking, ...STILL_THE_BLOCKOUT]);
     expect(v.ok).toBe(true);
-  });
+  }, VERIFYING);
 });

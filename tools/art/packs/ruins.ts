@@ -154,7 +154,8 @@ export const RUINS_BACK: PackSpec = {
 
 export const RUINS_LIGHT: PackSpec = {
   id: 'ruins-light',
-  zones: DRESSED_ROOMS,
+  // the Ruins' own: every zone past them has a set of light of its own (`packs/zones.ts`)
+  zones: RUINS_ROOMS,
   ppm: 32,
   comment:
     'THE LIGHT of the ruins: pictures whose alpha is intensity, drawn additively in a layer of their own (a shaft over a way out, glows, beams, mist, motes). ' +
@@ -179,7 +180,7 @@ export const RUINS_LIGHT: PackSpec = {
 export const RUINS_ROOTS: PackSpec = {
   id: 'ruins-roots',
   // the Root Gallery, every room that asks for one of its small pieces, and the rooms of the Sunken Roots, whose zone is made of what this pack holds (docs/PROMPT23-LOG.md §5)
-  zones: [...new Set(['r2_hall', ...roomsAsking('hazard:spikes:cell').filter((id) => !(zoneOf(id) in SPIKES)), ...roomsAsking('interactive:rest:', 'interactive:pickup:bottle'), ...WORLD.rooms.filter((id) => zoneOf(id) === 'roots')])],
+  zones: [...new Set(['r2_hall', ...roomsAsking('hazard:spikes:cell').filter((id) => !(zoneOf(id) in SPIKES)), ...WORLD.rooms.filter((id) => zoneOf(id) === 'roots')])],
   ppm: 96,
   comment:
     'THE ROOTS of the Root Gallery: root arches, curtains, wound columns, roots on the ground, tendrils in the foreground, and the thorns, the shrine and the vial of that room. ' +
@@ -213,7 +214,7 @@ export const RUINS_ROOTS: PackSpec = {
  */
 export const RUINS_SEAL: PackSpec = {
   id: 'ruins-seal',
-  zones: ['r3_chamber', ...roomsAsking('door:seal:body', 'seal::', 'interactive:pickup:card')],
+  zones: ['r3_chamber'],
   ppm: 96,
   comment:
     'THE SEAL of the Seal Chamber: the door of the ward (the material "seal") and its sigil, the card of the Spirit Bolt, the altar, the carved walls, the portal, the paving and the circles of light. ' +
@@ -261,7 +262,7 @@ const grand = (id: string, piece: string, seed: number, sizeM: [number, number],
 
 export const RUINS_SANCTUM: PackSpec = {
   id: 'ruins-sanctum',
-  zones: ['r4_sanctum', ...roomsAsking('interactive:pickup:rune')],
+  zones: ['r4_sanctum'],
   ppm: 96,
   comment:
     'THE SANCTUM of the Ink Warden: columns taller than the view, guardians of stone, the wall with an eye cut into it, the shrine of the last rest, the rune of the Air Dash, the ink on the floor, banners, the portals and the floor. ' +
@@ -350,21 +351,26 @@ export const INK_SLIME: PackSpec = {
 };
 
 /**
- * THE PARTS the rooms past the Sanctum ask for that no room of the slice did (docs/PROMPT23-LOG.md §5): the wall of split stone that the Ground Slam brings down — a door of the material `stone`, paler than the stone
- * around it and lit from inside by its cracks, so that it reads as the part that will break in a wall of any zone — and the lever of a shortcut, lit while it can still be pulled. The two pieces the contract listed as
- * "the blockout draws it" since Prompt 21. Fetched only for the rooms that ask.
+ * THE PARTS every room past the Sanctum shares (docs/PROMPT23-LOG.md §5): the two pieces the contract listed as "the blockout draws it" since Prompt 21 — the wall of split stone that the Ground Slam brings down (a door of the material
+ * `stone`, paler than the stone around it and lit from inside by its cracks, so that it reads as the part that will break in a wall of any zone) and the lever of a shortcut, lit while it can still be pulled — and the four small things
+ * the rooms of the slice own inside their big packs and every other room needs too: the shrine where the hero rests, the vial of a bottle, the rune of an ability and the sigil of a ward. They are the same pictures (the same piece, the same
+ * seed), moved out of the packs of R2, R3 and R4 — which are now those rooms' only — so that a room of the Mines does not hold the colossal columns of the Sanctum to show a rune 1.9 m wide.
  */
 export const RUINS_PARTS: PackSpec = {
   id: 'ruins-parts',
-  zones: roomsAsking('door:stone:body', 'interactive:activate:'),
+  zones: roomsAsking('door:stone:body', 'interactive:activate:', 'interactive:rest:', 'interactive:pickup:bottle', 'interactive:pickup:rune', 'seal::'),
   ppm: 96,
   comment:
-    'THE PARTS of the shortcuts: the wall of split stone (the door of the material "stone": a column 1.5 m wide that glows from its cracks) and the lever (two frames: at rest, lit). ' +
+    'THE PARTS shared by the rooms past the Sanctum: the wall of split stone (the door of the material "stone": a column 1.5 m wide that glows from its cracks), the lever (two frames: at rest, lit), the shrine of the hero\'s rest (two frames), the vial of a bottle, the rune of an ability and the sigil of a ward (two frames). ' +
     'Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.',
   sprites: [
     { id: 'stone_body', tags: ['role:door', 'material:stone', 'part:body'], piece: 'crackedDoor', params: { seed: SEED + 700 }, pivot: [0, 1] },
-    { id: 'stone_glow', tags: ['role:door', 'material:stone', 'part:glow', 'blend:add', 'reach:0.4'], piece: 'lightGlow', params: { w: 128, h: 256, tint: CYAN }, ppm: 32, pivot: [0, 1] },
+    { id: 'stone_glow', tags: ['role:door', 'material:stone', 'part:glow', 'blend:add', 'reach:0.4'], piece: 'lightGlow', params: { w: 128, h: 256, tint: CYAN }, ppm: 96, pivot: [0, 1] },
     { id: 'lever_activate', tags: ['role:interactive', 'kind:activate'], piece: 'lever', params: { seed: SEED + 701 }, cols: 2, rows: 1, pivot: [0.5, 1] },
+    { id: 'shrine_rest', tags: ['role:interactive', 'kind:rest'], piece: 'shrine', params: { seed: SEED + 41 }, cols: 2, rows: 1, pivot: [0.5, 1] },
+    { id: 'vial_bottle', tags: ['role:interactive', 'kind:pickup', 'variant:bottle'], piece: 'vial', params: { seed: SEED + 42 }, sizeM: [0.7, 1.2], pivot: [0.5, 1] },
+    { id: 'rune_air', tags: ['role:interactive', 'kind:pickup', 'variant:rune'], piece: 'airRune', params: { seed: SEED + 96 }, sizeM: [1.9, 1.3], pivot: [0.5, 1] },
+    { id: 'seal_sigil', tags: ['role:seal', 'blend:add'], piece: 'sealSigil', params: { seed: SEED + 61 }, cols: 2, rows: 1, ppm: 96, pivot: [0.5, 0.5] },
   ],
 };
 

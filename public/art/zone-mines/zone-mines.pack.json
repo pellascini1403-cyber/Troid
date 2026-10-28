@@ -26,7 +26,7 @@
       "id": "zone-mines_0",
       "source": "zone-mines_0.png",
       "data": "zone-mines_0.json",
-      "width": 2040,
+      "width": 2048,
       "height": 2048,
       "resolution": 1
     },
@@ -34,8 +34,8 @@
       "id": "zone-mines_1",
       "source": "zone-mines_1.png",
       "data": "zone-mines_1.json",
-      "width": 1096,
-      "height": 1100,
+      "width": 724,
+      "height": 736,
       "resolution": 1
     }
   ],
@@ -98,15 +98,15 @@
     },
     {
       "id": "backdrop_near",
-      "artPxPerMeter": 28,
+      "artPxPerMeter": 25,
       "pivot": [
         0,
         1
       ],
-      "height": 34.071,
+      "height": 34.08,
       "frameSize": [
-        1120,
-        954
+        1000,
+        852
       ],
       "missingClips": "placeholder",
       "tags": [
@@ -270,8 +270,7 @@
         }
       },
       "atlases": [
-        "zone-mines_0",
-        "zone-mines_1"
+        "zone-mines_0"
       ]
     },
     {
@@ -392,8 +391,7 @@
         }
       },
       "atlases": [
-        "zone-mines_0",
-        "zone-mines_1"
+        "zone-mines_0"
       ]
     },
     {
@@ -509,7 +507,7 @@
         }
       },
       "atlases": [
-        "zone-mines_1"
+        "zone-mines_0"
       ]
     },
     {
@@ -698,7 +696,7 @@
         }
       },
       "atlases": [
-        "zone-mines_1"
+        "zone-mines_0"
       ]
     },
     {
@@ -833,7 +831,7 @@
         }
       },
       "atlases": [
-        "zone-mines_0"
+        "zone-mines_1"
       ]
     },
     {
@@ -860,20 +858,20 @@
         }
       },
       "atlases": [
-        "zone-mines_0"
+        "zone-mines_1"
       ]
     },
     {
       "id": "beam_a",
-      "artPxPerMeter": 32,
+      "artPxPerMeter": 16,
       "pivot": [
         0.5,
         1
       ],
       "height": 16,
       "frameSize": [
-        256,
-        512
+        128,
+        256
       ],
       "missingClips": "placeholder",
       "tags": [
@@ -893,15 +891,15 @@
     },
     {
       "id": "beam_b",
-      "artPxPerMeter": 32,
+      "artPxPerMeter": 16,
       "pivot": [
         0.5,
         1
       ],
       "height": 16,
       "frameSize": [
-        256,
-        512
+        128,
+        256
       ],
       "missingClips": "placeholder",
       "tags": [
@@ -921,15 +919,15 @@
     },
     {
       "id": "mist_bank",
-      "artPxPerMeter": 32,
+      "artPxPerMeter": 16,
       "pivot": [
         0.5,
         1
       ],
       "height": 6,
       "frameSize": [
-        1024,
-        192
+        512,
+        96
       ],
       "missingClips": "placeholder",
       "tags": [
@@ -944,20 +942,20 @@
         }
       },
       "atlases": [
-        "zone-mines_1"
+        "zone-mines_0"
       ]
     },
     {
       "id": "motes_zone",
-      "artPxPerMeter": 32,
+      "artPxPerMeter": 16,
       "pivot": [
         0.5,
         1
       ],
       "height": 12,
       "frameSize": [
-        512,
-        384
+        256,
+        192
       ],
       "missingClips": "placeholder",
       "tags": [
@@ -977,15 +975,15 @@
     },
     {
       "id": "glow_zone",
-      "artPxPerMeter": 32,
+      "artPxPerMeter": 16,
       "pivot": [
         0.5,
         1
       ],
       "height": 4,
       "frameSize": [
-        128,
-        128
+        64,
+        64
       ],
       "missingClips": "placeholder",
       "tags": [
@@ -1005,15 +1003,15 @@
     },
     {
       "id": "glow_rest",
-      "artPxPerMeter": 32,
+      "artPxPerMeter": 16,
       "pivot": [
         0.5,
         1
       ],
       "height": 4,
       "frameSize": [
-        128,
-        128
+        64,
+        64
       ],
       "missingClips": "placeholder",
       "tags": [
@@ -1033,15 +1031,15 @@
     },
     {
       "id": "glow_boss",
-      "artPxPerMeter": 32,
+      "artPxPerMeter": 16,
       "pivot": [
         0.5,
         1
       ],
       "height": 4,
       "frameSize": [
-        128,
-        128
+        64,
+        64
       ],
       "missingClips": "placeholder",
       "tags": [
@@ -1052,6 +1050,33 @@
       "clips": {
         "idle": {
           "frames": "glow_boss_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-mines_0"
+      ]
+    },
+    {
+      "id": "exit_shaft",
+      "artPxPerMeter": 16,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 10,
+      "frameSize": [
+        58,
+        160
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:light",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "exit_shaft_",
           "count": 1
         }
       },

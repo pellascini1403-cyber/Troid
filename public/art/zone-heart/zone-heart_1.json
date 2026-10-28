@@ -1,21 +1,47 @@
 {
   "frames": {
-    "backdrop_near_00": {
+    "bone_body_00": {
       "frame": {
         "x": 2,
-        "y": 2,
-        "w": 1120,
-        "h": 1164
+        "y": 481,
+        "w": 192,
+        "h": 50
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 6,
+        "w": 192,
+        "h": 50
       },
       "sourceSize": {
-        "w": 1120,
-        "h": 1164
+        "w": 192,
+        "h": 64
+      }
+    },
+    "bone_shards_a_00": {
+      "frame": {
+        "x": 394,
+        "y": 2,
+        "w": 147,
+        "h": 163
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 31,
+        "y": 27,
+        "w": 147,
+        "h": 163
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
       }
     },
     "crystals_violet_a_00": {
       "frame": {
-        "x": 2,
-        "y": 1170,
+        "x": 198,
+        "y": 2,
         "w": 192,
         "h": 154
       },
@@ -27,7 +53,7 @@
     "crystals_violet_b_00": {
       "frame": {
         "x": 198,
-        "y": 1170,
+        "y": 160,
         "w": 192,
         "h": 151
       },
@@ -43,42 +69,92 @@
         "h": 154
       }
     },
-    "glow_rest_00": {
+    "ink_cap_03": {
       "frame": {
-        "x": 394,
-        "y": 1170,
-        "w": 120,
-        "h": 120
+        "x": 2,
+        "y": 409,
+        "w": 192,
+        "h": 68
       },
       "trimmed": true,
       "spriteSourceSize": {
-        "x": 4,
-        "y": 4,
-        "w": 120,
-        "h": 120
+        "x": 0,
+        "y": 8,
+        "w": 192,
+        "h": 68
       },
       "sourceSize": {
-        "w": 128,
-        "h": 128
+        "w": 192,
+        "h": 77
       }
     },
-    "glow_zone_00": {
+    "inksoil_cap_00": {
       "frame": {
-        "x": 518,
-        "y": 1170,
-        "w": 120,
-        "h": 120
+        "x": 2,
+        "y": 334,
+        "w": 192,
+        "h": 71
       },
       "trimmed": true,
       "spriteSourceSize": {
-        "x": 4,
-        "y": 4,
-        "w": 120,
-        "h": 120
+        "x": 0,
+        "y": 5,
+        "w": 192,
+        "h": 71
       },
       "sourceSize": {
-        "w": 128,
-        "h": 128
+        "w": 192,
+        "h": 77
+      }
+    },
+    "inksoil_fill_07": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "veins_a_00": {
+      "frame": {
+        "x": 394,
+        "y": 169,
+        "w": 137,
+        "h": 149
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 29,
+        "y": 0,
+        "w": 137,
+        "h": 149
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 182
+      }
+    },
+    "veins_b_00": {
+      "frame": {
+        "x": 2,
+        "y": 198,
+        "w": 192,
+        "h": 132
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 192,
+        "h": 132
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 182
       }
     }
   },
@@ -88,8 +164,8 @@
     "image": "zone-heart_1.png",
     "format": "RGBA8888",
     "size": {
-      "w": 1124,
-      "h": 1328
+      "w": 544,
+      "h": 536
     },
     "scale": "1"
   }

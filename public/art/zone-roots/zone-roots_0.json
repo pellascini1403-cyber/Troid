@@ -31,143 +31,181 @@
         "h": 676
       }
     },
-    "beam_a_00": {
-      "frame": {
-        "x": 1718,
-        "y": 2,
-        "w": 232,
-        "h": 498
-      },
-      "trimmed": true,
-      "spriteSourceSize": {
-        "x": 8,
-        "y": 3,
-        "w": 232,
-        "h": 498
-      },
-      "sourceSize": {
-        "w": 256,
-        "h": 512
-      }
-    },
-    "beam_b_00": {
-      "frame": {
-        "x": 1718,
-        "y": 504,
-        "w": 231,
-        "h": 498
-      },
-      "trimmed": true,
-      "spriteSourceSize": {
-        "x": 8,
-        "y": 3,
-        "w": 231,
-        "h": 498
-      },
-      "sourceSize": {
-        "w": 256,
-        "h": 512
-      }
-    },
-    "glow_boss_00": {
-      "frame": {
-        "x": 2,
-        "y": 1925,
-        "w": 120,
-        "h": 120
-      },
-      "trimmed": true,
-      "spriteSourceSize": {
-        "x": 4,
-        "y": 4,
-        "w": 120,
-        "h": 120
-      },
-      "sourceSize": {
-        "w": 128,
-        "h": 128
-      }
-    },
-    "glow_rest_00": {
-      "frame": {
-        "x": 126,
-        "y": 1925,
-        "w": 120,
-        "h": 120
-      },
-      "trimmed": true,
-      "spriteSourceSize": {
-        "x": 4,
-        "y": 4,
-        "w": 120,
-        "h": 120
-      },
-      "sourceSize": {
-        "w": 128,
-        "h": 128
-      }
-    },
-    "glow_zone_00": {
-      "frame": {
-        "x": 250,
-        "y": 1925,
-        "w": 120,
-        "h": 120
-      },
-      "trimmed": true,
-      "spriteSourceSize": {
-        "x": 4,
-        "y": 4,
-        "w": 120,
-        "h": 120
-      },
-      "sourceSize": {
-        "w": 128,
-        "h": 128
-      }
-    },
-    "mist_bank_00": {
+    "backdrop_near_00": {
       "frame": {
         "x": 2,
         "y": 1058,
-        "w": 1004,
-        "h": 183
-      },
-      "trimmed": true,
-      "spriteSourceSize": {
-        "x": 11,
-        "y": 4,
-        "w": 1004,
-        "h": 183
-      },
-      "sourceSize": {
-        "w": 1024,
-        "h": 192
-      }
-    },
-    "motes_zone_00": {
-      "frame": {
-        "x": 1206,
-        "y": 678,
-        "w": 508,
-        "h": 364
+        "w": 960,
+        "h": 887
       },
       "trimmed": true,
       "spriteSourceSize": {
         "x": 0,
-        "y": 20,
-        "w": 508,
-        "h": 364
+        "y": 0,
+        "w": 960,
+        "h": 887
+      },
+      "sourceSize": {
+        "w": 960,
+        "h": 890
+      }
+    },
+    "beam_a_00": {
+      "frame": {
+        "x": 1775,
+        "y": 1065,
+        "w": 116,
+        "h": 248
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 4,
+        "y": 2,
+        "w": 116,
+        "h": 248
+      },
+      "sourceSize": {
+        "w": 128,
+        "h": 256
+      }
+    },
+    "beam_b_00": {
+      "frame": {
+        "x": 966,
+        "y": 1058,
+        "w": 115,
+        "h": 248
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 4,
+        "y": 2,
+        "w": 115,
+        "h": 248
+      },
+      "sourceSize": {
+        "w": 128,
+        "h": 256
+      }
+    },
+    "exit_shaft_00": {
+      "frame": {
+        "x": 1868,
+        "y": 2,
+        "w": 56,
+        "h": 156
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 1,
+        "y": 4,
+        "w": 56,
+        "h": 156
+      },
+      "sourceSize": {
+        "w": 58,
+        "h": 160
+      }
+    },
+    "glow_boss_00": {
+      "frame": {
+        "x": 1085,
+        "y": 1058,
+        "w": 60,
+        "h": 60
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 64
+      }
+    },
+    "glow_rest_00": {
+      "frame": {
+        "x": 1868,
+        "y": 162,
+        "w": 60,
+        "h": 60
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 64
+      }
+    },
+    "glow_zone_00": {
+      "frame": {
+        "x": 1868,
+        "y": 226,
+        "w": 60,
+        "h": 60
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 64
+      }
+    },
+    "mist_bank_00": {
+      "frame": {
+        "x": 1206,
+        "y": 678,
+        "w": 501,
+        "h": 91
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 6,
+        "y": 2,
+        "w": 501,
+        "h": 91
       },
       "sourceSize": {
         "w": 512,
-        "h": 384
+        "h": 96
+      }
+    },
+    "motes_zone_00": {
+      "frame": {
+        "x": 1517,
+        "y": 1065,
+        "w": 254,
+        "h": 182
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 10,
+        "w": 254,
+        "h": 182
+      },
+      "sourceSize": {
+        "w": 256,
+        "h": 192
       }
     },
     "root_knot_a_00": {
       "frame": {
-        "x": 2,
-        "y": 1418,
+        "x": 1517,
+        "y": 773,
         "w": 326,
         "h": 288
       },
@@ -185,8 +223,8 @@
     },
     "root_knot_b_00": {
       "frame": {
-        "x": 2,
-        "y": 1710,
+        "x": 1542,
+        "y": 414,
         "w": 322,
         "h": 211
       },
@@ -204,8 +242,8 @@
     },
     "tendrils_a_00": {
       "frame": {
-        "x": 1010,
-        "y": 1058,
+        "x": 1711,
+        "y": 629,
         "w": 182,
         "h": 103
       },
@@ -223,8 +261,8 @@
     },
     "tendrils_b_00": {
       "frame": {
-        "x": 1010,
-        "y": 1165,
+        "x": 1085,
+        "y": 1144,
         "w": 178,
         "h": 144
       },
@@ -243,7 +281,7 @@
     "trunk_stub_a_00": {
       "frame": {
         "x": 1206,
-        "y": 1046,
+        "y": 773,
         "w": 307,
         "h": 367
       },
@@ -261,8 +299,8 @@
     },
     "trunk_stub_b_00": {
       "frame": {
-        "x": 1718,
-        "y": 1006,
+        "x": 1542,
+        "y": 2,
         "w": 307,
         "h": 408
       },
@@ -285,8 +323,8 @@
     "image": "zone-roots_0.png",
     "format": "RGBA8888",
     "size": {
-      "w": 2028,
-      "h": 2048
+      "w": 1932,
+      "h": 1948
     },
     "scale": "1"
   }

@@ -3,7 +3,7 @@
   "id": "ruins-parts",
   "category": "environment",
   "status": "provisional",
-  "comment": "THE PARTS of the shortcuts: the wall of split stone (the door of the material \"stone\": a column 1.5 m wide that glows from its cracks) and the lever (two frames: at rest, lit). Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.",
+  "comment": "THE PARTS shared by the rooms past the Sanctum: the wall of split stone (the door of the material \"stone\": a column 1.5 m wide that glows from its cracks), the lever (two frames: at rest, lit), the shrine of the hero's rest (two frames), the vial of a bottle, the rune of an ability and the sigil of a ward (two frames). Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.",
   "tags": [
     "ruins",
     "generated"
@@ -14,8 +14,8 @@
       "id": "ruins-parts_0",
       "source": "ruins-parts_0.png",
       "data": "ruins-parts_0.json",
-      "width": 336,
-      "height": 380,
+      "width": 760,
+      "height": 720,
       "resolution": 1
     }
   ],
@@ -50,12 +50,12 @@
     },
     {
       "id": "stone_glow",
-      "artPxPerMeter": 32,
+      "artPxPerMeter": 96,
       "pivot": [
         0,
         1
       ],
-      "height": 8,
+      "height": 2.667,
       "frameSize": [
         128,
         256
@@ -98,6 +98,116 @@
       "clips": {
         "idle": {
           "frames": "lever_activate_",
+          "count": 2
+        }
+      },
+      "atlases": [
+        "ruins-parts_0"
+      ]
+    },
+    {
+      "id": "shrine_rest",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3.698,
+      "frameSize": [
+        317,
+        355
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:interactive",
+        "kind:rest"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "shrine_rest_",
+          "count": 2
+        }
+      },
+      "atlases": [
+        "ruins-parts_0"
+      ]
+    },
+    {
+      "id": "vial_bottle",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.198,
+      "frameSize": [
+        67,
+        115
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:interactive",
+        "kind:pickup",
+        "variant:bottle"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "vial_bottle_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-parts_0"
+      ]
+    },
+    {
+      "id": "rune_air",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.302,
+      "frameSize": [
+        182,
+        125
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:interactive",
+        "kind:pickup",
+        "variant:rune"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "rune_air_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "ruins-parts_0"
+      ]
+    },
+    {
+      "id": "seal_sigil",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "height": 3.198,
+      "frameSize": [
+        307,
+        307
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:seal",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "seal_sigil_",
           "count": 2
         }
       },

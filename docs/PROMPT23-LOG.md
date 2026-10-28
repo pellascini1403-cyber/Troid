@@ -145,4 +145,14 @@ Colisiones, salidas, puertas, jefes, enemigos y habilidades **no se tocaron**: e
 
 Todo lo pintado por `tools/art` lleva el estado `provisional` y se cuenta como tal: los seis fondos, los 13 materiales nuevos, las 42 clases de pieza de decorado (84 imágenes: dos variantes de cada una), la palanca, la piedra partida y las puntas. Son **arte generado por código, coherente con el de las Ruinas y suficiente para jugar y juzgar el conjunto, no arte final**: un ilustrador podría sustituir cualquiera de ellos por una pieza pintada a mano sin tocar una línea del juego (el contrato lo permite pieza a pieza). Siguen sin arte propio **13 criaturas y 6 guardianes** (siluetas por código). Las tiras cercanas de las zonas nuevas se pintan a 28 px/m (las de las Ruinas, a 38,4): la sala más alta del mundo pide 43 m de tira, y a la densidad de las Ruinas serían 10 MB de memoria solo para esa capa.
 
+### 5.5 · Lo que cuesta cada zona en memoria (y lo que se recortó para que cupiera)
+
+El presupuesto de una zona es de 40 MiB de páginas de arte ya decodificadas (`MEMORY_BUDGET_MIB.zone`). La primera versión del bloque lo rompía: el juego sostiene en una sala **todos los paquetes cuyas zonas la nombran más los que viajan con el juego** (el héroe y la luz de los efectos), y cada sala posterior a las Ruinas pedía además tres paquetes grandes de las salas del corte vertical solo por una pieza pequeña cada uno —el santuario (en el de la Galería de Raíces, 5,8 MiB), la runa (en el del Santuario, 6,1 MiB) y el sigilo de un sello (en el de la Cámara del Sello, 4,2 MiB)—. Medido en el juego (`scratchpad` `mem.mts`: el mismo gancho de pruebas que lee la biblioteca de arte), antes de recortar: **40,8 MiB en la Fragua Vieja** (estático) y 39,8 MiB en la cima de la Aguja. Lo que se hizo, sin tocar un píxel de lo ya aprobado:
+
+- **Las piezas compartidas viven en un paquete pequeño** (`ruins-parts`: el santuario, el frasco, la runa y el sigilo —los mismos dibujos: la misma pieza y la misma semilla—, más la piedra partida y la palanca) y los paquetes de R2, R3 y R4 vuelven a ser solo de esas salas.
+- **La luz de cada zona se guarda a la mitad de densidad** (`scale: 0.5`: una luz no necesita más de lo suave que es) y **la tira cercana de las zonas más altas se pinta a menos px/m** (el tope es de ~900 px de alto: 20 px/m en la Aguja, donde la cámara de 52 m pide 43 m de tira).
+- **El pack de luz de las Ruinas es solo de las Ruinas**; cada zona trae su haz de salida.
+
+Resultado medido: el peor cuarto del mundo guarda **34,8 MiB** (la Pasarela de la Ciénaga), y todos están por debajo de 40. `tests/unit/tools/zoneMemory.test.ts` lo fija para las 64 salas (suma de las páginas de lo que se guarda en cada una) y que una sala guarde **el conjunto de su zona y de ninguna otra**.
+
 *(El resto del documento se escribe al ejecutar cada fase.)*

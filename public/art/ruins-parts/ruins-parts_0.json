@@ -2,8 +2,8 @@
   "frames": {
     "lever_activate_00": {
       "frame": {
-        "x": 255,
-        "y": 244,
+        "x": 583,
+        "y": 582,
         "w": 79,
         "h": 117
       },
@@ -21,8 +21,8 @@
     },
     "lever_activate_01": {
       "frame": {
-        "x": 150,
-        "y": 244,
+        "x": 478,
+        "y": 582,
         "w": 101,
         "h": 134
       },
@@ -38,9 +38,97 @@
         "h": 134
       }
     },
-    "stone_body_00": {
+    "rune_air_00": {
+      "frame": {
+        "x": 323,
+        "y": 582,
+        "w": 151,
+        "h": 124
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 7,
+        "y": 1,
+        "w": 151,
+        "h": 124
+      },
+      "sourceSize": {
+        "w": 182,
+        "h": 125
+      }
+    },
+    "seal_sigil_00": {
+      "frame": {
+        "x": 471,
+        "y": 293,
+        "w": 285,
+        "h": 285
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 11,
+        "y": 11,
+        "w": 285,
+        "h": 285
+      },
+      "sourceSize": {
+        "w": 307,
+        "h": 307
+      }
+    },
+    "seal_sigil_01": {
+      "frame": {
+        "x": 471,
+        "y": 2,
+        "w": 287,
+        "h": 287
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 10,
+        "y": 10,
+        "w": 287,
+        "h": 287
+      },
+      "sourceSize": {
+        "w": 307,
+        "h": 307
+      }
+    },
+    "shrine_rest_00": {
       "frame": {
         "x": 2,
+        "y": 361,
+        "w": 317,
+        "h": 327
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 28,
+        "w": 317,
+        "h": 327
+      },
+      "sourceSize": {
+        "w": 317,
+        "h": 355
+      }
+    },
+    "shrine_rest_01": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 317,
+        "h": 355
+      },
+      "sourceSize": {
+        "w": 317,
+        "h": 355
+      }
+    },
+    "stone_body_00": {
+      "frame": {
+        "x": 323,
         "y": 2,
         "w": 144,
         "h": 288
@@ -52,8 +140,8 @@
     },
     "stone_glow_00": {
       "frame": {
-        "x": 150,
-        "y": 2,
+        "x": 323,
+        "y": 294,
         "w": 120,
         "h": 238
       },
@@ -68,6 +156,25 @@
         "w": 128,
         "h": 256
       }
+    },
+    "vial_bottle_00": {
+      "frame": {
+        "x": 666,
+        "y": 582,
+        "w": 67,
+        "h": 90
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 8,
+        "w": 67,
+        "h": 90
+      },
+      "sourceSize": {
+        "w": 67,
+        "h": 115
+      }
     }
   },
   "meta": {
@@ -76,8 +183,8 @@
     "image": "ruins-parts_0.png",
     "format": "RGBA8888",
     "size": {
-      "w": 336,
-      "h": 380
+      "w": 760,
+      "h": 720
     },
     "scale": "1"
   }
