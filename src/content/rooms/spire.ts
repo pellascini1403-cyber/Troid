@@ -127,7 +127,9 @@ export function chimney(): RoomDefinition {
     (m) => ({
       entries: [m.entry('west', 'a', 1), m.entry('east', 'e', -1)],
       spawns: [m.spawn('wisp_1', 'lantern_wisp', 'p')],
-      exits: [m.exitSide('west', 'west', 'a', { room: 'sp_shrine', entry: 'east' }), m.exitSide('east', 'east', 'e', { room: 'sp_belfry', entry: 'west' })],
+      // (the door at the foot is a slit at the level of the floor, 1 m tall, and not the 4 m of the others: the one hop that climbs the chimney takes off from the foot of the block, crosses to the left wall in half a second and touches it still
+      // falling, 4 m up — a door that reached 4 m took the hero who climbed back to the Sacristy, 15 cm into the first kick)
+      exits: [{ ...m.exitSide('west', 'west', 'a', { room: 'sp_shrine', entry: 'east' }), rect: rect(1, 2, 3.4, 3) }, m.exitSide('east', 'east', 'e', { room: 'sp_belfry', entry: 'west' })],
       needs: [{ target: 'exit:east', abilities: ['wall_jump'] }],
     }),
   );

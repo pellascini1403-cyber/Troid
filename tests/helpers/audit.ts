@@ -7,7 +7,7 @@ import { abilityFlag, needsOf } from '@/world/worldGraph';
 import { pictureOf } from '@/world/roomMap';
 import type { RoomDefinition } from '@/world/RoomDefinition';
 import { validateRoom, type RoomIssue } from '@/world/validateRoom';
-import { abilitySet, RoomPhysics, START_ABILITIES, type Reach } from './reach';
+import { abilitySet, RoomPhysics, START_ABILITIES, withExitsAsHazards, type Reach } from './reach';
 
 /**
  * THE AUDIT OF A ROOM (docs/PROMPT21-LOG.md): what every room of the world has to be, asked of the room itself and of the real controller.
@@ -15,6 +15,7 @@ import { abilitySet, RoomPhysics, START_ABILITIES, type Reach } from './reach';
  *  - It is SOUND: the validator finds nothing wrong with it (references, floors under what stands on them, entrances that are not in a wall).
  *  - It can be CROSSED: from every entrance, the hero reaches every way out and every thing to pick up or rest at, with the dash and the abilities the room says it asks for (`needs`) — and with nothing more.
  *  - What it asks for is REALLY asked: without any one of the abilities of a claim, there is an entrance from which the target cannot be reached. A claim that is not tight is a gate that is not one.
+ *  - It can be crossed WITHOUT LEAVING IT: the ways out of the room are walls of fire to a hero who means to go somewhere else (a hand's breadth of margin), and every target is still reached (Prompt 22: the first wall kick of a chimney crossed the door at its foot).
  *
  * Every door and every breakable wall is taken as gone (`RoomPhysics(room, 'open')`): what they hold is a matter of flags, proved on paper by the world and by the breakables' own tests; this is the question of the TERRAIN.
  */
@@ -57,6 +58,8 @@ export interface Audit {
   unreachable: string[];
   /** The claims that are not tight: an ability the target does NOT need. */
   loose: string[];
+  /** The targets that can be reached from an entrance when nothing is in the way, but only through the zone of some OTHER way out (touching it takes the hero out of the room). */
+  crossesExit: string[];
   /** For each target, the entrances it can be reached from with the dash alone (the room's free parts). */
   free: Record<string, string[]>;
 }
@@ -122,7 +125,18 @@ export function auditRoom(room: RoomDefinition, opts: AuditOptions = {}): Audit 
   const exempt = new Map((opts.oneWay ?? []).map((o) => [`${o.from}|${o.target}`, false]));
   const unreachable: string[] = [];
   const loose: string[] = [];
+  const crossesExit: string[] = [];
   const free: Record<string, string[]> = {};
+  // the same room with its ways out as walls of fire (all but the one that is the target): one terrain for each way out, and one for the things to take
+  const fires = new Map<string, { phys: RoomPhysics; reach: Map<string, Reach> }>();
+  const fireOf = (keep: string | undefined): { phys: RoomPhysics; reach: Map<string, Reach> } => {
+    let f = fires.get(keep ?? '');
+    if (!f) {
+      f = { phys: new RoomPhysics(withExitsAsHazards(room, keep, null), 'open'), reach: new Map() };
+      fires.set(keep ?? '', f);
+    }
+    return f;
+  };
   for (const t of targets) {
     const has = abilitySet(...START_ABILITIES, ...t.claim);
     free[t.id] = [];
@@ -136,7 +150,20 @@ export function auditRoom(room: RoomDefinition, opts: AuditOptions = {}): Audit 
         exempt.set(k, true);
         continue;
       }
-      if (!reaches(phys, reachOf(e.id, has), t)) unreachable.push(`${e.id} → ${t.id} with ${[...has].join('+')}`);
+      if (!reaches(phys, reachOf(e.id, has), t)) {
+        unreachable.push(`${e.id} → ${t.id} with ${[...has].join('+')}`);
+        continue;
+      }
+      if ((room.exits ?? []).filter((x) => x.to || x.end).length > (t.id.startsWith('exit:') ? 1 : 0)) {
+        const f = fireOf(t.id.startsWith('exit:') ? t.id.slice(5) : undefined);
+        const fk = `${e.id}|${key(has)}`;
+        let r = f.reach.get(fk);
+        if (!r) {
+          r = f.phys.reachFrom(f.phys.entrySurface(e.id), has);
+          f.reach.set(fk, r);
+        }
+        if (!reaches(f.phys, r, t)) crossesExit.push(`${e.id} → ${t.id} only through another way out`);
+      }
     }
     // a claim is tight when, without any one of its abilities — but with everything else the hero has by now, and with the practised hero's whole bag of tricks — SOME entrance cannot get there
     for (const a of t.claim) {
@@ -146,7 +173,7 @@ export function auditRoom(room: RoomDefinition, opts: AuditOptions = {}): Audit 
     }
   }
   for (const [k, used] of exempt) if (!used) issues.push({ room: room.id, code: 'one-way-unknown', message: `[${room.id}] the one-way ${k.replace('|', ' → ')} names an entrance or a target the room does not have` });
-  return { room: room.id, issues, unreachable, loose, free };
+  return { room: room.id, issues, unreachable, loose, crossesExit, free };
 }
 
 /** The room as letters, with what is placed on it: `e` entrances, `X` ways out, `!` things to take, `S` shrines, `~` seals, `B` bosses, and the first letter of each enemy (lower case), over the solids, platforms and spikes. For reading and for tests. */

@@ -50,6 +50,7 @@ export function expectSound(rooms: readonly RoomDefinition[], oneWay: Record<str
     expect(a.issues.map((i) => i.message), `${room.id}: the validator`).toEqual([]);
     expect(a.unreachable, `${room.id}: what cannot be reached`).toEqual([]);
     expect(a.loose, `${room.id}: claims that are not tight`).toEqual([]);
+    expect(a.crossesExit, `${room.id}: a way across that goes through another way out`).toEqual([]);
     expect(unsafeArrivals(room), `${room.id}: an entrance where a creature already sees the hero`).toEqual([]);
   }
 }

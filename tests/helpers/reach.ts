@@ -81,10 +81,111 @@ export interface Reach {
   hops: readonly Hop[];
 }
 
+/**
+ * THE INPUTS OF A SCRIPT, TICK BY TICK, read from the body as it is at that tick: a jump held for so long, a dash at a tick, a second jump the moment the hero is in the air, a kick at the wall they touch. It decides only from the
+ * script and from what the body does (in the air, touching a wall, rising or falling), so it can drive the solver's own hero and a hero of a real session alike — and a hero who is a hair off what the solver counted still kicks off the wall
+ * they really touch.
+ */
+export class ScriptRunner {
+  readonly frame: InputFrame = createInputFrame();
+  private airborne = false;
+  private jumpHeld = false;
+  private pressedAt = -99;
+  private side: 1 | -1;
+  private againDone = false;
+  private againUntil = -1;
+  /** A second jump is a second PRESS: the first one is let go of before it. */
+  private readonly hold: number;
+
+  constructor(readonly script: Script) {
+    this.side = script.dir === 0 ? 1 : script.dir;
+    this.hold = script.again !== undefined ? Math.min(script.hold, script.again - 1) : script.hold;
+  }
+
+  /** The most ticks the script may take to come down somewhere. */
+  get limit(): number {
+    return this.script.wall ? MAX_WALL_TICKS : MAX_TICKS;
+  }
+
+  /** The hero has left the ground since the script began. */
+  get inAir(): boolean {
+    return this.airborne;
+  }
+
+  /** The frame of tick `t`. */
+  next(t: number, b: { hitLeft: boolean; hitRight: boolean; vy: number; grounded: boolean }): InputFrame {
+    const script = this.script;
+    let dir: number = script.dir;
+    if (script.steerOffAt !== undefined && t >= script.steerOffAt) dir = 0;
+    let wantJump = t < this.hold;
+    let press = t === 0 && this.hold > 0;
+    if (script.again !== undefined && !this.againDone && t >= script.again && this.airborne) {
+      this.againDone = true;
+      this.againUntil = t + 22;
+      press = true;
+    }
+    if (this.againUntil >= t) wantJump = true;
+    // the kick chain: in the air, the button is let go of at the top of each rise, and pressed again at a wall — toward the other one, or the same
+    if (script.wall && this.airborne) {
+      const atWall = (b.hitLeft && this.side === -1) || (b.hitRight && this.side === 1);
+      if (this.jumpHeld) wantJump = !(b.vy <= 0 && t > this.pressedAt + 5);
+      else if (!b.grounded && atWall && b.vy < 2) {
+        press = true;
+        wantJump = true;
+        this.pressedAt = t;
+        if (script.wall === 'alternate') this.side = this.side === 1 ? -1 : 1;
+      }
+      dir = this.side;
+    }
+    let down = 0;
+    if (script.down) {
+      down = -1;
+      press = t === 0;
+      wantJump = t === 0;
+    }
+    let dashNow = false;
+    for (const d of script.dash ?? []) if (t === d) dashNow = true;
+    const frame = this.frame;
+    frame.move.x = dir;
+    frame.move.y = down;
+    frame.jumpPressed = press && !this.jumpHeld;
+    frame.jumpReleased = this.jumpHeld && !wantJump;
+    frame.jumpHeld = wantJump;
+    frame.dashPressed = dashNow;
+    frame.attackPressed = false;
+    this.jumpHeld = wantJump;
+    return frame;
+  }
+
+  /** After the controller has had the frame. */
+  after(b: { grounded: boolean }): void {
+    if (!this.airborne && !b.grounded) this.airborne = true;
+  }
+}
+
 interface Trial {
   surface: number;
   landX: number;
   landY: number;
+}
+
+/** How far from a way out a hero keeps when it is not the one they mean to take: a hand's breadth (m). A person who stops at the edge of a zone does not stop to the centimetre. */
+export const EXIT_CLEARANCE = 0.3;
+
+/**
+ * The room with its ways out as WALLS OF FIRE — all of them but `keep` and those whose flag is not set —: touching one is leaving the room, so a way across that goes through one is no way across (found in Prompt 22: the first wall kick of a
+ * 5 m chimney crossed the zone of the door at its foot, and the hero who climbed it was taken to the room before). They are hazards to the solver, which fails a hop that touches one.
+ */
+export function withExitsAsHazards(room: RoomDefinition, keep?: string, flags: ReadonlySet<string> | null = null, clearance = EXIT_CLEARANCE): RoomDefinition {
+  const fire = (room.exits ?? []).filter((x) => (x.to || x.end) && x.id !== keep && (x.requires === undefined || flags === null || flags.has(x.requires)));
+  if (fire.length === 0) return room;
+  return {
+    ...room,
+    hazards: [
+      ...(room.hazards ?? []),
+      ...fire.map((x) => ({ id: `exit_${x.id}`, kind: 'spikes' as const, damage: 0, rect: { x0: x.rect.x0 - clearance, x1: x.rect.x1 + clearance, y0: x.rect.y0 - clearance, y1: x.rect.y1 + clearance } })),
+    ],
+  };
 }
 
 /** The solids of the room in a state of its gates: `closed` is a room as it is built (a door that a flag opens is there; one that only shuts for a fight is not), `open` has every such door and every breakable wall gone. */
@@ -319,68 +420,29 @@ export class RoomPhysics {
     b.vx = script.dir === 0 ? 0 : script.dir * Math.min(RUN, Math.sqrt(2 * RUN_ACCEL * Math.max(0, runway)));
     this.world.probeGround(b);
     if (!b.grounded) return null;
-    const frame = createInputFrame();
-    let airborne = false;
-    let jumpHeld = false;
-    let pressedAt = -99;
-    let side: 1 | -1 = script.dir === 0 ? 1 : script.dir;
-    let againDone = false;
-    let againUntil = -1;
-    // a second jump is a second PRESS: the first one is let go of before it
-    const hold = script.again !== undefined ? Math.min(script.hold, script.again - 1) : script.hold;
+    const runner = new ScriptRunner(script);
     this.trace = [];
-    const limit = script.wall ? MAX_WALL_TICKS : MAX_TICKS;
-    for (let t = 0; t < limit; t++) {
-      let dir: number = script.dir;
-      if (script.steerOffAt !== undefined && t >= script.steerOffAt) dir = 0;
-      let wantJump = t < hold;
-      let press = t === 0 && hold > 0;
-      if (script.again !== undefined && !againDone && t >= script.again && airborne) {
-        againDone = true;
-        againUntil = t + 22;
-        press = true;
-      }
-      if (againUntil >= t) wantJump = true;
-      // the kick chain: in the air, the button is let go of at the top of each rise, and pressed again at a wall — toward the other one, or the same
-      if (script.wall && airborne) {
-        const atWall = (b.hitLeft && side === -1) || (b.hitRight && side === 1);
-        if (jumpHeld) wantJump = !(b.vy <= 0 && t > pressedAt + 5);
-        else if (!b.grounded && atWall && b.vy < 2) {
-          press = true;
-          wantJump = true;
-          pressedAt = t;
-          if (script.wall === 'alternate') side = side === 1 ? -1 : 1;
-        }
-        dir = side;
-      }
-      let down = 0;
-      if (script.down) {
-        down = -1;
-        press = t === 0;
-        wantJump = t === 0;
-      }
-      let dashNow = false;
-      for (const d of script.dash ?? []) if (t === d) dashNow = true;
-      frame.move.x = dir;
-      frame.move.y = down;
-      frame.jumpPressed = press && !jumpHeld;
-      frame.jumpReleased = jumpHeld && !wantJump;
-      frame.jumpHeld = wantJump;
-      frame.dashPressed = dashNow;
-      frame.attackPressed = false;
-      jumpHeld = wantJump;
+    for (let t = 0; t < runner.limit; t++) {
+      const frame = runner.next(t, b);
       if (this.recording) this.trace.push({ ...frame, move: { ...frame.move } });
       p.combat.tickBuffer(false);
       p.controller.update(this.sim, frame);
       if (b.y < this.killY) return null;
-      if (!airborne && !b.grounded) airborne = true;
+      runner.after(b);
       for (const h of this.hazards) if (overlaps({ x0: b.x - HALF, x1: b.x + HALF, y0: b.y, y1: b.y + HEIGHT }, h)) return null;
-      if (airborne && b.grounded && !p.controller.dashing) {
+      if (runner.inAir && b.grounded && !p.controller.dashing) {
         const landed = this.surfaceAt(b.x, b.y);
         return landed ? { surface: landed.index, landX: b.x, landY: b.y } : null;
       }
     }
     return null;
+  }
+
+  /** Where a hop that is named would come down from the take-off point `x` of surface `s` — a trial, with what the hero has. `null`: nowhere (a fall, spikes, no landing, no such script for these abilities). */
+  landing(s: Surface, x: number, scriptName: string, has: ReadonlySet<string>): { surface: number; landX: number; landY: number } | null {
+    const script = RoomPhysics.scripts(has).find((c) => c.name === scriptName);
+    if (!script) return null;
+    return this.trial(s, x, script, has);
   }
 
   /** Plays a hop that was found once more, recording the inputs: where the hero started (feet and speed), every frame, and where they came down. For a test that plays it again through the real session. */

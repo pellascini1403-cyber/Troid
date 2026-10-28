@@ -219,8 +219,10 @@ export class PlayerController {
     this.bottleRequest = this.drinkSlot = -1; // a reset is not a gameplay interruption: no event
     this.drinkTicks = 0;
     this.interactTicks = 0;
+    this.dashSavedVy = 0; // (a dash that is cut short here has no climb to hand back: leaving it would give the arrival a hop up)
     this.player.combat.end();
     this.fsm.go('free');
+    this.dashCooldown = 0; // (and the exit of a dash starts the cooldown)
     // Hard reset of the shape (respawn / room change): the spawn point is always free, so no room check.
     this.crouching = false;
     this.player.body.height = this.player.def.body.height;

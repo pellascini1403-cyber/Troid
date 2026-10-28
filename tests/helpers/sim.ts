@@ -130,6 +130,13 @@ export class Driver {
     return this;
   }
 
+  /** Plays one frame that was made elsewhere (a hop the solver recorded): `onFrame` sees it, as it sees every tick, and the buttons held here are not touched. */
+  tickFrame(frame: Readonly<InputFrame>): this {
+    this.onFrame?.(frame);
+    this.session.tick(frame);
+    return this;
+  }
+
   /** Steps until `cond` is true (checked after every tick). Returns the ticks used; throws if it never happens. */
   until(cond: () => boolean, max = 600): number {
     for (let i = 0; i < max; i++) {
