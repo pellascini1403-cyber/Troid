@@ -371,7 +371,7 @@ async function settingsTouch(ctx: Ctx): Promise<void> {
   assert.equal(order[0], 'settings-reference-touch', 'on a touch screen the touch controls come first');
   assert.deepEqual(
     await q(page, 'settings-reference-touch').locator('.settings-touchline > b').allTextContents(),
-    ['Move', 'Jump', 'Crouch', 'Drop through a platform', 'Attack, dash and ability', 'Drink a bottle', 'Interact', 'Pause'],
+    ['Move', 'Jump', 'Crouch', 'Drop through a platform', 'Attack, dash and ability', 'Double jump and wall jump', 'Ground slam', 'Air dash', 'Drink a bottle', 'Interact', 'Pause'],
     'the touch controls, each a gesture or a button that exists',
   );
   assert.equal(await q(page, 'settings-reference-keyboard').locator('.settings-reference-rows').count(), 0, 'and no keyboard list: nobody here has seen a keyboard');

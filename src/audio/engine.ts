@@ -126,8 +126,11 @@ const FADING_ROOM = 12;
 const DROP_REASONS: readonly DropReason[] = ['locked', 'unknown', 'silent', 'paused', 'notLoaded', 'cooldown', 'full'];
 const RECENT = 24;
 
-/** The limiter lets nothing through above this (dBFS) and the make-up takes back the gain a browser's compressor adds on its own. */
-const LIMITER = { threshold: -2.5, knee: 0, ratio: 20, attack: 0.002, release: 0.14 } as const;
+/**
+ * The limiter: the compressor of the highest ratio Web Audio allows, from −2.5 dBFS up. It limits the way a mixer's does — it holds a pile of sound to a few decibels — and is not a wall: above the threshold the output climbs one
+ * decibel for every twenty that go in (−2.4 dBFS for an input at full scale, −1.2 for two dozen voices struck on the same instant). The make-up (`LIMITER_MAKEUP`) takes back the gain a browser's compressor adds on its own.
+ */
+export const LIMITER = { threshold: -2.5, knee: 0, ratio: 20, attack: 0.002, release: 0.14 } as const;
 
 /** What the music is dimmed and dulled to while the game waits at a menu, and while the hero is down. */
 export const MUSIC_MOODS = {
@@ -683,7 +686,8 @@ export class AudioEngine {
 /**
  * The make-up gain that undoes what a browser's compressor adds by itself when it is set as the limiter is. The Web Audio spec has the compressor add a make-up of its own, `(1 / the gain of its curve at full scale) ^ 0.6`,
  * which for a threshold of −2.5 dB and a ratio of 20 is ×1.178 (+1.42 dB) at every level below the threshold: measured in Chromium 141, a burst at −20 dBFS that went in with a peak of 0.0630 came out at 0.0742. Taken back
- * here, the chain is unity under the threshold, and the ceiling is the −2.4 dBFS the curve gives at full scale. (The spec fixes the formula, so a browser that follows it does the same.)
+ * here, the chain is unity under the threshold, and over it the output is the curve's: −2.4 dBFS for an input at full scale and one decibel more for every twenty above it (`LIMITER`). (The spec fixes the formula, so a browser that follows it does
+ * the same.)
  */
 export const LIMITER_MAKEUP = 0.849;
 

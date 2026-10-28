@@ -19,7 +19,7 @@ interface Stored {
   abilities: string[];
   cards: { owned: string[]; equipped: string | null };
   bottleSlots: number;
-  stats: { ticks: number; deaths: number; kills: number; rooms: string[] };
+  stats: { ticks: number; deaths: number; kills: number; rooms: string[]; zones?: Record<string, number>; falls?: Record<string, number>; guardians?: Record<string, number> };
   savedAt: number;
 }
 const stored = (page: Page, key = KEY): Promise<Stored | null> =>
@@ -146,16 +146,18 @@ export const save: Scenario = {
     const before = await ctx.page.evaluate(`localStorage.getItem(${JSON.stringify(KEY)})`);
     await reload();
     await ctx.step(60);
-    const keep = (text: unknown): { won: Record<string, unknown>; counted: Record<string, unknown>; ticks: number; at: number } => {
+    const keep = (text: unknown): { won: Record<string, unknown>; counted: Record<string, unknown>; ticks: number; zones: Record<string, number>; at: number } => {
       const { stats, savedAt, ...won } = JSON.parse(text as string) as Stored;
-      const { ticks, ...counted } = stats;
-      return { won, counted, ticks, at: savedAt };
+      // (time is not a count: the ticks, and the ticks lived in each zone, go on while the page is open)
+      const { ticks, zones, ...counted } = stats;
+      return { won, counted, ticks, zones: zones ?? {}, at: savedAt };
     };
     const afterReload = await ctx.page.evaluate(`localStorage.getItem(${JSON.stringify(KEY)})`);
     const [a, b] = [keep(before), keep(afterReload)];
     assert.deepEqual(b.won, a.won, 'reloading and playing a minute without winning anything leaves what was won as it was');
-    assert.deepEqual(b.counted, a.counted, 'and the defeats, the kills and the rooms');
+    assert.deepEqual(b.counted, a.counted, 'and the defeats, the kills, the rooms, the falls in each zone and the time each guardian took to fall');
     assert.ok(b.ticks >= a.ticks && b.at >= a.at, 'the time played never goes back (the page that was left wrote the stretch it had played)');
+    for (const [zone, ticks] of Object.entries(a.zones)) assert.ok((b.zones[zone] ?? 0) >= ticks, `nor does the time lived in ${zone} (${ticks} ticks, then ${b.zones[zone] ?? 0})`);
     assert.equal((await state()).room, 'r2_hall', 'it picks up where the last room was entered');
 
     // ================================================================================================ a damaged save: kept aside, a fresh game; with a backup: the backup

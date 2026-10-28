@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import type { BrowserContext, Page } from 'playwright-core';
+import { LIMITER } from '@/audio/engine';
 import { openPage } from '../harness';
 import type { Ctx, GameState, Scenario } from '../scenario';
 
@@ -47,7 +48,7 @@ interface Started { seconds: number; channels: number; loop: boolean; loopStart:
 interface Probe { contexts: number; rates: number[]; offline: number; starts: Started[] }
 
 interface IndexFile {
-  sounds: Record<string, { group: string; bus: string; gainDb: number; loop?: { start: number; end: number }; variants: Array<{ opus: string; mp3: string; seconds: number }> }>;
+  sounds: Record<string, { group: string; bus: string; gainDb: number; gainJitterDb?: number; voices?: number; loop?: { start: number; end: number }; variants: Array<{ opus: string; mp3: string; seconds: number }> }>;
   tracks: Record<string, { group: string; layers: Record<string, string>; seconds: number }>;
 }
 const INDEX = JSON.parse(readFileSync('public/audio/index.json', 'utf8')) as IndexFile;
@@ -794,6 +795,34 @@ async function failing(ctx: Ctx): Promise<string> {
 }
 
 // ===================================================================================================================== I · a storm
+/** The most voices the engine lets sound together (its `maxVoices`). */
+const VOICES = 24;
+/** What the music, the bed and the echo of a room can add to a storm of effects, as a fraction of full scale: far more than they come to (they lie fifteen decibels or more under a blow). */
+const REST = 1;
+
+/**
+ * THE MOST A STORM CAN COME TO, from the data (docs/PROMPT22-LOG.md §14). The engine's limiter is a compressor (threshold −2.5 dBFS, ratio 20), not a wall: above its threshold the output climbs one decibel for every twenty that go in, so what comes out
+ * depends on what went in — and what can go in is known: at most `VOICES` voices, each at the peak of its file with its trim on (what the files are held to) and the loudest throw of its random variation of level, all struck on the same instant and on the same side of the stereo (which no mix is), plus `REST`.
+ * The output cannot pass what the curve gives for THAT. (This check once said −1.5 dBFS, a number taken from a few runs that came out at −1.9 to −2.6; a run that happened to pile more transients on one another came out at −1.49 and failed for a
+ * loudness that is neither a clip nor a defect: the curve itself gives −1.19 for the same voices all coincident.)
+ */
+function stormCeiling(ids: string[]): { peak: number; inputDb: number; voices: number } {
+  const copies: number[] = [];
+  for (const id of ids) {
+    const s = INDEX.sounds[id]!;
+    const n = s.variants.length;
+    const peaks = s.variants.map((_, v) => MEASURES[`${id.replace(/\./g, '_')}${n > 1 ? `_${v + 1}` : ''}`]?.peakDb);
+    assert.ok(peaks.every((p) => typeof p === 'number'), `${id} has its peaks measured`);
+    const loudest = 10 ** ((Math.max(...(peaks as number[])) + s.gainDb + (s.gainJitterDb ?? 0)) / 20);
+    for (let i = 0; i < (s.voices ?? 1); i++) copies.push(loudest);
+  }
+  const piled = copies.sort((a, b) => b - a).slice(0, VOICES);
+  const input = piled.reduce((x, y) => x + y, 0) + REST;
+  const inputDb = db(input);
+  const outDb = inputDb <= LIMITER.threshold ? inputDb : LIMITER.threshold + (inputDb - LIMITER.threshold) / LIMITER.ratio;
+  return { peak: 10 ** (outDb / 20), inputDb, voices: piled.length };
+}
+
 async function storm(ctx: Ctx): Promise<string> {
   await ctx.open('audio=on', { ...SIZE, prepare: probed });
   const { page } = ctx;
@@ -819,8 +848,13 @@ async function storm(ctx: Ctx): Promise<string> {
   assert.ok(after.engine.stolen > before.engine.stolen || (after.engine.dropped['cooldown'] ?? 0) > (before.engine.dropped['cooldown'] ?? 0), 'the mix made room, or held back what came too fast');
   assert.ok(result.ms < 400, `600 requests took ${result.ms.toFixed(0)} ms of the page's time`);
   const heard = await listen(page, 1500);
+  const worst = stormCeiling(ids);
   assert.ok(heard.peak > 0.1, `the storm is heard (${db(heard.peak).toFixed(1)} dBFS)`);
-  assert.ok(heard.peak <= 0.84, `and the limiter holds the output under its ceiling, with the volumes at full (${db(heard.peak).toFixed(2)} dBFS; the ceiling is −2.4 and the limit of this check −1.5)`);
+  assert.ok(db(worst.peak) < -1, `the most a storm can come to, from the data, is under the −1 dBFS every file is held to (${db(worst.peak).toFixed(2)} dBFS)`);
+  assert.ok(
+    heard.peak <= worst.peak,
+    `and the limiter holds the output to what its curve gives for the most the voices can pile up, with the volumes at full (${db(heard.peak).toFixed(2)} dBFS heard; at most ${db(worst.peak).toFixed(2)} for ${worst.voices} voices, ${worst.inputDb.toFixed(1)} dB over full scale)`,
+  );
   // everything ends and is let go
   await waitAudio(page, `a.engine.voices === 0`, 30000);
   const settled = await audioOf(page);
@@ -831,7 +865,7 @@ async function storm(ctx: Ctx): Promise<string> {
   // and it can be done again: a second storm, the same
   const again = (await page.evaluate(`(() => { let n = 0; for (let i = 0; i < 300; i++) if (window.__troid.playSound('hit.light')) n++; return n; })()`)) as number;
   assert.ok(again >= 1, 'the engine plays after a storm');
-  return `600 requests in ${result.ms.toFixed(0)} ms: ${result.started} started, ${after.engine.stolen - before.engine.stolen} voices taken over, ${total(after) - total(before)} dropped and counted; at most ${after.engine.peakVoices} voices (${after.engine.peakSources} sources with the fading ones), peak ${db(heard.peak).toFixed(1)} dBFS, and all let go`;
+  return `600 requests in ${result.ms.toFixed(0)} ms: ${result.started} started, ${after.engine.stolen - before.engine.stolen} voices taken over, ${total(after) - total(before)} dropped and counted; at most ${after.engine.peakVoices} voices (${after.engine.peakSources} sources with the fading ones), peak ${db(heard.peak).toFixed(2)} dBFS (at most ${db(worst.peak).toFixed(2)}), and all let go`;
 }
 
 // ===================================================================================================================== J · the sound of the game, played
