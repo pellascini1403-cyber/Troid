@@ -1,0 +1,236 @@
+{
+  "sceneVersion": 1,
+  "room": "ct_approach",
+  "layers": {
+    "propsBack": [
+      {
+        "sprite": "broken_arch_b",
+        "x": 21.85,
+        "y": 2,
+        "scale": 1.01,
+        "flip": false
+      },
+      {
+        "sprite": "caged_orb_a",
+        "x": 35.51,
+        "y": 2,
+        "scale": 1.1,
+        "flip": false
+      },
+      {
+        "sprite": "tower_stub_b",
+        "x": 47.11,
+        "y": 2,
+        "scale": 0.95,
+        "flip": false
+      },
+      {
+        "sprite": "caged_orb_a",
+        "x": 52.9,
+        "y": 2,
+        "scale": 1,
+        "flip": false
+      },
+      {
+        "sprite": "thorn_pillar_a",
+        "x": 60.1,
+        "y": 2,
+        "scale": 1,
+        "flip": true
+      }
+    ],
+    "terrain": [
+      {
+        "sprite": "chain_heap_a",
+        "x": 33.14,
+        "y": 2,
+        "scale": 0.88,
+        "flip": false
+      },
+      {
+        "sprite": "bone_pile_a",
+        "x": 49.13,
+        "y": 2,
+        "scale": 0.95,
+        "flip": false
+      },
+      {
+        "sprite": "chain_heap_b",
+        "x": 31.19,
+        "y": 4,
+        "scale": 0.96,
+        "flip": true
+      },
+      {
+        "sprite": "chain_heap_a",
+        "x": 11.85,
+        "y": 2,
+        "scale": 0.85,
+        "flip": true
+      },
+      {
+        "sprite": "rubble_dark_a",
+        "x": 22.38,
+        "y": 2,
+        "scale": 0.93,
+        "flip": false
+      },
+      {
+        "sprite": "chain_heap_b",
+        "x": 27.01,
+        "y": 2,
+        "scale": 1.15,
+        "flip": true
+      },
+      {
+        "sprite": "chain_heap_a",
+        "x": 40.64,
+        "y": 2,
+        "scale": 1.19,
+        "flip": false
+      },
+      {
+        "sprite": "chain_heap_b",
+        "x": 45.62,
+        "y": 2,
+        "scale": 0.94,
+        "flip": true
+      },
+      {
+        "sprite": "rubble_dark_b",
+        "x": 50.59,
+        "y": 2,
+        "scale": 1.12,
+        "flip": false
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "chains_b",
+        "x": 7.02,
+        "y": 20.64,
+        "scale": 1.35,
+        "flip": false
+      },
+      {
+        "sprite": "thorn_drapes_a",
+        "x": 20.41,
+        "y": 20.57,
+        "scale": 1.37,
+        "flip": false
+      },
+      {
+        "sprite": "chains_a",
+        "x": 38.41,
+        "y": 21.31,
+        "scale": 1.12,
+        "flip": true
+      },
+      {
+        "sprite": "chains_a",
+        "x": 55.68,
+        "y": 21.19,
+        "scale": 1.33,
+        "flip": true
+      },
+      {
+        "sprite": "chains_a",
+        "x": 70.84,
+        "y": 21.25,
+        "scale": 1.2,
+        "flip": true
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 6.4,
+        "y": -2.2,
+        "alpha": 0.37,
+        "flip": false
+      },
+      {
+        "sprite": "beam_b",
+        "x": 19.2,
+        "y": -2.2,
+        "alpha": 0.27,
+        "flip": true
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 15.5,
+        "y": 1.8,
+        "alpha": 0.15,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 37,
+        "y": 1.8,
+        "alpha": 0.13,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 53.5,
+        "y": 1.8,
+        "alpha": 0.17,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 0.95,
+        "alpha": 0.32,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 32.65,
+        "y": 0.5,
+        "scale": 1.03,
+        "alpha": 0.27,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 52.23,
+        "y": 0.5,
+        "scale": 0.89,
+        "alpha": 0.29,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "glow_rest",
+        "x": 56.5,
+        "y": 0.9,
+        "scale": 1.1,
+        "alpha": 0.34,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "glow_rest",
+        "x": 9.5,
+        "y": 6.9,
+        "scale": 0.4,
+        "alpha": 0.32,
+        "motion": "pulse"
+      }
+    ]
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "sceneVersion": 1,
+  "room": "ct_hall",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 9.5,
+        "y": 1,
+        "w": 17,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 30,
+        "y": 1,
+        "w": 20,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 52,
+        "y": 1,
+        "w": 20,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 74,
+        "y": 1,
+        "w": 20,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 98.5,
+        "y": 1,
+        "w": 25,
+        "h": 1
+      }
+    ]
+  }
+}

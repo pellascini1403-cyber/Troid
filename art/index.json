@@ -81,7 +81,48 @@
         "ih_ascent",
         "ih_approach",
         "ih_arena",
-        "ih_end"
+        "ih_end",
+        "dv_gate",
+        "dv_orchard",
+        "dv_ford",
+        "dv_shrine",
+        "dv_lake",
+        "dv_ruins",
+        "dv_ridge",
+        "dv_approach",
+        "dv_arena",
+        "dv_cellar",
+        "og_edge",
+        "og_roots",
+        "og_trunk",
+        "og_shrine",
+        "og_clearing",
+        "og_gap",
+        "og_spring",
+        "og_canopy",
+        "og_approach",
+        "og_arena",
+        "og_vault",
+        "ec_rim",
+        "ec_slope",
+        "ec_river",
+        "ec_shrine",
+        "ec_forge",
+        "ec_tunnel",
+        "ec_caldera",
+        "ec_approach",
+        "ec_arena",
+        "ec_cache",
+        "ct_gate",
+        "ct_hall",
+        "ct_gallery",
+        "ct_shrine",
+        "ct_stair",
+        "ct_chains",
+        "ct_gauntlet",
+        "ct_approach",
+        "ct_arena",
+        "ct_end"
       ],
       "manifest": "ruins-ground/ruins-ground.pack.json",
       "tags": [
@@ -259,7 +300,26 @@
         "fd_scrap",
         "ih_shrine",
         "ih_approach",
-        "ih_end"
+        "ih_end",
+        "dv_shrine",
+        "dv_ruins",
+        "dv_approach",
+        "dv_arena",
+        "dv_cellar",
+        "og_shrine",
+        "og_clearing",
+        "og_approach",
+        "og_arena",
+        "og_vault",
+        "ec_shrine",
+        "ec_forge",
+        "ec_caldera",
+        "ec_approach",
+        "ec_arena",
+        "ec_cache",
+        "ct_shrine",
+        "ct_approach",
+        "ct_end"
       ],
       "manifest": "ruins-parts/ruins-parts.pack.json",
       "tags": [
@@ -389,6 +449,91 @@
       "manifest": "zone-heart/zone-heart.pack.json",
       "tags": [
         "heart"
+      ]
+    },
+    {
+      "id": "zone-dusk",
+      "category": "environment",
+      "load": "zone",
+      "zones": [
+        "dv_gate",
+        "dv_orchard",
+        "dv_ford",
+        "dv_shrine",
+        "dv_lake",
+        "dv_ruins",
+        "dv_ridge",
+        "dv_approach",
+        "dv_arena",
+        "dv_cellar"
+      ],
+      "manifest": "zone-dusk/zone-dusk.pack.json",
+      "tags": [
+        "dusk"
+      ]
+    },
+    {
+      "id": "zone-grove",
+      "category": "environment",
+      "load": "zone",
+      "zones": [
+        "og_edge",
+        "og_roots",
+        "og_trunk",
+        "og_shrine",
+        "og_clearing",
+        "og_gap",
+        "og_spring",
+        "og_canopy",
+        "og_approach",
+        "og_arena",
+        "og_vault"
+      ],
+      "manifest": "zone-grove/zone-grove.pack.json",
+      "tags": [
+        "grove"
+      ]
+    },
+    {
+      "id": "zone-crater",
+      "category": "environment",
+      "load": "zone",
+      "zones": [
+        "ec_rim",
+        "ec_slope",
+        "ec_river",
+        "ec_shrine",
+        "ec_forge",
+        "ec_tunnel",
+        "ec_caldera",
+        "ec_approach",
+        "ec_arena",
+        "ec_cache"
+      ],
+      "manifest": "zone-crater/zone-crater.pack.json",
+      "tags": [
+        "crater"
+      ]
+    },
+    {
+      "id": "zone-throne",
+      "category": "environment",
+      "load": "zone",
+      "zones": [
+        "ct_gate",
+        "ct_hall",
+        "ct_gallery",
+        "ct_shrine",
+        "ct_stair",
+        "ct_chains",
+        "ct_gauntlet",
+        "ct_approach",
+        "ct_arena",
+        "ct_end"
+      ],
+      "manifest": "zone-throne/zone-throne.pack.json",
+      "tags": [
+        "throne"
       ]
     }
   ]

@@ -88,7 +88,7 @@ import type { AudioSystem } from './audio';
 import type { Effects } from './effects';
 
 type BossViews = typeof import('./bossViews');
-import { loadBeyond } from './beyond';
+import { beyondWords, loadBeyond } from './beyond';
 import { artIndexUrl, optionsFromQuery, type GameOptions } from './options';
 
 /** How long after the first frame the page waits before it fetches the effects (it still waits for an idle moment after that). */
@@ -326,6 +326,7 @@ export class Game2D {
     );
     document.documentElement.lang = this.translator.locale; // screen readers and the browser's own UI follow the game's language
     this.lifecycle.add(this.translator.changed.subscribe((lang) => (document.documentElement.lang = lang)));
+    this.speakBeyond(); // (a game that begins past the Sanctum has the rest of the world already: its words come with it)
 
     // ---- input: three devices, one abstraction (docs/PROMPT5-LOG.md S13) ----
     attachKeyboardMouse(this.lifecycle, this.input, () => this.bindings);
@@ -472,7 +473,10 @@ export class Game2D {
       if (!e.to || ROOMS[e.to.room]) return;
       const wait = (triesLeft: number): void =>
         void loadBeyond().then(
-          () => this.session.rearmExit(e.exitId),
+          () => {
+            this.speakBeyond();
+            this.session.rearmExit(e.exitId);
+          },
           () => {
             if (triesLeft > 0 && !this.closed) window.setTimeout(() => wait(triesLeft - 1), 2000);
           },
@@ -580,7 +584,7 @@ export class Game2D {
       void loadEffects();
       void loadAudio();
       loadBossViews().catch(() => undefined);
-      loadBeyond().catch(() => undefined); // (a failure is tried again by the first way that leads there)
+      loadBeyond().then(() => this.speakBeyond(), () => undefined); // (a failure is tried again by the first way that leads there)
       void this.loadOverlays();
       startArt();
     };
@@ -873,6 +877,11 @@ export class Game2D {
     });
     // a developer is told what the art got wrong (a strip too short for the camera); a player's console stays quiet
     if (import.meta.env.DEV) for (const n of cover.notes) log.scope('art').warn(n);
+  }
+
+  /** The names of the rooms and of what lives in them past the Sanctum are added to the translator when the rest of the world is in (`app/beyond.ts`); before that there is nothing to add. */
+  private speakBeyond(): void {
+    for (const [lang, entries] of Object.entries(beyondWords())) this.translator.extend(lang, entries);
   }
 
   // -------------------------------------------------------------------------------------------------------- the arrival

@@ -1,0 +1,29 @@
+{
+  "sceneVersion": 1,
+  "room": "ec_approach",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 12.5,
+        "y": 1,
+        "w": 23,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 39,
+        "y": 1,
+        "w": 10,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 54.5,
+        "y": 1,
+        "w": 17,
+        "h": 1
+      }
+    ]
+  }
+}

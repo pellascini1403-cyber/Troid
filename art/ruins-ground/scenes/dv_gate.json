@@ -1,0 +1,29 @@
+{
+  "sceneVersion": 1,
+  "room": "dv_gate",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 13.5,
+        "y": 1,
+        "w": 25,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 42,
+        "y": 1,
+        "w": 8,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 63.5,
+        "y": 1,
+        "w": 15,
+        "h": 1
+      }
+    ]
+  }
+}

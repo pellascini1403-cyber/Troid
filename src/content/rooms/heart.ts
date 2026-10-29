@@ -7,7 +7,7 @@ import { lever } from './kit';
  * THE HEART OF THE INK (docs/PROMPT21-LOG.md): where the ink comes from. Black, quiet, and it beats. The last zone asks of the hero everything the others did — a ladder of Double Jumps over spikes, a chimney that only the Wall Jump climbs — and puts
  * the creatures of all of them against them, with a new one among them: the Veil Shade, which vanishes when the hero comes close and comes back behind them. It ends with the INKHEART SOVEREIGN, and after the Sovereign, the end.
  *
- *   fd_arena → ih_threshold → ih_veins → ih_shrine → ih_atrium → ih_ascent → ih_approach → ih_arena → ih_end → (the end of the adventure)
+ *   fd_arena → ih_threshold → ih_veins → ih_shrine → ih_atrium → ih_ascent → ih_approach → ih_arena → ih_end → (the Gate of Dusk)
  *                ↑ ╲ a door that the lever in the antechamber opens                  ┆ shrine ┆ shrine, lever ┆ the last rest
  *                │   └──────────────────────────────────────────────────────────────┘
  */
@@ -157,7 +157,7 @@ export function antechamber(): RoomDefinition {
 // ---------------------------------------------------------------------------------------------------------------- the Heart
 /**
  * «Corazón»: 72 × 30 m. The arena of the INKHEART SOVEREIGN: 53 m of black floor between two doors that shut when the fight begins and open when it ends. It cuts across the room, rains ink, throws orbs, sends a nova out from itself and walks a column of ink across the
- * floor; it calls a Veil Shade at two thirds of its life and an Ink Weaver at one third. When it falls the way on — to the last room — works.
+ * floor; it calls a Veil Shade at two thirds of its life and an Ink Weaver at one third. When it falls the way on — to the Rest, and past it to the Verge of Dusk — works.
  */
 export function heart(): RoomDefinition {
   const c = new RoomCanvas('ih_arena', 72, 30).walls().ground(1, 71, 2);
@@ -180,7 +180,8 @@ export function heart(): RoomDefinition {
 
 // ---------------------------------------------------------------------------------------------------------------- the Rest
 /**
- * «Reposo»: 40 × 16 m. A last quiet room after the Sovereign: a floor, a shrine, and at the east wall the way out of the world — the end of the adventure.
+ * «Reposo»: 40 × 16 m. A quiet room after the Sovereign: a floor, a shrine, and at the east wall the way on — to the Gate of Dusk, where the second half of the adventure begins (docs/PROMPT23-LOG.md §7). It used to be the end of the world: the end is now in
+ * the last room of the Cinder Throne.
  */
 export function rest(): RoomDefinition {
   const c = new RoomCanvas('ih_end', 40, 16).walls().ground(1, 39, 2);
@@ -189,8 +190,8 @@ export function rest(): RoomDefinition {
   return mapRoom(
     { id: 'ih_end', regionId: REGION, name: 'Rest', nameKey: 'room.ih_end.name', art: { backdrop: 'heart', seed: 64 }, rows: c.rows(), materials: MATERIALS },
     (m) => ({
-      entries: [m.entry('west', 'a', 1), m.entry('rest', 'q', 1)],
-      exits: [m.exitSide('west', 'west', 'a', { room: 'ih_arena', entry: 'east' }), m.endSide('end', 'east', 'b', { requires: 'defeated:ih_boss' })],
+      entries: [m.entry('west', 'a', 1), m.entry('east', 'b', -1), m.entry('rest', 'q', 1)],
+      exits: [m.exitSide('west', 'west', 'a', { room: 'ih_arena', entry: 'east' }), m.exitSide('east', 'east', 'b', { room: 'dv_gate', entry: 'west' }, { requires: 'defeated:ih_boss' })],
       interactables: [m.shrine('r')],
     }),
   );

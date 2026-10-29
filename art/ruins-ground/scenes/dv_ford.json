@@ -1,0 +1,22 @@
+{
+  "sceneVersion": 1,
+  "room": "dv_ford",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 8,
+        "y": 1,
+        "w": 14,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 91,
+        "y": 1,
+        "w": 16,
+        "h": 1
+      }
+    ]
+  }
+}

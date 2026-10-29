@@ -1,0 +1,22 @@
+{
+  "sceneVersion": 1,
+  "room": "ec_tunnel",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 4.5,
+        "y": 13,
+        "w": 7,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 99.5,
+        "y": 13,
+        "w": 7,
+        "h": 1
+      }
+    ]
+  }
+}

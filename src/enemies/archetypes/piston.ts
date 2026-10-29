@@ -11,6 +11,11 @@ export interface PistonParams {
   /** It locks on when it is within `lockRange` of the hero's x for `lockDelay` ticks in a row. */
   lockRange: number;
   lockDelay: number;
+  /**
+   * The farthest (m) from its post it follows the hero: a piston that hangs over a stretch of a river of stones guards that stretch, and does not follow the hero along the whole of a room until every piston in it is over the same stone
+   * (found in Prompt 23: over 100 m of lava, three pistons that outrun the hero by a metre a second were three pistons over the last stone). Without it, it follows for as long as it sees them.
+   */
+  leash?: number;
   /** m/s of the drop and of the climb back. */
   dropSpeed: number;
   riseSpeed: number;
@@ -45,7 +50,8 @@ export class PistonBrain extends BaseBrain {
               this.aligned = 0;
               return;
             }
-            this.flyTo(sim.player.body.x, e.home.y, p.trackSpeed, 22);
+            const aim = p.leash === undefined ? sim.player.body.x : Math.min(e.home.x + p.leash, Math.max(e.home.x - p.leash, sim.player.body.x));
+            this.flyTo(aim, e.home.y, p.trackSpeed, 22);
             e.facing = this.dx() >= 0 ? 1 : -1;
             if (Math.abs(this.dx()) <= p.lockRange && this.cooldown === 0 && b.y > sim.player.body.y) this.aligned++;
             else this.aligned = 0;

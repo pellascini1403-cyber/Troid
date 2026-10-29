@@ -1,0 +1,394 @@
+{
+  "sceneVersion": 1,
+  "room": "ct_hall",
+  "layers": {
+    "propsBack": [
+      {
+        "sprite": "broken_arch_b",
+        "x": 14.61,
+        "y": 2,
+        "scale": 1.03,
+        "flip": false
+      },
+      {
+        "sprite": "caged_orb_b",
+        "x": 22.46,
+        "y": 2,
+        "scale": 0.99,
+        "flip": false
+      },
+      {
+        "sprite": "thorn_pillar_b",
+        "x": 34.83,
+        "y": 2,
+        "scale": 0.99,
+        "flip": true
+      },
+      {
+        "sprite": "tower_stub_a",
+        "x": 45.78,
+        "y": 2,
+        "scale": 0.99,
+        "flip": true
+      },
+      {
+        "sprite": "caged_orb_b",
+        "x": 56.74,
+        "y": 2,
+        "scale": 1.06,
+        "flip": false
+      },
+      {
+        "sprite": "caged_orb_b",
+        "x": 67.31,
+        "y": 2,
+        "scale": 1.09,
+        "flip": true
+      },
+      {
+        "sprite": "thorn_pillar_b",
+        "x": 80.39,
+        "y": 2,
+        "scale": 1.05,
+        "flip": true
+      },
+      {
+        "sprite": "broken_arch_b",
+        "x": 90.21,
+        "y": 2,
+        "scale": 1.1,
+        "flip": true
+      },
+      {
+        "sprite": "tower_stub_a",
+        "x": 101.19,
+        "y": 2,
+        "scale": 0.98,
+        "flip": true
+      }
+    ],
+    "terrain": [
+      {
+        "sprite": "rubble_dark_b",
+        "x": 43.21,
+        "y": 2,
+        "scale": 1,
+        "flip": true
+      },
+      {
+        "sprite": "chain_heap_a",
+        "x": 69.67,
+        "y": 2,
+        "scale": 0.92,
+        "flip": true
+      },
+      {
+        "sprite": "rubble_dark_b",
+        "x": 98.64,
+        "y": 2,
+        "scale": 1.07,
+        "flip": true
+      },
+      {
+        "sprite": "chain_heap_a",
+        "x": 41.27,
+        "y": 5,
+        "scale": 1.02,
+        "flip": true
+      },
+      {
+        "sprite": "rubble_dark_b",
+        "x": 84.99,
+        "y": 5,
+        "scale": 1.03,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_dark_a",
+        "x": 19.09,
+        "y": 4,
+        "scale": 1.13,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_dark_a",
+        "x": 63.08,
+        "y": 4,
+        "scale": 0.87,
+        "flip": true
+      },
+      {
+        "sprite": "rubble_dark_a",
+        "x": 16.48,
+        "y": 2,
+        "scale": 0.95,
+        "flip": false
+      },
+      {
+        "sprite": "chain_heap_b",
+        "x": 32.12,
+        "y": 2,
+        "scale": 0.92,
+        "flip": true
+      },
+      {
+        "sprite": "rubble_dark_b",
+        "x": 43.3,
+        "y": 2,
+        "scale": 0.86,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_dark_a",
+        "x": 48.33,
+        "y": 2,
+        "scale": 0.96,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_dark_b",
+        "x": 58.51,
+        "y": 2,
+        "scale": 1.2,
+        "flip": false
+      },
+      {
+        "sprite": "rubble_dark_a",
+        "x": 65.54,
+        "y": 2,
+        "scale": 1.09,
+        "flip": false
+      },
+      {
+        "sprite": "bone_pile_b",
+        "x": 78.36,
+        "y": 2,
+        "scale": 1.1,
+        "flip": false
+      },
+      {
+        "sprite": "chain_heap_b",
+        "x": 82.22,
+        "y": 2,
+        "scale": 0.96,
+        "flip": false
+      },
+      {
+        "sprite": "chain_heap_a",
+        "x": 87.78,
+        "y": 2,
+        "scale": 1.02,
+        "flip": false
+      },
+      {
+        "sprite": "bone_pile_a",
+        "x": 94.83,
+        "y": 2,
+        "scale": 0.95,
+        "flip": true
+      },
+      {
+        "sprite": "bone_pile_a",
+        "x": 98.35,
+        "y": 2,
+        "scale": 1.12,
+        "flip": true
+      },
+      {
+        "sprite": "rubble_dark_b",
+        "x": 101.92,
+        "y": 2,
+        "scale": 1.07,
+        "flip": true
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "chains_a",
+        "x": 9.64,
+        "y": 31.15,
+        "scale": 1.12,
+        "flip": true
+      },
+      {
+        "sprite": "chains_a",
+        "x": 24.6,
+        "y": 30.59,
+        "scale": 1.2,
+        "flip": true
+      },
+      {
+        "sprite": "thorn_drapes_a",
+        "x": 42.44,
+        "y": 29.99,
+        "scale": 1.44,
+        "flip": false
+      },
+      {
+        "sprite": "chains_a",
+        "x": 58.53,
+        "y": 30.47,
+        "scale": 1.32,
+        "flip": false
+      },
+      {
+        "sprite": "chains_a",
+        "x": 75.61,
+        "y": 30.7,
+        "scale": 1.18,
+        "flip": false
+      },
+      {
+        "sprite": "thorn_drapes_a",
+        "x": 92.78,
+        "y": 31.1,
+        "scale": 1.22,
+        "flip": true
+      },
+      {
+        "sprite": "thorn_drapes_b",
+        "x": 106.91,
+        "y": 30.35,
+        "scale": 1.44,
+        "flip": false
+      },
+      {
+        "sprite": "chains_a",
+        "x": 128.38,
+        "y": 30.88,
+        "scale": 1.17,
+        "flip": false
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 7.47,
+        "y": -2.2,
+        "alpha": 0.35,
+        "flip": false
+      },
+      {
+        "sprite": "beam_b",
+        "x": 22.4,
+        "y": -2.2,
+        "alpha": 0.37,
+        "flip": true
+      },
+      {
+        "sprite": "beam_a",
+        "x": 37.33,
+        "y": -2.2,
+        "alpha": 0.37,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 9.5,
+        "y": 1.8,
+        "alpha": 0.14,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 30,
+        "y": 1.8,
+        "alpha": 0.16,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 52,
+        "y": 1.8,
+        "alpha": 0.16,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 74,
+        "y": 1.8,
+        "alpha": 0.13,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 98.5,
+        "y": 1.8,
+        "alpha": 0.15,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 1.1,
+        "alpha": 0.26,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 30.38,
+        "y": 0.5,
+        "scale": 1.08,
+        "alpha": 0.32,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 50.64,
+        "y": 0.5,
+        "scale": 0.98,
+        "alpha": 0.29,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 69.33,
+        "y": 0.5,
+        "scale": 0.85,
+        "alpha": 0.21,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 87.48,
+        "y": 0.5,
+        "scale": 0.98,
+        "alpha": 0.21,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 110.38,
+        "y": 0.5,
+        "scale": 1.08,
+        "alpha": 0.25,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      }
+    ]
+  }
+}

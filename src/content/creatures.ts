@@ -17,14 +17,14 @@ import { INK_SLIME } from './inkSlime';
  *   Veil Shade — vanishes and returns behind you: keep moving, or turn around
  */
 
-const hit = (x: number, y: number, w: number, h: number): AttackDefinition['hitbox'] => ({ x, y, w, h });
+export const hit = (x: number, y: number, w: number, h: number): AttackDefinition['hitbox'] => ({ x, y, w, h });
 
 /** The shape of a blow of an enemy, filled in with the standard hurt (docs/GAME-SPEC-2D.md §9.1) unless the blow says otherwise. */
-function blow(a: Partial<AttackDefinition> & Pick<AttackDefinition, 'id' | 'startup' | 'active' | 'recovery' | 'hitbox'>): AttackDefinition {
+export function blow(a: Partial<AttackDefinition> & Pick<AttackDefinition, 'id' | 'startup' | 'active' | 'recovery' | 'hitbox'>): AttackDefinition {
   return { damage: 1, knockback: { x: 5.5, y: 4 }, stun: 14, hitStop: 6, shake: 0.2, moveControl: 0, anim: 'telegraph', ...a };
 }
 
-const HURT = (stun: number, knockbackScale: number) => ({ stun, knockbackScale, flashTicks: 6 });
+export const HURT = (stun: number, knockbackScale: number) => ({ stun, knockbackScale, flashTicks: 6 });
 
 // ---------------------------------------------------------------------------------------------------------- Bramble Crawler
 export const CRAWLER_RUSH = blow({ id: 'crawler_rush', startup: 22, active: 54, recovery: 34, hitbox: hit(0, 0.05, 1.05, 0.6), knockback: { x: 6.5, y: 3.5 } });

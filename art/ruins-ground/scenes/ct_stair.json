@@ -1,0 +1,15 @@
+{
+  "sceneVersion": 1,
+  "room": "ct_stair",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 18,
+        "y": 1,
+        "w": 34,
+        "h": 1
+      }
+    ]
+  }
+}

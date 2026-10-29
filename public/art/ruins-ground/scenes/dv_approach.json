@@ -1,0 +1,36 @@
+{
+  "sceneVersion": 1,
+  "room": "dv_approach",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 10.5,
+        "y": 1,
+        "w": 19,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 26,
+        "y": 1,
+        "w": 8,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 41,
+        "y": 1,
+        "w": 6,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 54.5,
+        "y": 1,
+        "w": 17,
+        "h": 1
+      }
+    ]
+  }
+}

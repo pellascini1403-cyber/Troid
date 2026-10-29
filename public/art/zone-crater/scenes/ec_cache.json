@@ -1,0 +1,213 @@
+{
+  "sceneVersion": 1,
+  "room": "ec_cache",
+  "layers": {
+    "propsBack": [
+      {
+        "sprite": "basalt_spire_b",
+        "x": 14.05,
+        "y": 2,
+        "scale": 1.08,
+        "flip": false
+      }
+    ],
+    "terrain": [
+      {
+        "sprite": "obsidian_shards_a",
+        "x": 11.77,
+        "y": 2,
+        "scale": 1.13,
+        "flip": true
+      },
+      {
+        "sprite": "ash_heap_b",
+        "x": 49.15,
+        "y": 4,
+        "scale": 1.19,
+        "flip": false
+      },
+      {
+        "sprite": "ember_stones_b",
+        "x": 9.99,
+        "y": 2,
+        "scale": 0.95,
+        "flip": true
+      },
+      {
+        "sprite": "ember_stones_b",
+        "x": 18.55,
+        "y": 2,
+        "scale": 0.89,
+        "flip": true
+      },
+      {
+        "sprite": "ash_heap_a",
+        "x": 22.68,
+        "y": 2,
+        "scale": 0.94,
+        "flip": false
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "basalt_teeth_a",
+        "x": 7.89,
+        "y": 21.6,
+        "scale": 1.26,
+        "flip": false
+      },
+      {
+        "sprite": "char_roots_a",
+        "x": 33.85,
+        "y": 21.39,
+        "scale": 1.25,
+        "flip": true
+      },
+      {
+        "sprite": "basalt_teeth_b",
+        "x": 52.21,
+        "y": 22.45,
+        "scale": 1.05,
+        "flip": true
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 10.4,
+        "y": -2.2,
+        "alpha": 0.36,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 12.5,
+        "y": 1.8,
+        "alpha": 0.2,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 1.08,
+        "alpha": 0.26,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 33.11,
+        "y": 0.5,
+        "scale": 0.93,
+        "alpha": 0.33,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "glow_zone",
+        "x": 47.5,
+        "y": 3.3,
+        "scale": 0.7,
+        "alpha": 0.4,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "glow_lava",
+        "x": 25,
+        "y": 0.9,
+        "w": 7,
+        "h": 3.6,
+        "alpha": 0.3,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "embers",
+        "x": 25,
+        "y": 2.2,
+        "scale": 0.45,
+        "alpha": 0.5,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "glow_lava",
+        "x": 29,
+        "y": 0.9,
+        "w": 7,
+        "h": 3.6,
+        "alpha": 0.3,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "embers",
+        "x": 29,
+        "y": 2.2,
+        "scale": 0.45,
+        "alpha": 0.5,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "glow_lava",
+        "x": 33,
+        "y": 0.9,
+        "w": 7,
+        "h": 3.6,
+        "alpha": 0.3,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "embers",
+        "x": 33,
+        "y": 2.2,
+        "scale": 0.45,
+        "alpha": 0.5,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "glow_lava",
+        "x": 37,
+        "y": 0.9,
+        "w": 7,
+        "h": 3.6,
+        "alpha": 0.3,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "embers",
+        "x": 37,
+        "y": 2.2,
+        "scale": 0.45,
+        "alpha": 0.5,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "glow_lava",
+        "x": 41,
+        "y": 0.9,
+        "w": 7,
+        "h": 3.6,
+        "alpha": 0.3,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "embers",
+        "x": 41,
+        "y": 2.2,
+        "scale": 0.45,
+        "alpha": 0.5,
+        "motion": "drift",
+        "flip": false
+      }
+    ]
+  }
+}

@@ -18,6 +18,10 @@ export const REGION_KEYS: Readonly<Record<string, string>> = {
   bell_spire: 'region.spire.name',
   ink_foundry: 'region.foundry.name',
   ink_heart: 'region.heart.name',
+  dusk_verge: 'region.dusk.name',
+  orb_grove: 'region.grove.name',
+  ember_crater: 'region.crater.name',
+  cinder_throne: 'region.throne.name',
 };
 
 /** A name is written inside its room only when the room is at least this wide on the screen (px): narrower, it would be written over its neighbour. */

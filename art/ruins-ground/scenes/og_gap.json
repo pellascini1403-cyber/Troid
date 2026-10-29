@@ -1,0 +1,22 @@
+{
+  "sceneVersion": 1,
+  "room": "og_gap",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 7,
+        "y": 1,
+        "w": 12,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 103,
+        "y": 1,
+        "w": 12,
+        "h": 1
+      }
+    ]
+  }
+}

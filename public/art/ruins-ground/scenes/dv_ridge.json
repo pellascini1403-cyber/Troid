@@ -1,0 +1,15 @@
+{
+  "sceneVersion": 1,
+  "room": "dv_ridge",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 5,
+        "y": 1,
+        "w": 8,
+        "h": 1
+      }
+    ]
+  }
+}

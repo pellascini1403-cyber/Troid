@@ -11,7 +11,7 @@
         "flip": true
       },
       {
-        "sprite": "cyst_pod_a",
+        "sprite": "cyst_pod_b",
         "x": 18.9,
         "y": 2,
         "scale": 1,
@@ -28,60 +28,39 @@
     "terrain": [
       {
         "sprite": "bone_shards_a",
-        "x": 32.6,
+        "x": 10.43,
         "y": 2,
-        "scale": 1.15,
-        "flip": false
-      },
-      {
-        "sprite": "bone_shards_b",
-        "x": 14.76,
-        "y": 3,
-        "scale": 1.11,
+        "scale": 1.18,
         "flip": true
       },
       {
         "sprite": "crystals_violet_a",
-        "x": 9.53,
+        "x": 18.78,
         "y": 2,
         "scale": 1.12,
         "flip": true
-      },
-      {
-        "sprite": "bone_shards_b",
-        "x": 18.64,
-        "y": 2,
-        "scale": 1.13,
-        "flip": false
-      },
-      {
-        "sprite": "crystals_violet_a",
-        "x": 30.95,
-        "y": 2,
-        "scale": 1.01,
-        "flip": false
       }
     ],
     "foreground": [
       {
-        "sprite": "veins_a",
-        "x": 7.97,
-        "y": 14.26,
-        "scale": 1.22,
+        "sprite": "veins_b",
+        "x": 7.93,
+        "y": 13.51,
+        "scale": 1.43,
         "flip": true
       },
       {
         "sprite": "veins_a",
-        "x": 23.67,
-        "y": 14.57,
-        "scale": 1.08,
+        "x": 25.17,
+        "y": 13.01,
+        "scale": 1.44,
         "flip": false
       },
       {
         "sprite": "veins_b",
-        "x": 40.5,
-        "y": 13.37,
-        "scale": 1.42,
+        "x": 41.66,
+        "y": 13.71,
+        "scale": 1.22,
         "flip": true
       }
     ],

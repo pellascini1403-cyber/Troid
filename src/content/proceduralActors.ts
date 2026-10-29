@@ -52,7 +52,7 @@ export const INK_SLIME_LOOK: ProceduralLook = {
 // ---------------------------------------------------------------------------------------------------- the creatures of the world
 
 type Colors = ProceduralLook['colors'];
-const colors = (fill: number, rim: number, sheen: number, aura: number, eyeGlow: number = PALETTE.violetGlow): Colors => ({ fill, rim, sheen, eye: PALETTE.enemyEye, eyeGlow, aura, flash: PALETTE.whiteHot });
+export const colors = (fill: number, rim: number, sheen: number, aura: number, eyeGlow: number = PALETTE.violetGlow): Colors => ({ fill, rim, sheen, eye: PALETTE.enemyEye, eyeGlow, aura, flash: PALETTE.whiteHot });
 
 /** How a creature winds up: `squash` flattens and widens (it will spring), `rise` stands tall (it will drop or swing), `swell` grows (it will burst). */
 type Windup = 'squash' | 'rise' | 'swell';
@@ -61,7 +61,7 @@ type Windup = 'squash' | 'rise' | 'swell';
  * A look for a creature of the world, made of the knobs that tell one from another — its size, its colours, its eyes, how it winds up — over the poses that every creature shares (a breath, a walk, a start, a hurt, a
  * dissolving): the same vocabulary of states the brains publish, so each state reads the same way on every body.
  */
-function creature(o: { id: string; width: number; height: number; colors: Colors; eyes: ProceduralLook['eyes']; windup: Windup; shape?: 'dome' | 'orb'; spikes?: number; wobble?: number }): ProceduralLook {
+export function creature(o: { id: string; width: number; height: number; colors: Colors; eyes: ProceduralLook['eyes']; windup: Windup; shape?: 'dome' | 'orb'; spikes?: number; wobble?: number }): ProceduralLook {
   const [wx, wy, ax, ay]: [number, number, number, number] = o.windup === 'squash' ? [1.32, 0.58, 1.5, 0.66] : o.windup === 'rise' ? [0.84, 1.34, 0.78, 1.5] : [1.5, 1.5, 1.8, 1.8];
   const w = o.wobble ?? 1;
   return {
@@ -92,7 +92,7 @@ function creature(o: { id: string; width: number; height: number; colors: Colors
   };
 }
 
-const EYES = { width: 0.15, height: 0.24, y: 0.6, forward: 0.14, spread: 0.3 };
+export const EYES = { width: 0.15, height: 0.24, y: 0.6, forward: 0.14, spread: 0.3 };
 
 // the colours say where a creature lives: stone and salt for the ruins, wet green-black for the mire, glass for the mines, brass for the spire, iron and red for the foundry — all over the same ink
 export const BRAMBLE_CRAWLER_LOOK = creature({ id: 'bramble_crawler', width: 1.1, height: 0.7, colors: colors(PALETTE.enemyInk, PALETTE.worldGlow, PALETTE.worldSlate, PALETTE.violetCore), eyes: { ...EYES, y: 0.55, forward: 0.2, spread: 0.26 }, windup: 'squash', spikes: 5 });

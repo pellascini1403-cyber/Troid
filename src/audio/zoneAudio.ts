@@ -14,6 +14,10 @@ import type { RoomSpec } from './reverb';
  * The sixty rooms past the Sanctum (docs/PROMPT21-LOG.md) are sounded with what there is: the four pieces of music, the four beds and the seven small sounds of the first slice, set by ZONE — the music does not restart at a door, so a zone
  * keeps one piece, and what tells the zones apart is the bed under it, the floor, and how long the air holds a sound. The six guardians that came after the Warden fight to its piece (`BOSS_MUSIC`). That is a reuse, said as one: a zone of its
  * own music is the first thing the audio pipeline is owed.
+ *
+ * The forty-one rooms of the second half (docs/PROMPT23-LOG.md §7) are sounded the same way, from what there is: the Verge of Dusk is the wind of the ruins over ash, the Orb Grove the damp of the roots with the pulse of the spheres, the Ember
+ * Crater the resonance of the chamber (stone that cracks with the heat), the Cinder Throne the vast quiet of the Sanctum. The lava has its own sound when it burns (`hazard.lava`, the hit); the bubbling of a pool and the crackle of an ember are owed
+ * to the audio pipeline, with the music of each zone.
  */
 export type Surface = 'stone' | 'earth' | 'wet';
 
@@ -154,6 +158,53 @@ const FOUNDRY: ZoneAudio = {
 /** The Heart of the Ink: the vast quiet of the Sanctum, closer — the same piece, the same bed, the breath and the pulse. */
 const HEART: ZoneAudio = like(VAST, { groups: ['amb'], room: { rt60: 3, damp: 0.28, predelayMs: 24, wet: 0.48 } });
 
+/** The Verge of Dusk: the wind of the ruins over a floor of ash, a little closer than at the gate — the piece of the ruins, its bed, and a gust now and then. */
+const DUSK: ZoneAudio = like(OPEN_STONE, {
+  surface: 'earth',
+  room: { rt60: 1.7, damp: 0.5, predelayMs: 12, wet: 0.26 },
+  scatter: [
+    { id: 'amb.wind.gust', gap: [7, 17], distance: [10, 26], gainDb: -2 },
+    { id: 'amb.stone', gap: [14, 30], chance: 0.6, distance: [8, 24], gainDb: -4 },
+    { id: 'amb.echo.far', gap: [24, 46], distance: [20, 36], gainDb: -5 },
+  ],
+});
+/** The Orb Grove: the damp of the roots under the piece of the chamber — a creak of wood, and the slow pulse of the spheres that hang in the trees. */
+const GROVE: ZoneAudio = {
+  groups: ['amb'],
+  track: 'chamber',
+  bed: 'bed.roots',
+  surface: 'earth',
+  room: { rt60: 1.5, damp: 0.7, predelayMs: 10, wet: 0.26 },
+  scatter: [
+    { id: 'amb.roots.creak', gap: [9, 20], distance: [8, 24], gainDb: -3 },
+    { id: 'amb.magic.pulse', gap: [8, 18], chance: 0.9, distance: [6, 22], gainDb: -3 },
+    { id: 'amb.echo.far', gap: [22, 42], distance: [18, 34], gainDb: -5 },
+  ],
+};
+/** The Ember Crater: stone that rings and cracks with the heat — the piece of the chamber over its deep bed, a long air. */
+const CRATER: ZoneAudio = {
+  groups: ['amb'],
+  track: 'chamber',
+  bed: 'bed.chamber',
+  surface: 'stone',
+  room: { rt60: 2.1, damp: 0.34, predelayMs: 16, wet: 0.36 },
+  scatter: [
+    { id: 'amb.stone', gap: [6, 14], chance: 0.9, distance: [8, 24], gainDb: -2 },
+    { id: 'amb.magic.pulse', gap: [12, 24], chance: 0.8, distance: [6, 22], gainDb: -4 },
+    { id: 'amb.echo.far', gap: [20, 40], distance: [18, 34], gainDb: -4 },
+  ],
+};
+/** The Cinder Throne: the vast quiet of the Sanctum, hotter and farther — the same piece and bed, a breath, a crack, an echo that takes its time. */
+const THRONE: ZoneAudio = like(VAST, {
+  groups: ['amb'],
+  room: { rt60: 3.2, damp: 0.26, predelayMs: 26, wet: 0.5 },
+  scatter: [
+    { id: 'amb.sanctum.breath', gap: [20, 40], distance: [12, 30], gainDb: -2 },
+    { id: 'amb.stone', gap: [12, 26], chance: 0.8, distance: [8, 26], gainDb: -3 },
+    { id: 'amb.echo.far', gap: [24, 46], distance: [20, 36], gainDb: -4 },
+  ],
+});
+
 export const ZONES: Readonly<Record<string, ZoneAudio>> = Object.fromEntries([
   ...Object.entries(FIRST_SLICE),
   // the Ruins past the Sanctum: the Nave is the gate again, larger; the Archive and the Cistern are the chamber, one dry and one under water; the Reliquary is above the roof, in the Sanctum's quiet
@@ -180,6 +231,15 @@ export const ZONES: Readonly<Record<string, ZoneAudio>> = Object.fromEntries([
   // the Heart of the Ink, and the last room, where the quiet is the Sanctum's
   ...each(['ih_threshold', 'ih_veins', 'ih_shrine', 'ih_atrium', 'ih_ascent', 'ih_approach', 'ih_end'], HEART),
   ...each(['ih_arena'], arena(HEART)),
+  // the second half: the Verge of Dusk, the Orb Grove, the Ember Crater and the Cinder Throne (the last room is the Sanctum's quiet again)
+  ...each(['dv_gate', 'dv_orchard', 'dv_ford', 'dv_shrine', 'dv_lake', 'dv_ruins', 'dv_ridge', 'dv_approach', 'dv_cellar'], DUSK),
+  ...each(['dv_arena'], arena(DUSK)),
+  ...each(['og_edge', 'og_roots', 'og_trunk', 'og_shrine', 'og_clearing', 'og_gap', 'og_spring', 'og_canopy', 'og_approach', 'og_vault'], GROVE),
+  ...each(['og_arena'], arena(GROVE)),
+  ...each(['ec_rim', 'ec_slope', 'ec_river', 'ec_shrine', 'ec_forge', 'ec_tunnel', 'ec_caldera', 'ec_approach', 'ec_cache'], CRATER),
+  ...each(['ec_arena'], arena(CRATER)),
+  ...each(['ct_gate', 'ct_hall', 'ct_gallery', 'ct_shrine', 'ct_stair', 'ct_chains', 'ct_gauntlet', 'ct_approach', 'ct_end'], THRONE),
+  ...each(['ct_arena'], arena(THRONE)),
 ]);
 
 export function zoneOf(roomId: string): ZoneAudio {
@@ -195,4 +255,9 @@ export const BOSS_MUSIC: Readonly<Record<string, string>> = {
   boss_bell_warden: 'warden',
   boss_engine: 'warden',
   boss_sovereign: 'warden',
+  // the four of the second half, to the same piece (a piece of each is owed)
+  boss_shepherd: 'warden',
+  boss_gardener: 'warden',
+  boss_behemoth: 'warden',
+  boss_cinder_sovereign: 'warden',
 };

@@ -1,0 +1,15 @@
+{
+  "sceneVersion": 1,
+  "room": "og_trunk",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 3.5,
+        "y": 1,
+        "w": 5,
+        "h": 1
+      }
+    ]
+  }
+}

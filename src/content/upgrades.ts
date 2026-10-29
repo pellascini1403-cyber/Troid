@@ -1,8 +1,8 @@
 import type { UpgradeDef } from '@/progression/upgrades';
 
 /**
- * THE VESSELS OF THE WORLD (docs/PROMPT21-LOG.md): five of life (a point each: the 5 the hero is made with grow to 10) and three of magic (twenty units each: the bar of 100 grows to 160). A pickup of a room that sets one of
- * these flags IS the vessel; the world test (tests/unit/content/upgrades.test.ts) holds the rooms to this list in both directions (every flag here is set by exactly one pickup, and no vessel-looking pickup is missing here).
+ * THE VESSELS OF THE WORLD (docs/PROMPT21-LOG.md): five of life (a point each: the 5 the hero is made with grow to 10) and three of magic (twenty units each: the bar of 100 grows to 160). The second half of the adventure
+ * (docs/PROMPT23-LOG.md §7) hides four more of life, which take the bar to 14, and two more of magic, which take it to 200. A pickup of a room that sets one of these flags IS the vessel; the world test (tests/unit/content/upgrades.test.ts) holds the rooms to this list in both directions (every flag here is set by exactly one pickup, and no vessel-looking pickup is missing here).
  */
 export const UPGRADES: readonly UpgradeDef[] = [
   { flag: 'taken:life_1', maxHealth: 1 },
@@ -10,7 +10,13 @@ export const UPGRADES: readonly UpgradeDef[] = [
   { flag: 'taken:life_3', maxHealth: 1 },
   { flag: 'taken:life_4', maxHealth: 1 },
   { flag: 'taken:life_5', maxHealth: 1 },
+  { flag: 'taken:life_6', maxHealth: 1 },
+  { flag: 'taken:life_7', maxHealth: 1 },
+  { flag: 'taken:life_8', maxHealth: 1 },
+  { flag: 'taken:life_9', maxHealth: 1 },
   { flag: 'taken:mana_1', maxMagic: 20 },
   { flag: 'taken:mana_2', maxMagic: 20 },
   { flag: 'taken:mana_3', maxMagic: 20 },
+  { flag: 'taken:mana_4', maxMagic: 20 },
+  { flag: 'taken:mana_5', maxMagic: 20 },
 ];

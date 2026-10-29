@@ -1,0 +1,29 @@
+{
+  "sceneVersion": 1,
+  "room": "og_approach",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 13.5,
+        "y": 1,
+        "w": 25,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 39,
+        "y": 1,
+        "w": 6,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 53.5,
+        "y": 1,
+        "w": 19,
+        "h": 1
+      }
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "sceneVersion": 1,
+  "room": "dv_shrine",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 4.5,
+        "y": 1,
+        "w": 7,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 39.5,
+        "y": 1,
+        "w": 7,
+        "h": 1
+      }
+    ]
+  }
+}

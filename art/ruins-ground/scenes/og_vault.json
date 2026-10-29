@@ -1,0 +1,22 @@
+{
+  "sceneVersion": 1,
+  "room": "og_vault",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 12,
+        "y": 1,
+        "w": 4,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 39.5,
+        "y": 1,
+        "w": 23,
+        "h": 1
+      }
+    ]
+  }
+}

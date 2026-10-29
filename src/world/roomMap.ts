@@ -131,6 +131,16 @@ export class RoomCanvas {
     return this.fill(x0, y, x1, y + depth, '=');
   }
 
+  /** A pool of lava in a floor whose top is at `top`: the earth of the top metre is taken out between x0 and x1 and a metre of lava fills the hollow, level with the floor on either side. Stones left standing in it are islands. */
+  pool(x0: number, x1: number, top = 2): this {
+    return this.air(x0, top - 1, x1, top).lava(x0, x1, top - 1, 1);
+  }
+
+  /** A stone that stands in a pool: from the bed of the pool (a metre under the floor) up `height` metres above it, so its top is at `top - 1 + height`. */
+  islet(x0: number, x1: number, height: number, top = 2): this {
+    return this.rock(x0, top - 1, x1, top - 1 + height);
+  }
+
   /** A named region (a capital letter the room's `regions` table describes): one filled rectangle. */
   region(ch: string, x0: number, y0: number, x1: number, y1: number): this {
     return this.fill(x0, y0, x1, y1, ch);

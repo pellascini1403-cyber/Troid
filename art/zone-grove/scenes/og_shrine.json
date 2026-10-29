@@ -1,0 +1,146 @@
+{
+  "sceneVersion": 1,
+  "room": "og_shrine",
+  "layers": {
+    "propsBack": [
+      {
+        "sprite": "trunk_arch_a",
+        "x": 34.32,
+        "y": 2,
+        "scale": 1.02,
+        "flip": false
+      },
+      {
+        "sprite": "orb_tree_tall_a",
+        "x": 21.9,
+        "y": 4,
+        "scale": 1,
+        "flip": false
+      }
+    ],
+    "terrain": [
+      {
+        "sprite": "root_crawl_a",
+        "x": 38.12,
+        "y": 2,
+        "scale": 1.09,
+        "flip": false
+      },
+      {
+        "sprite": "sphere_pods_a",
+        "x": 19.5,
+        "y": 3,
+        "scale": 1.04,
+        "flip": true
+      },
+      {
+        "sprite": "sphere_pods_b",
+        "x": 15.58,
+        "y": 2,
+        "scale": 1.01,
+        "flip": true
+      },
+      {
+        "sprite": "sphere_pods_a",
+        "x": 36.83,
+        "y": 2,
+        "scale": 1.05,
+        "flip": false
+      },
+      {
+        "sprite": "root_crawl_b",
+        "x": 40.37,
+        "y": 2,
+        "scale": 1.1,
+        "flip": false
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "root_curtain_b",
+        "x": 6.93,
+        "y": 24.58,
+        "scale": 1.41,
+        "flip": false
+      },
+      {
+        "sprite": "orb_drops_b",
+        "x": 20.1,
+        "y": 26.9,
+        "scale": 1.15,
+        "flip": true
+      },
+      {
+        "sprite": "root_curtain_a",
+        "x": 36.66,
+        "y": 24.87,
+        "scale": 1.31,
+        "flip": false
+      },
+      {
+        "sprite": "orb_drops_a",
+        "x": 50.99,
+        "y": 26.02,
+        "scale": 1.25,
+        "flip": false
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 9.6,
+        "y": -2.2,
+        "alpha": 0.37,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 9.5,
+        "y": 1.8,
+        "alpha": 0.17,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 38.5,
+        "y": 1.8,
+        "alpha": 0.14,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 1.1,
+        "alpha": 0.33,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 32.7,
+        "y": 0.5,
+        "scale": 1.18,
+        "alpha": 0.22,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "glow_rest",
+        "x": 25.5,
+        "y": 2.9,
+        "scale": 1.1,
+        "alpha": 0.34,
+        "motion": "pulse"
+      }
+    ]
+  }
+}

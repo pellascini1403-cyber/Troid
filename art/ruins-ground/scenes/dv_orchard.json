@@ -1,0 +1,22 @@
+{
+  "sceneVersion": 1,
+  "room": "dv_orchard",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 11.5,
+        "y": 1,
+        "w": 21,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 32,
+        "y": 1,
+        "w": 4,
+        "h": 1
+      }
+    ]
+  }
+}

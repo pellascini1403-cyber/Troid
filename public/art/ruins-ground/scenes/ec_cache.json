@@ -1,0 +1,15 @@
+{
+  "sceneVersion": 1,
+  "room": "ec_cache",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 12.5,
+        "y": 1,
+        "w": 23,
+        "h": 1
+      }
+    ]
+  }
+}

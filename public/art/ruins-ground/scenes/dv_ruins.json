@@ -1,0 +1,50 @@
+{
+  "sceneVersion": 1,
+  "room": "dv_ruins",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 5.5,
+        "y": 1,
+        "w": 9,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 19,
+        "y": 1,
+        "w": 14,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 32,
+        "y": 1,
+        "w": 4,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 52,
+        "y": 1,
+        "w": 4,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 65,
+        "y": 1,
+        "w": 14,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 78.5,
+        "y": 1,
+        "w": 9,
+        "h": 1
+      }
+    ]
+  }
+}

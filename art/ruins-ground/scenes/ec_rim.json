@@ -1,0 +1,15 @@
+{
+  "sceneVersion": 1,
+  "room": "ec_rim",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 86.5,
+        "y": 1,
+        "w": 9,
+        "h": 1
+      }
+    ]
+  }
+}

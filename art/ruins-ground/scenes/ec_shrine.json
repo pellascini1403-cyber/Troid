@@ -1,0 +1,22 @@
+{
+  "sceneVersion": 1,
+  "room": "ec_shrine",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 7.5,
+        "y": 1,
+        "w": 13,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 36.5,
+        "y": 1,
+        "w": 13,
+        "h": 1
+      }
+    ]
+  }
+}

@@ -1,0 +1,358 @@
+{
+  "sceneVersion": 1,
+  "room": "ec_caldera",
+  "layers": {
+    "propsBack": [
+      {
+        "sprite": "dead_tree_a",
+        "x": 36.87,
+        "y": 10,
+        "scale": 0.95,
+        "flip": true
+      },
+      {
+        "sprite": "fumarole_b",
+        "x": 55.88,
+        "y": 10,
+        "scale": 1.09,
+        "flip": false
+      }
+    ],
+    "terrain": [
+      {
+        "sprite": "ember_stones_b",
+        "x": 39.99,
+        "y": 10,
+        "scale": 1,
+        "flip": false
+      },
+      {
+        "sprite": "obsidian_shards_a",
+        "x": 28.67,
+        "y": 9,
+        "scale": 1.18,
+        "flip": true
+      },
+      {
+        "sprite": "obsidian_shards_b",
+        "x": 77.05,
+        "y": 6,
+        "scale": 0.91,
+        "flip": true
+      },
+      {
+        "sprite": "ash_heap_b",
+        "x": 8.11,
+        "y": 2,
+        "scale": 1.07,
+        "flip": false
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "basalt_teeth_a",
+        "x": 9.61,
+        "y": 31.3,
+        "scale": 1.13,
+        "flip": true
+      },
+      {
+        "sprite": "char_roots_b",
+        "x": 24.46,
+        "y": 31.22,
+        "scale": 1.11,
+        "flip": false
+      },
+      {
+        "sprite": "char_roots_b",
+        "x": 40.56,
+        "y": 31.3,
+        "scale": 1.16,
+        "flip": true
+      },
+      {
+        "sprite": "char_roots_a",
+        "x": 57.91,
+        "y": 31,
+        "scale": 1.2,
+        "flip": true
+      },
+      {
+        "sprite": "basalt_teeth_a",
+        "x": 75.17,
+        "y": 30.77,
+        "scale": 1.31,
+        "flip": false
+      },
+      {
+        "sprite": "char_roots_b",
+        "x": 96.86,
+        "y": 30,
+        "scale": 1.38,
+        "flip": false
+      },
+      {
+        "sprite": "char_roots_a",
+        "x": 110.91,
+        "y": 31.37,
+        "scale": 1.01,
+        "flip": true
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 6.67,
+        "y": 1,
+        "alpha": 0.32,
+        "flip": false
+      },
+      {
+        "sprite": "beam_b",
+        "x": 20,
+        "y": 1,
+        "alpha": 0.27,
+        "flip": true
+      },
+      {
+        "sprite": "beam_a",
+        "x": 33.33,
+        "y": 1,
+        "alpha": 0.3,
+        "flip": false
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 41,
+        "y": 9.8,
+        "alpha": 0.17,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 59,
+        "y": 9.8,
+        "alpha": 0.17,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 6.5,
+        "y": 1.8,
+        "alpha": 0.18,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 93.5,
+        "y": 1.8,
+        "alpha": 0.17,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 8.5,
+        "scale": 1.15,
+        "alpha": 0.23,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 32.8,
+        "y": 8.5,
+        "scale": 1.14,
+        "alpha": 0.26,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 54.77,
+        "y": 8.5,
+        "scale": 0.97,
+        "alpha": 0.22,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 77.58,
+        "y": 8.5,
+        "scale": 1.16,
+        "alpha": 0.23,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 96.8,
+        "y": 8.5,
+        "scale": 1.01,
+        "alpha": 0.27,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "glow_lava",
+        "x": 13,
+        "y": 0.9,
+        "w": 7,
+        "h": 3.6,
+        "alpha": 0.3,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "embers",
+        "x": 13,
+        "y": 2.2,
+        "scale": 0.45,
+        "alpha": 0.5,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "glow_lava",
+        "x": 18.5,
+        "y": 0.9,
+        "w": 8,
+        "h": 3.6,
+        "alpha": 0.3,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "embers",
+        "x": 18.5,
+        "y": 2.2,
+        "scale": 0.45,
+        "alpha": 0.5,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "glow_lava",
+        "x": 25.5,
+        "y": 0.9,
+        "w": 8,
+        "h": 3.6,
+        "alpha": 0.3,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "embers",
+        "x": 25.5,
+        "y": 2.2,
+        "scale": 0.45,
+        "alpha": 0.5,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "glow_lava",
+        "x": 32.5,
+        "y": 0.9,
+        "w": 8,
+        "h": 3.6,
+        "alpha": 0.3,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "embers",
+        "x": 32.5,
+        "y": 2.2,
+        "scale": 0.45,
+        "alpha": 0.5,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "glow_lava",
+        "x": 67.5,
+        "y": 0.9,
+        "w": 8,
+        "h": 3.6,
+        "alpha": 0.3,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "embers",
+        "x": 67.5,
+        "y": 2.2,
+        "scale": 0.45,
+        "alpha": 0.5,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "glow_lava",
+        "x": 74.5,
+        "y": 0.9,
+        "w": 8,
+        "h": 3.6,
+        "alpha": 0.3,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "embers",
+        "x": 74.5,
+        "y": 2.2,
+        "scale": 0.45,
+        "alpha": 0.5,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "glow_lava",
+        "x": 81.5,
+        "y": 0.9,
+        "w": 8,
+        "h": 3.6,
+        "alpha": 0.3,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "embers",
+        "x": 81.5,
+        "y": 2.2,
+        "scale": 0.45,
+        "alpha": 0.5,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "glow_lava",
+        "x": 87,
+        "y": 0.9,
+        "w": 7,
+        "h": 3.6,
+        "alpha": 0.3,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "embers",
+        "x": 87,
+        "y": 2.2,
+        "scale": 0.45,
+        "alpha": 0.5,
+        "motion": "drift",
+        "flip": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "sceneVersion": 1,
+  "room": "og_arena",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "root_crawl_b",
+        "x": 69.12,
+        "y": 2,
+        "scale": 1.13,
+        "flip": false
+      },
+      {
+        "sprite": "sphere_pods_b",
+        "x": 14.9,
+        "y": 2,
+        "scale": 1.05,
+        "flip": false
+      },
+      {
+        "sprite": "root_crawl_b",
+        "x": 61.1,
+        "y": 2,
+        "scale": 1.05,
+        "flip": true
+      }
+    ],
+    "propsBack": [
+      {
+        "sprite": "trunk_arch_a",
+        "x": 13.1,
+        "y": 2,
+        "scale": 1.12,
+        "flip": false
+      },
+      {
+        "sprite": "trunk_arch_b",
+        "x": 62.9,
+        "y": 2,
+        "scale": 1.12,
+        "flip": true
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "root_curtain_a",
+        "x": 5.44,
+        "y": 26.07,
+        "scale": 1.11,
+        "flip": true
+      },
+      {
+        "sprite": "root_curtain_a",
+        "x": 20.35,
+        "y": 24.81,
+        "scale": 1.39,
+        "flip": false
+      },
+      {
+        "sprite": "root_curtain_b",
+        "x": 38.96,
+        "y": 26.22,
+        "scale": 1.06,
+        "flip": false
+      },
+      {
+        "sprite": "orb_drops_b",
+        "x": 50.65,
+        "y": 26.65,
+        "scale": 1.1,
+        "flip": true
+      },
+      {
+        "sprite": "root_curtain_a",
+        "x": 67.18,
+        "y": 26.05,
+        "scale": 1.1,
+        "flip": false
+      },
+      {
+        "sprite": "orb_drops_a",
+        "x": 85.45,
+        "y": 26.52,
+        "scale": 1.16,
+        "flip": true
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 7.6,
+        "y": -2.2,
+        "alpha": 0.26,
+        "flip": false
+      },
+      {
+        "sprite": "beam_b",
+        "x": 22.8,
+        "y": -2.2,
+        "alpha": 0.32,
+        "flip": true
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 38,
+        "y": 1.8,
+        "alpha": 0.19,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 1.03,
+        "alpha": 0.28,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "glow_zone",
+        "x": 60.5,
+        "y": 1.3,
+        "scale": 0.7,
+        "alpha": 0.4,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "glow_boss",
+        "x": 56.5,
+        "y": 0.8,
+        "scale": 1.4,
+        "alpha": 0.16,
+        "motion": "pulse"
+      }
+    ]
+  }
+}

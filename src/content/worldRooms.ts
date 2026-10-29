@@ -1,6 +1,7 @@
 /**
  * THE ROOMS OF THE WORLD PAST THE SANCTUM, in the order the hero meets them, zone by zone (the list `content/beyond.ts` adds to `WORLD.rooms` when it arrives: the first frame of the game needs the four rooms of the first chapter and no more, and the budget
- * of the cold start is about what a hero standing in R1 has to download — sixty ids of rooms it cannot reach yet are not part of that).
+ * of the cold start is about what a hero standing in R1 has to download — a hundred rooms it cannot reach yet are not part of that). The first sixty-three (the first half of the adventure, past the Sanctum) are followed, after the Heart of the Ink, by the forty-one of the second
+ * (docs/PROMPT23-LOG.md §7): the road goes on through the Heart's last room and ends, forty-one rooms later, behind the Cinder Sovereign.
  */
 export const BEYOND_ROOMS: readonly string[] = [
   // the Ruins past the Sanctum
@@ -17,4 +18,12 @@ export const BEYOND_ROOMS: readonly string[] = [
   'fd_gate', 'fd_line', 'fd_press', 'fd_furnace', 'fd_vats', 'fd_workshop', 'fd_catwalks', 'fd_control', 'fd_arena', 'fd_scrap',
   // the Heart of the Ink
   'ih_threshold', 'ih_veins', 'ih_shrine', 'ih_atrium', 'ih_ascent', 'ih_approach', 'ih_arena', 'ih_end',
+  // the Dusk Verge
+  'dv_gate', 'dv_orchard', 'dv_ford', 'dv_shrine', 'dv_lake', 'dv_ruins', 'dv_ridge', 'dv_approach', 'dv_arena', 'dv_cellar',
+  // the Orb Grove
+  'og_edge', 'og_roots', 'og_trunk', 'og_shrine', 'og_clearing', 'og_gap', 'og_spring', 'og_canopy', 'og_approach', 'og_arena', 'og_vault',
+  // the Ember Crater
+  'ec_rim', 'ec_slope', 'ec_river', 'ec_shrine', 'ec_forge', 'ec_tunnel', 'ec_caldera', 'ec_approach', 'ec_arena', 'ec_cache',
+  // the Cinder Throne
+  'ct_gate', 'ct_hall', 'ct_gallery', 'ct_shrine', 'ct_stair', 'ct_chains', 'ct_gauntlet', 'ct_approach', 'ct_arena', 'ct_end',
 ];

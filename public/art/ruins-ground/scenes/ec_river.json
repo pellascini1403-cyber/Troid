@@ -1,0 +1,22 @@
+{
+  "sceneVersion": 1,
+  "room": "ec_river",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 6.5,
+        "y": 1,
+        "w": 11,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 123.5,
+        "y": 1,
+        "w": 11,
+        "h": 1
+      }
+    ]
+  }
+}

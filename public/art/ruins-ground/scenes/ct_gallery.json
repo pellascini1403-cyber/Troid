@@ -1,0 +1,36 @@
+{
+  "sceneVersion": 1,
+  "room": "ct_gallery",
+  "layers": {
+    "terrain": [
+      {
+        "sprite": "ground_veil",
+        "x": 8.5,
+        "y": 1,
+        "w": 15,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 31,
+        "y": 1,
+        "w": 14,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 58,
+        "y": 1,
+        "w": 12,
+        "h": 1
+      },
+      {
+        "sprite": "ground_veil",
+        "x": 79.5,
+        "y": 1,
+        "w": 15,
+        "h": 1
+      }
+    ]
+  }
+}

@@ -1,0 +1,285 @@
+{
+  "sceneVersion": 1,
+  "room": "ct_chains",
+  "layers": {
+    "propsBack": [
+      {
+        "sprite": "tower_stub_a",
+        "x": 37.74,
+        "y": 13,
+        "scale": 0.96,
+        "flip": true
+      }
+    ],
+    "terrain": [
+      {
+        "sprite": "bone_pile_a",
+        "x": 60.82,
+        "y": 13,
+        "scale": 1.03,
+        "flip": false
+      },
+      {
+        "sprite": "bone_pile_a",
+        "x": 13.6,
+        "y": 4,
+        "scale": 1.03,
+        "flip": false
+      }
+    ],
+    "foreground": [
+      {
+        "sprite": "chains_a",
+        "x": 10.48,
+        "y": 30.26,
+        "scale": 1.34,
+        "flip": true
+      },
+      {
+        "sprite": "thorn_drapes_a",
+        "x": 25.54,
+        "y": 31.22,
+        "scale": 1.15,
+        "flip": true
+      },
+      {
+        "sprite": "chains_b",
+        "x": 40.57,
+        "y": 31.34,
+        "scale": 1.12,
+        "flip": false
+      },
+      {
+        "sprite": "thorn_drapes_b",
+        "x": 56.07,
+        "y": 31.27,
+        "scale": 1.08,
+        "flip": true
+      },
+      {
+        "sprite": "thorn_drapes_a",
+        "x": 72.91,
+        "y": 31.35,
+        "scale": 1.13,
+        "flip": true
+      },
+      {
+        "sprite": "thorn_drapes_b",
+        "x": 90.67,
+        "y": 30.7,
+        "scale": 1.35,
+        "flip": false
+      },
+      {
+        "sprite": "thorn_drapes_a",
+        "x": 104.13,
+        "y": 30.53,
+        "scale": 1.31,
+        "flip": false
+      }
+    ],
+    "backdropMid": [
+      {
+        "sprite": "beam_a",
+        "x": 9.6,
+        "y": -2.2,
+        "alpha": 0.26,
+        "flip": false
+      },
+      {
+        "sprite": "beam_b",
+        "x": 28.8,
+        "y": -2.2,
+        "alpha": 0.31,
+        "flip": true
+      }
+    ],
+    "lightOverlay": [
+      {
+        "sprite": "mist_bank",
+        "x": 5.5,
+        "y": 1.8,
+        "alpha": 0.12,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "mist_bank",
+        "x": 90.5,
+        "y": 1.8,
+        "alpha": 0.14,
+        "scale": 0.6,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 10.5,
+        "y": 0.5,
+        "scale": 0.95,
+        "alpha": 0.27,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 28.4,
+        "y": 0.5,
+        "scale": 0.92,
+        "alpha": 0.25,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 48.67,
+        "y": 0.5,
+        "scale": 0.95,
+        "alpha": 0.28,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 69.94,
+        "y": 0.5,
+        "scale": 1,
+        "alpha": 0.28,
+        "flip": false,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "motes_zone",
+        "x": 90.45,
+        "y": 0.5,
+        "scale": 1.12,
+        "alpha": 0.24,
+        "flip": true,
+        "tint": 16777215,
+        "motion": "drift"
+      },
+      {
+        "sprite": "glow_lava",
+        "x": 11,
+        "y": 0.9,
+        "w": 7,
+        "h": 3.6,
+        "alpha": 0.3,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "embers",
+        "x": 11,
+        "y": 2.2,
+        "scale": 0.45,
+        "alpha": 0.5,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "glow_lava",
+        "x": 25,
+        "y": 0.9,
+        "w": 23,
+        "h": 3.6,
+        "alpha": 0.3,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "embers",
+        "x": 20.5,
+        "y": 2.2,
+        "scale": 0.45,
+        "alpha": 0.5,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "embers",
+        "x": 29.5,
+        "y": 2.2,
+        "scale": 0.45,
+        "alpha": 0.5,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "glow_lava",
+        "x": 48,
+        "y": 0.9,
+        "w": 21,
+        "h": 3.6,
+        "alpha": 0.3,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "embers",
+        "x": 44,
+        "y": 2.2,
+        "scale": 0.45,
+        "alpha": 0.5,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "embers",
+        "x": 52,
+        "y": 2.2,
+        "scale": 0.45,
+        "alpha": 0.5,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "glow_lava",
+        "x": 71,
+        "y": 0.9,
+        "w": 23,
+        "h": 3.6,
+        "alpha": 0.3,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "embers",
+        "x": 66.5,
+        "y": 2.2,
+        "scale": 0.45,
+        "alpha": 0.5,
+        "motion": "drift",
+        "flip": false
+      },
+      {
+        "sprite": "embers",
+        "x": 75.5,
+        "y": 2.2,
+        "scale": 0.45,
+        "alpha": 0.5,
+        "motion": "drift",
+        "flip": true
+      },
+      {
+        "sprite": "glow_lava",
+        "x": 85,
+        "y": 0.9,
+        "w": 7,
+        "h": 3.6,
+        "alpha": 0.3,
+        "motion": "pulse"
+      },
+      {
+        "sprite": "embers",
+        "x": 85,
+        "y": 2.2,
+        "scale": 0.45,
+        "alpha": 0.5,
+        "motion": "drift",
+        "flip": false
+      }
+    ]
+  }
+}

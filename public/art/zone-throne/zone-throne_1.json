@@ -1,0 +1,387 @@
+{
+  "frames": {
+    "bone_pile_a_00": {
+      "frame": {
+        "x": 660,
+        "y": 332,
+        "w": 117,
+        "h": 115
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 44,
+        "y": 17,
+        "w": 117,
+        "h": 115
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 134
+      }
+    },
+    "bone_pile_b_00": {
+      "frame": {
+        "x": 533,
+        "y": 348,
+        "w": 114,
+        "h": 115
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 46,
+        "y": 17,
+        "w": 114,
+        "h": 115
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 134
+      }
+    },
+    "chains_a_00": {
+      "frame": {
+        "x": 394,
+        "y": 517,
+        "w": 129,
+        "h": 146
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 15,
+        "y": 0,
+        "w": 129,
+        "h": 146
+      },
+      "sourceSize": {
+        "w": 163,
+        "h": 182
+      }
+    },
+    "chains_b_00": {
+      "frame": {
+        "x": 527,
+        "y": 198,
+        "w": 129,
+        "h": 146
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 15,
+        "y": 0,
+        "w": 129,
+        "h": 146
+      },
+      "sourceSize": {
+        "w": 163,
+        "h": 182
+      }
+    },
+    "exit_shaft_00": {
+      "frame": {
+        "x": 237,
+        "y": 2,
+        "w": 56,
+        "h": 156
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 1,
+        "y": 4,
+        "w": 56,
+        "h": 156
+      },
+      "sourceSize": {
+        "w": 58,
+        "h": 160
+      }
+    },
+    "glow_boss_00": {
+      "frame": {
+        "x": 433,
+        "y": 198,
+        "w": 60,
+        "h": 60
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 64
+      }
+    },
+    "glow_lava_00": {
+      "frame": {
+        "x": 433,
+        "y": 262,
+        "w": 60,
+        "h": 60
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 64
+      }
+    },
+    "glow_rest_00": {
+      "frame": {
+        "x": 297,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 64
+      }
+    },
+    "glow_zone_00": {
+      "frame": {
+        "x": 297,
+        "y": 66,
+        "w": 60,
+        "h": 60
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 64
+      }
+    },
+    "lava_cell_00": {
+      "frame": {
+        "x": 394,
+        "y": 667,
+        "w": 96,
+        "h": 130
+      },
+      "sourceSize": {
+        "w": 96,
+        "h": 130
+      }
+    },
+    "lava_cell_01": {
+      "frame": {
+        "x": 494,
+        "y": 667,
+        "w": 96,
+        "h": 130
+      },
+      "sourceSize": {
+        "w": 96,
+        "h": 130
+      }
+    },
+    "lava_cell_02": {
+      "frame": {
+        "x": 433,
+        "y": 348,
+        "w": 96,
+        "h": 130
+      },
+      "sourceSize": {
+        "w": 96,
+        "h": 130
+      }
+    },
+    "lava_cell_03": {
+      "frame": {
+        "x": 660,
+        "y": 198,
+        "w": 96,
+        "h": 130
+      },
+      "sourceSize": {
+        "w": 96,
+        "h": 130
+      }
+    },
+    "scorch_cap_00": {
+      "frame": {
+        "x": 2,
+        "y": 723,
+        "w": 192,
+        "h": 68
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 8,
+        "w": 192,
+        "h": 68
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 77
+      }
+    },
+    "scorch_fill_03": {
+      "frame": {
+        "x": 2,
+        "y": 527,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "scorch_fill_04": {
+      "frame": {
+        "x": 198,
+        "y": 527,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "scorch_fill_05": {
+      "frame": {
+        "x": 394,
+        "y": 2,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "scorch_fill_06": {
+      "frame": {
+        "x": 590,
+        "y": 2,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "scorch_fill_07": {
+      "frame": {
+        "x": 237,
+        "y": 198,
+        "w": 192,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 192
+      }
+    },
+    "spikes_cell_01": {
+      "frame": {
+        "x": 198,
+        "y": 723,
+        "w": 48,
+        "h": 72
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 72
+      }
+    },
+    "spikes_cell_02": {
+      "frame": {
+        "x": 250,
+        "y": 723,
+        "w": 48,
+        "h": 72
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 72
+      }
+    },
+    "spikes_cell_03": {
+      "frame": {
+        "x": 302,
+        "y": 723,
+        "w": 48,
+        "h": 72
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 72
+      }
+    },
+    "thorn_drapes_b_00": {
+      "frame": {
+        "x": 237,
+        "y": 394,
+        "w": 190,
+        "h": 119
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 190,
+        "h": 119
+      },
+      "sourceSize": {
+        "w": 192,
+        "h": 182
+      }
+    },
+    "thorn_pillar_a_00": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 231,
+        "h": 521
+      },
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 17,
+        "w": 231,
+        "h": 521
+      },
+      "sourceSize": {
+        "w": 269,
+        "h": 538
+      }
+    }
+  },
+  "meta": {
+    "app": "troid-assets",
+    "version": "1",
+    "image": "zone-throne_1.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 784,
+      "h": 800
+    },
+    "scale": "1"
+  }
+}

@@ -1,0 +1,1309 @@
+{
+  "manifestVersion": 1,
+  "id": "zone-throne",
+  "category": "environment",
+  "status": "provisional",
+  "comment": "THE CINDER THRONE: black crimson — broken arches and towers against a red sky, cages of thorn around dim spheres, chains, and the one great sphere low in the sky. What makes the zone that zone: the three seamless strips of its backdrop, tall enough for the camera of every room of it; the ground its rooms are built of; the pieces that stand, lie and hang in them; the spikes of its ditches; the lava, its fall and its embers; and the light in its colour. Painted by the generator in tools/art (npm run art:build), not by a person: provisional until an artist reviews or replaces it.",
+  "tags": [
+    "throne",
+    "generated"
+  ],
+  "atlasMode": "shared",
+  "scenes": {
+    "ct_gate": "scenes/ct_gate.json",
+    "ct_hall": "scenes/ct_hall.json",
+    "ct_gallery": "scenes/ct_gallery.json",
+    "ct_shrine": "scenes/ct_shrine.json",
+    "ct_stair": "scenes/ct_stair.json",
+    "ct_chains": "scenes/ct_chains.json",
+    "ct_gauntlet": "scenes/ct_gauntlet.json",
+    "ct_approach": "scenes/ct_approach.json",
+    "ct_arena": "scenes/ct_arena.json",
+    "ct_end": "scenes/ct_end.json"
+  },
+  "atlases": [
+    {
+      "id": "zone-throne_0",
+      "source": "zone-throne_0.png",
+      "data": "zone-throne_0.json",
+      "width": 2048,
+      "height": 2048,
+      "resolution": 1
+    },
+    {
+      "id": "zone-throne_1",
+      "source": "zone-throne_1.png",
+      "data": "zone-throne_1.json",
+      "width": 784,
+      "height": 800,
+      "resolution": 1
+    }
+  ],
+  "sprites": [
+    {
+      "id": "backdrop_far",
+      "artPxPerMeter": 20,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 20,
+      "frameSize": [
+        1200,
+        400
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:backdrop",
+        "backdrop:throne",
+        "part:far"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "backdrop_far_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "backdrop_mid",
+      "artPxPerMeter": 25.6,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 29.609,
+      "frameSize": [
+        1536,
+        758
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:backdrop",
+        "backdrop:throne",
+        "part:mid"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "backdrop_mid_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "backdrop_near",
+      "artPxPerMeter": 20,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 43.1,
+      "frameSize": [
+        800,
+        862
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:backdrop",
+        "backdrop:throne",
+        "part:near"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "backdrop_near_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "basalt_fill",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 2,
+      "frameSize": [
+        192,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:basalt",
+        "part:fill",
+        "grid:4x2"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "basalt_fill_",
+          "count": 8
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "basalt_cap",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 0.802,
+      "frameSize": [
+        192,
+        77
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:basalt",
+        "part:cap",
+        "grid:4x1",
+        "rise:0.12"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "basalt_cap_",
+          "count": 4
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "basalt_edge_l",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 2,
+      "frameSize": [
+        40,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:basalt",
+        "part:edge-l",
+        "grid:1x2",
+        "reach:0.12"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "basalt_edge_l_",
+          "count": 2
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "basalt_edge_r",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 2,
+      "frameSize": [
+        40,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:basalt",
+        "part:edge-r",
+        "grid:1x2",
+        "reach:0.12"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "basalt_edge_r_",
+          "count": 2
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "scorch_fill",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 2,
+      "frameSize": [
+        192,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:scorch",
+        "part:fill",
+        "grid:4x2"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "scorch_fill_",
+          "count": 8
+        }
+      },
+      "atlases": [
+        "zone-throne_0",
+        "zone-throne_1"
+      ]
+    },
+    {
+      "id": "scorch_cap",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 0.802,
+      "frameSize": [
+        192,
+        77
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:scorch",
+        "part:cap",
+        "grid:4x1",
+        "rise:0.12"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "scorch_cap_",
+          "count": 4
+        }
+      },
+      "atlases": [
+        "zone-throne_0",
+        "zone-throne_1"
+      ]
+    },
+    {
+      "id": "scorch_edge_l",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 2,
+      "frameSize": [
+        40,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:scorch",
+        "part:edge-l",
+        "grid:1x2",
+        "reach:0.12"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "scorch_edge_l_",
+          "count": 2
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "scorch_edge_r",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 2,
+      "frameSize": [
+        40,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:solid",
+        "material:scorch",
+        "part:edge-r",
+        "grid:1x2",
+        "reach:0.12"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "scorch_edge_r_",
+          "count": 2
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "obsidian_body",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 0.667,
+      "frameSize": [
+        192,
+        64
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:platform",
+        "material:obsidian",
+        "part:body",
+        "grid:4x1",
+        "rise:0.1"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "obsidian_body_",
+          "count": 4
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "obsidian_cap_l",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 0.667,
+      "frameSize": [
+        38,
+        64
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:platform",
+        "material:obsidian",
+        "part:cap-l",
+        "reach:0.05",
+        "rise:0.1"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "obsidian_cap_l_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "obsidian_cap_r",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        0
+      ],
+      "height": 0.667,
+      "frameSize": [
+        38,
+        64
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:platform",
+        "material:obsidian",
+        "part:cap-r",
+        "reach:0.05",
+        "rise:0.1"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "obsidian_cap_r_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "spikes_cell",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 0.75,
+      "frameSize": [
+        48,
+        72
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:hazard",
+        "kind:spikes",
+        "part:cell",
+        "grid:4x1"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "spikes_cell_",
+          "count": 4
+        }
+      },
+      "atlases": [
+        "zone-throne_0",
+        "zone-throne_1"
+      ]
+    },
+    {
+      "id": "lava_cell",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0,
+        1
+      ],
+      "height": 1.354,
+      "frameSize": [
+        96,
+        130
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:hazard",
+        "kind:lava",
+        "part:cell",
+        "grid:4x1"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "lava_cell_",
+          "count": 4
+        }
+      },
+      "atlases": [
+        "zone-throne_1"
+      ]
+    },
+    {
+      "id": "lava_fall",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 6,
+      "frameSize": [
+        115,
+        576
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "lava_fall_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "glow_lava",
+      "artPxPerMeter": 16,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4,
+      "frameSize": [
+        64,
+        64
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "glow_lava_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_1"
+      ]
+    },
+    {
+      "id": "embers",
+      "artPxPerMeter": 16,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 12,
+      "frameSize": [
+        256,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "embers_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "broken_arch_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4.802,
+      "frameSize": [
+        576,
+        461
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "broken_arch_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "broken_arch_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4.802,
+      "frameSize": [
+        576,
+        461
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "broken_arch_b_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "caged_orb_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4.396,
+      "frameSize": [
+        288,
+        422
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "caged_orb_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "caged_orb_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4.396,
+      "frameSize": [
+        288,
+        422
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "caged_orb_b_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "tower_stub_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 5.802,
+      "frameSize": [
+        288,
+        557
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "tower_stub_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "tower_stub_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 5.802,
+      "frameSize": [
+        288,
+        557
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "tower_stub_b_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "thorn_pillar_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 5.604,
+      "frameSize": [
+        269,
+        538
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "thorn_pillar_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_1"
+      ]
+    },
+    {
+      "id": "thorn_pillar_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 5.604,
+      "frameSize": [
+        269,
+        538
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:props-back"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "thorn_pillar_b_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "rubble_dark_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.896,
+      "frameSize": [
+        346,
+        86
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "rubble_dark_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "rubble_dark_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 0.896,
+      "frameSize": [
+        346,
+        86
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "rubble_dark_b_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "chain_heap_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.198,
+      "frameSize": [
+        230,
+        115
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "chain_heap_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "chain_heap_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.198,
+      "frameSize": [
+        230,
+        115
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "chain_heap_b_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "bone_pile_a",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.396,
+      "frameSize": [
+        192,
+        134
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "bone_pile_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_1"
+      ]
+    },
+    {
+      "id": "bone_pile_b",
+      "artPxPerMeter": 96,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 1.396,
+      "frameSize": [
+        192,
+        134
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:terrain"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "bone_pile_b_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_1"
+      ]
+    },
+    {
+      "id": "chains_a",
+      "artPxPerMeter": 48,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3.792,
+      "frameSize": [
+        163,
+        182
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:foreground"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "chains_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_1"
+      ]
+    },
+    {
+      "id": "chains_b",
+      "artPxPerMeter": 48,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3.792,
+      "frameSize": [
+        163,
+        182
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:foreground"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "chains_b_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_1"
+      ]
+    },
+    {
+      "id": "thorn_drapes_a",
+      "artPxPerMeter": 48,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3.792,
+      "frameSize": [
+        192,
+        182
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:foreground"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "thorn_drapes_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "thorn_drapes_b",
+      "artPxPerMeter": 48,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 3.792,
+      "frameSize": [
+        192,
+        182
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:foreground"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "thorn_drapes_b_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_1"
+      ]
+    },
+    {
+      "id": "beam_a",
+      "artPxPerMeter": 16,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 16,
+      "frameSize": [
+        128,
+        256
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-mid",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "beam_a_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "beam_b",
+      "artPxPerMeter": 16,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 16,
+      "frameSize": [
+        128,
+        256
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:backdrop-mid",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "beam_b_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "mist_bank",
+      "artPxPerMeter": 16,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 6,
+      "frameSize": [
+        512,
+        96
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "mist_bank_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "motes_zone",
+      "artPxPerMeter": 16,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 12,
+      "frameSize": [
+        256,
+        192
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "motes_zone_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_0"
+      ]
+    },
+    {
+      "id": "glow_zone",
+      "artPxPerMeter": 16,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4,
+      "frameSize": [
+        64,
+        64
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "glow_zone_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_1"
+      ]
+    },
+    {
+      "id": "glow_rest",
+      "artPxPerMeter": 16,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4,
+      "frameSize": [
+        64,
+        64
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "glow_rest_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_1"
+      ]
+    },
+    {
+      "id": "glow_boss",
+      "artPxPerMeter": 16,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 4,
+      "frameSize": [
+        64,
+        64
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:decor",
+        "layer:light-overlay",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "glow_boss_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_1"
+      ]
+    },
+    {
+      "id": "exit_shaft",
+      "artPxPerMeter": 16,
+      "pivot": [
+        0.5,
+        1
+      ],
+      "height": 10,
+      "frameSize": [
+        58,
+        160
+      ],
+      "missingClips": "placeholder",
+      "tags": [
+        "role:light",
+        "blend:add"
+      ],
+      "clips": {
+        "idle": {
+          "frames": "exit_shaft_",
+          "count": 1
+        }
+      },
+      "atlases": [
+        "zone-throne_1"
+      ]
+    }
+  ]
+}
