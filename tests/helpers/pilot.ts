@@ -3,7 +3,7 @@ import { overlaps, type Rect } from '@/core/math';
 import { bodyRect } from '@/world/collision';
 import type { InteractableDef } from '@/interaction/Interactable';
 import type { InputFrame } from '@/input/InputFrame';
-import { chainTo } from './chain';
+import { cheapestChain, chainTo, FRAGILE_COST } from './chain';
 import { RoomPhysics, ScriptRunner, withExitsAsHazards, type Hop, type Surface } from './reach';
 import type { Driver } from './sim';
 
@@ -81,7 +81,8 @@ export class Pilot {
   hero(): Set<string> {
     const has = new Set<string>(['dash']);
     const a = this.d.session.abilities;
-    for (const id of ['air_dash', 'double_jump', 'wall_jump']) if (a.has(id)) has.add(id);
+    // (the Relic of Swiftness is not a way to go anywhere, but it makes the dash ready sooner: a hop with two dashes in it is a different hop with it)
+    for (const id of ['air_dash', 'double_jump', 'wall_jump', 'relic_swift']) if (a.has(id)) has.add(id);
     return has;
   }
 
@@ -348,7 +349,6 @@ export class Pilot {
    * on either side, and the search goes on from the far side.
    */
   private plan(phys: RoomPhysics, here: Surface, has: ReadonlySet<string>, targets: Candidate[]): Hop[] | null {
-    const want = (r: ReadonlySet<number>): boolean => targets.some((t) => r.has(t.surface.index));
     const links = phys.crouchLinks();
     const chains = new Map<number, Hop[]>([[here.index, []]]);
     const queue = [here.index];
@@ -358,13 +358,10 @@ export class Pilot {
       const base = chains.get(from.index)!;
       // (the far side of a passage can be the place itself)
       if (base.length > 0 && targets.some((t) => t.surface.index === from.index)) return this.steady(phys, firstHops, base, has);
-      const reach = phys.reachFrom(from, has, want);
+      // (a person plays the hops that work when the take-off is a hair off, and the ones that work at a single point only when the detour around them is long: `cheapestChain`)
+      const reach = phys.reachFrom(from, has, undefined, { mark: true });
       if (q === 0) firstHops = reach.hops;
-      let best: Hop[] | null = null;
-      for (const t of targets) {
-        const c = chainTo(reach, t.surface.index);
-        if (c && c.length > 0 && (!best || c.length < best.length)) best = c;
-      }
+      const best = this.cheapest(reach, targets);
       if (best) return this.steady(phys, firstHops, [...base, ...best], has);
       for (const l of links) {
         if (!reach.surfaces.has(l.from) || chains.has(l.to)) continue;
@@ -375,6 +372,22 @@ export class Pilot {
     return null;
   }
 
+  /** The chain a person would play to one of the targets (the cheapest, by `cheapestChain`), or null. */
+  private cheapest(reach: ReturnType<RoomPhysics['reachFrom']>, targets: Candidate[]): Hop[] | null {
+    let best: Hop[] | null = null;
+    let bestCost = Infinity;
+    for (const t of targets) {
+      const c = cheapestChain(reach, t.surface.index);
+      if (!c || c.length === 0) continue;
+      const cost = c.reduce((n, h) => n + (h.steady === false ? FRAGILE_COST : 1), 0);
+      if (cost < bestCost) {
+        best = c;
+        bestCost = cost;
+      }
+    }
+    return best;
+  }
+
   /** The chain with its first hop swapped for the steadiest hop between the same two places (a crawl is as steady as it gets). */
   private steady(phys: RoomPhysics, hops: readonly Hop[], chain: Hop[], has: ReadonlySet<string>): Hop[] {
     const first = chain[0]!;
@@ -383,7 +396,7 @@ export class Pilot {
 
   /**
    * Of the hops that join the same two places, the one that does not ask for the take-off to be right to the centimetre: the one that still comes down on the same surface when the take-off is a little early or a little late
-   * (a hero who runs at 8.5 m/s is at a new place every 14 cm). A hop that works only at one point is a hop of the solver's, not of a person's.
+   * (a hero who runs at 8.5 m/s is at a new place every 14 cm), and of those the one that takes off nearest the end the hero runs toward. A hop that works only at one point is a hop of the solver's, not of a person's.
    */
   private steadiest(phys: RoomPhysics, hops: readonly Hop[], pick: Hop, has: ReadonlySet<string>): Hop {
     const same = hops.filter((h) => h.from === pick.from && h.to === pick.to);
@@ -391,17 +404,26 @@ export class Pilot {
     const s = phys.surfaces[pick.from]!;
     let best = pick;
     let bestScore = -1;
+    let bestRun = -1;
     for (const h of same) {
       let score = 0;
+      const dir = RoomPhysics.scripts(has).find((c) => c.name === h.script)?.dir ?? 0;
+      // (how much of the ledge is run before the take-off: of equally steady hops, the one that takes off nearest the end the hero runs toward — a person runs to the edge, they do not take off twenty metres before it)
+      const run = dir > 0 ? h.x - s.x0 : dir < 0 ? s.x1 - h.x : 0;
       for (const dx of [-0.12, -0.06, 0, 0.06, 0.12]) {
+        // (a take-off past the far end of the ledge is the hero who is a tick late, already falling: it does not count for the hop)
+        if (RoomPhysics.pastTheEnd(s, h.x + dx, dir)) continue;
         const x = Math.min(s.x1, Math.max(s.x0, h.x + dx));
-        if (phys.landing(s, x, h.script, has)?.surface === h.to) score++;
+        const l = phys.landing(s, x, h.script, has);
+        if (l?.surface === h.to && Math.abs(l.landX - h.landX) <= 0.35) score++;
       }
-      if (score > bestScore) {
+      // (a hop that `reachFrom` marked as not steady is worth half a point less than the same hop that is: it never decides against a steadier one, and between equals the first found stays)
+      const total = score + (h.steady === false ? -0.5 : 0);
+      if (total > bestScore || (total === bestScore && dir !== 0 && run > bestRun)) {
         best = h;
-        bestScore = score;
+        bestScore = total;
+        bestRun = run;
       }
-      if (score === 5) break;
     }
     return best;
   }
@@ -486,9 +508,13 @@ export class Pilot {
         if (!this.creepTo(end + dir * 0.03, 0.015)) return; // (a hair in from the end: the last centimetres are where a hero who stops a tick late is no longer on the ledge)
       } else if (!this.walkTo(end + dir * EDGE, 0.05)) return;
       // (the script starts on the tick that begins nearest to the take-off point: a run is 14 cm a tick)
-      for (let t = 0; t < 300; t++) {
+      // (a ledge can be long: the run-up the solver counted is from its end, however far from the take-off point that is)
+      const ticks = Math.max(300, Math.ceil(Math.abs(rec.x - d.body.x) / 0.14) + 60);
+      for (let t = 0; t < ticks; t++) {
         const dx = (rec.x - d.body.x) * dir;
         if (dx <= Math.abs(d.body.vx) / 120) break;
+        // (a creature that has come at the hero on the way to the take-off is dealt with first — a person does not run into a guard with their eyes on the edge —, and the plan is made again)
+        if (t % 6 === 5 && this.reflex?.(this)) return;
         d.moveX = dir;
         d.step(1);
       }

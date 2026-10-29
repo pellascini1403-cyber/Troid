@@ -9,7 +9,7 @@ import type { Ctx, Scenario } from '../scenario';
 import { centreOf, TouchScreen } from '../touch';
 
 /**
- * THE END OF THE ADVENTURE, in a real browser (docs/PROMPT20-LOG.md; the way out of the world is in the last room of the Heart of the Ink since docs/PROMPT21-LOG.md): a hero who has done everything walks out of the world, and the game answers the way a finished game does — it holds the world, saves the game as
+ * THE END OF THE ADVENTURE, in a real browser (docs/PROMPT20-LOG.md; the way out of the world is in the last room of the Cinder Throne since docs/PROMPT23-LOG.md §7): a hero who has done everything walks out of the world, and the game answers the way a finished game does — it holds the world, saves the game as
  * COMPLETED before anything is shown, opens the closing (the end, what the game counted, the credits) and offers the two ways on. Nothing typed or touched reaches the world meanwhile; the key that leaves the closing goes back
  * into the world, where the way out is spent for this visit and is announced again on the next; a game that is loaded is still completed, says so on the saved-games card and in the profile; and a new game, in the same slot
  * or in another, starts clean without touching the completed one.
@@ -22,14 +22,14 @@ const DESKTOP = { width: 1280, height: 720, dpr: 1 };
 const PHONE = { width: 844, height: 390, dpr: 2, touch: true };
 
 /**
- * A hero who has done everything: both slimes down, the card taken, the seal broken, the seven guardians fallen — the Inkheart Sovereign the last — and every ability of the world in hand — standing at the west door of the last room, with the
+ * A hero who has done everything: both slimes down, the card taken, the seal broken, the eleven guardians fallen — the Cinder Sovereign the last — and every ability of the world in hand — standing at the west door of the last room, with the
  * way out of the world (at its east wall) open. A version-1 file on purpose (it migrates).
  */
 const DONE = {
   saveVersion: 1,
-  at: { room: 'ih_end', entry: 'west' },
+  at: { room: 'ct_end', entry: 'west' },
   checkpoint: { room: 'r1_gate', entry: 'start' },
-  flags: ['broken:r3_seal', 'defeated:r1_slime', 'defeated:r2_slime', 'defeated:r4_boss', 'defeated:rt_boss', 'defeated:mr_boss', 'defeated:mn_boss', 'defeated:sp_boss', 'defeated:fd_boss', 'defeated:ih_boss', 'taken:air_dash', 'taken:card_spirit_bolt'],
+  flags: ['broken:r3_seal', 'defeated:r1_slime', 'defeated:r2_slime', 'defeated:r4_boss', 'defeated:rt_boss', 'defeated:mr_boss', 'defeated:mn_boss', 'defeated:sp_boss', 'defeated:fd_boss', 'defeated:ih_boss', 'defeated:dv_boss', 'defeated:og_boss', 'defeated:ec_boss', 'defeated:ct_boss', 'taken:air_dash', 'taken:card_spirit_bolt'],
   abilities: ['air_dash', 'dash', 'double_jump', 'ground_slam', 'magic_attack', 'wall_jump'],
   cards: { owned: ['card_spirit_bolt'], equipped: 'card_spirit_bolt' },
   bottleSlots: 3,
@@ -81,16 +81,16 @@ async function loadDone(ctx: Ctx, query: string, size: typeof DESKTOP | typeof P
   await seed(ctx, DONE);
   await ctx.page.evaluate('window.__troid.pause()');
   const s = await ctx.state();
-  assert.equal(s.room, 'ih_end', 'the saved game continues in the last room');
+  assert.equal(s.room, 'ct_end', 'the saved game continues in the last room');
   assert.ok(!s.flags!.includes(COMPLETED_FLAG), 'it has not been completed yet');
-  assert.ok(s.flags!.includes('defeated:ih_boss'), 'the Sovereign is gone: the way out is open');
+  assert.ok(s.flags!.includes('defeated:ct_boss'), 'the Sovereign is gone: the way out is open');
 }
 
 /** Holds the right key and runs ticks until the closing opens (the real keyboard: the same events a player makes). */
 async function walkOut(ctx: Ctx): Promise<void> {
   // the room is built again, as walking back in from the arena would (the way out is spent for a visit to a room: the next visit finds it fresh)
-  await ctx.page.evaluate('window.__troid.session.loadRoom("ih_end", "west")');
-  await ctx.teleport(33, 2);
+  await ctx.page.evaluate('window.__troid.session.loadRoom("ct_end", "west")');
+  await ctx.teleport(37, 2);
   await ctx.page.keyboard.down('KeyD');
   let ticks = 0;
   for (; ticks < 400 && !(await ctx.state()).menuOpen; ticks += 6) await ctx.step(6);
@@ -114,7 +114,7 @@ export const ending: Scenario = {
     let s = await ctx.state();
     assert.deepEqual(s.exits, ['end'], 'the way out was touched…');
     assert.ok(s.flags!.includes(COMPLETED_FLAG), '…and the world remembers it');
-    assert.ok(s.x > 36, `the hero stands in the way out (x ${s.x.toFixed(2)})`);
+    assert.ok(s.x > 40, `the hero stands in the way out (x ${s.x.toFixed(2)})`);
     assert.equal(await text(page, 'ending-title'), 'FIN');
     assert.equal(await text(page, 'ending-lead'), 'Has llegado al final de la aventura.');
     assert.equal(await q(page, 'ending-continue').evaluate((e) => (e as HTMLElement).innerText), 'Seguir explorando');
@@ -122,7 +122,7 @@ export const ending: Scenario = {
     assert.equal(await page.evaluate('document.activeElement && document.activeElement.dataset.testid'), 'ending-continue', 'the focus is on the way on');
     assert.equal(await text(page, 'ending-deaths'), '0');
     assert.match(await text(page, 'ending-time'), /^\d+:\d\d$/);
-    assert.equal(await text(page, 'ending-bosses'), '7 de 7', 'the seven guardians are counted');
+    assert.equal(await text(page, 'ending-bosses'), '11 de 11', 'the eleven guardians are counted');
     assert.ok((await text(page, 'ending-credits')).includes('Créditos') && (await text(page, 'ending-credits')).includes('PixiJS') && (await text(page, 'ending-credits')).includes('Gracias por jugar.'), 'the credits are there');
     assert.equal(await q(page, 'pause-resume').isVisible(), true, 'the column of options is still at its side');
     await frames(page, 30);
@@ -160,7 +160,7 @@ export const ending: Scenario = {
     }
     assert.ok(saved?.flags.includes(COMPLETED_FLAG), 'the saved game says the adventure is completed');
     assert.equal(saved!.flags.filter((f) => f === COMPLETED_FLAG).length, 1);
-    assert.equal(saved!.at.room, 'ih_end', 'and it continues in the world, not on the way out');
+    assert.equal(saved!.at.room, 'ct_end', 'and it continues in the world, not on the way out');
 
     // once the moment is over the same Space presses the button that has the focus — keep exploring, with the keyboard
     await moveClock(page, 400);
@@ -194,7 +194,7 @@ export const ending: Scenario = {
     // ================================================================================================ a game that is loaded is still completed — and says so
     await reload(page);
     s = await ctx.state();
-    assert.equal(s.room, 'ih_end');
+    assert.equal(s.room, 'ct_end');
     assert.ok(s.flags!.includes(COMPLETED_FLAG), 'the loaded game is completed');
     assert.equal(s.menuOpen, false, 'loading it does not end it again');
     await ctx.step(30);
@@ -262,8 +262,8 @@ export const ending: Scenario = {
     const layout = ((await page.evaluate('window.__troid.touch()')) as { layout: TouchLayout }).layout;
     /** A firm drag on the movement zone takes the hero from the west end of the last room out of the world. */
     const fingerOut = async (): Promise<void> => {
-      await page.evaluate('window.__troid.session.loadRoom("ih_end", "west")');
-      await ctx.teleport(33, 2);
+      await page.evaluate('window.__troid.session.loadRoom("ct_end", "west")');
+      await ctx.teleport(37, 2);
       await screen.touch(1, layout.zone.x + layout.zone.w * 0.4, 250);
       await screen.drag(1, DEFAULT_TOUCH.rx * layout.gestureScale * 1.6, 0, 4, 8);
       for (let i = 0; i < 80 && !(await ctx.state()).menuOpen; i++) await ctx.step(6);

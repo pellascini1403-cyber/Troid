@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { ROOMS } from '@/content';
+import { createInputFrame } from '@/input/InputFrame';
 import { runBot } from '../../helpers/bot';
 import { driver, type Button, type Driver } from '../../helpers/sim';
-import { DIGEST_EVERY, DIGEST_SRC, digestOf, heldOf, record, replay, type Recording } from '../../../tools/e2e/replay';
+import { DIGEST_EVERY, DIGEST_SRC, digestOf, heldOf, record, replay, sayableFrames, type Recording } from '../../../tools/e2e/replay';
 import type { Ctx, GameState } from '../../../tools/e2e/scenario';
 
 /**
@@ -165,3 +166,58 @@ describe('replaying through a (fake) browser', () => {
     expect([...downNow]).toEqual([]);
   });
 });
+
+describe('what a recording of held keys cannot say', () => {
+  const run = (play: (d: Driver) => void): Array<string | null> => {
+    const d = fresh();
+    const say = sayableFrames();
+    const seen: Array<string | null> = [];
+    d.onFrame = (f) => void seen.push(say(f));
+    play(d);
+    return seen;
+  };
+
+  it('is silent about what a keyboard can do: keys that go down, are held and come up, a tap, a tap again after a tick without it', () => {
+    const seen = run((d) => {
+      d.press('jump').step(3);
+      d.release('jump').step(1);
+      d.press('attack').press('dash').step(2);
+      d.release('attack').release('dash').step(1);
+      d.tap('bottle').step(1);
+      d.tap('bottle').step(1);
+      d.tap('interact').step(1);
+    });
+    expect(seen.filter((x) => x !== null)).toEqual([]);
+  });
+
+  it('names the tick in which a key comes up and goes down again inside one tick: the page would see a key held, and lose the second press', () => {
+    const seen = run((d) => {
+      d.press('jump').step(2);
+      d.release('jump').press('jump').step(1);
+      d.release('jump').step(1);
+    });
+    expect(seen.map((x) => x !== null)).toEqual([false, false, true, false]);
+    expect(seen[2]).toContain('jump key came up and went down again inside one tick');
+  });
+
+  it('names a bottle or Interact pressed on two ticks in a row (the page holds the key for the tick: one press), the drop key (not in a recording), and a key held that nobody pressed', () => {
+    expect(run((d) => d.tap('bottle').tap('bottle')).filter((x) => x !== null)).toHaveLength(1);
+    expect(run((d) => d.tap('interact').tap('interact')).filter((x) => x !== null)).toHaveLength(1);
+    expect(run((d) => d.tap('drop')).filter((x) => x !== null)[0]).toContain('drop key');
+    const say = sayableFrames();
+    const f = createInputFrame();
+    f.jumpHeld = true; // held, and the tick before it was not: nobody pressed it
+    expect(say(f)).toContain('jump key is held but nobody pressed it');
+  });
+
+  it('is what `record` enforces: a run that cannot be replayed by a keyboard is refused at the tick it happens, not found thirty thousand ticks later', () => {
+    const d = fresh();
+    expect(() =>
+      record(d, () => {
+        d.press('jump').step(2);
+        d.release('jump').press('jump').step(1);
+      }),
+    ).toThrow(/cannot be replayed by a keyboard: at tick 2, the jump key came up and went down again inside one tick/);
+  });
+});
+

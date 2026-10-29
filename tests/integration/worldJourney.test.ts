@@ -59,20 +59,20 @@ describe('the world from front to back', () => {
     expect(d.session.flags.has(COMPLETED_FLAG)).toBe(false);
   });
 
-  it('the way out of the world COMPLETES the adventure: once, at the last exit of the last room, behind the Sovereign — with the game remembering it and nothing earlier having told it', () => {
+  it('the way out of the world COMPLETES the adventure: once, at the last exit of the last room, behind the Cinder Sovereign — with the game remembering it and nothing earlier having told it', () => {
     const ends = WORLD.rooms.flatMap((id) => (ROOMS[id]!.exits ?? []).filter((x) => x.end).map((x) => `${id}/${x.id}`));
-    expect(ends, 'one way out of the world, and it is in the last room').toEqual(['ih_end/end']);
-    expect(WORLD.rooms[WORLD.rooms.length - 1]).toBe('ih_end');
-    const d = at(ROOMS, 'ih_end', 'west', ['dash'], ['defeated:ih_boss']);
+    expect(ends, 'one way out of the world, and it is in the last room').toEqual(['ct_end/end']);
+    expect(WORLD.rooms[WORLD.rooms.length - 1]).toBe('ct_end');
+    const d = at(ROOMS, 'ct_end', 'west', ['dash'], ['defeated:ct_boss']);
     const ended: string[] = [];
     d.session.bus.on('adventure:ended', (e) => void ended.push(`${d.session.now} ${e.roomId}/${e.exitId}`));
     const completedAt: number[] = [];
     d.session.bus.on('flag:set', (e) => e.flag === COMPLETED_FLAG && completedAt.push(d.session.now));
     expect(isCompleted((f) => d.session.flags.has(f))).toBe(false);
-    const z = ROOMS.ih_end!.exits!.find((x) => x.end)!.rect;
+    const z = ROOMS.ct_end!.exits!.find((x) => x.end)!.rect;
     d.teleport((z.x0 + z.x1) / 2, z.y0);
     d.step(1);
-    expect(ended).toEqual([`${d.session.now} ih_end/end`]);
+    expect(ended).toEqual([`${d.session.now} ct_end/end`]);
     expect(completedAt, 'the flag was set on that very tick, once').toEqual([d.session.now]);
     expect(isCompleted((f) => d.session.flags.has(f))).toBe(true);
   });

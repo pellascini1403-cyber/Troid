@@ -316,7 +316,7 @@ describe('planSeals: the wards', () => {
     expect([...planSeals([{ id: 'ward', x: 1, y: 0 }, { id: 'crack', x: 5, y: 2, style: 'crack' }], null).lacking]).toEqual([['seal::', ['ward']]]);
     // and the world's own cracked seals are exactly the ones left out
     const cracks = WORLD.rooms.flatMap((id) => (ROOMS[id]!.seals ?? []).filter((s) => s.style === 'crack').map((s) => `${id}:${s.id}`));
-    expect(cracks).toHaveLength(8);
+    expect(cracks).toHaveLength(11);
     for (const id of WORLD.rooms) {
       const room = ROOMS[id]!;
       expect(planSeals(room.seals ?? [], sigil()).placements.map((p) => p.id), id).toEqual((room.seals ?? []).filter((s) => s.style !== 'crack').map((s) => s.id));

@@ -2,107 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { BOSSES, ENEMIES } from '@/content/enemies';
 import { ENGINE_BOSS_LIST } from '@/content/bosses';
 import { PROCEDURAL_LOOKS } from '@/content/proceduralActors';
-import { Boss } from '@/enemies/boss/Boss';
-import type { BossDefinition } from '@/enemies/boss/BossDefinition';
 import { BOSS_HANDLERS } from '@/enemies/boss/handlers';
 import { Enemy } from '@/enemies/Enemy';
 import { EnemyShot } from '@/enemies/EnemyShot';
-import type { GameEvents } from '@/gameplay/events';
 import { CATALOGS } from '@/i18n';
-import { mapRoom } from '@/world/roomMap';
 import { validateRoom } from '@/world/validateRoom';
-import { driver, type Driver } from '../helpers/sim';
+import { arenaFor, count, enterPhase, fight, nudge, strike, until, W } from '../helpers/bossArena';
 
 /**
  * THE SIX GUARDIANS OF THE ENGINE (docs/PROMPT21-LOG.md), through the real session: the arena shuts behind the hero, the boss wakes, chooses among the attacks of its phase, winds up (a telegraph the hero can read), strikes and
  * recovers; it can be hurt only under its own CONDITION; it changes at its phases; and when it falls what it shut opens. Each fight is a different fight: what the tests ask of each is what only that one does.
  */
-const W = 70;
-const H = 26;
-
-function arenaFor(def: BossDefinition) {
-  void def;
-  const grid = Array.from({ length: H }, () => Array.from({ length: W }, () => '.'));
-  const fill = (x0: number, x1: number, y0: number, y1: number, ch: string): void => {
-    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) grid[H - 1 - y]![x] = ch;
-  };
-  fill(0, W, 0, 1, '#');
-  fill(0, W, 1, 2, 'G'); // the floor, top at y = 2
-  fill(0, 1, 0, H, '#');
-  fill(W - 1, W, 0, H, '#');
-  fill(0, W, H - 1, H, '#');
-  const mark = (x: number, y: number, ch: string): void => {
-    grid[H - 1 - y]![x] = ch;
-  };
-  mark(4, 2, 'a'); // the way in
-  mark(56, 2, 'b'); // the boss
-  mark(10, 2, 'l'); // west end of the arena
-  mark(66, 2, 'r'); // east end of the arena
-  return mapRoom(
-    { id: 'arena', regionId: 'lab', name: 'Arena', nameKey: 'room.lab.name', art: { backdrop: 'ruins', seed: 1 }, rows: grid.map((r) => r.join('')) },
-    (m) => ({
-      entries: [m.entry('start', 'a', 1)],
-      bosses: [m.boss('boss', def.id, 'b', { from: 'l', to: 'r', top: 20 }, { defeatFlag: 'defeated:test_boss', fightFlag: '~fight:test_boss' })],
-    }),
-  );
-}
-
-interface Fight {
-  d: Driver;
-  boss: Boss;
-  log: Array<[string, unknown]>;
-}
-
-const NAMES: Array<keyof GameEvents> = ['boss:started', 'boss:phase', 'boss:strike', 'boss:defeated', 'enemy:blocked', 'enemy:telegraph', 'enemyshot:ended', 'player:hurt', 'actor:died', 'flag:set', 'flag:cleared'];
-
-function fight(def: BossDefinition, opts: { god?: boolean; wake?: boolean; hero?: number } = {}): Fight {
-  const room = arenaFor(def);
-  const d = driver({ room, unlocked: ['dash'], entry: 'start', extra: { bosses: BOSSES, enemies: ENEMIES } });
-  d.session.godMode = opts.god ?? true;
-  const log: Array<[string, unknown]> = [];
-  for (const n of NAMES) d.session.bus.on(n, (e) => void log.push([n as string, e]));
-  d.step(2);
-  const boss = d.session.entities.find((e): e is Boss => e instanceof Boss)!;
-  if (opts.wake !== false) {
-    d.teleport(opts.hero ?? 20, 2);
-    d.settle();
-    d.until(() => boss.state !== 'dormant', 30);
-  }
-  return { d, boss, log };
-}
-
-const count = (f: Fight, name: string): number => f.log.filter(([n]) => n === name).length;
-const until = (f: Fight, state: string | string[], max = 900): number => {
-  const want = Array.isArray(state) ? state : [state];
-  return f.d.until(() => want.includes(f.boss.state), max);
-};
-/** A touch of damage that is not a blow of the hero's (it cannot be turned away): the boss notices that its health has crossed a phase. */
-function nudge(f: Fight): void {
-  const b = f.boss.body;
-  f.boss.receiveHit({ attackId: 'test', attackerId: 'test', damage: 0.0001, direction: 1, knockbackX: 0, knockbackY: 0, stun: 0, hitStop: 0, shake: 0, x: b.x, y: b.y + 1, part: 'core' });
-}
-/** Takes the boss's health to just below the start of phase `n` and lets it shut for the roar, open again, and begin the phase. */
-function enterPhase(f: Fight, n: number): void {
-  while (f.boss.phase < n) {
-    const next = f.boss.def.phases[f.boss.phase]!;
-    const drop = f.boss.health.current - (next.at - 0.02) * f.boss.health.max;
-    if (drop > 0) f.boss.health.damage(drop);
-    nudge(f);
-    f.d.until(() => f.boss.state === 'shift', 4000);
-    f.d.until(() => f.boss.state === 'choose', 400);
-  }
-}
-/** A perfect hero's blow on the part of the boss that is under the hero's sword: whatever region overlaps the rectangle takes it. */
-function strike(f: Fight, damage = 1): void {
-  const b = f.boss.body;
-  f.d.session.combat.submit({
-    ownerId: 'test', team: 'player', attackId: 'slash_1', damage,
-    rect: { x0: b.x - b.halfW - 0.3, x1: b.x + b.halfW + 0.3, y0: b.y + 0.2, y1: b.y + b.height - 0.2 },
-    knockback: { x: 3, y: 2 }, stun: 12, hitStop: 0, shake: 0, facing: 1, alreadyHit: new Set(),
-  });
-  f.d.step(1);
-}
-
 describe('all six', () => {
   it('are six, with six different sets of patterns and a name in every language and a look', () => {
     expect(ENGINE_BOSS_LIST).toHaveLength(6);

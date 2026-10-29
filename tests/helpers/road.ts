@@ -1,5 +1,5 @@
 import { ROOMS, WORLD } from '@/content';
-import { analyzeProgression, buildWorldGraph, grantedFlags } from '@/world/worldGraph';
+import { analyzeProgression, buildWorldGraph, grantedFlags, worldEnds } from '@/world/worldGraph';
 
 /**
  * THE MAIN ROAD OF THE WORLD (docs/PROMPT22-LOG.md): the rooms from the first to the last, in the order the world's own progression analysis reaches them, and what the hero has when it gets to each one. The tests that play the world read it from here
@@ -8,10 +8,13 @@ import { analyzeProgression, buildWorldGraph, grantedFlags } from '@/world/world
 const graph = buildWorldGraph(WORLD, ROOMS);
 export const PAPER = analyzeProgression(graph, ROOMS);
 
+/** The room where the adventure ends (docs/PROMPT23-LOG.md §7: the last of the Cinder Throne, behind its guardian), read from the way out of the world the rooms have. */
+export const LAST_ROOM: string = worldEnds(WORLD, ROOMS)[0]!.room;
+
 /** The room ids of the road, from `WORLD.start.room` to the room where the adventure ends. */
 export const ROAD: readonly string[] = (() => {
   const out: string[] = [];
-  for (let cur = 'ih_end'; cur !== WORLD.start.room; cur = PAPER.via.get(cur)!.from) out.unshift(cur);
+  for (let cur = LAST_ROOM; cur !== WORLD.start.room; cur = PAPER.via.get(cur)!.from) out.unshift(cur);
   out.unshift(WORLD.start.room);
   return out;
 })();

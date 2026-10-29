@@ -145,6 +145,11 @@ export const TACTICS: Record<string, Tactic> = {
   // it keeps its distance and throws: over the throw, and close in
   ink_spitter: (f, foe) => {
     if (f.dodgeShots()) return;
+    // across a gap that the sword does not reach (a plank over lava, the far side of a pool): the bolt — it flies level, and the spitter does not come closer
+    if (foe.gap >= 3) {
+      f.face(foe.side);
+      if (f.me.facing === foe.side && f.inBolt(foe) && f.cast()) return f.walk(0);
+    }
     engage(f, foe);
   },
 
@@ -210,15 +215,20 @@ export const TACTICS: Record<string, Tactic> = {
     const out = 0.65 + 0.35 + 0.5;
     switch (foe.state) {
       case 'lock':
-      case 'drop':
-        // (it falls at the spot it locked on: leave the line)
-        return foe.gap < out ? f.walk(foe.dx >= 0 ? -1 : 1) : f.face(foe.side);
+      case 'drop': {
+        // (it falls at the spot it locked on: leave the line — to the side that has floor to leave it by: on a stone in a pool, the way away from the piston may be a step into lava)
+        if (foe.gap >= out) return f.face(foe.side);
+        const away: 1 | -1 = foe.dx >= 0 ? -1 : 1;
+        return f.walk(f.canBack(away) ? away : f.canBack(-away as 1 | -1) ? (-away as 1 | -1) : away);
+      }
       case 'stuck':
         return engage(f, foe);
       case 'rise':
         return;
       default:
-        return; // it is tracking: stand and let it come over
+        // it is tracking: let it come over — and, if it hangs on a leash and is not coming (it follows only so far from its post), go under it
+        if (foe.gap > 0.5) f.walk(foe.side, 0.35);
+        return;
     }
   },
 
@@ -240,6 +250,24 @@ export const TACTICS: Record<string, Tactic> = {
     baitAndPunish(f, foe, { danger: ['appear', 'slash'], open: ['recover', 'hurt'], standoff: 4.5 });
   },
 };
+
+/**
+ * THE CREATURES THAT BURN (docs/PROMPT23-LOG.md §7.3) are the archetypes of the first half with other numbers and another look, so what answers each is what answers the creature it is a variant of: the same states are the same
+ * telegraphs. A reading that stops working for one of them (a charge that is quicker, a blast that is wider) is a finding of `tests/integration/encountersEmber.test.ts`, and is said there.
+ */
+export const KIN: Readonly<Record<string, string>> = {
+  cinder_crawler: 'bramble_crawler',
+  magma_toad: 'mire_toad',
+  basalt_guard: 'stoneback',
+  ember_wisp: 'lantern_wisp',
+  ash_bat: 'cave_bat',
+  slag_spitter: 'ink_spitter',
+  ash_toller: 'bell_toller',
+  magma_piston: 'piston_drone',
+  cinder_weaver: 'ink_weaver',
+  dusk_shade: 'veil_shade',
+};
+for (const [id, kin] of Object.entries(KIN)) TACTICS[id] = TACTICS[kin]!;
 
 /** No reading of the creature at all: walk up and swing. What a hero who does not look at the telegraph does. */
 export const NAIVE: Tactic = (f, foe) => engage(f, foe);

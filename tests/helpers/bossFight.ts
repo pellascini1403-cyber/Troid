@@ -41,7 +41,12 @@ interface Profile {
 }
 const PROFILES: Readonly<Record<string, Profile>> = {
   boss_colossus: { hug: 2.4, hopOver: ['stomp'] },
+  // (the Crater Behemoth, docs/PROMPT23-LOG.md §7.3: its stomp shakes a strip of floor 12 m wide and 0.8 m tall, which is cleared by a jump and not by running — the answer its design names)
+  boss_behemoth: { hopOver: ['stomp'] },
 };
+
+/** Ticks without a point of damage to the boss after which the fight is a stall (25 seconds: the longest a won fight goes without a blow is a dozen). */
+const STALL = 1500;
 
 export interface BossResult extends FightResult {
   /** The phase the boss was in when the fight ended (1-based), the life the boss had left and the most the hero was ever down to. */
@@ -61,6 +66,11 @@ export class BossFighter {
   why = '';
   /** For a surge along the floor: the place behind the boss, which the hero crosses to (the boss has no body to hurt them while it winds up, and the surge goes away from them). */
   private behind: number | null = null;
+  /** For a boss that is baited toward a wall: the wall the hero has chosen once the fight has stalled (it is kept while there is room to stand between the boss and it). */
+  private baitSide: 1 | -1 | null = null;
+  /** The boss's life the last time it went down, and the tick at which it did: a fight that has not got anywhere in `STALL` ticks has stalled. */
+  private lifeThen = Infinity;
+  private progressAt = 0;
 
   constructor(
     readonly d: Driver,
@@ -310,8 +320,23 @@ export class BossFighter {
     const throws = (b.def.phases[b.phase - 1]?.attacks ?? []).some((id) => b.def.attacks[id]?.handler === 'burst');
     // a boss that surges along the floor is baited toward a wall: stand between it and the nearer wall, so that its surge ends there (a long stun) and the back it shows is the hero's side after they cross
     if (Object.values(b.def.attacks).some((a) => a.handler === 'charge')) {
-      const wallSide: 1 | -1 = this.arena.x1 - b.body.x < b.body.x - this.arena.x0 ? 1 : -1;
-      const want = Math.min(hi, Math.max(lo, b.body.x + wallSide * (throws ? 8 : 4.8)));
+      // the nearer wall — among the walls with room for the hero to stand between the boss and it (a boss that has ended a surge a hair short of a wall has no room on that side: the hero is baited the other way, and the surges walk it back across the arena
+      // to a wall they can reach; found in Prompt 23: a Foundry Engine whose charges ended 0.7 m short of the west wall, over and over, for eight minutes)
+      // — and the side is kept, once chosen, for as long as it has room (the surges walk the boss to that wall, a step of eleven metres at a time; a hero who changed their mind each time the boss crossed the middle would walk it back and forth for ever)
+      const dist = throws ? 8 : 4.8;
+      const spot = (sd: 1 | -1): number => Math.min(hi, Math.max(lo, b.body.x + sd * dist));
+      const room = (sd: 1 | -1): boolean => Math.sign(spot(sd) - b.body.x) === sd && Math.abs(spot(sd) - b.body.x) >= 3;
+      const nearer: 1 | -1 = this.arena.x1 - b.body.x < b.body.x - this.arena.x0 ? 1 : -1;
+      // — but only when the fight has stopped getting anywhere (the nearer wall each time is what wins the fights that are won; a boss that has ended its surges a hair short of a wall, over and over, is the one that needs another way)
+      if (this.boss.health.current < this.lifeThen) {
+        this.lifeThen = this.boss.health.current;
+        this.progressAt = this.d.session.now;
+      }
+      const stalled = this.d.session.now - this.progressAt > STALL;
+      if (!stalled) this.baitSide = null;
+      else if (this.baitSide === null || !room(this.baitSide)) this.baitSide = room(nearer) || !room(-nearer as 1 | -1) ? nearer : (-nearer as 1 | -1);
+      const wallSide: 1 | -1 = this.baitSide ?? nearer;
+      const want = spot(wallSide);
       if (!f.toward(want, 0.5)) return;
       return f.face(-wallSide as 1 | -1);
     }

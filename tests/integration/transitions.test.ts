@@ -113,7 +113,7 @@ describe('a transition: from touching an exit to having control again', () => {
 
   it('EVERY exit of the world that leads somewhere arrives at the entry it names (position, facing, on the ground), without bouncing back', () => {
     const graph = buildWorldGraph(WORLD, ROOMS);
-    expect(graph.edges.length, 'seventy-two doors, each way').toBe(144);
+    expect(graph.edges.length, 'a hundred and seventeen doors, each way').toBe(234);
     for (const e of graph.edges) {
       // a hero who has what the way asks for (its flag: a guardian down, a lever pulled) and cannot be hurt on the way: this is about WHERE the exit puts them
       const d = world(e.from, undefined, { flags: [...FLAGS, ...(e.requires ? [e.requires] : [])] });
@@ -494,19 +494,29 @@ describe('what an exit does and does not do', () => {
     expect(d.session.room.id).toBe('r1_gate');
   });
 
-  it('the end of the world is an exit with no destination: it raises the event and nothing else — and only once the Inkheart Sovereign has fallen', () => {
-    const shut = world('ih_end', 'west');
+  it('the end of the world is an exit with no destination: it raises the event and nothing else — and only once the Cinder Sovereign has fallen', () => {
+    const shut = world('ct_end', 'west');
     touch(shut, 'end');
     shut.step(3);
     expect(count(watch(shut), 'exit:reached'), 'with the Sovereign alive the zone does nothing').toBe(0);
     expect(shut.session.exitsReached.size).toBe(0);
-    const d = world('ih_end', 'west', { flags: [...FLAGS, 'defeated:ih_boss'] });
+    const d = world('ct_end', 'west', { flags: [...FLAGS, 'defeated:ct_boss'] });
     const log = watch(d);
     touch(d, 'end');
     d.step(3);
     expect(count(log, 'exit:reached')).toBe(1);
     expect(d.session.transition.active).toBe(false);
-    expect(d.session.room.id).toBe('ih_end');
+    expect(d.session.room.id).toBe('ct_end');
+  });
+
+  it('the Rest of the Heart is no longer the end of the world: once the Inkheart Sovereign has fallen its east door leads on, to the Gate of Dusk', () => {
+    const shut = world('ih_end', 'west');
+    touch(shut, 'east');
+    shut.step(3);
+    expect(shut.session.transition.active, 'with the Sovereign alive the door does nothing').toBe(false);
+    const d = world('ih_end', 'west', { flags: [...FLAGS, 'defeated:ih_boss'] });
+    through(d, 'east');
+    expect(d.session.room.id).toBe('dv_gate');
   });
 
   it('the east door of the Sanctum is no longer the end of the world: once the Warden has fallen it leads on, to the Collapsed Nave', () => {

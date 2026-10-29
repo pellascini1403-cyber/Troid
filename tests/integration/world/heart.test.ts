@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ENEMIES } from '@/content/enemies';
+import { DUSK_ROOMS } from '@/content/rooms/dusk';
 import { HEART_ROOMS } from '@/content/rooms/heart';
 import { Boss } from '@/enemies/boss/Boss';
 import { CATALOGS } from '@/i18n';
@@ -12,7 +13,7 @@ vi.setConfig({ testTimeout: SLOW });
 
 /**
  * THE HEART OF THE INK (src/content/rooms/heart.ts), through the real session: eight rooms that the audit finds sound and crossable, the ladder of Double Jumps over spikes, the double chimney that only the Wall Jump climbs, the shrines and the way home, the arena of the
- * Inkheart Sovereign — and, past it, the room with the way out of the world.
+ * Inkheart Sovereign — and, past it, the Rest, whose east door leads on to the Gate of Dusk (the way out of the world is now at the end of the Cinder Throne: tests/integration/world/throne.test.ts).
  */
 const ROOMS = registry(HEART_ROOMS);
 const BARE = registry(HEART_ROOMS.map(bare));
@@ -72,7 +73,7 @@ describe('the Ascent: two chimneys and a gallery between them', () => {
 });
 
 describe('the shrines and the way home', () => {
-  it('the Pulse is the first place to rest in the Heart, the Antechamber the last before the Sovereign, and the Rest the very last', () => {
+  it('the Pulse is the first place to rest in the Heart, the Antechamber the last before the Sovereign, and the Rest the last before the Verge of Dusk', () => {
     for (const [room, x, y, id] of [['ih_shrine', 19.5, 2, 'ih_shrine'], ['ih_approach', 51.5, 2, 'ih_approach'], ['ih_end', 22.5, 2, 'ih_end']] as const) {
       const d = at(ROOMS, room, 'west', KIT);
       d.teleport(x, y);
@@ -122,23 +123,38 @@ describeArena(
   { describe, it },
 );
 
-describe('the way out of the world', () => {
-  it('is in the last room, at the east wall, and works only once the Sovereign has fallen: touching it ends the adventure, once per touch, and leaves the hero where they stand', () => {
-    const end = ROOMS.ih_end!.exits!.find((x) => x.end)!;
-    expect(end.requires).toBe('defeated:ih_boss');
-    expect(end.to).toBeUndefined();
+describe('the way on from the Rest', () => {
+  const world = registry([...HEART_ROOMS, ...DUSK_ROOMS]);
 
-    const shut = at(ROOMS, 'ih_end', 'west', KIT);
-    const events = log(shut, 'adventure:ended');
+  it('is at the east wall of the last room of the Heart and works only once the Sovereign has fallen: it leads to the Gate of Dusk, where the second half of the adventure begins, and it no longer ends the adventure', () => {
+    const exit = ROOMS.ih_end!.exits!.find((x) => x.id === 'east')!;
+    expect(exit.requires).toBe('defeated:ih_boss');
+    expect(exit.end).toBeUndefined();
+    expect(exit.to).toEqual({ room: 'dv_gate', entry: 'west' });
+    expect(exit.rect.x0).toBeGreaterThan((ROOMS.ih_end!.bounds.x0 + ROOMS.ih_end!.bounds.x1) / 2);
+
+    const shut = at(world, 'ih_end', 'west', KIT);
+    const ended = log(shut, 'adventure:ended');
     shut.teleport(37, 2);
     shut.step(4);
-    expect(events, 'shut: nothing happens').toHaveLength(0);
+    expect(ended, 'shut: nothing happens').toHaveLength(0);
+    expect(shut.session.transition.active).toBe(false);
+    expect(shut.session.room.id).toBe('ih_end');
 
-    const open = at(ROOMS, 'ih_end', 'west', KIT, ['defeated:ih_boss']);
-    const ended = log(open, 'adventure:ended');
-    open.teleport(37, 2);
-    open.step(2);
-    expect(ended).toEqual([['adventure:ended', { roomId: 'ih_end', exitId: 'end' }]]);
-    expect(open.session.room.id).toBe('ih_end');
+    const open = at(world, 'ih_end', 'west', KIT, ['defeated:ih_boss']);
+    const events = log(open, 'adventure:ended');
+    through(open, 'east');
+    expect(events, 'the adventure goes on').toHaveLength(0);
+    expect(open.session.room.id).toBe('dv_gate');
+  });
+
+  it('and the way back from the Gate of Dusk comes out at the east entry of the Rest, on the side the hero left by, facing into the room', () => {
+    const d = at(world, 'dv_gate', 'west', KIT, ['defeated:ih_boss']);
+    through(d, 'west');
+    expect(d.session.room.id).toBe('ih_end');
+    const entry = ROOMS.ih_end!.entries.find((e) => e.id === 'east')!;
+    expect(entry.facing).toBe(-1);
+    expect(entry.x).toBeGreaterThan((ROOMS.ih_end!.bounds.x0 + ROOMS.ih_end!.bounds.x1) / 2);
+    expect(Math.abs(d.body.x - entry.x)).toBeLessThan(1);
   });
 });

@@ -319,8 +319,8 @@ describe('the map of the shipped world', () => {
   const layout = buildMapLayout(WORLD, ROOMS);
   const ids = WORLD.rooms;
 
-  it('places the 67 rooms along the road, the first at the origin, no two on top of each other (nor closer than the gap), and the four rooms of the slice in a line, each door level with the one it leads to', () => {
-    expect(layout.rooms.size).toBe(67);
+  it('places the 108 rooms along the road, the first at the origin, no two on top of each other (nor closer than the gap), and the four rooms of the slice in a line, each door level with the one it leads to', () => {
+    expect(layout.rooms.size).toBe(108);
     expect([...layout.rooms.keys()].slice(0, 4)).toEqual(['r1_gate', 'r2_hall', 'r3_chamber', 'r4_sanctum']);
     expect(room_(layout, 'r1_gate').rect).toMatchObject({ x0: 0, y0: 0 });
     const boxes = [...layout.rooms.values()];
@@ -344,7 +344,7 @@ describe('the map of the shipped world', () => {
 
   it('the ROAD places the rooms, not the shortcuts: each room stands next to the room by which it first opens on paper, and a shortcut is a line between two rooms that are already there', () => {
     const road = analyzeProgression(buildWorldGraph(WORLD, ROOMS), ROOMS).via;
-    expect(road.size).toBe(66);
+    expect(road.size).toBe(107);
     for (const [to, way] of road) {
       const a = room_(layout, way.from).rect;
       const b = room_(layout, to).rect;
@@ -359,7 +359,7 @@ describe('the map of the shipped world', () => {
       return Math.hypot(door(l.a).x - door(l.b).x, door(l.a).y - door(l.b).y);
     };
     const shortcuts = layout.links.filter((l) => l.id.includes(':shortcut'));
-    expect(shortcuts).toHaveLength(12 / 2);
+    expect(shortcuts).toHaveLength(20 / 2);
     // the roads are short lines (a few rooms of sliding at the most); the shortcuts reach back along the whole zone
     for (const l of layout.links) if (!l.id.includes(':shortcut')) expect(length(l.id), l.id).toBeLessThan(80);
   });
@@ -374,7 +374,9 @@ describe('the map of the shipped world', () => {
     expect(room_(layout, 'r4_sanctum').doors.find((d) => d.exit === 'east')).toMatchObject({ to: 'ru_nave', requires: 'defeated:r4_boss', end: false });
     const ends = [...layout.rooms.values()].flatMap((r) => r.doors.filter((d) => d.end));
     expect(ends).toHaveLength(1);
-    expect(ends[0]).toMatchObject({ room: 'ih_end', to: null, requires: 'defeated:ih_boss' });
+    expect(ends[0]).toMatchObject({ room: 'ct_end', to: null, requires: 'defeated:ct_boss' });
+    // and the Rest of the Heart, which used to be it, leads on to the Gate of Dusk
+    expect(room_(layout, 'ih_end').doors.find((d) => d.exit === 'east')).toMatchObject({ to: 'dv_gate', requires: 'defeated:ih_boss', end: false });
   });
 
   it('draws every room with its terrain, and the gates of R1 and R4 as gates', () => {
@@ -396,13 +398,13 @@ describe('the map of the shipped world', () => {
     expect(s.links).toEqual([]);
     expect(s.rooms[0]!.doors[0]).toMatchObject({ exit: 'east', state: 'locked', known: false });
     expect(s.rooms[0]!.pois).toEqual([]);
-    expect([s.discovered, s.total]).toEqual([1, 67]);
+    expect([s.discovered, s.total]).toEqual([1, 108]);
   });
 
-  it('knows what is worth a mark: the fifteen shrines, the seven guardians, the two wards that only the Bolt breaks — and not the split stone, which is a secret', () => {
+  it('knows what is worth a mark: the twenty-four shrines, the eleven guardians, the two wards that only the Bolt breaks — and not the split stone, which is a secret', () => {
     const pois = [...layout.rooms.values()].flatMap((r) => r.pois);
-    expect(pois.filter((p) => p.kind === 'rest')).toHaveLength(15);
-    expect(pois.filter((p) => p.kind === 'boss').map((p) => p.room).sort()).toEqual(['fd_arena', 'ih_arena', 'mn_arena', 'mr_lair', 'r4_sanctum', 'rt_arena', 'sp_arena']);
+    expect(pois.filter((p) => p.kind === 'rest')).toHaveLength(24);
+    expect(pois.filter((p) => p.kind === 'boss').map((p) => p.room).sort()).toEqual(['ct_arena', 'dv_arena', 'ec_arena', 'fd_arena', 'ih_arena', 'mn_arena', 'mr_lair', 'og_arena', 'r4_sanctum', 'rt_arena', 'sp_arena']);
     expect(pois.filter((p) => p.kind === 'seal').map((p) => p.room).sort()).toEqual(['r3_chamber', 'ru_archive']);
   });
 

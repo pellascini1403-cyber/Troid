@@ -31,6 +31,42 @@ export function chainTo(reach: Reach, to: number): Hop[] | null {
   return null;
 }
 
+/** What a hop that is not steady costs against one that is, when a chain is chosen (`Hop.steady`): a detour of up to five steady hops is preferred to one hop that works only at a single point of the ledge. */
+export const FRAGILE_COST = 6;
+
+/**
+ * The chain from `reach.start` to the surface `to` that a PERSON would play: the cheapest, where a hop costs one and a hop that is not steady (a take-off that must be right to the centimetre, `Hop.steady === false`) costs `FRAGILE_COST`. With
+ * every hop steady it is the shortest chain; a fragile one is used only when the detour around it is longer than that. `null` when there is no chain.
+ */
+export function cheapestChain(reach: Reach, to: number): Hop[] | null {
+  if (reach.start === to) return [];
+  const cost = new Map<number, number>([[reach.start, 0]]);
+  const previous = new Map<number, Hop>();
+  const open = new Set<number>([reach.start]);
+  const done = new Set<number>();
+  while (open.size > 0) {
+    let at = -1;
+    for (const i of open) if (at < 0 || cost.get(i)! < cost.get(at)!) at = i;
+    open.delete(at);
+    if (done.has(at)) continue;
+    done.add(at);
+    if (at === to) break;
+    for (const hop of reach.hops) {
+      if (hop.from !== at || done.has(hop.to)) continue;
+      const c = cost.get(at)! + (hop.steady === false ? FRAGILE_COST : 1);
+      if (c < (cost.get(hop.to) ?? Infinity)) {
+        cost.set(hop.to, c);
+        previous.set(hop.to, hop);
+        open.add(hop.to);
+      }
+    }
+  }
+  if (!previous.has(to)) return null;
+  const out: Hop[] = [];
+  for (let h: Hop | undefined = previous.get(to); h; h = previous.get(h.from)) out.unshift(h);
+  return out;
+}
+
 /** Ticks the hero stands still between two hops: the time a real walk to the next take-off takes (the dash is ready again, the stick is back at rest). */
 const WALK_TICKS = 90;
 

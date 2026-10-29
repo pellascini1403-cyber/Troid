@@ -74,6 +74,10 @@ export class Brawler {
   private castAt = -99;
   casts = 0;
   private releaseJumpAt = -1;
+  /** The jump key came up at the start of this tick (see `pressPulses`). */
+  private jumpCameUp = false;
+  /** The buttons pulsed on the tick before (see `pressPulses`). */
+  private pulsedLast = new Set<string>();
   private readonly pulses: Array<'attack' | 'dash' | 'bottle' | 'jump' | 'interact' | 'ability'> = [];
   /** A free-form memory of the tactic (what it decided a few ticks ago). */
   memo: Record<string, number> = {};
@@ -174,6 +178,8 @@ export class Brawler {
 
   /** Press jump now and keep it held for `hold` ticks (the whole of a jump is 26). */
   jump(hold = 26): void {
+    // (not on the tick the key came up: see `pressPulses`)
+    if (this.jumpCameUp) return;
     if (this.d.p.controller.state === 'free' || this.d.p.controller.state === 'crouch') {
       this.d.press('jump');
       this.releaseJumpAt = this.tickCount + hold;
@@ -183,7 +189,7 @@ export class Brawler {
   /** Dash toward `dir` (the stick is set to it for the tick: a dash goes the way the stick says, and the way the hero faces without it). Not off a ledge into nothing: a dash carries 3.5 m. */
   dash(dir: -1 | 1): void {
     const b = this.d.body;
-    if (b.grounded && !floorAhead(this.d.session.collision, b, dir, 3.2, 6.5)) return;
+    if (b.grounded && (!floorAhead(this.d.session.collision, b, dir, 3.2, 6.5) || this.lavaAhead(dir, 3.2))) return;
     this.d.moveX = dir;
     this.pulses.push('dash');
   }
@@ -241,7 +247,19 @@ export class Brawler {
 
   /** Is there floor to step back onto, a couple of metres behind (not a ledge or a pit)? */
   canBack(dir: -1 | 1): boolean {
-    return floorAhead(this.d.session.collision, this.d.body, dir, 2.0, 2.5);
+    return floorAhead(this.d.session.collision, this.d.body, dir, 2.0, 2.5) && !this.lavaAhead(dir, 2.0);
+  }
+
+  /**
+   * Is there lava in the next `reach` metres in front of the feet, at the height of the floor or anywhere below it (the floor test looks as far down as a drop goes)? A pool is a FLOOR with a burn on it — the floor test says "there is ground
+   * to step onto", and a hero who walks in is burned, put back on the last safe ground, and walks in again to reach the creature that stands in it (found in Prompt 23: a spitter on the bottom of a pool drew the hero in five times, to the end
+   * of their life; a plank two metres over a river of lava, off its end). A person does not step into lava, or off a ledge with lava under it.
+   */
+  lavaAhead(dir: -1 | 1, reach: number): boolean {
+    const b = this.d.body;
+    const edge = b.x + dir * b.halfW;
+    const probe: Rect = { x0: Math.min(edge, edge + dir * reach), x1: Math.max(edge, edge + dir * reach), y0: b.y - 7, y1: b.y + 0.4 };
+    return (this.d.session.room.hazards ?? []).some((h) => h.kind === 'lava' && overlaps(probe, h.rect));
   }
 
   /** The dash is ready: the key is not on its cooldown and the hero is free to use it. */
@@ -291,15 +309,28 @@ export class Brawler {
     const d = this.d;
     d.moveX = 0;
     d.moveY = 0;
+    this.jumpCameUp = false;
     if (this.releaseJumpAt >= 0 && this.tickCount >= this.releaseJumpAt) {
       d.release('jump');
       this.releaseJumpAt = -1;
+      this.jumpCameUp = true;
     }
   }
 
-  /** The pulses of this tick are pressed before the tick and let go after it. */
+  /**
+   * The pulses of this tick are pressed before the tick and let go after it. A key that came up at the start of this very tick does not go down in it: a hand cannot do that, and a recording of the keys held (`tools/e2e/replay.ts`: the
+   * browser derives the edges from the changes) would lose the second press — found in Prompt 23, when the whole game replayed in a browser diverged thirty-four thousand ticks after a jump released and pressed in one tick. The jump waits
+   * a tick, as a finger would; the tactic decides again on the next.
+   */
   private pressPulses(): void {
-    for (const b of this.pulses) this.d.press(b);
+    const now = new Set<string>();
+    for (const b of this.pulses) {
+      // (and a key that was pulsed on the tick before is not pulsed again on this one: it went down, came up after the tick and would go down at once — the same thing; a gap of one tick is a finger's)
+      if (this.pulsedLast.has(b) || (b === 'jump' && this.jumpCameUp)) continue;
+      this.d.press(b);
+      now.add(b);
+    }
+    this.pulsedLast = now;
   }
   private releasePulses(): void {
     for (const b of this.pulses) this.d.release(b);
@@ -318,9 +349,12 @@ export class Brawler {
       const target = this.pick(foes);
       if (target) (this.tactics[target.id] ?? this.fallback)(this, target);
     }
-    if (this.edgeGuard && this.d.body.grounded && this.d.moveX !== 0 && this.d.p.controller.state === 'free') {
+    // (in any state in which the stick moves the hero: a hero who casts the bolt with the stick held slides off the edge they are standing on — found in Prompt 23, on a bank of 1.6 m over lava)
+    const st = this.d.p.controller.state;
+    if (this.edgeGuard && this.d.body.grounded && this.d.moveX !== 0 && st !== 'dash' && st !== 'hurt') {
       const dir = this.d.moveX > 0 ? 1 : -1;
       if (!floorAhead(this.d.session.collision, this.d.body, dir, 0.9, 6.5)) this.d.moveX = 0; // (a drop to a floor below is a way down; a drop into nothing is a pit)
+      else if (this.lavaAhead(dir, 0.9)) this.d.moveX = 0; // (and a floor of lava is not a floor)
       else if (this.exitAhead(dir)) this.d.moveX = 0; // (and a fight does not leave the room)
     }
     this.pressPulses();

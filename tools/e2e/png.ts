@@ -48,3 +48,9 @@ export const isCrimsonLight: PixelTest = (r, g, b) => r >= 90 && r - g >= 30 && 
  * (cyan) or all of them very high (the white core). The dark scene, the grey scenery and violet light are outside it.
  */
 export const isCyanLight: PixelTest = (r, g, b) => b >= 190 && g >= 180 && (b - r >= 18 || (r >= 235 && g >= 235));
+
+/**
+ * LAVA, as the art paints it (docs/PROMPT23-LOG.md §7.1): the hot orange to yellow with a nearly white crest that no other thing in the game has — not the cyan of the hero, nor the violet of the creatures, nor the crimson of a wound (blue below 110 and red
+ * above 200 leave out the sky of the Verge, whose reds keep their blue) nor the magenta of the spheres (their rim is pink: blue high). A hue test, not a colour match: the glow over it scales the channels.
+ */
+export const isLavaLight: PixelTest = (r, g, b) => r >= 200 && g >= 90 && g <= 235 && b <= 110 && r - b >= 110 && g - b >= 40;

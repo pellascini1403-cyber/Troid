@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ENEMIES, PLAYER, ROOMS, START } from '@/content';
-import { CATALOGS } from '@/i18n';
 import { validateRoom } from '@/world/validateRoom';
 import { REFS } from '../../helpers/audit';
+import { ALL_CATALOGS } from '../../helpers/catalogs';
 
 /**
  * The integrity of the data the game ships (docs/ARCHITECTURE-2D.md §5.11: `validateContent()` at start-up and in tests).
@@ -39,7 +39,7 @@ describe('shipped rooms', () => {
   it('every text key a room or an enemy points at exists in EVERY catalog (no text lives in the content)', () => {
     const keys = [...Object.values(ROOMS).map((r) => r.nameKey), ...Object.values(ENEMIES).map((e) => e.nameKey)].filter((k): k is string => k !== undefined);
     expect(keys.length).toBeGreaterThan(0);
-    for (const [lang, catalog] of Object.entries(CATALOGS)) for (const k of keys) expect(catalog[k], `${lang}: ${k}`).toBeTruthy();
+    for (const [lang, catalog] of Object.entries(ALL_CATALOGS)) for (const k of keys) expect(catalog[k], `${lang}: ${k}`).toBeTruthy();
   });
 
   it('exits that lead somewhere lead to rooms and entrances that exist', () => {

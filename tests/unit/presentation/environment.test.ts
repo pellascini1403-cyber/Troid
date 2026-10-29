@@ -116,15 +116,17 @@ describe('what the world asks of the art, read from the rooms\' data', () => {
   const find = (role: string, subject: string | null, part: string): EnvSlot | undefined => slots.find((s) => s.role === role && s.subject === subject && s.part === part);
   const required = slots.filter((s) => s.required).map((s) => slotKey(s.role, s.subject, s.part));
 
-  it('the forty-seven pieces without which the 64 rooms are not dressed — and no more: the sixteen the ruins asked for, the three strips of each of the six zones after them (a backdrop is the zone\'s own) and the thirteen materials of the ground those zones are built of (a pickup is asked for by what it gives: a bottle, a card, a rune; a split stone is a door of stone; a lever is the one new thing to touch)', () => {
+  it('the sixty-six pieces without which the 108 rooms are not dressed — and no more: the sixteen the ruins asked for, the three strips of each of the ten zones after them (a backdrop is the zone\'s own), the thirteen materials of the ground the first six are built of, the six of the ground of the last four and the lava (a pickup is asked for by what it gives: a bottle, a card, a rune; a split stone is a door of stone; a lever is the one new thing to touch)', () => {
     const ruins = [
       'solid:stone:fill', 'solid:earth:fill', 'platform:wood:body', 'door:gate:body', 'door:seal:body', 'door:stone:body', 'hazard:spikes:cell',
       'backdrop:ruins:far', 'backdrop:ruins:mid', 'backdrop:ruins:near', 'interactive:pickup:bottle', 'interactive:pickup:card', 'interactive:pickup:rune', 'interactive:rest:', 'interactive:activate:', 'seal::',
     ];
-    const zones = ['roots', 'mire', 'mines', 'spire', 'foundry', 'heart'].flatMap((z) => ['far', 'mid', 'near'].map((p) => `backdrop:${z}:${p}`));
+    const zones = ['roots', 'mire', 'mines', 'spire', 'foundry', 'heart', 'dusk', 'grove', 'crater', 'throne'].flatMap((z) => ['far', 'mid', 'near'].map((p) => `backdrop:${z}:${p}`));
     // what the ground of a zone is made of: the mire has mud for earth; the others a stone, an earth and a platform of their own
     const ground = ['solid:mud:fill', 'solid:rock:fill', 'solid:gravel:fill', 'platform:timber:body', 'solid:masonry:fill', 'solid:flagstone:fill', 'platform:beam:body', 'solid:iron:fill', 'solid:slag:fill', 'platform:grate:body', 'solid:ink:fill', 'solid:inksoil:fill', 'platform:bone:body'];
-    expect(required.sort()).toEqual([...ruins, ...zones, ...ground].sort());
+    // the ground of the second half: ash and charwood for the Verge and the Grove, basalt and obsidian for the Crater and the Throne — and the pool of lava, which is the one hazard that is new
+    const ember = ['solid:cinder:fill', 'solid:ash:fill', 'platform:charwood:body', 'solid:basalt:fill', 'solid:scorch:fill', 'platform:obsidian:body', 'hazard:lava:cell'];
+    expect(required.sort()).toEqual([...ruins, ...zones, ...ground, ...ember].sort());
   });
 
   it('the optional pieces: the cap and the edges of the ground, the ends of a platform, the top and bottom of a door, the foreground and the light of the exits', () => {
@@ -136,23 +138,25 @@ describe('what the world asks of the art, read from the rooms\' data', () => {
   it('says which rooms use each piece, and how many pieces of data it draws', () => {
     const roomsOf = (role: string, subject: string | null, part: string): string[] => find(role, subject, part)?.rooms ?? [];
     expect(find('door', 'seal', 'body')).toMatchObject({ rooms: ['r3_chamber'], uses: 1 });
-    // the spikes of R2 and of fourteen rooms of the zones after it
+    // the spikes of R2 and of fourteen rooms of the zones after it — none of them in the second half, where the hazard is lava (the pools of twenty-eight rooms, all of them in the last four zones)
     expect(roomsOf('hazard', 'spikes', 'cell')).toHaveLength(15);
     expect(roomsOf('hazard', 'spikes', 'cell')[0]).toBe('r2_hall');
+    expect(roomsOf('hazard', 'lava', 'cell')).toHaveLength(28);
+    expect(roomsOf('hazard', 'lava', 'cell').every((r) => /^(dv|og|ec|ct)_/.test(r))).toBe(true);
     // the doors that a flag opens: the stone door of R1, the wall of R4 and every arena and shortcut door of the rest
-    expect(roomsOf('door', 'gate', 'body')).toHaveLength(19);
+    expect(roomsOf('door', 'gate', 'body')).toHaveLength(29);
     expect(roomsOf('door', 'gate', 'body').slice(0, 2)).toEqual(['r1_gate', 'r4_sanctum']);
     // split stone, which has no piece of its own yet (the blockout draws it)
-    expect(roomsOf('door', 'stone', 'body')).toEqual(['ru_nave', 'rt_tangle', 'mr_stilts', 'mn_hall', 'mn_forge', 'mn_descent', 'sp_bridge', 'fd_line']);
+    expect(roomsOf('door', 'stone', 'body')).toEqual(['ru_nave', 'rt_tangle', 'mr_stilts', 'mn_hall', 'mn_forge', 'mn_descent', 'sp_bridge', 'fd_line', 'dv_ruins', 'og_clearing', 'ec_caldera']);
     expect(find('solid', 'stone', 'fill')!.uses).toBeGreaterThan(100);
-    // the fifteen shrines, and the seven levers of the six shortcuts (the Belfry has two)
-    expect(roomsOf('interactive', 'rest', '')).toHaveLength(15);
+    // the twenty-four shrines, and the twelve rooms with levers of the ten shortcuts (the Belfry and the Forge have two)
+    expect(roomsOf('interactive', 'rest', '')).toHaveLength(24);
     expect(roomsOf('interactive', 'rest', '').slice(0, 2)).toEqual(['r2_hall', 'r4_sanctum']);
-    expect(roomsOf('interactive', 'activate', '')).toEqual(['rt_cellar', 'mr_approach', 'mn_approach', 'sp_belfry', 'sp_approach', 'fd_control', 'ih_approach']);
-    expect(find('interactive', 'activate', '')!.uses).toBe(8);
-    // what is picked up: the card of the Spirit Bolt in R3 alone; a bottle is the fourth slot of R2 and the eight vessels; a rune is an ability or a relic
+    expect(roomsOf('interactive', 'activate', '')).toEqual(['rt_cellar', 'mr_approach', 'mn_approach', 'sp_belfry', 'sp_approach', 'fd_control', 'ih_approach', 'dv_approach', 'og_approach', 'ec_forge', 'ec_approach', 'ct_approach']);
+    expect(find('interactive', 'activate', '')!.uses).toBe(14);
+    // what is picked up: the card of the Spirit Bolt in R3 alone; a bottle is the fourth slot of R2 and the fourteen vessels; a rune is an ability or a relic
     expect(roomsOf('interactive', 'pickup', 'card')).toEqual(['r3_chamber']);
-    expect(roomsOf('interactive', 'pickup', 'bottle')).toEqual(['r2_hall', 'ru_archive', 'ru_cistern', 'rt_tangle', 'rt_arena', 'mr_lair', 'mr_den', 'mn_vault', 'fd_scrap']);
+    expect(roomsOf('interactive', 'pickup', 'bottle')).toEqual(['r2_hall', 'ru_archive', 'ru_cistern', 'rt_tangle', 'rt_arena', 'mr_lair', 'mr_den', 'mn_vault', 'fd_scrap', 'dv_arena', 'dv_cellar', 'og_arena', 'og_vault', 'ec_arena', 'ec_cache']);
     expect(roomsOf('interactive', 'pickup', 'rune')).toEqual(['r4_sanctum', 'ru_reliquary', 'rt_echo', 'rt_hideout', 'mr_sink', 'mn_forge', 'mn_arena', 'sp_arena', 'sp_loft', 'fd_arena']);
   });
 
@@ -280,7 +284,7 @@ describe('environmentPackIssues: does a pack say what it draws, the way the cont
     const final = environmentPackIssues(pack(only, 'final'), slots);
     const provisional = environmentPackIssues(pack(only, 'provisional'), slots);
     expect(final.length).toBe(provisional.length);
-    expect(final.length).toBe(46); // the forty-seven required, less the one it has
+    expect(final.length).toBe(65); // the sixty-six required, less the one it has
     expect(final.every((i) => i.level === 'error')).toBe(true);
     expect(provisional.every((i) => i.level === 'warn')).toBe(true);
     expect(final.some((i) => /the world asks for the "cell" of hazard "spikes" \(r2_hall, ru_cistern[^)]*\) and the pack does not have it$/.test(i.message))).toBe(true);

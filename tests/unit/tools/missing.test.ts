@@ -142,10 +142,10 @@ describe('readEnvironmentDelivery', () => {
     if (files) for (const x of sprites) put(join(src, 'forest', x.id, `${x.id}_00.png`), encodePng(noiseFrame(1, { x: 2, y: 2, w: 6, h: 6 }, 16, 16)));
   };
 
-  it('with no art folder at all, none of the forty-seven required pieces is delivered, and it says so without throwing', () => {
+  it('with no art folder at all, none of the sixty-six required pieces is delivered, and it says so without throwing', () => {
     const r = readEnvironmentDelivery(join(root, 'nowhere'), slots);
     expect(r).toMatchObject({ packs: [], delivered: 0, total: REQUIRED });
-    expect(REQUIRED).toBe(47);
+    expect(REQUIRED).toBe(66);
     expect(r.rows.every((x) => !x.delivered)).toBe(true);
   });
 
@@ -185,7 +185,7 @@ describe('readEnvironmentDelivery', () => {
     declareScenery('provisional', [{ id: 'stone_fill', tags: ['role:solid', 'material:stone', 'part:fill'] }]);
     const text = formatEnvironmentDelivery(readEnvironmentDelivery(src, slots));
     expect(text).toMatch(/pack "forest" \(provisional\)/);
-    expect(text).toMatch(/Delivered: 1 of 47 required pieces\. The game draws the rest with its blockout\./);
+    expect(text).toMatch(/Delivered: 1 of 66 required pieces\. The game draws the rest with its blockout\./);
     expect(text).toMatch(/solid stone · fill .*required .*delivered \(forest\/stone_fill\)/);
     expect(text).toMatch(/solid earth · fill .*required .*NOT DELIVERED/);
     expect(text).toMatch(/solid stone · cap .*optional/);
@@ -203,12 +203,12 @@ describe('looksNeeded', () => {
   const needs = looksNeeded({ enemies: ENEMIES, bosses: BOSSES, rooms: ROOMS, order: WORLD.rooms, looks: PROCEDURAL_LOOKS });
   const byKind = (k: LookNeed['kind']) => needs.filter((n) => n.kind === k);
 
-  it('lists every creature of the game, the six guardians of the engine and the Warden — and nothing else', () => {
+  it('lists every creature of the game, the ten guardians of the engine (six of the first half, four of the second) and the Warden — and nothing else', () => {
     expect(byKind('creature').map((n) => n.id).sort()).toEqual(Object.values(ENEMIES).map((e) => ('proceduralId' in e.view ? e.view.proceduralId : '')).sort());
-    expect(byKind('engine-boss').map((n) => n.id).sort()).toEqual(['boss_bell_warden', 'boss_colossus', 'boss_engine', 'boss_mire_matriarch', 'boss_root_tyrant', 'boss_sovereign']);
+    expect(byKind('engine-boss').map((n) => n.id).sort()).toEqual(['boss_behemoth', 'boss_bell_warden', 'boss_cinder_sovereign', 'boss_colossus', 'boss_engine', 'boss_gardener', 'boss_mire_matriarch', 'boss_root_tyrant', 'boss_shepherd', 'boss_sovereign']);
     expect(byKind('warden').map((n) => n.id)).toEqual(['ink_warden']);
-    expect(byKind('creature')).toHaveLength(15);
-    expect(needs).toHaveLength(22);
+    expect(byKind('creature')).toHaveLength(25);
+    expect(needs).toHaveLength(36);
   });
 
   it('says where each one is placed — in the order of the world — and the placements add up to every spawn and every boss of every room', () => {

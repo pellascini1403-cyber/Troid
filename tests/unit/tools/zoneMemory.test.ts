@@ -39,7 +39,7 @@ describe('the memory of a zone: the pages of what the game holds in a room', () 
 
   it('a room of a zone past the Ruins holds its zone\'s set and none of another zone\'s (a set is for its rooms only)', () => {
     const sets = index.filter((e) => e.id.startsWith('zone-'));
-    expect(sets.map((e) => e.id).sort()).toEqual(['zone-foundry', 'zone-heart', 'zone-mines', 'zone-mire', 'zone-roots', 'zone-spire']);
+    expect(sets.map((e) => e.id).sort()).toEqual(['zone-crater', 'zone-dusk', 'zone-foundry', 'zone-grove', 'zone-heart', 'zone-mines', 'zone-mire', 'zone-roots', 'zone-spire', 'zone-throne']);
     for (const room of WORLD.rooms) {
       const mine = held(room).map(([id]) => id).filter((id) => id.startsWith('zone-'));
       expect(mine.length, `${room} holds ${mine.join(', ') || 'no set'}`).toBeLessThanOrEqual(1);

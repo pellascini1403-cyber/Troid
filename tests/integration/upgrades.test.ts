@@ -58,10 +58,13 @@ describe('the vessels', () => {
     expect(d.p.health.max).toBe(6);
   });
 
-  it('all of them together: 10 points of life and 160 units of magic', () => {
+  it('all of them together: 14 points of life and 200 units of magic (10 and 160 with the vessels of the first half)', () => {
     const d = hero(['dash'], UPGRADES.map((u) => u.flag));
-    expect(d.p.health.max).toBe(10);
-    expect(d.session.magic.max).toBe(160);
+    expect(d.p.health.max).toBe(14);
+    expect(d.session.magic.max).toBe(200);
+    const first = hero(['dash'], UPGRADES.map((u) => u.flag).filter((f) => !/^taken:(life_[6-9]|mana_[45])$/.test(f)));
+    expect(first.p.health.max).toBe(10);
+    expect(first.session.magic.max).toBe(160);
   });
 
   it('a defeat brings the hero back with the bars full at their size', () => {

@@ -178,9 +178,9 @@ describe('the sound of each place', () => {
     expect(zoneOf('r4_sanctum').surface).toBe('stone');
   });
 
-  it('gives each guardian\'s arena the boss\'s sounds to hold while the hero is in it — the Sanctum and the five arenas after it — and nothing else holds them', () => {
+  it('gives each guardian\'s arena the boss\'s sounds to hold while the hero is in it — the Sanctum and the ten arenas after it — and nothing else holds them', () => {
     const arenas = WORLD.rooms.filter((id) => (ROOMS[id]!.bosses ?? []).length > 0);
-    expect(arenas).toEqual(['r4_sanctum', 'rt_arena', 'mr_lair', 'mn_arena', 'sp_arena', 'fd_arena', 'ih_arena']);
+    expect(arenas).toEqual(['r4_sanctum', 'rt_arena', 'mr_lair', 'mn_arena', 'sp_arena', 'fd_arena', 'ih_arena', 'dv_arena', 'og_arena', 'ec_arena', 'ct_arena']);
     for (const id of arenas) expect(zoneOf(id).groups, id).toContain('boss');
     for (const [id, z] of Object.entries(ZONES)) if (!arenas.includes(id)) expect(z.groups ?? [], id).not.toContain('boss');
   });
@@ -192,7 +192,7 @@ describe('the sound of each place', () => {
       expect(zoneOf(id).bed, id).not.toBeNull();
     }
     const trackOf = (prefix: string): Set<string | null> => new Set(WORLD.rooms.filter((id) => id.startsWith(prefix)).map((id) => zoneOf(id).track));
-    for (const prefix of ['rt_', 'mr_', 'mn_', 'sp_', 'fd_']) expect(trackOf(prefix).size, `${prefix}: one piece of music for the zone`).toBe(1);
+    for (const prefix of ['rt_', 'mr_', 'mn_', 'sp_', 'fd_', 'dv_', 'og_', 'ec_', 'ct_']) expect(trackOf(prefix).size, `${prefix}: one piece of music for the zone`).toBe(1);
     // and the guardians fight to a piece that exists
     for (const def of Object.values(BOSSES)) expect(BOSS_MUSIC[def.id], def.id).toBe('warden');
   });

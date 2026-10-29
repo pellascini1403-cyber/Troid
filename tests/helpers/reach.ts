@@ -34,6 +34,11 @@ const MAX_TICKS = 190;
 /** A climb from wall to wall is long: 2 or 3 m a kick, a kick every half second or so. */
 const MAX_WALL_TICKS = 560;
 const RUN = PLAYER.movement.runSpeed;
+/** How early or late (m: a tick of a run is 14 cm) the take-off of a hop may be for it to count as steady, and how far (m) it may then come down from where it did (`RoomPhysics.reachFrom`'s `steady` and `mark`). */
+const STEADY_DX = [-0.1, -0.05, 0.05, 0.1] as const;
+const STEADY_LAND = 0.35;
+/** The room (m) a steady hop comes down with, from the edge of the place it lands on. */
+const STEADY_ROOM = 0.3;
 const RUN_ACCEL = PLAYER.movement.groundAccel;
 
 export type Geometry = 'closed' | 'open';
@@ -75,6 +80,8 @@ export interface Hop {
   script: string;
   /** Where they landed. */
   landX: number;
+  /** Set by `reachFrom(…, { mark: true })`: the hop comes down in the same place when the take-off is a hair early or late (see `RoomPhysics.isSteady`). */
+  steady?: boolean;
 }
 
 export interface Reach {
@@ -474,7 +481,7 @@ export class RoomPhysics {
   // ------------------------------------------------------------------------------------------------ the search
 
   /** Every place the hero can come to from the surface they start on, with the abilities `has`. `stopWhen` ends the search early (everything asked for was found). */
-  reachFrom(start: Surface, has: ReadonlySet<string>, stopWhen?: (reached: ReadonlySet<number>) => boolean, opts: { dense?: boolean } = {}): Reach {
+  reachFrom(start: Surface, has: ReadonlySet<string>, stopWhen?: (reached: ReadonlySet<number>) => boolean, opts: { dense?: boolean; steady?: boolean; mark?: boolean } = {}): Reach {
     const scripts = opts.dense ? [...RoomPhysics.scripts(has), ...RoomPhysics.denseScripts(has)] : RoomPhysics.scripts(has);
     const reached = new Set<number>([start.index]);
     const hops: Hop[] = [];
@@ -486,7 +493,9 @@ export class RoomPhysics {
           if (script.down && !s.oneway) continue;
           const r = this.trial(s, x, script, has);
           if (!r || r.surface === s.index) continue;
-          hops.push({ from: s.index, to: r.surface, x, script: script.name, landX: r.landX });
+          const steady = opts.steady || opts.mark ? this.isSteady(s, x, script, has, r) : undefined;
+          if (opts.steady && !steady) continue;
+          hops.push({ from: s.index, to: r.surface, x, script: script.name, landX: r.landX, ...(opts.mark ? { steady } : {}) });
           if (!reached.has(r.surface)) {
             reached.add(r.surface);
             queue.push(r.surface);
@@ -496,6 +505,31 @@ export class RoomPhysics {
       }
     }
     return { start: start.index, surfaces: reached, hops };
+  }
+
+  /** Is a take-off at `x` past the end of the ledge the hero runs toward (the east end for a hop to the right, the west end for one to the left)? Nothing is run toward by a hop that goes straight up. */
+  static pastTheEnd(s: Surface, x: number, dir: -1 | 0 | 1): boolean {
+    return (dir > 0 && x > s.x1 + 1e-6) || (dir < 0 && x < s.x0 - 1e-6);
+  }
+
+  /**
+   * Does the hop come down in the same place when the take-off is a hair early or a hair late — up to ten centimetres, most of a tick of a run? A hop that does not (a dash that comes at the edge of its cooldown, a kick off a wall that is touched
+   * or is not) is a hop of the solver's, found at one point of the ledge, and not one a person plays twice: the pilot marks them (`opts.mark`) and plans with the steady ones, using a hop that is not only when nothing else gets it there (`chain.ts: cheapestChain`); `opts.steady` leaves them out altogether.
+   */
+  private isSteady(s: Surface, x: number, script: Script, has: ReadonlySet<string>, at: Trial): boolean {
+    const target = this.surfaces[at.surface]!;
+    // (it comes down with room to spare — a hop that lands on the last hand's breadth of a stone is a hop that a hair short puts in the lava —, whatever the take-off)
+    const room = (land: Trial): number => Math.min(land.landX - target.x0, target.x1 - land.landX);
+    const wide = target.x1 - target.x0 >= 2 * STEADY_ROOM;
+    if (wide && room(at) < STEADY_ROOM) return false;
+    for (const dx of STEADY_DX) {
+      // (a take-off a hair later than the one the hop was found at, and past the far end of the ledge, is no take-off: the hero who is a tick late is already falling — the hop played at the very last hand's breadth of a ledge asks for exactly that tick)
+      if (RoomPhysics.pastTheEnd(s, x + dx, script.dir)) return false;
+      const q = this.trial(s, Math.min(s.x1, Math.max(s.x0, x + dx)), script, has);
+      if (!q || q.surface !== at.surface || Math.abs(q.landX - at.landX) > STEADY_LAND || Math.abs(q.landY - at.landY) > STEADY_LAND) return false;
+      if (wide && room(q) < STEADY_ROOM / 2) return false;
+    }
+    return true;
   }
 
   /**

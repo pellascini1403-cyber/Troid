@@ -340,11 +340,16 @@ describe('environment art', () => {
     manifest(dropHazard);
     const final = verifyArtFolder(out);
     expect(final.ok).toBe(false);
-    expect(errors(final)).toEqual([expect.stringMatching(/the world asks for the "cell" of hazard "spikes" \(r2_hall, ru_cistern[^)]*\) and the pack does not have it$/)]);
+    // (the two hazards of the world: the lava of the second half and the spikes of the first)
+    expect([...errors(final)].sort()).toEqual([
+      expect.stringMatching(/the world asks for the "cell" of hazard "lava" \(dv_gate, dv_orchard[^)]*\) and the pack does not have it$/),
+      expect.stringMatching(/the world asks for the "cell" of hazard "spikes" \(r2_hall, ru_cistern[^)]*\) and the pack does not have it$/),
+    ]);
     manifest((m) => void (m['status'] = 'provisional'));
     const provisional = verifyArtFolder(out);
     expect(provisional.ok).toBe(true);
     expect(warnings(provisional).filter((w) => /hazard "spikes".*the blockout draws it$/.test(w))).toHaveLength(1);
+    expect(warnings(provisional).filter((w) => /hazard "lava".*the blockout draws it$/.test(w))).toHaveLength(1);
   });
 
   it('a pivot that is not where the role starts is an error', () => {

@@ -96,11 +96,11 @@ describe('the registries: the core is the first chapter, the rest arrives and ad
     expect(hasBrain('crawler'), 'the other thirteen are taught by `beyond`').toBe(false);
 
     await import('@/content/beyond');
-    expect(Object.keys(core.ROOMS)).toHaveLength(7 + 63);
-    expect(core.WORLD.rooms, 'and the list of the world is whole').toHaveLength(67);
+    expect(Object.keys(core.ROOMS)).toHaveLength(7 + 63 + 41);
+    expect(core.WORLD.rooms, 'and the list of the world is whole: the first half and the second').toHaveLength(67 + 41);
     for (const id of core.WORLD.rooms) expect(core.ROOMS[id], id).toBeDefined();
-    expect(Object.keys(core.ENEMIES), 'fifteen definitions of fourteen archetypes (the shard a shardling breaks into is a slime of its own)').toHaveLength(15);
-    expect(Object.keys(core.BOSSES)).toHaveLength(7);
+    expect(Object.keys(core.ENEMIES), 'fifteen definitions of fourteen archetypes (the shard a shardling breaks into is a slime of its own), and ten that burn: variants of ten of them').toHaveLength(15 + 10);
+    expect(Object.keys(core.BOSSES), 'the Warden, the six of the engine and the four of the second half').toHaveLength(7 + 4);
     for (const e of Object.values(core.ENEMIES)) expect(hasBrain(e.ai.archetype), `${e.id}: a brain for "${e.ai.archetype}"`).toBe(true);
     const { createEngineBoss } = await import('@/enemies/boss/registry');
     expect(typeof createEngineBoss).toBe('function');

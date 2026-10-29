@@ -18,7 +18,7 @@ import { driver, type Button, type Driver } from './sim';
  * an icon on a dead player or on an object out of reach, a status snapshot that disagrees with the simulation, a number that is
  * not a number. And the same seed twice must leave the same simulation, bit for bit.
  */
-const STATES = new Set(['free', 'crouch', 'dash', 'attack', 'cast', 'drink', 'interact', 'hurt', 'dead']);
+const STATES = new Set(['free', 'crouch', 'dash', 'attack', 'slam', 'cast', 'drink', 'interact', 'hurt', 'dead']);
 const PHASES = new Set(['none', 'dying', 'fadeOut', 'hold', 'fadeIn']);
 const ROOM_IDS = Object.keys(ROOMS);
 const COST = 30;

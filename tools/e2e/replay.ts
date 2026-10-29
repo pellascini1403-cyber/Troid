@@ -50,6 +50,39 @@ export function heldOf(f: Readonly<InputFrame>): Held {
   };
 }
 
+/**
+ * WHAT A RECORDING OF HELD KEYS CANNOT SAY. The page derives the edges (press, release) from the changes of the held state from one tick to the next, as a keyboard does, so a frame with an edge that has no change of state under it —
+ * a key that comes up and goes down again between two ticks (`jumpPressed` with the jump key held in the frame before), a bottle or Interact pressed on two ticks in a row, a key held that nobody pressed, the drop key (which is not in
+ * the recording at all) — has an edge the replay would lose or invent, and the page would be playing another game from that tick on. Found in Prompt 23: a fighter let go of the jump key and jumped again inside one tick, and the browser
+ * diverged thirty-four thousand ticks later with nothing to say where. A scripted player has to be one that a keyboard can imitate: this returns, frame by frame, why the frame is not (or `null`).
+ */
+export function sayableFrames(): (f: Readonly<InputFrame>) => string | null {
+  const was = { jump: false, attack: false, dash: false, ability: false, bottle: false, interact: false };
+  const edge = (name: 'jump' | 'attack' | 'dash' | 'ability', pressed: boolean, held: boolean): string | null => {
+    if (pressed && was[name]) return `the ${name} key came up and went down again inside one tick (pressed with the key still held from the tick before)`;
+    if (held && !pressed && !was[name]) return `the ${name} key is held but nobody pressed it`;
+    return null;
+  };
+  return (f) => {
+    const why =
+      edge('jump', f.jumpPressed, f.jumpHeld) ??
+      edge('attack', f.attackPressed, f.attackHeld || f.attackPressed) ??
+      edge('dash', f.dashPressed, f.dashHeld || f.dashPressed) ??
+      edge('ability', f.abilityPressed, f.abilityHeld || f.abilityPressed) ??
+      (f.jumpPressed && !f.jumpHeld ? 'the jump key was pressed and is not held' : null) ??
+      (f.bottlePressed && was.bottle ? 'a bottle was drunk on two ticks in a row (the page holds the key: one press)' : null) ??
+      (f.interactPressed && was.interact ? 'Interact was pressed on two ticks in a row (the page holds the key: one press)' : null) ??
+      (f.dropPressed ? 'the drop key is not in a recording' : null);
+    was.jump = f.jumpHeld;
+    was.attack = f.attackHeld || f.attackPressed;
+    was.dash = f.dashHeld || f.dashPressed;
+    was.ability = f.abilityHeld || f.abilityPressed;
+    was.bottle = f.bottlePressed;
+    was.interact = f.interactPressed;
+    return why;
+  };
+}
+
 const KEYS: Readonly<Record<Exclude<keyof Held, 'ax' | 'ay'>, string>> = {
   right: 'KeyD', left: 'KeyA', down: 'KeyS', jump: 'Space', attack: 'KeyJ', dash: 'ShiftLeft', ability: 'KeyK', bottle: 'KeyL', interact: 'KeyE',
 };
@@ -113,7 +146,10 @@ function begin(driver: Recordable): { end(): Recording } {
   const digests: Recording['digests'] = [];
   let total = 0;
   const same = (a: Held, b: Held): boolean => (Object.keys(NO_KEYS) as Array<keyof Held>).every((k) => a[k] === b[k]) && a.ax === b.ax && a.ay === b.ay;
+  const sayable = sayableFrames();
   driver.onFrame = (f) => {
+    const why = sayable(f);
+    if (why) throw new Error(`the run cannot be replayed by a keyboard: at tick ${total}, ${why}`);
     // the state now is the state after `total` ticks
     if (total > 0 && total % DIGEST_EVERY === 0) digests.push({ tick: total, digest: digestOf(driver.session) });
     const held = heldOf(f);

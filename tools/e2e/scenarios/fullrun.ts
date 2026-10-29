@@ -11,7 +11,7 @@ import type { GameState, Scenario } from '../scenario';
 /**
  * THE WHOLE ADVENTURE, IN A REAL BROWSER (docs/PROMPT22-LOG.md §5): from a new game in the first room to the way out of the world, ONE page, ONE session, tick by tick.
  *
- * The run is played in Node on the pure simulation by a scripted player with a hero who can die (`tests/helpers/runner.ts`: the same one `fullRun.test.ts` asserts on — the seven zones, the fifty-six rooms of the road, the seven guardians, the
+ * The run is played in Node on the pure simulation by a scripted player with a hero who can die (`tests/helpers/runner.ts`: the same one `fullRun.test.ts` asserts on — the eleven zones, the ninety-seven rooms of the road, the eleven guardians, the
  * levers, the seals, the shrines, the falls) and RECORDED: the stick to the last digit and the buttons held, tick by tick. The browser plays it through the scripted hand of the test hooks (`__troid.script`, one more source of the
  * `InputManager`, next to the keyboard, the pad and the fingers) and compares a digest of the whole simulation — hero, flags, enemies, guardians, room, transition, generator — every 50 ticks: the page plays the same game as the simulation, bit for bit,
  * through every room, every fight and every fall. At the end the page must be where the game ends: the closing screen open, the world held, the game saved as COMPLETED in the storage of the page, and what is saved the very flags of the simulation.
@@ -45,7 +45,7 @@ export const fullrun: Scenario = {
     const journey = await recordAsync(runner.d, () => runner.play());
     assert.ok(runner.ended, 'the scripted player reached the way out of the world');
     console.log(`  recorded in Node: ${journey.total} ticks (${(journey.total / 3600).toFixed(1)} min of play, ${journey.runs.length} changes of the hands), ${runner.deaths} falls, in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
-    assert.ok(journey.total > 54_000, `a long game (${journey.total} ticks)`);
+    assert.ok(journey.total > 150_000, `a long game (${journey.total} ticks)`);
 
     // ================================================================================================ the same game, in the page
     await ctx.open('paused=1', SIZE);
@@ -88,7 +88,7 @@ export const fullrun: Scenario = {
     const w = (await page.evaluate('window.__w')) as { rooms: string[]; guardians: string[]; abilities: string[]; rests: number; deaths: number; ended: string[]; cancelled: number };
     assert.deepEqual(w.ended, [`${ROAD[ROAD.length - 1]}/end`], 'the adventure ended once, through the way out of the last room');
     assert.equal(w.deaths, runner.deaths, 'the same falls as in the simulation');
-    assert.equal(w.guardians.length, 7, `the seven guardians fell (${w.guardians.join(', ')})`);
+    assert.equal(w.guardians.length, 11, `the eleven guardians fell (${w.guardians.join(', ')})`);
     assert.deepEqual([...w.abilities].sort(), ['air_dash', 'double_jump', 'ground_slam', 'magic_attack', 'relic_brew', 'relic_swift', 'relic_ward', 'wall_jump'], 'the five abilities of the road, the Spirit Bolt and the three relics of the guardians were won, once each');
     for (const room of ROAD.slice(1)) assert.ok(w.rooms.includes(room), `the page built ${room}`); // (the first room was built before anyone could listen)
     assert.equal(w.cancelled, 0, 'no transition was cancelled');
@@ -138,8 +138,8 @@ export const fullrun: Scenario = {
     await page.locator('[data-testid="pause-profile"]').click();
     const zoneLines = ((await page.locator('[data-testid="profile-zones"]').evaluate((e) => (e as HTMLElement).innerText)) as string).split('\n').filter((l) => l.trim() !== '');
     const guardianLines = ((await page.locator('[data-testid="profile-guardianTimes"]').evaluate((e) => (e as HTMLElement).innerText)) as string).split('\n').filter((l) => l.trim() !== '');
-    assert.equal(zoneLines.length, 8, `the eight zones of the world, each with its time (${zoneLines.join(' | ')})`);
-    assert.equal(guardianLines.length, 7, `the seven guardians, each with the time it took to reach it (${guardianLines.join(' | ')})`);
+    assert.equal(zoneLines.length, 12, `the twelve regions of the world, each with its time (${zoneLines.join(' | ')})`);
+    assert.equal(guardianLines.length, 11, `the eleven guardians, each with the time it took to reach it (${guardianLines.join(' | ')})`);
     assert.ok(zoneLines.every((l) => /\d:\d\d/.test(l)), 'every line has a time');
     await ctx.shot('02-profile');
     console.log(`  the profile of the finished game: ${zoneLines.join(' · ')}`);

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CREATURES } from '@/content/creatures';
+import { EMBER_CREATURES } from '@/content/creaturesEmber';
 import { ENEMIES, INK_SLIME } from '@/content/enemies';
 import { PROCEDURAL_LOOKS } from '@/content/proceduralActors';
 import { Enemy } from '@/enemies/Enemy';
@@ -73,7 +74,8 @@ describe('all of them', () => {
     expect(new Set(archetypes).size, 'thirteen different ways to behave').toBe(13);
     expect(archetypes).not.toContain('slime');
     expect(INK_SLIME.ai.archetype).toBe('slime');
-    expect(Object.keys(ENEMIES)).toHaveLength(15);
+    // (and the ten that burn, in the zones of the second half: they are counted here and played in tests/integration/encountersEmber.test.ts)
+    expect(Object.keys(ENEMIES)).toHaveLength(15 + EMBER_CREATURES.length);
   });
 
   it('each has a name in every language, a look, the attack its brain asks for, a body, and a positive health', () => {
@@ -525,6 +527,32 @@ describe('Piston Drone: follows from above and drops', () => {
     s.d.teleport(35, 2);
     s.d.step(120);
     expect(s.d.p.health.current).toBe(5);
+  });
+
+  it('with a leash (the Magma Piston, 13 m) it follows the hero only as far from its post as the leash goes, and so never locks on one who is farther; without one it follows them wherever they go', () => {
+    const follow = (id: string) => {
+      const s = arena(30);
+      const e = spawn(s, id, 30, 8);
+      e.home.y = 8;
+      s.d.teleport(43, 2); // 13 m from its post
+      s.d.settle();
+      s.d.step(300);
+      s.d.teleport(53, 2); // 23 m from its post, 10 m from where it hangs now
+      s.d.settle();
+      let locked = false;
+      for (let i = 0; i < 300; i++) {
+        s.d.step(1);
+        if (e.state === 'lock') locked = true;
+      }
+      return { x: e.body.x, locked };
+    };
+    const leashed = follow('magma_piston');
+    expect(leashed.x, 'no farther from its post than the leash').toBeLessThanOrEqual(30 + 13 + 0.3);
+    expect(leashed.x, 'and it went as far as the leash').toBeGreaterThan(30 + 13 - 1);
+    expect(leashed.locked, 'it cannot reach the hero, so it does not lock on them').toBe(false);
+    const free = follow('piston_drone');
+    expect(free.x, 'the drone has no leash: it is over the hero').toBeGreaterThan(50);
+    expect(free.locked).toBe(true);
   });
 });
 

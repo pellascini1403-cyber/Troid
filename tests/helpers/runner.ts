@@ -19,7 +19,7 @@ import { Pilot } from './pilot';
 import type { Hop } from './reach';
 import { ROAD } from './road';
 import { driver, type Driver } from './sim';
-import { FALLBACK, TACTICS } from './tactics';
+import { FALLBACK, KIN, TACTICS } from './tactics';
 
 /**
  * A WHOLE PLAYTHROUGH BY A SCRIPTED PLAYER (docs/PROMPT22-LOG.md §5): from a new game to the way out of the world, in ONE session, with the inputs of a person and a hero who can die. The runner is what a person does with the world, in
@@ -50,6 +50,8 @@ export interface RunnerOptions {
   maxTicks?: number;
   /** Stops the run when this is true (for playing the world in stages while it is being built: the whole run does not stop but at the end of the adventure). */
   until?: (r: Runner) => boolean;
+  /** Begins from a game that was saved (a shrine's save of an earlier run) instead of a new one: the way to play a stage of the world without playing the stages before it. */
+  from?: ProgressData;
 }
 
 export interface RoomTime {
@@ -70,6 +72,8 @@ export interface ZoneTime {
 }
 
 const graph = buildWorldGraph(WORLD, ROOMS);
+/** What a creature IS to a player who has met it before: the creatures that burn are variants of the first half's (`tactics.ts: KIN`), and a bat is a bat, a wisp a wisp and a piston a piston wherever they hang. */
+const kind = (id: string): string => KIN[id] ?? id;
 const PASSIVE = new Set(['idle', 'patrol', 'closed', 'dormant', 'perched', 'lurk', 'wait', 'none', 'drift', 'dead']);
 
 export class Runner {
@@ -108,7 +112,9 @@ export class Runner {
 
   constructor(readonly opts: RunnerOptions = {}) {
     this.tasks = buildTasks();
-    this.begin();
+    // (a game begun from a save has rested at every shrine of the road up to the one it was saved at: the road behind it is done)
+    if (opts.from) for (const id of ROAD.slice(0, ROAD.indexOf(opts.from.at.room) + 1)) this.rested.add(id);
+    this.begin(opts.from);
   }
 
   // -------------------------------------------------------------------------------------------------- sessions
@@ -163,7 +169,11 @@ export class Runner {
     });
     on('boss:started', (e) => this.say(`wakes ${e.defId} (${e.health}/${e.maxHealth})`));
     on('boss:defeated', (e) => this.say(`beat ${e.defId}`));
-    on('checkpoint:set', (e) => this.say(`rests: checkpoint ${e.room}/${e.entry}`));
+    on('checkpoint:set', (e) => {
+      // (a rest is the game's own word that the hero rested: the shrine set the checkpoint, not "the hero went to the shrine")
+      this.rested.add(e.room);
+      this.say(`rests: checkpoint ${e.room}/${e.entry}`);
+    });
     on('adventure:ended', (e) => {
       this.ended = true;
       this.say(`THE END at ${e.roomId}/${e.exitId}`);
@@ -190,16 +200,21 @@ export class Runner {
 
   private isThreat(f: Foe): boolean {
     if ((this.ignored.get(f.entity) ?? -1) > this.d.session.now) return false;
-    const flier = f.id === 'cave_bat' || f.id === 'lantern_wisp' || f.id === 'piston_drone';
+    const flier = ['cave_bat', 'lantern_wisp', 'piston_drone'].includes(kind(f.id));
     if (Math.abs(f.y - this.d.body.y) > 3.2 && !flier) return false;
     if (f.gap > 8) return false;
     // a bat is a threat while it comes (the wake and the dive) or hangs within the sword's reach; going back to its roof, or hanging there, it is not worth waiting for
-    if (f.id === 'cave_bat') return f.state === 'wake' || f.state === 'swoop' || (f.state === 'hover' && f.gap < 3.5 && Math.abs(f.y - this.d.body.y) < 3);
+    if (kind(f.id) === 'cave_bat') return f.state === 'wake' || f.state === 'swoop' || (f.state === 'hover' && f.gap < 3.5 && Math.abs(f.y - this.d.body.y) < 3);
+    // a piston is a reason to keep moving, not to wait under it: it is a threat only from the moment it locks on the hero (to step out of the line) until it is stuck in the floor (to strike it) — a hero on a stone in a river of lava does not stand
+    // under a hanging piston to see what it does
+    if (kind(f.id) === 'piston_drone') return (f.state === 'lock' || f.state === 'drop' || f.state === 'stuck') && f.gap < 3.5;
     // (a creature that waits shut or hung up is not worth waiting for either: it is passed, and fought if it opens or drops)
     if (f.state === 'closed' || f.state === 'dormant' || f.state === 'perched') return false;
     return !PASSIVE.has(f.state) || f.gap < 3.2;
   }
 
+  /** How many times in a row the reflex has taken over for a creature without a blow landing on either side. */
+  private readonly futile = new Map<unknown, number>();
   private lastSwing = -99;
 
   /**
@@ -254,9 +269,29 @@ export class Runner {
     const t0 = this.d.session.now;
     const room = this.d.session.room.id;
     const first = threats().map((f) => `${f.id}:${f.state}@${f.x.toFixed(1)},${f.y.toFixed(1)}`);
-    const r = this.brawl.run(() => threats().length === 0, 420);
+    const before = threats().map((f) => ({ entity: f.entity, hp: f.hp }));
+    const hp0 = before.map((b) => b.hp);
+    const heroBefore = this.d.p.health.current;
+    let r = this.brawl.run(() => threats().length === 0, 420);
+    // a fight that is going somewhere is not given up on at seven seconds: a creature that has lost life since the round began (a guard behind a shield takes nine seconds, with nothing the matter) gets two more rounds, for as long as the hero is not on their last points
+    for (let extra = 0; !r.won && extra < 2 && !this.d.p.health.dead && this.d.p.health.current > 2; extra++) {
+      const hurtSomeone = before.some((b) => b.entity.health.current < b.hp && !b.entity.health.dead);
+      if (!hurtSomeone) break;
+      for (const b of before) b.hp = b.entity.health.current;
+      r = this.brawl.run(() => threats().length === 0, 360);
+    }
     const won = r.won;
     const spent = this.d.session.now - t0;
+    // a creature that turns the hero from the road again and again and that nobody touches — it rolls below a ledge, it waits behind a wall — is not worth stopping for: the third time, it is not looked at for a while
+    for (const [i, b] of before.entries()) {
+      const touched = b.entity.health.current !== hp0[i] || b.entity.health.dead || this.d.p.health.current !== heroBefore;
+      const n = touched ? 0 : (this.futile.get(b.entity) ?? 0) + 1;
+      this.futile.set(b.entity, n);
+      if (n >= 3 && !b.entity.health.dead) {
+        this.ignored.set(b.entity, this.d.session.now + 900);
+        this.futile.set(b.entity, 0);
+      }
+    }
     if (spent > 240) this.say(`a fight of ${spent} ticks against ${first.join(' ')}${won ? '' : ' — not won'}`);
     this.combatTicks += spent;
     this.roomTime(room).combat += spent;
@@ -567,7 +602,7 @@ export function buildTasks(): Task[] {
     const here: Task[] = [];
     for (const def of room.interactables ?? []) {
       if (def.kind === 'rest') {
-        here.push({ id: `rest:${id}`, room: id, x: def.x, done: (r) => r.rested.has(id), run: (r) => (r.use(def.id), r.rested.add(id)) });
+        here.push({ id: `rest:${id}`, room: id, x: def.x, done: (r) => r.rested.has(id), run: (r) => void r.use(def.id) });
       } else {
         const flags = def.actions.flatMap((a) => (a.type === 'setFlag' ? [a.flag] : []));
         const abilities = def.actions.flatMap((a) => (a.type === 'unlockAbility' ? [a.abilityId] : []));

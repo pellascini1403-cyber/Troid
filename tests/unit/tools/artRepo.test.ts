@@ -67,7 +67,7 @@ describe('the art of the repository', () => {
     const files = readdirSync(join(root, 'art', 'player', 'hero')).filter((f) => f.endsWith('.png'));
     expect(files).toHaveLength(44);
     expect(Object.values(hero.clips).reduce((n, c) => n + c!.count, 0)).toBe(44);
-    // the protagonist, the scenery of the Ruins and the parts of the shortcuts, the boss, the Ink Slime, the light of the effects (shapes and flipbooks) and the set of each of the six zones after the Ruins: all provisional, all shipped
+    // the protagonist, the scenery of the Ruins and the parts of the shortcuts, the boss, the Ink Slime, the light of the effects (shapes and flipbooks) and the set of each of the ten zones after the Ruins: all provisional, all shipped
     expect(dryBuild().packs.map((p) => [p.id, p.status, p.shipped])).toEqual([
       ['player', 'provisional', true],
       ['ruins-ground', 'provisional', true],
@@ -87,6 +87,10 @@ describe('the art of the repository', () => {
       ['zone-spire', 'provisional', true],
       ['zone-foundry', 'provisional', true],
       ['zone-heart', 'provisional', true],
+      ['zone-dusk', 'provisional', true],
+      ['zone-grove', 'provisional', true],
+      ['zone-crater', 'provisional', true],
+      ['zone-throne', 'provisional', true],
     ]);
     expect(existsSync(join(root, 'public', 'art', 'index.json')), 'the generated folder is committed: the game fetches it').toBe(true);
   }, PACKING);

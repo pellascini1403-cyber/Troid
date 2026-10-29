@@ -8,7 +8,7 @@ import { lab } from '../../helpers/lab';
 import { Driver, makeSession } from '../../helpers/sim';
 
 /**
- * THE WHOLE WORLD, HEARD (docs/PROMPT22-LOG.md §11): `gameAudio.test.ts` walks the first four rooms; this one walks all sixty-four, fights the seven guardians, and plays the moves of the hero AS THE SIMULATION MAKES THEM — over the real manifest, the real table of
+ * THE WHOLE WORLD, HEARD (docs/PROMPT22-LOG.md §11): `gameAudio.test.ts` walks the first four rooms; this one walks every room of the world (a hundred and eight since docs/PROMPT23-LOG.md §7), fights the eleven guardians, and plays the moves of the hero AS THE SIMULATION MAKES THEM — over the real manifest, the real table of
  * places and the real conductor, on a fake Web Audio. What it protects is what a player can hear go wrong over a whole adventure: a zone with the wrong piece or none, a piece or a bed playing twice, a fight whose music does not come in or does not go out,
  * a move of the hero that makes no sound, a sound that is asked for and was never loaded, a world that does not fit in the memory of a phone.
  */
@@ -16,7 +16,7 @@ const MEMORY_MIB = 52;
 const ARENAS = WORLD.rooms.filter((id) => (ROOMS[id]!.bosses ?? []).length > 0);
 
 describe('the whole world, room by room', () => {
-  it('every one of the sixty-four rooms plays the piece and the bed of its place, never twice, within the memory of a phone', async () => {
+  it('every one of the rooms plays the piece and the bed of its place, never twice, within the memory of a phone', async () => {
     const g = await game();
     const worst = { room: '', mib: 0 };
     const problems: string[] = [];
@@ -55,9 +55,9 @@ describe('the whole world, room by room', () => {
   });
 });
 
-describe('the seven fights', () => {
-  it('has a guardian in each of the seven arenas, and a piece for every one of them', () => {
-    expect(ARENAS).toHaveLength(7);
+describe('the eleven fights', () => {
+  it('has a guardian in each of the eleven arenas, and a piece for every one of them', () => {
+    expect(ARENAS).toHaveLength(11);
     const defs = ARENAS.map((id) => BOSSES[ROOMS[id]!.bosses![0]!.guardian]!);
     for (const def of defs) expect(BOSS_MUSIC[def.id], def.id).toBe('warden');
     expect(INDEX?.tracks['warden']).toBeDefined();
