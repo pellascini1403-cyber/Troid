@@ -65,6 +65,24 @@ export const SKINS: Readonly<Record<string, Skin>> = {
     earth: { moss: 0.3, energy: 0.8, tone: 0.18 },
     platform: { tone: 0.25, moss: 0.4, hang: 0.2 },
   },
+  // the dusk verge and the orb grove: the ruins' own masonry, gone the red-violet of a long dusk, with a rose light in its cracks and dried red moss on it
+  cinder: {
+    stone: ramp5([R(0.02, 0.01, 0.025), R(0.07, 0.035, 0.075), R(0.16, 0.08, 0.16), R(0.34, 0.17, 0.3), R(0.7, 0.4, 0.56)]),
+    moss: ramp5([R(0.1, 0.03, 0.08), R(0.22, 0.06, 0.14), R(0.4, 0.1, 0.22)]),
+    energyRgb: R(0.5, 0.1, 0.22),
+    look: lookOf(R(1, 0.58, 0.68), R(0.3, 0.17, 0.28), R(1, 0.68, 0.78)),
+    earth: { moss: 0.3, energy: 0.6, tone: 0.18 },
+    platform: { tone: 0.27, moss: 0.5, hang: 0.8 },
+  },
+  // the crater and the throne: black basalt with a brown warmth, orange fire in its cracks and ember-lichen on it
+  basalt: {
+    stone: ramp5([R(0.012, 0.006, 0.008), R(0.04, 0.02, 0.025), R(0.09, 0.045, 0.05), R(0.2, 0.1, 0.1), R(0.46, 0.24, 0.2)]),
+    moss: ramp5([R(0.12, 0.03, 0.01), R(0.3, 0.08, 0.02), R(0.55, 0.18, 0.04)]),
+    energyRgb: R(0.75, 0.25, 0.04),
+    look: lookOf(R(1, 0.58, 0.32), R(0.28, 0.14, 0.11), R(1, 0.7, 0.4)),
+    earth: { moss: 0.15, energy: 1, tone: 0.17 },
+    platform: { tone: 0.24, moss: 0.3, hang: 0.3 },
+  },
   // the heart: stone the colour of ink, with the violet light of the ink in its cracks, and bone
   ink: {
     stone: ramp5([R(0.015, 0.008, 0.03), R(0.045, 0.025, 0.085), R(0.1, 0.06, 0.2), R(0.22, 0.14, 0.4), R(0.5, 0.36, 0.78)]),

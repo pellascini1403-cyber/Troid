@@ -1,12 +1,14 @@
 import { surface, readPixels, writePixels, type Surface } from './canvas';
 import { clamp01, css, hex, ramp, smoothstep, type Rgb } from './color';
 import { crown, trunk, vine } from './forms';
-import { BACK, finish, gradient, mist } from './backdrop';
+import { finish, gradient, mist } from './backdrop';
 import { grade, shade, type Look } from './light';
 import * as M from './motifs';
 import { Rng } from './rng';
 import { SilhouetteLayer } from './silhouette';
 import { wrapX } from './shapes';
+import { EMBER_FAR, EMBER_MID, EMBER_NEAR, EMBER_ZONE_IDS, type EmberZoneId } from './ember';
+import { beamsOf, cloud, colossal, glowDot, look, put, rgbOf, roof, smoke, spread, stoneRamp, type FarTheme, type NearMidTheme } from './themeKit';
 
 /**
  * THE BACKDROPS OF THE ZONES (docs/PROMPT23-LOG.md §5): the three seamless strips of each zone past the Ruins, painted the way the Ruins' own are (`backdrop.ts`) — a far picture with a sky, a light, haze and skylines;
@@ -14,8 +16,10 @@ import { wrapX } from './shapes';
  * of the roots, the teal of the mire, the cold blue of a lamp in a mine, the bronze of old metal in the wind, the red-black of a furnace gone cold, the violet-black of the heart. What does not change is the language:
  * dark shapes lit from above and ahead, a lighter haze behind the walk so the hero's silhouette reads, and the farther, the paler.
  */
-export type ZoneId = 'roots' | 'mire' | 'mines' | 'spire' | 'foundry' | 'heart';
-export const ZONE_IDS: readonly ZoneId[] = ['roots', 'mire', 'mines', 'spire', 'foundry', 'heart'];
+export type FirstHalfZoneId = 'roots' | 'mire' | 'mines' | 'spire' | 'foundry' | 'heart';
+/** The six zones of the first half, then the four of the second (`ember.ts`): the order is the order seeds are drawn in, so it is never changed. */
+export type ZoneId = FirstHalfZoneId | EmberZoneId;
+export const ZONE_IDS: readonly ZoneId[] = ['roots', 'mire', 'mines', 'spire', 'foundry', 'heart', ...EMBER_ZONE_IDS];
 
 export interface ZoneStripOptions {
   w: number;
@@ -25,157 +29,8 @@ export interface ZoneStripOptions {
   zone: ZoneId;
 }
 
-type Light = { x: number; y: number; r: number; stops: ReadonlyArray<readonly [number, string]> };
-type Skyline = { base: number; amp: number; colour: string; mist: Rgb; mistStrength: number; gap: readonly [number, number]; motif: (rng: Rng, x: number, baseY: number, hgt: number, ppm: number, w: number) => M.Form[] };
 
-interface FarTheme {
-  sky: ReadonlyArray<readonly [number, string]>;
-  lights: readonly Light[];
-  /** Soft diagonal beams through the picture: how many, how strong and their colour. */
-  beams: { count: number; peak: number; rgb: string } | null;
-  /** What stands so far that it is a paler shade of the haze: drawn first, over the sky. */
-  giants: (ctx: CanvasRenderingContext2D, rng: Rng, w: number, h: number, ppm: number) => void;
-  bands: readonly Skyline[];
-  /** What hangs from the top or floats in the air, after the skylines. */
-  extra?: (ctx: CanvasRenderingContext2D, rng: Rng, w: number, h: number, ppm: number) => void;
-  haze: { colour: Rgb; strength: number };
-  /** Motes of light in the dark. */
-  motes: string;
-}
-
-interface Build {
-  layer: SilhouetteLayer;
-  rng: Rng;
-  w: number;
-  h: number;
-  ppm: number;
-  /** Where the things that stand have their foot. */
-  foot: number;
-}
-
-interface NearMidTheme {
-  look: Look;
-  stone: (v: number) => Rgb;
-  accent: (v: number) => Rgb;
-  fog: Rgb;
-  fogAmount: number;
-  /** The colour the foot of everything is lost in. */
-  foot: string;
-  footAmount: number;
-  mist: Rgb;
-  build: (b: Build) => void;
-}
-
-/** n positions along a periodic strip, evenly spread with some wander. */
-const spread = (rng: Rng, w: number, n: number, jitter = 0.7): number[] => Array.from({ length: n }, (_, i) => ((i + 0.5 + (rng.next() - 0.5) * jitter) / n) * w);
-
-const rgbOf = (c: Rgb, k = 1): Rgb => [c[0] * k, c[1] * k, c[2] * k];
-
-/** A soft dot of light (a lamp far away, a spore): a radial gradient, periodic. */
-function glowDot(ctx: CanvasRenderingContext2D, w: number, x: number, y: number, r: number, rgb: string, a: number): void {
-  wrapX(w, (dx) => {
-    const g = ctx.createRadialGradient(x + dx, y, 0, x + dx, y, r);
-    g.addColorStop(0, `rgba(${rgb},${a})`);
-    g.addColorStop(0.25, `rgba(${rgb},${a * 0.45})`);
-    g.addColorStop(1, `rgba(${rgb},0)`);
-    ctx.fillStyle = g;
-    ctx.fillRect(x + dx - r, y - r, r * 2, r * 2);
-  });
-}
-
-/** Soft diagonal beams of light, periodic in x (the Ruins' own are cyan; every zone has its colour). */
-function beamsOf(ctx: CanvasRenderingContext2D, rng: Rng, w: number, h: number, count: number, peak: number, rgb: string): void {
-  for (let i = 0; i < count; i++) {
-    const x = rng.range(0, w);
-    const wid = rng.range(0.025, 0.07) * w;
-    const skew = rng.range(0.12, 0.3) * h;
-    const reach = rng.range(0.7, 1);
-    for (const dx of [-w, 0, w]) {
-      const g = ctx.createLinearGradient(0, 0, 0, h * reach);
-      g.addColorStop(0, `rgba(${rgb},0)`);
-      g.addColorStop(0.2, `rgba(${rgb},${peak})`);
-      g.addColorStop(1, `rgba(${rgb},0)`);
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.moveTo(x + dx, 0);
-      ctx.lineTo(x + wid + dx, 0);
-      ctx.lineTo(x + wid * 1.8 + skew + dx, h * reach);
-      ctx.lineTo(x + skew + dx, h * reach);
-      ctx.closePath();
-      ctx.fill();
-    }
-  }
-}
-
-/** A soft cloud: a few overlapping ellipses of one colour, wider than tall, periodic. */
-function cloud(ctx: CanvasRenderingContext2D, rng: Rng, w: number, x: number, y: number, len: number, thick: number, rgba: string): void {
-  ctx.fillStyle = rgba;
-  const n = Math.max(3, Math.round(len / (thick * 1.6)));
-  const parts = Array.from({ length: n }, (_, i) => ({ x: x + (i / (n - 1) - 0.5) * len, y: y + rng.gauss() * thick * 0.18, rx: thick * rng.range(1.4, 2.8), ry: thick * rng.range(0.35, 0.6) }));
-  wrapX(w, (dx) => {
-    for (const p of parts) {
-      ctx.beginPath();
-      ctx.ellipse(p.x + dx, p.y, p.rx, p.ry, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  });
-}
-
-/** Smoke rising from a point: soft grey-brown puffs that widen and thin as they go up. */
-function smoke(ctx: CanvasRenderingContext2D, rng: Rng, w: number, x: number, y: number, rise: number, r0: number, rgb: string, a: number): void {
-  const n = Math.max(3, Math.round(rise / (r0 * 1.4)));
-  const puffs = Array.from({ length: n }, (_, i) => {
-    const t = i / (n - 1);
-    return { x: x + Math.sin(t * 3 + x * 0.01) * r0 * 1.2 + rng.gauss() * r0 * 0.3, y: y - rise * t, r: r0 * (1 + t * 1.8), a: a * (1 - t * 0.8) };
-  });
-  wrapX(w, (dx) => {
-    for (const p of puffs) {
-      const g = ctx.createRadialGradient(p.x + dx, p.y, 0, p.x + dx, p.y, p.r);
-      g.addColorStop(0, `rgba(${rgb},${p.a})`);
-      g.addColorStop(1, `rgba(${rgb},0)`);
-      ctx.fillStyle = g;
-      ctx.fillRect(p.x + dx - p.r, p.y - p.r, p.r * 2, p.r * 2);
-    }
-  });
-}
-
-// -------------------------------------------------------------------------------------------------------------------------------- the far strips
-
-const colossal = (ctx: CanvasRenderingContext2D, rng: Rng, w: number, h: number, count: number, fill: string, r: readonly [number, number], flare = false): void => {
-  ctx.fillStyle = fill;
-  for (let i = 0; i < count; i++) {
-    const x = ((i + rng.range(0.2, 0.8)) / count) * w;
-    const rr = rng.range(r[0], r[1]);
-    wrapX(w, (dx) => {
-      ctx.fillRect(x + dx - rr, 0, rr * 2, h * 0.92);
-      if (flare) {
-        ctx.beginPath();
-        ctx.moveTo(x + dx - rr, h * 0.7);
-        ctx.quadraticCurveTo(x + dx - rr * 1.2, h * 0.88, x + dx - rr * 2.6, h);
-        ctx.lineTo(x + dx + rr * 2.6, h);
-        ctx.quadraticCurveTo(x + dx + rr * 1.2, h * 0.88, x + dx + rr, h * 0.7);
-        ctx.closePath();
-        ctx.fill();
-      }
-    });
-  }
-};
-
-/** The cave roof: a mass hanging from the top with a toothed lower edge, and stalactites from it. */
-const roof = (ctx: CanvasRenderingContext2D, rng: Rng, w: number, h: number, ppm: number, fill: string, depth: number, teeth: number): void => {
-  ctx.fillStyle = fill;
-  const n = Math.round(w / (ppm * 9));
-  for (let i = 0; i < n; i++) {
-    const f = M.ceilingMass(rng, ((i + 0.5) / n) * w, 0, (w / n) * 1.25, h * depth);
-    wrapX(w, (dx) => f.draw(ctx, dx));
-  }
-  for (let i = 0; i < teeth; i++) {
-    const f = M.stalactite(rng, rng.range(0, w), h * depth * rng.range(0.6, 1), h * rng.range(0.08, 0.26), ppm * rng.range(0.5, 1.4));
-    wrapX(w, (dx) => f.draw(ctx, dx));
-  }
-};
-
-const FAR: Readonly<Record<ZoneId, FarTheme>> = {
+const FAR_FIRST: Readonly<Record<FirstHalfZoneId, FarTheme>> = {
   roots: {
     sky: [[0, '#02070a'], [0.4, '#071d19'], [0.75, '#0f3a2d'], [1, '#17503b']],
     lights: [{ x: 0.55, y: 0.22, r: 0.6, stops: [[0, 'rgba(150,255,205,0.32)'], [0.3, 'rgba(90,210,160,0.14)'], [1, 'rgba(60,160,120,0)']] }],
@@ -305,6 +160,8 @@ const FAR: Readonly<Record<ZoneId, FarTheme>> = {
   },
 };
 
+const FAR: Readonly<Record<ZoneId, FarTheme>> = { ...FAR_FIRST, ...EMBER_FAR };
+
 /** The FAR strip of a zone: an opaque picture — a sky, a light, haze and three skylines, each in its own mist. */
 export function zoneFar(o: ZoneStripOptions): Surface {
   const { w, h, ppm, seed } = o;
@@ -343,14 +200,8 @@ export function zoneFar(o: ZoneStripOptions): Surface {
 
 // -------------------------------------------------------------------------------------------------------------------------------- the middle and near strips
 
-const look = (key: Rgb, ambient: Rgb, rimColour: Rgb): Look => ({ ...BACK, key, ambient, rimColour });
 
-const stoneRamp = (stops: readonly [number, number, number][]): ((v: number) => Rgb) => ramp(stops.map((c, i) => ({ at: i / (stops.length - 1), colour: c as Rgb })));
-
-/** Shorthand: add a form to the layer with options. */
-const put = (b: Build, f: M.Form, o: { round: number; tone: number; spread?: number; moss?: number; fade?: readonly [number, number] }): void => b.layer.add(f.draw, f.box, { spread: 0.06, ...o });
-
-const MID: Readonly<Record<ZoneId, NearMidTheme>> = {
+const MID_FIRST: Readonly<Record<FirstHalfZoneId, NearMidTheme>> = {
   roots: {
     look: look([0.5, 0.9, 0.7], [0.16, 0.3, 0.26], [0.6, 1, 0.8]),
     stone: stoneRamp([[0.01, 0.02, 0.015], [0.04, 0.07, 0.05], [0.1, 0.17, 0.12], [0.22, 0.34, 0.25], [0.5, 0.7, 0.5]]),
@@ -531,9 +382,11 @@ const MID: Readonly<Record<ZoneId, NearMidTheme>> = {
   },
 };
 
-const NEAR: Readonly<Record<ZoneId, NearMidTheme>> = {
+const MID: Readonly<Record<ZoneId, NearMidTheme>> = { ...MID_FIRST, ...EMBER_MID };
+
+const NEAR_FIRST: Readonly<Record<FirstHalfZoneId, NearMidTheme>> = {
   roots: {
-    ...MID.roots,
+    ...MID_FIRST.roots,
     fog: [0.08, 0.22, 0.18], fogAmount: 0.12, mist: [0.2, 0.5, 0.4],
     build: (b) => {
       // the great roots: arches over the way, trunks as thick as a hall, and what hangs from them
@@ -553,7 +406,7 @@ const NEAR: Readonly<Record<ZoneId, NearMidTheme>> = {
     },
   },
   mire: {
-    ...MID.mire,
+    ...MID_FIRST.mire,
     fog: [0.08, 0.24, 0.24], fogAmount: 0.12, mist: [0.2, 0.55, 0.5],
     build: (b) => {
       // stilts: the posts that hold the walkways above the water, with cross-beams, and the great stalks of mushrooms
@@ -575,7 +428,7 @@ const NEAR: Readonly<Record<ZoneId, NearMidTheme>> = {
     },
   },
   mines: {
-    ...MID.mines,
+    ...MID_FIRST.mines,
     fog: [0.08, 0.16, 0.34], fogAmount: 0.12,
     build: (b) => {
       // the rock itself in the front: columns that go up into the dark, the roof close above, the frames of the galleries large
@@ -592,7 +445,7 @@ const NEAR: Readonly<Record<ZoneId, NearMidTheme>> = {
     },
   },
   spire: {
-    ...MID.spire,
+    ...MID_FIRST.spire,
     fog: [0.34, 0.24, 0.17], fogAmount: 0.12,
     build: (b) => {
       // the stone of the spire close: arcades of pointed arches, columns that carry the roof, the frames where the great bells hang
@@ -617,7 +470,7 @@ const NEAR: Readonly<Record<ZoneId, NearMidTheme>> = {
     },
   },
   foundry: {
-    ...MID.foundry,
+    ...MID_FIRST.foundry,
     fog: [0.28, 0.14, 0.08], fogAmount: 0.12,
     build: (b) => {
       // iron close: columns of girder, trusses across the way, a gear or two taller than the room, big pipes
@@ -632,7 +485,7 @@ const NEAR: Readonly<Record<ZoneId, NearMidTheme>> = {
     },
   },
   heart: {
-    ...MID.heart,
+    ...MID_FIRST.heart,
     fog: [0.14, 0.07, 0.26], fogAmount: 0.12,
     build: (b) => {
       // the bones of the place: ribs over the way with light in their seams, columns of ink-stone, cysts
@@ -654,6 +507,8 @@ const NEAR: Readonly<Record<ZoneId, NearMidTheme>> = {
     },
   },
 };
+
+const NEAR: Readonly<Record<ZoneId, NearMidTheme>> = { ...NEAR_FIRST, ...EMBER_NEAR };
 
 /** Lights what the layer holds, in the mist of the zone, and loses the foot of everything in it. */
 function buildStrip(o: ZoneStripOptions, theme: NearMidTheme, footMix: number): Surface {
@@ -689,6 +544,9 @@ export function zoneMid(o: ZoneStripOptions): Surface {
 export function zoneNear(o: ZoneStripOptions): Surface {
   return buildStrip(o, NEAR[o.zone], 0.6);
 }
+
+/** The light the props of a zone are lit with, when the zone has a light of its own (the second half: a rose or an orange key instead of the cold one); `null` for the zones of the first half, whose props keep the one light of the game. */
+export const zoneLook = (zone: ZoneId): Look | null => (EMBER_ZONE_IDS.includes(zone as EmberZoneId) ? MID[zone].look : null);
 
 /** The colours the zone's lit things are made of (what its middle and near strips use), for the props that stand in the zone: a prop and its backdrop are of the same stuff. */
 export const zoneRamps = (zone: ZoneId): { stone: (v: number) => Rgb; accent: (v: number) => Rgb } => ({ stone: MID[zone].stone, accent: MID[zone].accent });

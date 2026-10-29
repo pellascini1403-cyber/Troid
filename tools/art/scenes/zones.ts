@@ -82,6 +82,31 @@ export const KITS: Readonly<Record<ZoneId, Kit>> = {
     hanging: [lm('veins', 4, 3.8, 3)],
     frame: ['cyst_pod', 'crystal_spire'], arena: 'rib_arch', every: 12, hangEvery: 15, light: [0.78, 0.55, 1],
   },
+  // ---- the second half (docs/PROMPT23-LOG.md §7): the trees that carry spheres, the arches of roots, basalt and thorn, and in the last zone the ruins of a throne
+  dusk: {
+    landmarks: [lm('orb_sapling', 3.2, 4.2, 3), lm('root_arch', 4, 2.7, 2), lm('ruin_column', 2, 4.2, 2)],
+    ground: [lm('bone_roots', 3, 1.4, 3), lm('stone_heap', 3.4, 0.9, 2), lm('thorn_bush', 2.2, 1.5, 2)],
+    hanging: [lm('root_curtain', 5, 3.8, 3), lm('orb_vines', 3.4, 3.8, 2)],
+    frame: ['orb_sapling', 'ruin_column'], arena: 'root_arch', every: 11, hangEvery: 14, light: [1, 0.55, 0.72],
+  },
+  grove: {
+    landmarks: [lm('orb_tree_tall', 5.4, 6.6, 3), lm('trunk_arch', 5.2, 3.6, 2), lm('orb_cluster', 4, 4, 2)],
+    ground: [lm('sphere_pods', 2.4, 1.4, 3), lm('root_crawl', 3.8, 1.6, 3)],
+    hanging: [lm('root_curtain', 5.4, 4.4, 3), lm('orb_drops', 4, 3.6, 2)],
+    frame: ['orb_tree_tall', 'orb_cluster'], arena: 'trunk_arch', every: 10, hangEvery: 13, light: [1, 0.46, 0.64],
+  },
+  crater: {
+    landmarks: [lm('basalt_spire', 3, 5.2, 3), lm('dead_tree', 4.8, 6, 2), lm('fumarole', 3, 2.2, 2), lm('lava_rock', 3.4, 1.9, 2)],
+    ground: [lm('ash_heap', 3.6, 0.8, 3), lm('obsidian_shards', 2.2, 2, 2), lm('ember_stones', 2.8, 0.9, 2)],
+    hanging: [lm('char_roots', 4, 3.8, 3), lm('basalt_teeth', 4, 3.6, 2)],
+    frame: ['basalt_spire', 'lava_rock'], arena: 'basalt_spire', every: 12, hangEvery: 15, light: [1, 0.6, 0.3],
+  },
+  throne: {
+    landmarks: [lm('broken_arch', 6, 4.8, 3), lm('caged_orb', 3, 4.4, 2), lm('tower_stub', 3, 5.8, 2), lm('thorn_pillar', 2.8, 5.6, 2)],
+    ground: [lm('rubble_dark', 3.6, 0.9, 3), lm('chain_heap', 2.4, 1.2, 2), lm('bone_pile', 2, 1.4, 2)],
+    hanging: [lm('chains', 3.4, 3.8, 3), lm('thorn_drapes', 4, 3.8, 3)],
+    frame: ['caged_orb', 'thorn_pillar'], arena: 'broken_arch', every: 12, hangEvery: 14, light: [0.96, 0.36, 0.5],
+  },
 };
 
 /** The pack that holds a piece of a zone's kit, and its sprites. */
@@ -234,8 +259,26 @@ export function lightOf(room: RoomDefinition): RoomScene {
     else if (i.kind === 'activate') centred('glow_rest', i.x, i.y + 0.7, 0.4, { alpha: 0.32, motion: 'pulse' });
   }
   for (const b of room.bosses ?? []) centred('glow_boss', b.x, b.y + 1.6, 1.4, { alpha: 0.16, motion: 'pulse' });
+  // ---- lava (docs/PROMPT23-LOG.md §6): a pool is drawn by the art from its data (`hazard:lava:cell`); a column of it is a fall, and the scene stretches the fall over the column. A glow lights the air above each, and embers rise from the pools
+  for (const h of room.hazards ?? []) {
+    if (h.kind !== 'lava') continue;
+    const w = h.rect.x1 - h.rect.x0;
+    const tall = h.rect.y1 - h.rect.y0;
+    const cx = (h.rect.x0 + h.rect.x1) / 2;
+    if (tall > LAVA_FALL_FROM) {
+      put('terrain', { sprite: 'lava_fall', x: round2(cx), y: round2(h.rect.y0), w: round2(w), h: round2(tall) });
+      put('lightOverlay', { sprite: 'glow_lava', x: round2(cx), y: round2(h.rect.y0 - 0.6), w: round2(w + 4), h: round2(Math.min(tall + 1.2, 8)), alpha: 0.22, motion: 'pulse' });
+    } else {
+      put('lightOverlay', { sprite: 'glow_lava', x: round2(cx), y: round2(h.rect.y1 - 1.1), w: round2(w + 5), h: 3.6, alpha: 0.3, motion: 'pulse' });
+      const n = Math.max(1, Math.round(w / 9));
+      for (let i = 0; i < n; i++) put('lightOverlay', { sprite: 'embers', x: round2(h.rect.x0 + ((i + 0.5) / n) * w), y: round2(h.rect.y1 + 0.2), scale: 0.45, alpha: 0.5, motion: 'drift', flip: i % 2 === 1 });
+    }
+  }
   return sceneOf(room, layers);
 }
+
+/** A lava hazard taller than this is a fall (the pools are a metre deep). */
+const LAVA_FALL_FROM = 1.6;
 
 /** The rooms of a zone, in the order of the world. */
 export const roomsOfZone = (zone: ZoneId): string[] => WORLD.rooms.filter((id) => zoneOf(id) === zone);

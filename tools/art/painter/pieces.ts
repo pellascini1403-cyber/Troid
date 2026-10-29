@@ -4,6 +4,7 @@ import { ZONE_IDS, zoneFar, zoneMid, zoneNear, type ZoneId } from './zones';
 import { zoneHanging, zoneProp } from './zoneProps';
 import { crackedDoor, lever, spikeStrip, type SpikeKind } from './mechanisms';
 import { hex } from './color';
+import { lavaCell, lavaFall } from './lava';
 import { cap, earth } from './ground';
 import { DAY, shade, type Layers } from './light';
 import { MOSS, STONE, stone } from './masonry';
@@ -307,7 +308,18 @@ export const PIECES: Record<string, PieceMaker> = {
   /** A ditch of spikes where it is not forest: `cols` cells of half a metre. */
   spikeStrip: async (p) => {
     const ppm = num(p, 'ppm', 96);
-    return spikeStrip({ w: Math.round(ppm * 0.5 * num(p, 'cols', 4)), h: Math.round(ppm * 0.75), ppm, seed: num(p, 'seed', 5), kind: str(p, 'kind', ['crystal', 'iron', 'ink'] as readonly SpikeKind[], 'iron') });
+    return spikeStrip({ w: Math.round(ppm * 0.5 * num(p, 'cols', 4)), h: Math.round(ppm * 0.75), ppm, seed: num(p, 'seed', 5), kind: str(p, 'kind', ['crystal', 'iron', 'ink', 'obsidian', 'bramble'] as readonly SpikeKind[], 'iron') });
+  },
+  /** A pool of lava: `cols` cells of one metre, each a frame; a metre of lava and a third of a metre of heat over it. */
+  lavaCell: async (p) => {
+    const ppm = num(p, 'ppm', 96);
+    const cols = num(p, 'cols', 4);
+    return lavaCell({ w: Math.round(ppm * cols), h: Math.round(ppm * 1.35), ppm, seed: num(p, 'seed', 5), cols });
+  },
+  /** A fall of lava, 1.2 m wide and 6 m tall: the scene stretches it to the height of the fall. */
+  lavaFall: async (p) => {
+    const ppm = num(p, 'ppm', 96);
+    return lavaFall({ w: Math.round(ppm * 1.2), h: Math.round(ppm * 6), ppm, seed: num(p, 'seed', 5) });
   },
   zoneHanging: async (p) => {
     const ppm = num(p, 'ppm', 48);

@@ -7,7 +7,8 @@ import { SilhouetteLayer, type Box } from './silhouette';
 import * as M from './motifs';
 import { wander } from './shapes';
 import { fbm, noise2 } from './noise';
-import { zoneRamps, type ZoneId } from './zones';
+import { EMBER_HANGING, EMBER_RECIPES } from './emberProps';
+import { zoneLook, zoneRamps, type ZoneId } from './zones';
 
 /**
  * THE PIECES OF EACH ZONE (docs/PROMPT23-LOG.md §5): what stands behind the walk in the Mines, the Foundry, the Spire, the Mire, the Roots and the Heart — a crystal as tall as a house, a tank on its legs, a bell in its frame, a
@@ -32,7 +33,7 @@ interface Opts {
 }
 
 /** What a recipe works with: the layer, metres → pixels, the foot of the prop (or its root, for what hangs), and the two things a form does — to be added with a roundness and a tone, and to shine. */
-interface B {
+export interface B {
   layer: SilhouetteLayer;
   rng: Rng;
   ppm: number;
@@ -47,7 +48,7 @@ interface B {
   shine: (f: { draw: Draw; box: Box }, colour: Rgb, intensity: number, haloM: number) => void;
 }
 
-type Recipe = (b: B) => void;
+export type Recipe = (b: B) => void;
 
 const LIFT = 0.12;
 
@@ -65,6 +66,7 @@ const barForm = (x0: number, y0: number, x1: number, y1: number, t0: number, t1 
 });
 
 const RECIPES: Readonly<Record<string, Recipe>> = {
+  ...EMBER_RECIPES,
   // ------------------------------------------------------------------------------------------------------------------------------ the Crystal Mines
   'mines:crystals_tall': (b) => {
     const base = M.rockMass(b.rng, b.cx, b.foot, b.m(2.8), b.m(0.7));
@@ -332,7 +334,7 @@ export function zoneProp(o: ZonePropOptions): Surface {
   recipe(b);
   const { stone, accent } = zoneRamps(o.zone);
   const s = surface(w, h);
-  const look: Look = DAY;
+  const look: Look = zoneLook(o.zone) ?? DAY;
   const layers = layer.layers(stone, accent);
   // a grain over everything, so that a flat shape is a surface: fine in the iron, coarse in the rock
   for (let y = 0; y < h; y++) {
@@ -351,12 +353,13 @@ export function zoneProp(o: ZonePropOptions): Surface {
 
 // ------------------------------------------------------------------------------------------------------------------------------ what hangs in front of the camera
 
-type Hanging = (b: B) => void;
+export type Hanging = (b: B) => void;
 
 /** The dark of the foreground: nearly black, lit only on the edge that faces the light. */
 const DARK = (b: B): number => b.rng.range(0.04, 0.08);
 
 const HANGING: Readonly<Record<string, Hanging>> = {
+  ...EMBER_HANGING,
   'mire:moss_curtain': (b) => {
     for (let i = 0; i < 5; i++) b.add(M.drape(b.rng, b.cx + b.m((i - 2) * 0.9) + b.rng.range(-6, 6), -b.m(0.3), b.m(b.rng.range(1.8, 3.4)), b.m(b.rng.range(0.7, 1.3))), { round: 2, tone: DARK(b), moss: 0.15 });
   },
@@ -408,6 +411,6 @@ export function zoneHanging(o: ZonePropOptions): Surface {
   recipe(b);
   const { stone, accent } = zoneRamps(o.zone);
   const s = surface(w, h);
-  writePixels(s, shade(layer.layers(stone, accent), DAY, false));
+  writePixels(s, shade(layer.layers(stone, accent), zoneLook(o.zone) ?? DAY, false));
   return s;
 }

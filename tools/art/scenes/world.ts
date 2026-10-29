@@ -17,10 +17,10 @@ import { choose, foregroundTop, push, round2, sceneOf, scatterMotes, surfacesOf,
  */
 
 /** The materials of the ground that are soil, in the ruins' and in every zone past them: what the veil darkens and what grows on. */
-const EARTHY: ReadonlySet<string> = new Set(['earth', 'mud', 'gravel', 'flagstone', 'slag', 'inksoil']);
+const EARTHY: ReadonlySet<string> = new Set(['earth', 'mud', 'gravel', 'flagstone', 'slag', 'inksoil', 'ash', 'scorch']);
 
 /** The zones, by the prefix of the id of their rooms. */
-export type ZoneKind = 'ruins' | 'roots' | 'mire' | 'mines' | 'spire' | 'foundry' | 'heart';
+export type ZoneKind = 'ruins' | 'roots' | 'mire' | 'mines' | 'spire' | 'foundry' | 'heart' | 'dusk' | 'grove' | 'crater' | 'throne';
 
 export function zoneOf(roomId: string): ZoneKind {
   if (roomId.startsWith('rt_')) return 'roots';
@@ -29,6 +29,10 @@ export function zoneOf(roomId: string): ZoneKind {
   if (roomId.startsWith('sp_')) return 'spire';
   if (roomId.startsWith('fd_')) return 'foundry';
   if (roomId.startsWith('ih_')) return 'heart';
+  if (roomId.startsWith('dv_')) return 'dusk';
+  if (roomId.startsWith('og_')) return 'grove';
+  if (roomId.startsWith('ec_')) return 'crater';
+  if (roomId.startsWith('ct_')) return 'throne';
   return 'ruins';
 }
 
@@ -62,6 +66,11 @@ const HANDS: Readonly<Record<ZoneKind, Hand>> = {
   spire: { flora: [['none', 100]], landmarks: [['column_whole_a', 4], ['column_broken_a', 2], ['effigy_a', 2]], every: 13, roots: false, arches: 30, leaves: 0, motes: [0xffe6c0, 0xffd8a0], glow: 'glow_cyan', mist: 1 / 70 },
   foundry: { flora: [['none', 100]], landmarks: [['column_broken_a', 3], ['column_broken_b', 3], ['column_whole_a', 1]], every: 18, roots: false, arches: 46, leaves: 0, motes: [0xffc9a0, 0xffb080], glow: 'glow_violet', mist: 1 / 50 },
   heart: { flora: [['none', 100]], landmarks: [['effigy_a', 4], ['rune_stone_a', 3], ['column_whole_a', 2]], every: 16, roots: false, arches: 36, leaves: 0, motes: [0xc9a8ff, 0xb08cff], glow: 'glow_violet', mist: 1 / 36 },
+  // the second half has the ruins' scatter nowhere: its pieces (`packs/zones.ts`) are what stands, lies and hangs there, and what lights the air is its own (the motes and the glows are rose and orange, not the ruins' white and cyan)
+  dusk: { flora: [['none', 100]], landmarks: [], every: 16, roots: false, arches: 0, leaves: 0, motes: [0xffd7e6, 0xffc0d8], glow: 'glow_violet', mist: 1 / 36 },
+  grove: { flora: [['none', 100]], landmarks: [], every: 16, roots: false, arches: 0, leaves: 0, motes: [0xffcfe0, 0xffb4d0], glow: 'glow_violet', mist: 1 / 32 },
+  crater: { flora: [['none', 100]], landmarks: [], every: 16, roots: false, arches: 0, leaves: 0, motes: [0xffd9a8, 0xffbe80], glow: 'glow_violet', mist: 1 / 44 },
+  throne: { flora: [['none', 100]], landmarks: [], every: 16, roots: false, arches: 0, leaves: 0, motes: [0xffb4c4, 0xff98b0], glow: 'glow_violet', mist: 1 / 40 },
 };
 
 /** A room as the composers read it: its own data, nothing else. */
@@ -84,9 +93,31 @@ export interface Ctx {
   clear: ReadonlyArray<readonly [number, number]>;
 }
 
+/** A stone the width of a hop: in a room with lava it is left bare, so that the eye finds where it ends. */
+const SMALL_STONE = 3.4;
+
+/**
+ * The open tops of a room with lava (docs/PROMPT23-LOG.md §6): the lava covers the ground it stands on — nothing grows, lies or stands where the pool is — and a stone small enough to be hopped across carries nothing, so that the
+ * edge the hero lands on is read from the stone and not from what is piled on it.
+ */
+function dryTops(tops: ReturnType<typeof surfacesOf>, lava: ReadonlyArray<{ rect: { x0: number; x1: number; y0: number } }>): ReturnType<typeof surfacesOf> {
+  const out: ReturnType<typeof surfacesOf> = [];
+  for (const s of tops) {
+    let spans: Array<[number, number]> = [[s.a, s.b]];
+    for (const h of lava) {
+      if (Math.abs(h.rect.y0 - s.y) > 0.05 || h.rect.x1 <= s.a || h.rect.x0 >= s.b) continue;
+      spans = spans.flatMap(([a, b]): Array<[number, number]> => [[a, Math.min(b, h.rect.x0)], [Math.max(a, h.rect.x1), b]]).filter(([a, b]) => b - a > 0.01);
+    }
+    for (const [a, b] of spans) if (b - a >= SMALL_STONE) out.push({ ...s, a, b });
+  }
+  return out;
+}
+
 export function contextOf(room: RoomDefinition): Ctx {
   const cam = room.camera?.bounds ?? room.bounds;
-  const tops = surfacesOf(room).filter((s) => s.y < cam.y1 - 1.2 && s.b > cam.x0 && s.a < cam.x1 && s.y >= cam.y0 - 0.01);
+  const lava = (room.hazards ?? []).filter((h) => h.kind === 'lava');
+  const open = surfacesOf(room).filter((s) => s.y < cam.y1 - 1.2 && s.b > cam.x0 && s.a < cam.x1 && s.y >= cam.y0 - 0.01);
+  const tops = lava.length > 0 ? dryTops(open, lava) : open;
   // the floor most of the room stands on: the height of the longest stretch of open ground
   const byHeight = new Map<number, number>();
   for (const s of tops) byHeight.set(s.y, (byHeight.get(s.y) ?? 0) + (s.b - s.a));

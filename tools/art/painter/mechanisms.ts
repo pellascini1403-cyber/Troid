@@ -101,12 +101,16 @@ export function lever(o: PieceOptions): Surface {
 }
 
 /** What a ditch of spikes is made of where it is not the forest: shards of crystal, iron, bone of the ink. */
-export type SpikeKind = 'crystal' | 'iron' | 'ink';
+export type SpikeKind = 'crystal' | 'iron' | 'ink' | 'obsidian' | 'bramble';
 
-const SPIKE: Readonly<Record<SpikeKind, { tone: readonly [number, number]; tip: Rgb; ramp: 'rock' | 'iron' | 'ink'; count: readonly [number, number]; lean: number }>> = {
+const SPIKE: Readonly<Record<SpikeKind, { tone: readonly [number, number]; tip: Rgb; ramp: 'rock' | 'iron' | 'ink' | 'basalt' | 'cinder'; count: readonly [number, number]; lean: number }>> = {
   crystal: { tone: [0.5, 0.66], tip: [0.55, 0.85, 1], ramp: 'rock', count: [3, 4], lean: 0.22 },
   iron: { tone: [0.36, 0.5], tip: [1, 0.55, 0.2], ramp: 'iron', count: [4, 5], lean: 0.08 },
   ink: { tone: [0.38, 0.52], tip: [0.82, 0.5, 1], ramp: 'ink', count: [4, 6], lean: 0.18 },
+  // the crater's own: shards of black glass with a hot point at the tip
+  obsidian: { tone: [0.3, 0.46], tip: [1, 0.5, 0.15], ramp: 'basalt', count: [4, 6], lean: 0.1 },
+  // the verge's and the grove's: brambles of the red-violet wood, leaning, with a rose point at the tip
+  bramble: { tone: [0.3, 0.46], tip: [1, 0.45, 0.62], ramp: 'cinder', count: [5, 7], lean: 0.22 },
 };
 
 /** A strip of spikes: cells of half a metre side by side, periodic along x (cut into one frame per cell), each spike a sharp shard with a point of light at its tip. */
