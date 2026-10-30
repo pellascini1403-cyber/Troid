@@ -36,7 +36,7 @@ jobs:
             scenes: boot,movement,combat,room,rooms,world,pause,pauseMap,gamepad,focus,ending,finale,adaptive,lava
           - name: stability
             scenes: resilience,privacy,readable,sprites
-          # the whole adventure in one page (docs/PROMPT22-LOG.md §5): ~200 000 ticks (docs/PROMPT23-LOG.md §7.6: the eleven zones) of a scripted playthrough from a new game to the way out of the world, replayed bit for bit — it takes minutes on its own (399 s on the machine that wrote this; the runner is about three times slower)
+          # the whole adventure in one page (docs/PROMPT22-LOG.md §5): ~200 000 ticks (docs/PROMPT23-LOG.md §7.6: the eleven zones) of a scripted playthrough from a new game to the way out of the world, replayed bit for bit — it takes minutes on its own (about seven minutes on the machine that wrote this, eleven on the runner)
           - name: journey
             scenes: fullrun
     steps:
