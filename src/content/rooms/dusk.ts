@@ -215,6 +215,7 @@ export function approach(): RoomDefinition {
  */
 export function arena(): RoomDefinition {
   const c = new RoomCanvas('dv_arena', 76, 24).walls().ground(1, 75, 2);
+  c.plat(23, 30, 5).plat(46, 53, 5); // two stands of dead wood, 3 m up: over the reach of its sweep (2.4 m) and a place to wait out its stamp, the waves of which run along the floor
   c.region('A', 8, 2, 9, 23).region('B', 65, 2, 66, 23);
   c.mark('a', 4, 2).mark('b', 71, 2).mark('l', 11, 2).mark('r', 64, 2).mark('k', 56, 2).mark('v', 60, 2);
   return mapRoom(

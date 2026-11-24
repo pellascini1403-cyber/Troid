@@ -206,6 +206,7 @@ export function approach(): RoomDefinition {
  */
 export function arena(): RoomDefinition {
   const c = new RoomCanvas('ct_arena', 84, 28).walls().ground(1, 83, 2);
+  c.plat(22, 28, 5).plat(40, 46, 5).plat(58, 64, 5); // three broken arches, 3 m up: to move between when it cuts from behind, and level with the core (1.4 to 2.7 m) for whoever is on one when it is spent
   c.region('A', 8, 2, 9, 27).region('B', 73, 2, 74, 27);
   c.mark('a', 4, 2).mark('b', 79, 2).mark('l', 11, 2).mark('r', 72, 2).mark('k', 62, 2);
   return mapRoom(

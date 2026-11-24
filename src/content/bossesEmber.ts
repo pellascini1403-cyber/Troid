@@ -5,7 +5,7 @@ import { CINDER_CRAWLER, CINDER_WEAVER, DUSK_SHADE, EMBER_WISP } from './creatur
 
 /**
  * THE GUARDIANS OF THE SECOND HALF (docs/PROMPT23-LOG.md §7): four more fights, each one the engine of the first half (`enemies/boss/Boss.ts`) running a table — and each with a different CONDITION under which it can be hurt at all, and a floor of its own
- * to be fought on (the arenas have lava at their edges: the way back from a mistake is a burn):
+ * to be fought on (the lava is the road TO them — every approach has it — and not their floor: the fight is won on 53 m of floor between two doors with the guardian's own floor attacks as the hazard — waves, columns, a flood of fire — and, since F6, stands 3 m up to move between):
  *
  *   Dusk Shepherd      a gaunt tree that carries its heart-sphere in its chest and takes it out only to throw it: the sphere is open for the length of every volley — and for nothing else
  *   Grove Gardener     tends its spheres, and the spheres are what it calls: two ember wisps at two thirds of its life and three at a third; its bloom shows after a leap and after a burst

@@ -221,6 +221,7 @@ export function approach(): RoomDefinition {
  */
 export function arena(): RoomDefinition {
   const c = new RoomCanvas('ec_arena', 80, 26).walls().ground(1, 79, 2);
+  c.plat(24, 30, 5).plat(50, 56, 5); // two shelves of basalt, 3 m up: out of the way of the shock of its stomp — and level with the crust on its back when it comes down under one (the crust is 2.1 to 3.4 m)
   c.region('A', 8, 2, 9, 25).region('B', 69, 2, 70, 25);
   c.mark('a', 4, 2).mark('b', 75, 2).mark('l', 11, 2).mark('r', 68, 2).mark('k', 60, 2).mark('v', 64, 2);
   return mapRoom(

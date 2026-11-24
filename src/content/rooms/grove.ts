@@ -231,6 +231,7 @@ export function approach(): RoomDefinition {
  */
 export function arena(): RoomDefinition {
   const c = new RoomCanvas('og_arena', 76, 26).walls().ground(1, 75, 2);
+  c.plat(19, 25, 5).plat(35, 41, 5).plat(51, 57, 5); // three stands of root, 3 m up: a place to be over the shock of its leap (it runs along the floor) and to keep moving when the roots come up in a line
   c.region('A', 8, 2, 9, 25).region('B', 65, 2, 66, 25);
   c.mark('a', 4, 2).mark('b', 71, 2).mark('l', 11, 2).mark('r', 64, 2).mark('k', 56, 2).mark('v', 60, 2);
   return mapRoom(

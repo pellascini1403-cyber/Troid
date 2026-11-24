@@ -209,6 +209,7 @@ export function approach(): RoomDefinition {
  */
 export function arena(): RoomDefinition {
   const c = new RoomCanvas('mn_arena', 72, 28).walls().ground(1, 71, 2);
+  c.plat(20, 26, 5).plat(46, 52, 5); // two ledges of crystal, 3 m up: out of the way of its stomp, and level with the core in its chest (1.8 to 3.2 m) for whoever stands on one when the shutters turn
   c.region('A', 8, 2, 9, 27).region('B', 65, 2, 66, 27); // doors to the roof: there is no climbing over a door with the Wall Jump
   c.mark('a', 4, 2).mark('b', 67, 2).mark('l', 11, 2).mark('r', 64, 2).mark('k', 56, 2).mark('v', 60, 2);
   return mapRoom(

@@ -69,7 +69,7 @@ Para pagar el gancho del primer fotograma se **sacó de él** lo que no necesita
 | F3 | 10 criaturas de la segunda mitad: escarabajo de escoria, polilla de ceniza, medusa de brasas, bestia de horno, centinela de basalto, sapo de obsidiana, gong de ceniza, peso de fragua, cangrejo-horno, segador de brasas — **ninguna es la de la primera mitad con otro color**: cada una tiene otra anatomía para el mismo cerebro | **hecho** (las 10 revisadas en su sala real) |
 | F4 | 10 guardianes, cada uno con otra silueta, otros materiales, otra manera de mostrar su punto débil y otra muerte (§5) | **hecho** (los diez revisados en su sala real, a escala de móvil) |
 | F5 | Los 6 estados pendientes del héroe (segundo golpe, golpe en el aire, agacharse, gatear, golpe agachado, beber) — 26 fotogramas hechos de los dibujos de la dueña | **hecho** (los seis vistos en el juego, fotograma a fotograma) |
-| F6 | Arenas con identidad y peligros reales | pendiente |
+| F6 | Arenas con identidad y peligros reales | **parcial** — repisas a 3 m en cinco arenas, atadas a las alturas de cada guardián, y la contradicción de la lava resuelta; lo que no se hizo está dicho en §7 |
 | F7 | Verificación final y documentación | pendiente |
 
 ## 5. Los guardianes (F4)
@@ -106,6 +106,26 @@ La hoja de la dueña tiene doce acciones y el juego pide dieciocho; los seis est
 
 Las anclas de la espada de los tres golpes viajan por las mismas operaciones que los píxeles (`hand_r`, `weapon_grip`, `weapon_tip`, `hit_origin`, `vfx_origin`), así que los efectos del tajo nacen de donde está la hoja. Los tiempos, los bucles y las fases son los que pidió el kit de producción (`art/player/requests/requests.json`) y que la simulación mide (`heroContinuity.test.ts`). **La dueña manda**: si algún día entrega un clip (`npm run assets:intake -- <clip> --accept`), sustituye al derivado y `assets:derive` no lo vuelve a hacer. El atlas del héroe pasa de 837 KB a 1294 KB.
 
-## 7. Cómo se mira
+## 7. Las arenas (F6) — lo que se hizo y lo que NO
+
+**Lo que había.** Diez arenas de 53 a 61 m de suelo entre dos puertas. La Raíz y el Cenagal tenían algo (dos arcos de raíz, una isla de barro); la Cámara del Coloso y las cuatro de la segunda mitad (Corral, Jardín de Esferas, Horno, Trono) eran **un suelo plano**, distintas solo por el fondo de su zona. Y la cabecera de `bossesEmber.ts` decía «las arenas tienen lava en sus bordes» sin que ninguna la tuviera.
+
+**La contradicción, resuelta con una decisión y no con un parche.** No se puso lava en el suelo de la pelea, y la cabecera ahora lo dice. Razones medidas, no supuestas: los guardianes de la segunda mitad se ganan con lo que ya hacen sus ataques en el suelo —las ondas del pisotón del Pastor, la sacudida del salto del Jardinero, el muro contra el que acaba la carga del Behemot (que es su apertura más larga), los géiseres del Soberano—, y un suelo que quema **cambiaría esas reglas** (el muro deja de ser muro, la onda no tiene por dónde correr) y obligaría a reafinar las cuatro peleas que `encountersEmber.test.ts` gana hoy contra un héroe mortal. La lava es **el camino hacia** ellos (todas las salas de aproximación la tienen) y el peligro de la arena es **lo que el guardián hace en el suelo**. Un peligro de adorno no es un peligro.
+
+**Lo que sí se hizo** (datos de sala, `RoomCanvas.plat`, sin tocar IA, ataques ni colisiones del suelo): **repisas a 3 m** pensadas contra los números de cada guardián —
+
+| Arena | Repisas | Para qué |
+|---|---|---|
+| Corral del Pastor | 2 de madera quemada (x 23–30 y 46–53) | por encima del alcance del barrido (2,4 m); esperar el pisotón, cuyas ondas corren por el suelo |
+| Jardín de Esferas | 3 de raíz (19–25, 35–41, 51–57) | estar sobre la sacudida del salto y seguir moviéndose cuando las raíces suben en fila |
+| Horno del Behemot | 2 de basalto (24–30 y 50–56) | fuera de la sacudida del pisotón, y **a la altura de la corteza de su lomo** (2,1–3,4 m) cuando pasa por debajo |
+| Trono de Ceniza | 3 arcos rotos (22–28, 40–46, 58–64) | moverse entre ellos cuando corta por detrás, y a la altura del núcleo (1,4–2,7 m) para quien esté en uno cuando se agota |
+| Cámara del Coloso | 2 de cristal (20–26 y 46–52) | fuera de su pisotón, a la altura del núcleo de su pecho (1,8–3,2 m) cuando giran los postigos |
+
+Comprobado: las auditorías de cada zona (`tests/integration/world/*`), las peleas contra los guardianes (`encounters*.test.ts`: las cuatro de la segunda mitad y la del Coloso se siguen ganando, sin caer) y las arenas **vistas en el juego** (la compilación de producción: cada una con su fondo y sus repisas).
+
+**Lo que NO se hizo, dicho sin adornos:** columnas y rocas que se rompen, elementos interactivos de arena, y cambios de la sala durante la pelea (luz que cambia con la fase, grietas que se abren) —cada uno es una regla nueva que `encountersEmber.test.ts` tendría que volver a ganar y que no se ha afinado—; ni arte nuevo de escenario para las repisas (las dibuja el material de la zona, `charwood`/`basalt`, como cualquier otra). La señal visual de la pelea en curso la dan los propios guardianes (brasas, vapor, auras, el punto débil encendido), no la sala.
+
+## 8. Cómo se mira
 
 `npm run dev` y `?lab=rigs&id=cave_bat` (varias con comas, `all` para todas; `&pick=0,6,8` solo esas poses; `&pose=attack:0.5` una sola; `&crowd=12` una multitud para contar llamadas de dibujo). Cada celda es una pose (el inicio, el medio y el final de cada estado), dibujada por el propio renderizador del juego. La revisión definitiva es **en el juego**: sala real, cámara real (≈ 53 píxeles por metro en un móvil horizontal: una criatura de 0,9 m mide ~48 px, de modo que lo que manda es la silueta, la luz de borde y el halo, y el detalle fino es un premio para el que se acerca).
