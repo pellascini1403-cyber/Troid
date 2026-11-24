@@ -5,6 +5,7 @@ import type { ActorViewState } from '@/presentation/actorViewState';
 import { viewY } from '@/presentation/worldTransform';
 import type { RigAssets } from './kit/assets';
 import { Kit } from './kit/kit';
+import { liftLights } from './kit/lights';
 import { createRigFrame, type RigBody, type RigDef, type RigFrame } from './types';
 
 /** What a rig reads of an entity: the view state every actor has, and — for the bosses — the few extra fields that say what the weak point and the attack are doing. */
@@ -27,7 +28,8 @@ const TICKS = 60;
  * how far through it, the speed) and turns it into the feelings a species animates from (`RigFrame`: the warning building, the blow, the hit, the death); the species' `update` poses its parts. It decides nothing and
  * allocates nothing per frame.
  *
- * Back to front: contact shadow · halo (additive) · the creature (its parts, in centimetres, scaled to metres here and mirrored by the facing).
+ * Back to front: contact shadow · halo (additive) · the creature (its parts, in centimetres, scaled to metres here and mirrored by the facing). In the game the additive things — the halo, the glow of the eyes, the flash of a hit — are drawn in two layers of
+ * their own that all the creatures share (`kit/lights.ts`): the draw calls of a room do not depend on how many creatures are in it.
  */
 export class RigActor implements EntityView {
   readonly root = new Container({ label: 'rig' });
@@ -49,7 +51,7 @@ export class RigActor implements EntityView {
   constructor(
     private readonly def: RigDef,
     private readonly source: RigSource,
-    assets: RigAssets,
+    private readonly assets: RigAssets,
     /** A number in [0, 1) of this one creature (`seedOf(entity.id)`). */
     seed = 0,
   ) {
@@ -79,6 +81,8 @@ export class RigActor implements EntityView {
       this.root.addChild(a);
     } else this.aura = null;
     this.root.addChild(this.stage);
+    // the light is drawn with every other creature's, in the layers the game has for it (see `kit/lights.ts`): what is left here is all one blend mode, and batches
+    if (assets.lights) liftLights(this.root, assets.lights);
   }
 
   /** The art of the zone does not apply to a rig: it is drawn by code. (The call exists because the game offers every creature view its zone's art.) */
@@ -90,9 +94,14 @@ export class RigActor implements EntityView {
     const f = this.frame;
     this.root.visible = src.visible;
     if (!src.visible) return;
-    this.time += dt;
     const x = src.prevX + (src.x - src.prevX) * alpha;
     const y = src.prevY + (src.y - src.prevY) * alpha;
+    // out of view it is not drawn (a draw call each) and not animated: it picks up from where it was, and its clock is the one that did not run
+    if (this.assets.onScreen && !this.assets.onScreen(x, y, Math.max(this.def.width, this.def.height) * 1.3)) {
+      this.root.visible = false;
+      return;
+    }
+    this.time += dt;
     this.root.position.set(x, viewY(y));
     this.root.scale.x = src.facing;
 

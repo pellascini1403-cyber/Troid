@@ -407,6 +407,19 @@ export class Game2D {
     this.lifecycle.add(() => this.playerVisual.dispose());
     const vfxAtlas = createVfxAtlas();
     this.lifecycle.add(() => vfxAtlas.destroy());
+    // the shared pieces the rigs draw with, made once; with the way to ask whether a creature is in view (the camera of the last frame): one that is not costs no draw call
+    const rigAssetsOf = (rigs: RigViews): RigAssets => {
+      if (this.rigAssets) return this.rigAssets;
+      const assets = rigs.createRigAssets(vfxAtlas.frames.glow, undefined, renderer.layers);
+      const at = { x: 0, y: 0 };
+      assets.onScreen = (x, y, reach) => {
+        const vp = renderer.viewport;
+        const p = renderer.worldToScreen(x, y + reach * 0.35, at);
+        const r = reach * vp.ppm * 0.5;
+        return p.x + r > vp.contentX && p.x - r < vp.contentX + vp.contentWidth && p.y + r > vp.contentY && p.y - r < vp.contentY + vp.contentHeight;
+      };
+      return (this.rigAssets = assets);
+    };
     this.lifecycle.add(() => this.rigAssets?.destroy());
     // What is SEEN of a boss is a chunk of its own (the first room has none): the page fetches it with the effects, or at once when a boss is
     // placed before that (a game saved at the shrine of R4 starts in front of one) — and the change of zone toward a boss's room waits for it. A failed fetch is asked for again by the next boss.
@@ -422,7 +435,7 @@ export class Game2D {
         // a creature with its own anatomy (docs/PROMPT24-LOG.md) is drawn by its rig; any other — the Ink Slime, a look that has none yet, a chunk that could not be fetched — by its shapes
         const make = (rigs: RigViews | null): EntityView => {
           const rig = rigs?.RIGS[look.id];
-          if (rigs && rig) return new rigs.RigActor(rig, e as Enemy, (this.rigAssets ??= rigs.createRigAssets(vfxAtlas.frames.glow)), rigs.seedOf(e.id));
+          if (rigs && rig) return new rigs.RigActor(rig, e as Enemy, rigAssetsOf(rigs), rigs.seedOf(e.id));
           const actor = new ProceduralActor(look, e as Enemy, { glow: vfxAtlas.frames.glow });
           // the art of the zone may already be in memory (an enemy that is placed after the room was dressed): it takes the parts at once
           const art = this.roomArtCover?.creatures.get(look.id);
@@ -448,7 +461,7 @@ export class Game2D {
           if (procedural) {
             // a guardian with its own anatomy (docs/PROMPT24-LOG.md) is drawn by its rig, under the same warnings on the floor; any other by its shapes
             const rig = rigs?.RIGS[procedural.id];
-            const actor = rigs && rig ? new rigs.RigActor(rig, e as unknown as RigSource, (this.rigAssets ??= rigs.createRigAssets(vfxAtlas.frames.glow)), rigs.seedOf(e.id)) : undefined;
+            const actor = rigs && rig ? new rigs.RigActor(rig, e as unknown as RigSource, rigAssetsOf(rigs), rigs.seedOf(e.id)) : undefined;
             const boss = new m.BossView(e as unknown as BossLike, procedural, { glow: vfxAtlas.frames.glow, marks: look, ...(actor ? { actor } : {}) });
             // (its art is an ink creature's, in parts: the zone may already hold it)
             const art = this.roomArtCover?.creatures.get(procedural.id);
@@ -704,10 +717,11 @@ export class Game2D {
   private requestRigViews(): Promise<RigViews> {
     return (this.rigViewsRequest ??= import('./rigs').then(
       (m) => {
-        // the rigs are meshes, and a production renderer has no pipe for them until the rigs' own chunk puts it there: without one the creatures keep their shapes
-        if (!m.ensureMeshPipe(this.renderer.app.renderer)) throw new Error('this renderer cannot draw meshes');
-        if (!this.closed) this.rigViews = m;
-        return m;
+        // the rigs are meshes, and a production renderer has no pipe for them until the rigs' own chunk puts it there; a renderer that cannot draw meshes at all (the canvas fallback) gets the module with
+        // no rigs in it: every creature keeps its shapes, and the chunk still counts as arrived
+        const views: RigViews = m.ensureMeshPipe(this.renderer.app.renderer) ? m : { ...m, RIGS: {} };
+        if (!this.closed) this.rigViews = views;
+        return views;
       },
       (err: unknown) => {
         this.rigViewsRequest = null;

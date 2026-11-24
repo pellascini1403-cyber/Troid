@@ -36,6 +36,7 @@ import type { RigDef } from './types';
 
 export { RigActor, type RigSource } from './RigActor';
 export { createRigAssets, ensureMeshPipe, type RigAssets } from './kit/assets';
+export { createLights, liftLights, type Lights, type LightStage } from './kit/lights';
 export { seedOf } from './kit/motion';
 export type { RigBody, RigDef, RigFrame } from './types';
 

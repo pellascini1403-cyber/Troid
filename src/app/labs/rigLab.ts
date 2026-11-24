@@ -15,6 +15,7 @@ import { createRigAssets, ensureMeshPipe, RIGS, RigActor, type RigDef } from '@/
  *   ?pick=0,6,8,11          only these poses of the sheet (by index)
  *   ?cols=6                 poses per row · ?vh=3.4 visible height in metres · ?pose=attack:0.5 a single pose, big
  *   ?crowd=12               a crowd of the species at the middle of its idle, to count draw calls
+ *   ?lights=0               the light drawn where each creature builds it, not in the layers the game draws it in (to see what they change)
  *
  * `window.__rigs` lets a test move the lab clock and read the draw calls.
  */
@@ -97,7 +98,8 @@ export async function startRigLab(host: HTMLElement, params: URLSearchParams): P
   ensureMeshPipe(r.app.renderer);
   const L = r.layers;
   const atlas = createVfxAtlas();
-  const assets = createRigAssets(atlas.frames.glow);
+  // (`&lights=0`: the light where each creature builds it, the way it was drawn before the layers — to see what the layers change)
+  const assets = createRigAssets(atlas.frames.glow, undefined, params.get('lights') === '0' ? undefined : L);
 
   const floor = new Graphics();
   L.terrain.addChild(floor);

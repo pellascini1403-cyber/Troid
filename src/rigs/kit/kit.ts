@@ -1,7 +1,14 @@
 import { Container, Graphics, GraphicsContext, Mesh, MeshGeometry, Sprite } from 'pixi.js';
 import type { RampName, RigAssets, ShapeEntry } from './assets';
 import type { Pt } from './geometry';
+import { liftFlash } from './lights';
 import { LIGHT_UP, Pen } from './paint';
+
+/** Pixi batches a mesh only while it has 100 vertices or fewer (`batchMode: 'auto'`); a ribbon, a membrane or a cloth has more, and every one of them would be a draw call of its own and a break in the batch around it. They are all small and share their ramps: batched. */
+function batchedGeometry(g: MeshGeometry): MeshGeometry {
+  g.batchMode = 'batch';
+  return g;
+}
 
 /** Anything that can be flashed white-hot when the creature is hit. */
 export interface Flashable {
@@ -47,6 +54,7 @@ export class Part extends Container implements Flashable {
       this.flashG = new Graphics(this.entry.flash);
       this.flashG.blendMode = 'add';
       this.addChild(this.flashG);
+      liftFlash(this.assets.lights, this.flashG);
     }
     this.flashG.visible = true;
     this.flashG.alpha = Math.min(1, a);
@@ -112,7 +120,7 @@ export class Ribbon extends Container implements Flashable {
           q += 6;
         }
       }
-      return new MeshGeometry({ positions: new Float32Array(n * 4 * this.count), uvs: new Float32Array(n * 4 * this.count), indices });
+      return batchedGeometry(new MeshGeometry({ positions: new Float32Array(n * 4 * this.count), uvs: new Float32Array(n * 4 * this.count), indices }));
     };
     this.geo = strip();
     this.underGeo = spec.edge ? strip() : null;
@@ -228,6 +236,7 @@ export class Ribbon extends Container implements Flashable {
       this.flashM.tint = 0xffffff;
       this.flashM.blendMode = 'add';
       this.addChild(this.flashM);
+      liftFlash(this.assets.lights, this.flashM);
     }
     this.flashM.visible = true;
     this.flashM.alpha = Math.min(1, a);
@@ -273,7 +282,7 @@ export class Patch extends Container implements Flashable {
     }
     const indices = new Uint32Array(n * 3);
     for (let i = 0; i < n; i++) indices.set([0, 1 + i, 1 + ((i + 1) % n)], i * 3);
-    this.geo = new MeshGeometry({ positions: new Float32Array((n + 1) * 2), uvs, indices });
+    this.geo = batchedGeometry(new MeshGeometry({ positions: new Float32Array((n + 1) * 2), uvs, indices }));
     this.mesh = new Mesh({ geometry: this.geo, texture: assets.ramp(spec.ramp ?? 'fade') });
     this.mesh.tint = spec.color;
     if (spec.alpha !== undefined) this.mesh.alpha = spec.alpha;
@@ -316,6 +325,7 @@ export class Patch extends Container implements Flashable {
       this.flashM.tint = 0xffffff;
       this.flashM.blendMode = 'add';
       this.addChild(this.flashM);
+      liftFlash(this.assets.lights, this.flashM);
     }
     this.flashM.visible = true;
     this.flashM.alpha = Math.min(1, a);
@@ -373,7 +383,7 @@ export class Cloth extends Container implements Flashable {
         q += 6;
       }
     }
-    this.geo = new MeshGeometry({ positions: new Float32Array(vx * vy * 2), uvs, indices });
+    this.geo = batchedGeometry(new MeshGeometry({ positions: new Float32Array(vx * vy * 2), uvs, indices }));
     this.mesh = new Mesh({ geometry: this.geo, texture: assets.ramp(spec.ramp ?? 'vert') });
     this.mesh.tint = spec.color;
     if (spec.alpha !== undefined) this.mesh.alpha = spec.alpha;
@@ -405,6 +415,7 @@ export class Cloth extends Container implements Flashable {
       this.flashM.tint = 0xffffff;
       this.flashM.blendMode = 'add';
       this.addChild(this.flashM);
+      liftFlash(this.assets.lights, this.flashM);
     }
     this.flashM.visible = true;
     this.flashM.alpha = Math.min(1, a);

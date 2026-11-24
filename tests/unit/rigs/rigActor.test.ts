@@ -119,6 +119,59 @@ describe('every rig of the game', () => {
         actor.destroy();
       });
 
+      it('every mesh of it is batched (a ribbon, a membrane or a cloth over a hundred vertices would be a draw call of its own)', () => {
+        const { actor } = make(def);
+        const loose: string[] = [];
+        const walk = (n: Container, path: string): void => {
+          if (n instanceof Mesh && n.geometry.batchMode !== 'batch') loose.push(`${path} (${n.geometry.batchMode})`);
+          n.children.forEach((c, i) => walk(c as Container, `${path}/${c.label || i}`));
+        };
+        walk(actor.root, def.id);
+        expect(loose).toEqual([]);
+        actor.destroy();
+      });
+
+      it('out of view it is not drawn and its clock does not run; back in view it takes up from where it was', () => {
+        const a = assets();
+        let inView = false;
+        const asked: Array<[number, number, number]> = [];
+        a.onScreen = (x, y, reach) => {
+          asked.push([x, y, reach]);
+          return inView;
+        };
+        const { actor, view } = make(def, a);
+        Object.assign(view, { prevX: 10, prevY: 1, x: 12, y: 3, facing: 1 });
+        actor.sync(0.5, 1 / 60);
+        // asked about the interpolated place, with a reach that covers the whole creature
+        expect(asked).toHaveLength(1);
+        expect(asked[0]![0]).toBeCloseTo(11, 9);
+        expect(asked[0]![1]).toBeCloseTo(2, 9);
+        expect(asked[0]![2]).toBeGreaterThanOrEqual(Math.max(def.width, def.height));
+        expect(actor.root.visible).toBe(false);
+        const placed = { x: actor.root.position.x, y: actor.root.position.y };
+        for (let i = 0; i < 30; i++) actor.sync(0.5, 1 / 60);
+        expect(actor.root.visible).toBe(false);
+        // it was not moved either: nothing of it is touched while it is out of view
+        expect(actor.root.position.x).toBe(placed.x);
+        expect(actor.root.position.y).toBe(placed.y);
+        inView = true;
+        actor.sync(0.5, 1 / 60);
+        expect(actor.root.visible).toBe(true);
+        expect(actor.root.position.x).toBeCloseTo(11, 9);
+        expect(badNumbers(actor.root)).toEqual([]);
+        actor.destroy();
+      });
+
+      it('with no way to ask whether it is in view (the lab, a test) it is always drawn', () => {
+        const a = assets();
+        expect(a.onScreen).toBeNull();
+        const { actor, view } = make(def, a);
+        Object.assign(view, { prevX: 1e6, prevY: 1e6, x: 1e6, y: 1e6 });
+        actor.sync(1, 1 / 60);
+        expect(actor.root.visible).toBe(true);
+        actor.destroy();
+      });
+
       it('shares its geometry between the creatures of its species: a second one builds no new shape', () => {
         const a = assets();
         const first = make(def, a);

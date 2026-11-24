@@ -107,12 +107,14 @@ export const touch: Scenario = {
     // ================================================================== crouch: drag down (and the hysteresis on the way up)
     await screen.touch(1, ZX, 250);
     await screen.drag(1, 0, 34, 6, 30); // slow: a crouch, never a drop
+    await frames(page, 3); // (the page receives a finger's moves on its own frames: stepping before the last one arrives would read the finger where it was a move ago)
     await ctx.step(8);
     s = await ctx.state();
     assert.equal(s.crouched, true, 'dragging down crouches');
     assert.equal(s.bodyHeight, 1.0);
     await ctx.shot('04-crouch');
     await screen.drag(1, 0, -20, 4, 20); // 14 dp below the origin: ay -0.32, past the -0.4 of the hysteresis
+    await frames(page, 3); // (…and with the last of the four moves not yet delivered the finger is 19 dp below it, ay -0.44: still crouched — which is how this failed on a slow frame, with no change to the game)
     await ctx.step(8);
     s = await ctx.state();
     assert.equal(s.crouched, false, 'bringing the finger back up stands again');

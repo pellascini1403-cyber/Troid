@@ -1,5 +1,6 @@
 import { GraphicsContext, MeshPipe, Texture, type Renderer } from 'pixi.js';
 import { createCanvas } from '@/assets/proceduralTextures';
+import { createLights, type LightStage, type Lights } from './lights';
 import type { Pen } from './paint';
 
 /**
@@ -26,6 +27,13 @@ export interface RigAssets {
   ramp(name: RampName): Texture;
   /** The geometry of a shape, built by `make` the first time it is asked for and shared by every creature that draws it. */
   shape(key: string, make: (ctx: GraphicsContext, silhouette: SilhouetteOp[]) => void): ShapeEntry;
+  /**
+   * Whether a creature at `(x, y)` metres that reaches `reach` metres is on screen now. One that is not is neither drawn nor animated — the draw calls of a room are what is in view, not what the room holds (a hundred and thirty metres of gauntlet
+   * with a dozen creatures in it drew 68 calls against a budget of 60). The game sets it; the lab leaves it `null` and everything is on screen.
+   */
+  onScreen: ((x: number, y: number, reach: number) => boolean) | null;
+  /** The two layers the light of every creature is drawn in (`kit/lights.ts`), or `null` (the lab and the tests may draw it where it is built: nothing changes but the number of draw calls). */
+  readonly lights: Lights | null;
   destroy(): void;
 }
 
@@ -95,13 +103,16 @@ function paintRamp(name: RampName): Texture {
   return Texture.from(canvas);
 }
 
-/** The rigs' shared assets. `ramps` lets a test (no 2D canvas) hand over the textures instead of painting them. */
-export function createRigAssets(glow: Texture, ramps?: (name: RampName) => Texture): RigAssets {
+/** The rigs' shared assets. `ramps` lets a test (no 2D canvas) hand over the textures instead of painting them; `stage`, where the scene is, puts the light layers in it (without it the light is drawn where it is built). */
+export function createRigAssets(glow: Texture, ramps?: (name: RampName) => Texture, stage?: LightStage): RigAssets {
   const made = new Map<RampName, Texture>();
+  const lights = stage ? createLights(stage) : null;
   const shapes = new Map<string, ShapeEntry>();
   const own: Texture[] = [];
   return {
     glow,
+    onScreen: null,
+    lights,
     ramp(name) {
       let t = made.get(name);
       if (!t) {
@@ -125,6 +136,7 @@ export function createRigAssets(glow: Texture, ramps?: (name: RampName) => Textu
       return e;
     },
     destroy() {
+      lights?.destroy();
       for (const e of shapes.values()) {
         e.ctx.destroy();
         e.flash?.destroy();

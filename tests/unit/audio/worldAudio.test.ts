@@ -13,6 +13,8 @@ import { Driver, makeSession } from '../../helpers/sim';
  * a move of the hero that makes no sound, a sound that is asked for and was never loaded, a world that does not fit in the memory of a phone.
  */
 const MEMORY_MIB = 52;
+/** The two tests that walk all 108 rooms take about 5 s on a quiet machine — the whole of Vitest's default timeout — and on a loaded CI runner they were the ones that ran out of it (CI run 142). A time limit that says what the test is. */
+const WHOLE_WORLD_MS = 60_000;
 const ARENAS = WORLD.rooms.filter((id) => (ROOMS[id]!.bosses ?? []).length > 0);
 
 describe('the whole world, room by room', () => {
@@ -37,7 +39,7 @@ describe('the whole world, room by room', () => {
     }
     expect(problems).toEqual([]);
     expect(worst.mib, `the most that is ever in memory (at ${worst.room}), in MiB`).toBeLessThan(MEMORY_MIB);
-  });
+  }, WHOLE_WORLD_MS);
 
   it('every room is heard as it is: the small sounds that play are its own, and every one it asks for was in memory', async () => {
     const g = await game();
@@ -52,7 +54,7 @@ describe('the whole world, room by room', () => {
     expect(problems).toEqual([]);
     expect(g.rig.engine.stats().dropped.notLoaded, 'nothing the places play was missing from memory').toBe(0);
     expect(g.rig.engine.stats().dropped.unknown).toBe(0);
-  });
+  }, WHOLE_WORLD_MS);
 });
 
 describe('the eleven fights', () => {
