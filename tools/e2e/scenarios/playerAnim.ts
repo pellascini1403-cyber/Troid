@@ -217,10 +217,10 @@ export const playerAnim: Scenario = {
     combo.push(...(await run(ctx, 9)));
     combo.push(...(await tap(ctx, 'KeyJ'))); // inside the cancel window of the first: the second blow
     combo.push(...(await run(ctx, 40)));
-    // the second blow has no drawing of its own: the engine repeats the first blow's (its declared stand-in), so both are asserted against the same clip
+    // the second blow has a clip of its own now (made from the first one's drawings, `npm run assets:derive`): each blow is asserted against its own
     for (const [state, from] of [['attack', seq], ['attack2', combo]] as const) {
       const clip = drawnWith(state)!;
-      assert.equal(clip, 'attack1', `${state} is drawn by the first blow's clip`);
+      assert.equal(clip, state === 'attack' ? 'attack1' : 'attack2', `${state} is drawn by its own clip`);
       const blow = from.filter((x) => x.anim === state);
       assert.ok(blow.length > 0, `the ${state} happened (${collapse(from.map((x) => x.anim)).join(' → ')})`);
       drawnByItsClip(blow, state);

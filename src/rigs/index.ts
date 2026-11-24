@@ -35,7 +35,7 @@ import { VEIL_SHADE_RIG } from './species/veilShade';
 import type { RigDef } from './types';
 
 export { RigActor, type RigSource } from './RigActor';
-export { createRigAssets, type RigAssets } from './kit/assets';
+export { createRigAssets, ensureMeshPipe, type RigAssets } from './kit/assets';
 export { seedOf } from './kit/motion';
 export type { RigBody, RigDef, RigFrame } from './types';
 

@@ -29,10 +29,10 @@ const ROOM = 'room=movement_test&unlock=dash';
 const SIZE = { width: 844, height: 390, dpr: 1 };
 const REQUIRED = ['idle', 'walk', 'jump', 'fall', 'dash', 'attack1', 'attack2', 'attackAir', 'crouch', 'attackCrouch', 'hurt', 'death', 'cast', 'drink', 'interact'];
 const PROVIDED = ['attack1', 'idle', 'walk'];
-/** The states of the game the user's character sheet has no drawing for (the engine's names): NOT declared in the manifest — the placeholder draws them, and the second blow repeats the first's drawing (its declared stand-in). */
+/** The states of the game the user's character sheet has no drawing for (the engine's names): made from the sheet's drawings (`npm run assets:derive`, docs/PROMPT24-LOG.md F5) and declared in the manifest as `derived`. */
 const NOT_IN_THE_SHEET = ['attack2', 'attackAir', 'crouch', 'attackCrouch', 'drink'];
-/** …and the states of the simulation the placeholder draws with the art on the hero (the second blow is drawn by the art, with the first blow's clip). */
-const DRAWN_BY_THE_PLACEHOLDER = ['attackAir', 'crouch', 'crouchWalk', 'attackCrouch', 'drink'];
+/** …and the states of the simulation the placeholder draws with the art on the hero: none — the art draws all of them, and the placeholder is only the way back. */
+const DRAWN_BY_THE_PLACEHOLDER: string[] = [];
 
 const open = (ctx: Ctx, fixture: Fixture | null, query = ''): Promise<void> =>
   ctx.open(`${ROOM}${query ? `&${query}` : ''}&art=${fixture ? 'art-test' : ''}`, { ...SIZE, prepare: async (context: BrowserContext) => (fixture ? fixture.serve(context, 'art-test') : undefined) });
@@ -303,12 +303,12 @@ export const playerArt: Scenario = {
 
     // ======================================================================================================= E · the art OF THE REPOSITORY, as a player gets it by opening the game
     // No fixture, no `?art=`: the page reads the folder the build found in `public/art` — the protagonist made from the user's own character sheet (docs/PROMPT16-LOG.md).
-    // Here the hero is judged where it is meant to be seen: drawn by the art in every state the sheet has a drawing for, on the ground, the sword in the hand — and by the placeholder, whole, in the five it has none for.
+    // Here the hero is judged where it is meant to be seen: drawn by the art in every state the sheet has a drawing for, on the ground, the sword in the hand — and, in the six the sheet has none for, by the clips made from its drawings; the placeholder is the way back.
     await ctx.open(ROOM, SIZE);
     let s = await waitFor(ctx, 'the repository\'s art on the hero', (x) => x.visual?.art === 'player/hero');
-    assert.deepEqual([...s.visual!.lacks].sort(), [...NOT_IN_THE_SHEET].sort(), 'what is left to the placeholder is what the sheet has no drawing for: five of the fifteen states, and no more');
-    for (const clip of REQUIRED.filter((c) => !NOT_IN_THE_SHEET.includes(c))) assert.ok(s.visual!.provides.includes(clip), `the set has a clip for ${clip}`);
-    for (const clip of NOT_IN_THE_SHEET) assert.ok(!s.visual!.provides.includes(clip), `${clip} is not declared: no clip of another action is passed off as it`);
+    assert.deepEqual([...s.visual!.lacks].sort(), [], 'nothing is left to the placeholder: the six states the sheet has no drawing for are made from its drawings (the clips tagged `derived`)');
+    for (const clip of REQUIRED) assert.ok(s.visual!.provides.includes(clip), `the set has a clip for ${clip}`);
+    for (const clip of NOT_IN_THE_SHEET) assert.ok(s.visual!.provides.includes(clip), `${clip} is declared: made from the sheet's drawings, with frames of its own`);
     assert.ok(s.visual!.provides.includes('land') && s.visual!.provides.includes('run'), 'the landing and the run, which the sheet has a drawing for, are declared too');
     const lib = s.art!;
     // the library lists the packs of the index: the protagonist, and the five of the scenery of the ruins (S45–S48: they are `zone` packs, read when the hero is in their rooms), the boss and the slime, the light of the effects (S52: two `boot` packs), the parts the ruins share (the shrine, the vessel, the rune, the sigil, the split stone, the lever) and the ten zones that came after them (docs/PROMPT23-LOG.md §5, §7: six of the first half, four of the second)
@@ -365,7 +365,7 @@ export const playerArt: Scenario = {
       for (const f of shown) assert.match(f, new RegExp(`^${state}_0[0-${count - 1}]$`), `${state} is drawn by the art's ${state} clip (${f})`);
     }
 
-    // the blow: the sword is in the hand in every frame of it, pointing forward (the air blow and the crouch blow have no drawing: the placeholder, whole)
+    // the blow: the sword is in the hand in every frame of it, pointing forward (the air blow and the crouch blow are the clips made from the first blow's drawings)
     await ctx.page.keyboard.down('KeyJ');
     await ctx.step(1);
     await ctx.page.keyboard.up('KeyJ');
@@ -388,7 +388,8 @@ export const playerArt: Scenario = {
     s = await ctx.state();
     watch(s);
     assert.equal(s.anim, 'crouch');
-    assert.equal(s.visual!.shows, 'placeholder', 'the sheet has no crouch: the placeholder draws it — not the standing figure bent, not a frame of another action');
+    assert.equal(s.visual!.shows, 'art', 'the crouch is drawn by the art: the clip made from the sheet\'s own crouched drawing (the landing), not the placeholder');
+    assert.match(s.sprite!.frame ?? '', /^crouch_0[01]$/, 'a frame of the crouch');
     // and the body is the crouched one (the placeholder's picture is its own canvas, not a measure of the pose): the simulation is what it always was
     assert.equal(s.crouched, true);
     assert.equal(s.bodyHeight, 1.0, 'the crouched body');
@@ -400,7 +401,7 @@ export const playerArt: Scenario = {
       await ctx.step(1);
       const x = await ctx.state();
       watch(x);
-      if (x.anim === 'attackCrouch') assert.equal(x.visual!.shows, 'placeholder', 'the blow from the crouch has no drawing: the placeholder');
+      if (x.anim === 'attackCrouch') assert.equal(x.visual!.shows, 'art', 'the blow from the crouch is drawn by the art: the clip made from the first blow\'s drawings, the body brought down');
     }
     await ctx.page.keyboard.up('KeyS');
     await ctx.step(30);

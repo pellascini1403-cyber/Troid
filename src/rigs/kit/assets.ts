@@ -1,4 +1,4 @@
-import { GraphicsContext, Texture } from 'pixi.js';
+import { GraphicsContext, MeshPipe, Texture, type Renderer } from 'pixi.js';
 import { createCanvas } from '@/assets/proceduralTextures';
 import type { Pen } from './paint';
 
@@ -135,4 +135,19 @@ export function createRigAssets(glow: Texture, ramps?: (name: RampName) => Textu
       made.clear();
     },
   };
+}
+
+/**
+ * THE MESH PIPE (docs/PROMPT24-LOG.md, F7). The renderer is made with `skipExtensionImports` — the cold start does not carry what the game does not draw with — and a PRODUCTION build then has no pipe for a `Mesh`: the ribbons, the membranes and the cloths of the
+ * rigs are meshes, so the first one in view made a frame fail ("Cannot read properties of undefined (reading 'validateRenderable')"). (A dev server loads every Pixi extension, which is why the lab and the first reviews never saw it.) The pipe is added here, by the
+ * rigs' own chunk, once it has arrived — a pipe registered after the renderer exists is not built into it, so it is built into it by hand, the way the renderer builds its own. Returns whether the renderer can draw meshes: with a renderer that has no adaptor for
+ * them (the canvas fallback) the rigs are not used and the creatures keep their shapes.
+ */
+export function ensureMeshPipe(renderer: Renderer): boolean {
+  const r = renderer as unknown as { renderPipes: Record<string, unknown>; config?: { renderPipeAdaptors?: Array<{ name: string }> }; _addPipes?: (pipes: unknown[], adaptors: unknown[]) => void };
+  if (r.renderPipes['mesh']) return true;
+  const adaptors = r.config?.renderPipeAdaptors;
+  if (!adaptors?.some((a) => a.name === 'mesh') || typeof r._addPipes !== 'function') return false;
+  r._addPipes([{ name: 'mesh', value: MeshPipe }], adaptors);
+  return true;
 }

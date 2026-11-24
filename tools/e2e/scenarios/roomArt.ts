@@ -89,7 +89,9 @@ const engineBossOf = (ctx: Ctx): Promise<{ found: boolean; shapes: number; sprit
     const find = (c, label) => (c.label === label ? c : (c.children || []).map((k) => find(k, label)).find(Boolean));
     const root = find(window.__troid.game.renderer.layers.actors, 'boss');
     if (!root) return { found: false, shapes: 0, sprites: 0 };
-    const actor = find(root, 'procedural');
+    // (a guardian of the engine is drawn by its rig, labelled rig, since docs/PROMPT24-LOG.md F4; one without a rig by its shapes, labelled procedural)
+    const actor = find(root, 'rig') || find(root, 'procedural');
+    if (!actor) return { found: false, shapes: 0, sprites: 0 };
     const all = (c) => [c, ...(c.children || []).flatMap(all)];
     const nodes = all(actor).filter((c) => c !== actor);
     return { found: true, shapes: nodes.filter((c) => c.renderPipeId === 'graphics' && c.visible).length, sprites: nodes.filter((c) => c.renderPipeId === 'sprite').length };
@@ -529,8 +531,9 @@ export const roomArt: Scenario = {
         dressed = await engineBossOf(ctx);
       }
       assert.equal(dressed.found, true, 'the Root Tyrant has a view');
-      assert.equal(dressed.shapes, 0, 'drawn by the parts of its art: none of its shapes is on');
-      assert.ok(dressed.sprites >= 8, `and its parts are there: pool, body, bristle, sigil, eyes, flash and the soft lights (${dressed.sprites} sprites)`);
+      // since F4 it is drawn by its own rig (a trunk, a face, branch arms, a heart behind doors): parts of art delivered for its look do not replace the rig — none has been delivered, the synthetic ones here are noise
+      assert.ok(dressed.shapes >= 3, `drawn by its rig: the shapes of its anatomy are on (${dressed.shapes})`);
+      assert.ok(dressed.sprites >= 2, `with the soft lights of its eyes and its heart (${dressed.sprites} sprites)`);
       await ctx.shot('k-00-the-tyrant-with-art');
     } finally {
       tyrant.cleanup();

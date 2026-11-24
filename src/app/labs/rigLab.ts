@@ -5,7 +5,7 @@ import { createActorViewState, type ActorViewState } from '@/presentation/actorV
 import { PALETTE } from '@/presentation/palette';
 import type { AnimPhase, AnimState } from '@/presentation/vocabulary';
 import { Renderer2D } from '@/render/Renderer2D';
-import { createRigAssets, RIGS, RigActor, type RigDef } from '@/rigs';
+import { createRigAssets, ensureMeshPipe, RIGS, RigActor, type RigDef } from '@/rigs';
 
 /**
  * Rig lab (`?lab=rigs`): the creatures' rigs, looked at without playing (docs/PROMPT24-LOG.md). Every species is drawn by the game's own renderer on a flat floor, one pose per cell — every animation at the start, the middle and the end of its
@@ -94,6 +94,7 @@ export async function startRigLab(host: HTMLElement, params: URLSearchParams): P
   const counter = new DrawCallCounter();
   DrawCallCounter.install(counter);
   const r = await Renderer2D.create({ host, viewHeight: vh, tier: 'high' });
+  ensureMeshPipe(r.app.renderer);
   const L = r.layers;
   const atlas = createVfxAtlas();
   const assets = createRigAssets(atlas.frames.glow);

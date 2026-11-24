@@ -461,7 +461,10 @@ export class Game2D {
           if (art) view.dress(art);
           return view;
         };
-        return this.bossViews && this.rigViews ? make(this.bossViews, this.rigViews)() : new LateView(Promise.all([loadBossViews(), this.requestRigViews().catch(() => null)]).then(([m, rigs]) => make(m, rigs)));
+        // only a guardian of the engine has a rig to wait for: the Warden's view (the art's parts) is made the moment the boss views are in, as it always was
+        const gdef = (e as Guardian | Boss).def;
+        const wantsRig = 'phases' in gdef && PROCEDURAL_LOOKS[gdef.view.lookId] !== undefined;
+        return this.bossViews && (!wantsRig || this.rigViews) ? make(this.bossViews, this.rigViews)() : new LateView(Promise.all([loadBossViews(), wantsRig ? this.requestRigViews().catch(() => null) : Promise.resolve(null)]).then(([m, rigs]) => make(m, rigs)));
       },
     }, renderer.layers.fxWorld);
     this.entityViews.attach(this.session.bus, this.session.entities); // the first room's enemies already exist
@@ -701,6 +704,8 @@ export class Game2D {
   private requestRigViews(): Promise<RigViews> {
     return (this.rigViewsRequest ??= import('./rigs').then(
       (m) => {
+        // the rigs are meshes, and a production renderer has no pipe for them until the rigs' own chunk puts it there: without one the creatures keep their shapes
+        if (!m.ensureMeshPipe(this.renderer.app.renderer)) throw new Error('this renderer cannot draw meshes');
         if (!this.closed) this.rigViews = m;
         return m;
       },
