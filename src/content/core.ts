@@ -1,11 +1,12 @@
 import type { EnemyDefinition } from '@/enemies/EnemyDefinition';
 import type { GuardianDefinition } from '@/enemies/GuardianDefinition';
 import type { BossDefinition } from '@/enemies/boss/BossDefinition';
+import type { ProceduralLook } from '@/presentation/proceduralPose';
 import type { RoomDefinition } from '@/world/RoomDefinition';
 import { ABILITIES } from './abilities';
 import { INK_SLIME } from './inkSlime';
 import { PLAYER } from './player';
-import { PROCEDURAL_LOOKS } from './proceduralActors';
+import { INK_SLIME_LOOK } from './slimeLook';
 import { CROUCH_TEST_ROOM } from './rooms/crouchTest';
 import { INTERACTION_TEST_ROOM } from './rooms/interactionTest';
 import { MOVEMENT_TEST_ROOM } from './rooms/movementTest';
@@ -34,6 +35,12 @@ export const ROOMS: Record<string, RoomDefinition> = {
   [CROUCH_TEST_ROOM.id]: CROUCH_TEST_ROOM,
   [INTERACTION_TEST_ROOM.id]: INTERACTION_TEST_ROOM,
 };
+
+/** The procedural looks creatures are drawn by, by id: the Ink Slime's (the creatures of the rest of the world and the guardians bring theirs with `beyond.ts`: the first frame needs one look, not twenty). */
+const PROCEDURAL_LOOKS: Record<string, ProceduralLook> = { [INK_SLIME_LOOK.id]: INK_SLIME_LOOK };
+
+/** Is this look the Ink Slime's: the one creature of the first frame, drawn at once (every other waits for the code of its rig, or goes without it)? */
+export const isCoreLook = (id: string): boolean => id === INK_SLIME_LOOK.id;
 
 /** The enemies a room's `spawns` may name, by id: the Ink Slime of the first rooms (the creatures of the rest are added by `beyond.ts`). */
 export const ENEMIES: Record<string, EnemyDefinition> = { [INK_SLIME.id]: INK_SLIME };

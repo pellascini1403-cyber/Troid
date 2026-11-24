@@ -1,11 +1,11 @@
 import '@/enemies/archetypes/all';
 import '@/enemies/boss/engine';
-import { BOSSES, ENEMIES, ROOMS } from './core';
+import { BOSSES, ENEMIES, PROCEDURAL_LOOKS, ROOMS } from './core';
 import { ENGINE_BOSSES } from './bosses';
 import { EMBER_BOSSES } from './bossesEmber';
 import { CREATURES } from './creatures';
 import { EMBER_CREATURES } from './creaturesEmber';
-import { PROCEDURAL_LOOKS } from './proceduralActors';
+import { PROCEDURAL_LOOKS as CREATURE_LOOKS } from './proceduralActors';
 import { EMBER_LOOKS } from './proceduralEmber';
 import { CRATER_ROOMS } from './rooms/crater';
 import { DUSK_ROOMS } from './rooms/dusk';
@@ -36,7 +36,8 @@ Object.assign(
 );
 Object.assign(ENEMIES, Object.fromEntries(CREATURES.map((c) => [c.id, c])));
 Object.assign(BOSSES, ENGINE_BOSSES);
-// the creatures that burn, their four guardians and their looks
+// the looks of the creatures after the slime and of the guardians of the first half, and then the creatures that burn, their four guardians and their looks
+Object.assign(PROCEDURAL_LOOKS, CREATURE_LOOKS);
 Object.assign(ENEMIES, Object.fromEntries(EMBER_CREATURES.map((c) => [c.id, c])));
 Object.assign(BOSSES, EMBER_BOSSES);
 Object.assign(PROCEDURAL_LOOKS, EMBER_LOOKS);

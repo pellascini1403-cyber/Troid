@@ -177,7 +177,7 @@ function hostOf(game: Game2D, shared: HookShared): HookHost {
     counter: game['counter'],
     shakes: game['shakes'],
     effects: () => game['effects'],
-    cosmeticsReady: () => game['effects'] !== null && game['bossViews'] !== null && game['overlays'] !== null && game['audio'] !== null,
+    cosmeticsReady: () => game['effects'] !== null && game['bossViews'] !== null && game['rigViews'] !== null && game['overlays'] !== null && game['audio'] !== null,
     art: () => game['art'],
     visualLacks: () => {
       const set = game['playerVisual'].artSet;

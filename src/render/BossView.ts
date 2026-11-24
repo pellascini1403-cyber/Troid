@@ -18,10 +18,15 @@ export interface BossLike {
   readonly floorY: number;
 }
 
+/** What draws the body of a guardian: its shapes (`ProceduralActor`) or, when it has its own anatomy, a rig (docs/PROMPT24-LOG.md). */
+export type BossActor = EntityView & { dress(art: CreatureArt | null): void };
+
 export interface BossViewOptions {
   glow: Texture;
   /** The shapes of the light the warnings on the floor are painted with. */
   marks: MarkShapes;
+  /** What draws the body (default: the shapes of its look). The warnings on the floor are the view's, whoever draws the body. */
+  actor?: BossActor;
 }
 
 /**
@@ -30,7 +35,7 @@ export interface BossViewOptions {
  */
 export class BossView implements EntityView {
   readonly root = new Container({ label: 'boss' });
-  private readonly actor: ProceduralActor;
+  private readonly actor: BossActor;
   private readonly marks: GuardianMarks;
   private time = 0;
 
@@ -39,7 +44,7 @@ export class BossView implements EntityView {
     look: ProceduralLook,
     options: BossViewOptions,
   ) {
-    this.actor = new ProceduralActor(look, source, { glow: options.glow });
+    this.actor = options.actor ?? new ProceduralActor(look, source, { glow: options.glow });
     this.marks = new GuardianMarks(options.marks);
     this.root.addChild(this.marks.root, this.actor.root);
   }

@@ -37,6 +37,10 @@ async function start(into: HTMLElement): Promise<void> {
     // The Ink Slime's procedural poses and its wind-up warning (docs/MIGRATION-2D.md S9).
     const { startSlimeLab } = await import('./labs/slimeLab');
     await startSlimeLab(into, params);
+  } else if (lab === 'rigs') {
+    // The creatures' articulated rigs, looked at without playing: a sheet of poses per species, drawn by the game's own renderer (docs/PROMPT24-LOG.md).
+    const { startRigLab } = await import('./labs/rigLab');
+    await startRigLab(into, params);
   } else if (lab === 'stress') {
     // Render-budget benchmark (docs/MIGRATION-2D.md S1): 800+ animated sprites, parallax layers, a filter, particles.
     const { startStressLab } = await import('./labs/stressLab');

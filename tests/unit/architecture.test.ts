@@ -21,7 +21,7 @@ const PURE_MODULES = new Set([
   'save', 'i18n', 'input', 'camera', 'content',
 ]);
 /** Modules that are view / platform by default. */
-const VIEW_MODULES = new Set(['render', 'vfx', 'ui', 'audio', 'assets', 'debug', 'app']);
+const VIEW_MODULES = new Set(['render', 'vfx', 'ui', 'audio', 'assets', 'debug', 'app', 'rigs']);
 
 /** Files inside otherwise-pure modules that belong to the view / platform layer. */
 function isViewFile(rel: string): boolean {

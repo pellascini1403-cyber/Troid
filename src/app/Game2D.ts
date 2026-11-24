@@ -5,7 +5,7 @@ import { createVfxAtlas, type VfxAtlas } from '@/assets/vfxAtlas';
 import { CAMERA_2D } from '@/camera/camera2d';
 import { resolveCameraView, type CameraView } from '@/camera/cameraZones';
 import type { CameraTarget } from '@/camera/CameraRig';
-import { ABILITIES, BOSSES, ENEMIES, inCore, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, ROOMS, SPRITE_SETS, START, UPGRADES, WORLD } from '@/content/core';
+import { ABILITIES, BOSSES, ENEMIES, inCore, isCoreLook, PLAYER, PROCEDURAL_ATLASES, PROCEDURAL_LOOKS, ROOMS, SPRITE_SETS, START, UPGRADES, WORLD } from '@/content/core';
 import { BOTTLE_DEFINITIONS, BOTTLES, CARDS, MAGIC } from '@/content/resources';
 import { PLAYER_VISUAL } from '@/content/visuals';
 import { SKILLS } from '@/content/skills';
@@ -55,6 +55,7 @@ import { CameraAdapter2D } from '@/render/CameraAdapter2D';
 import { DummyView, type DummyLike } from '@/render/DummyView';
 import { EntityViews, type EntityView } from '@/render/EntityViews';
 import type { BossLike } from '@/render/BossView';
+import type { RigAssets, RigSource } from '@/rigs';
 import type { GuardianArt, GuardianLike } from '@/render/GuardianView';
 import { LateView } from '@/render/LateView';
 import { EnemyShotView, type EnemyShotLike } from '@/render/EnemyShotView';
@@ -88,6 +89,7 @@ import type { AudioSystem } from './audio';
 import type { Effects } from './effects';
 
 type BossViews = typeof import('./bossViews');
+type RigViews = typeof import('./rigs');
 import { beyondWords, loadBeyond } from './beyond';
 import { artIndexUrl, optionsFromQuery, type GameOptions } from './options';
 
@@ -172,6 +174,10 @@ export class Game2D {
   /** What is SEEN of a boss (its column and its bar): a separate chunk, fetched with the effects. `null` until it arrives: the fight needs none of it. */
   private bossViews: BossViews | null = null;
   private bossViewsRequest: Promise<BossViews> | null = null;
+  /** The creatures that have their own anatomy (docs/PROMPT24-LOG.md): the code that draws them, a chunk of its own like the guardians', and the textures they share. A creature whose rig is not here yet (or has none) is drawn by its shapes. */
+  private rigViews: RigViews | null = null;
+  private rigViewsRequest: Promise<RigViews> | null = null;
+  private rigAssets: RigAssets | null = null;
   private bossBar: BossBarView | null = null;
   /** The id of the boss that is fighting now (the bar follows its health), `null` when none is. */
   private bossId: string | null = null;
@@ -401,6 +407,7 @@ export class Game2D {
     this.lifecycle.add(() => this.playerVisual.dispose());
     const vfxAtlas = createVfxAtlas();
     this.lifecycle.add(() => vfxAtlas.destroy());
+    this.lifecycle.add(() => this.rigAssets?.destroy());
     // What is SEEN of a boss is a chunk of its own (the first room has none): the page fetches it with the effects, or at once when a boss is
     // placed before that (a game saved at the shrine of R4 starts in front of one) — and the change of zone toward a boss's room waits for it. A failed fetch is asked for again by the next boss.
     const loadBossViews = (): Promise<BossViews> => this.requestBossViews();
@@ -412,11 +419,17 @@ export class Game2D {
         const view = (e as Enemy).def.view;
         const look = 'proceduralId' in view ? PROCEDURAL_LOOKS[view.proceduralId] : undefined;
         if (!look) return null;
-        const actor = new ProceduralActor(look, e as Enemy, { glow: vfxAtlas.frames.glow });
-        // the art of the zone may already be in memory (an enemy that is placed after the room was dressed): it takes the parts at once
-        const art = this.roomArtCover?.creatures.get(look.id);
-        if (art) actor.dress(art);
-        return actor;
+        // a creature with its own anatomy (docs/PROMPT24-LOG.md) is drawn by its rig; any other — the Ink Slime, a look that has none yet, a chunk that could not be fetched — by its shapes
+        const make = (rigs: RigViews | null): EntityView => {
+          const rig = rigs?.RIGS[look.id];
+          if (rigs && rig) return new rigs.RigActor(rig, e as Enemy, (this.rigAssets ??= rigs.createRigAssets(vfxAtlas.frames.glow)), rigs.seedOf(e.id));
+          const actor = new ProceduralActor(look, e as Enemy, { glow: vfxAtlas.frames.glow });
+          // the art of the zone may already be in memory (an enemy that is placed after the room was dressed): it takes the parts at once
+          const art = this.roomArtCover?.creatures.get(look.id);
+          if (art) actor.dress(art);
+          return actor;
+        };
+        return this.rigViews || isCoreLook(look.id) ? make(this.rigViews) : new LateView(this.requestRigViews().then((m) => () => make(m), () => () => make(null)));
       },
       // a skill's projectile (the Spirit Bolt) is light: it is drawn in the additive layer with the effects
       projectile: (e) => new ProjectileView(e as unknown as ProjectileLike, this.vfxArt?.atlas ?? vfxAtlas),
@@ -427,13 +440,16 @@ export class Game2D {
       // the boss (S29): an abstract column of ink with a violet crest, and the warnings of its attacks on the floor
       // (its code is a chunk of its own: a boss that wakes before it has arrived is drawn the moment it does)
       guardian: (e) => {
-        const make = (m: BossViews) => (): EntityView => {
+        const make = (m: BossViews, rigs: RigViews | null) => (): EntityView => {
           const look = this.vfxArt?.atlas ?? vfxAtlas;
           const def = (e as Guardian | Boss).def;
           // the guardians of the engine (docs/PROMPT21-LOG.md) are drawn from the look their definition names; the Warden has its column
           const procedural = 'phases' in def ? PROCEDURAL_LOOKS[def.view.lookId] : undefined;
           if (procedural) {
-            const boss = new m.BossView(e as unknown as BossLike, procedural, { glow: vfxAtlas.frames.glow, marks: look });
+            // a guardian with its own anatomy (docs/PROMPT24-LOG.md) is drawn by its rig, under the same warnings on the floor; any other by its shapes
+            const rig = rigs?.RIGS[procedural.id];
+            const actor = rigs && rig ? new rigs.RigActor(rig, e as unknown as RigSource, (this.rigAssets ??= rigs.createRigAssets(vfxAtlas.frames.glow)), rigs.seedOf(e.id)) : undefined;
+            const boss = new m.BossView(e as unknown as BossLike, procedural, { glow: vfxAtlas.frames.glow, marks: look, ...(actor ? { actor } : {}) });
             // (its art is an ink creature's, in parts: the zone may already hold it)
             const art = this.roomArtCover?.creatures.get(procedural.id);
             if (art) boss.dress(art);
@@ -445,7 +461,7 @@ export class Game2D {
           if (art) view.dress(art);
           return view;
         };
-        return this.bossViews ? make(this.bossViews)() : new LateView(loadBossViews().then(make));
+        return this.bossViews && this.rigViews ? make(this.bossViews, this.rigViews)() : new LateView(Promise.all([loadBossViews(), this.requestRigViews().catch(() => null)]).then(([m, rigs]) => make(m, rigs)));
       },
     }, renderer.layers.fxWorld);
     this.entityViews.attach(this.session.bus, this.session.entities); // the first room's enemies already exist
@@ -584,6 +600,7 @@ export class Game2D {
       void loadEffects();
       void loadAudio();
       loadBossViews().catch(() => undefined);
+      this.requestRigViews().catch(() => undefined);
       loadBeyond().then(() => this.speakBeyond(), () => undefined); // (a failure is tried again by the first way that leads there)
       void this.loadOverlays();
       startArt();
@@ -675,6 +692,21 @@ export class Game2D {
       (err: unknown) => {
         this.bossViewsRequest = null;
         log.scope('boss').warn(`the boss views could not be loaded: ${String(err)}`);
+        throw err;
+      },
+    ));
+  }
+
+  /** Fetches the rigs (the creatures' own anatomies, a chunk of their own) once. A failed fetch is forgotten, so that the next creature asks again — and, until it arrives, a creature is drawn by its shapes. */
+  private requestRigViews(): Promise<RigViews> {
+    return (this.rigViewsRequest ??= import('./rigs').then(
+      (m) => {
+        if (!this.closed) this.rigViews = m;
+        return m;
+      },
+      (err: unknown) => {
+        this.rigViewsRequest = null;
+        log.scope('rigs').warn(`the rigs could not be loaded: ${String(err)}`);
         throw err;
       },
     ));
@@ -910,11 +942,12 @@ export class Game2D {
     const { serial, fresh } = this.arrival.prepare(roomId);
     if (!fresh) return;
     const needsBoss = this.bossViews === null && (ROOMS[roomId]?.bosses?.length ?? 0) > 0;
+    const needsRigs = this.rigViews === null && !inCore(roomId);
     void (async () => {
       let ok = true;
       try {
         await art.enterZone(roomId);
-        await Promise.all([art.readScenes(roomId), needsBoss ? this.requestBossViews().then(() => undefined, () => undefined) : undefined]);
+        await Promise.all([art.readScenes(roomId), needsBoss ? this.requestBossViews().then(() => undefined, () => undefined) : undefined, needsRigs ? this.requestRigViews().then(() => undefined, () => undefined) : undefined]);
       } catch (err) {
         ok = false;
         log.scope('art').debug(`the art of "${roomId}" could not be prepared: ${String(err)}`);
