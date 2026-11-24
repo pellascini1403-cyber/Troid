@@ -66,7 +66,7 @@ Para pagar el gancho del primer fotograma se **sacó de él** lo que no necesita
 |---|---|---|
 | F1 | Kit de rigs, `RigActor`, carga diferida, laboratorio `?lab=rigs`, pruebas, murciélago de cueva | **hecho** |
 | F2 | 14 criaturas de la primera mitad (la tabla de `RIGS`: murciélago de cueva, trepador de zarza, sapo del cenagal, lomo de piedra, espora luminosa, escupidor de tinta, fuego fatuo de linterna, campana tañedora, fragmentado, esquirla de cristal, dron de pistón, sanguijuela del suelo, tejedora de tinta, sombra del velo) | **hecho** (revisión en el juego: 13 de 14 capturadas en su sala real; la esquirla solo existe en pelea) |
-| F3 | 10 criaturas de la segunda mitad | pendiente |
+| F3 | 10 criaturas de la segunda mitad: escarabajo de escoria, polilla de ceniza, medusa de brasas, bestia de horno, centinela de basalto, sapo de obsidiana, gong de ceniza, peso de fragua, cangrejo-horno, segador de brasas — **ninguna es la de la primera mitad con otro color**: cada una tiene otra anatomía para el mismo cerebro | **hecho** (las 10 revisadas en su sala real) |
 | F4 | 10 guardianes | pendiente |
 | F5 | Los 6 estados pendientes del héroe | pendiente |
 | F6 | Arenas con identidad y peligros reales | pendiente |
