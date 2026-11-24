@@ -36,6 +36,7 @@ export class Part extends Container implements Flashable {
       // the white-hot silhouette is only built the first time somebody of this species is hit, and shared after that
       if (!this.entry.flash) {
         const ctx = new GraphicsContext();
+        ctx.batchMode = 'batch';
         const pen = new Pen(ctx, this.assets);
         for (const op of this.entry.silhouette) {
           op(pen);

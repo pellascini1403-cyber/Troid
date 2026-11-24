@@ -7,7 +7,7 @@ import type { Pen } from './paint';
  * round light of the effects' atlas for the halos and the glow of the eyes, and the cache of the shapes' geometry (a bat is drawn once per game, however many hang from the roof). Made once per game (`Game2D` owns it, as it
  * owns the effects' atlas); a test hands over plain white textures.
  */
-export type RampName = 'sphere' | 'vert' | 'tube' | 'flat' | 'cap' | 'fade';
+export type RampName = 'sphere' | 'vert' | 'tube' | 'flat' | 'cap' | 'fade' | 'soft';
 
 /** One thing a shape's silhouette is made of (what the hit flash repaints in white): a path of the pen. */
 export type SilhouetteOp = (pen: Pen) => void;
@@ -46,6 +46,14 @@ function paintRamp(name: RampName): Texture {
     g.addColorStop(0, 'rgba(255,255,255,1)');
     g.addColorStop(0.55, 'rgba(255,255,255,0.7)');
     g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, SIZE, SIZE);
+  } else if (name === 'soft') {
+    // white that only thins a little downward: a cloak whose hem is dimmer but still there
+    const g = ctx.createLinearGradient(0, 0, 0, SIZE);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.6, 'rgba(255,255,255,0.82)');
+    g.addColorStop(1, 'rgba(255,255,255,0.3)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, SIZE, SIZE);
   } else if (name === 'vert') {
@@ -106,7 +114,9 @@ export function createRigAssets(glow: Texture, ramps?: (name: RampName) => Textu
     shape(key, make) {
       let e = shapes.get(key);
       if (!e) {
+        // `batch`: Pixi would draw a shape of more than a few hundred vertices on its own, a draw call apiece; a creature is dozens of shapes and they all want to travel together
         const ctx = new GraphicsContext();
+        ctx.batchMode = 'batch';
         const silhouette: SilhouetteOp[] = [];
         make(ctx, silhouette);
         e = { ctx, silhouette, flash: null };

@@ -51,6 +51,10 @@ const SHEET: readonly PoseSpec[] = [
   { label: 'death 0.92', anim: 'death', t: 0.92, settle: 55 },
   { label: 'idle mirrored', anim: 'idle', settle: 90, facing: -1 },
   { label: 'run mirrored', anim: 'run', vx: 0.07, settle: 90, facing: -1 },
+  { label: 'crouch', anim: 'crouch', t: 0.5, settle: 60 },
+  { label: 'land 0.3', anim: 'land', phase: 'active', t: 0.3, settle: 40 },
+  { label: 'land 0.8', anim: 'land', phase: 'active', t: 0.8, settle: 60 },
+  { label: 'run fast', anim: 'run', vx: 0.12, settle: 90 },
 ];
 
 export async function startRigLab(host: HTMLElement, params: URLSearchParams): Promise<void> {
@@ -154,6 +158,14 @@ export async function startRigLab(host: HTMLElement, params: URLSearchParams): P
     },
     render: () => r.render(),
     draws: () => ({ median: counter.median, max: counter.max }),
+    /** The root of every creature drawn, for a tool that wants to look inside (what breaks a batch, what a part costs). */
+    roots: () => actors.map((a) => a.actor.root),
+    frame: () => {
+      counter.beginFrame();
+      r.render();
+      counter.endFrame();
+      return counter.last;
+    },
   };
   r.resize();
   r.applyCamera(camera, { x: 0, y: 0, rollRad: 0 }, vh);
