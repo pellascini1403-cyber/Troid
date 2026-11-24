@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ENGINE_BOSS_LIST } from '@/content/bosses';
 import { CRATER_BEHEMOTH, CINDER_SOVEREIGN, DUSK_SHEPHERD, EMBER_BOSS_LIST, GROVE_GARDENER } from '@/content/bossesEmber';
 import { BOSSES, ENEMIES } from '@/content/enemies';
-import { PROCEDURAL_LOOKS } from '@/content/proceduralActors';
+import { PROCEDURAL_LOOKS } from '@/content';
 import type { BossDefinition } from '@/enemies/boss/BossDefinition';
 import { BOSS_HANDLERS } from '@/enemies/boss/handlers';
 import { Enemy } from '@/enemies/Enemy';

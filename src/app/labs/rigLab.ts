@@ -30,6 +30,11 @@ interface PoseSpec {
   /** Frames to let the creature settle into the pose (its springs and smoothed feelings need time). */
   settle?: number;
   facing?: 1 | -1;
+  /** What a guardian's view says besides the animation: asleep, in its second phase, which attack, how much health is left. */
+  awake?: boolean;
+  enraged?: boolean;
+  attackId?: string;
+  hp?: number;
 }
 
 const SHEET: readonly PoseSpec[] = [
@@ -55,6 +60,10 @@ const SHEET: readonly PoseSpec[] = [
   { label: 'land 0.3', anim: 'land', phase: 'active', t: 0.3, settle: 40 },
   { label: 'land 0.8', anim: 'land', phase: 'active', t: 0.8, settle: 60 },
   { label: 'run fast', anim: 'run', vx: 0.12, settle: 90 },
+  { label: 'phase 0.5', anim: 'phaseTransition', t: 0.5, settle: 40 },
+  { label: 'asleep', anim: 'idle', awake: false, settle: 90 },
+  { label: 'intro 0.5', anim: 'alert', t: 0.5, settle: 60 },
+  { label: 'enraged', anim: 'idle', enraged: true, settle: 90 },
 ];
 
 export async function startRigLab(host: HTMLElement, params: URLSearchParams): Promise<void> {
@@ -100,7 +109,7 @@ export async function startRigLab(host: HTMLElement, params: URLSearchParams): P
   const place = (def: RigDef, spec: PoseSpec, x: number, y: number, seed: number): void => {
     const view = createActorViewState();
     const vx = (spec.vx ?? 0) * (spec.facing ?? 1);
-    Object.assign(view, { x, prevX: x - vx, y, prevY: y - (spec.vy ?? 0), facing: spec.facing ?? 1, anim: spec.anim, phase: spec.phase ?? 'none', phaseT: spec.t ?? 0, flash: spec.flash ?? 0, animSerial: 1 });
+    Object.assign(view, { x, prevX: x - vx, y, prevY: y - (spec.vy ?? 0), facing: spec.facing ?? 1, anim: spec.anim, phase: spec.phase ?? 'none', phaseT: spec.t ?? 0, flash: spec.flash ?? 0, animSerial: 1, awake: spec.awake ?? true, enraged: spec.enraged ?? false, attackId: spec.attackId ?? params.get('attack'), hpFrac: spec.hp ?? Number(params.get('hp') ?? 1) });
     if (spec.anim === 'death') view.opacity = 1 - (spec.t ?? 0) ** 2;
     const actor = new RigActor(def, { view }, assets, seed);
     L.actors.addChild(actor.root);

@@ -41,7 +41,7 @@ const RETURN_SPEED = 6;
 export class Boss extends Actor implements SimEntity, Combatant {
   readonly kind = 'guardian';
   readonly health: Health;
-  override readonly view: GuardianViewState = { ...createActorViewState(), attack: null, marks: [], enraged: false, awake: false };
+  override readonly view: GuardianViewState = { ...createActorViewState(), attack: null, marks: [], enraged: false, awake: false, exposed: false, attackId: null, hpFrac: 1, phaseNo: 1 };
   readonly home: { x: number; y: number };
   expired = false;
   hits = 0;
@@ -527,6 +527,11 @@ export class Boss extends Actor implements SimEntity, Combatant {
     v.animDuration = 0;
     v.opacity = this.hidden ? 0 : 1;
     v.attack = this.fsm.is('telegraph', 'attack') ? this.styleName() : null;
+    // what a body with its own anatomy shows (they only inform: the simulation never reads them)
+    v.exposed = this.exposed && this.fsm.is('recover', 'hurt');
+    v.attackId = this.attackId;
+    v.hpFrac = this.health.fraction;
+    v.phaseNo = this.phaseIdx + 1;
     const a = this.current?.attack;
     switch (this.fsm.current) {
       case 'dormant':

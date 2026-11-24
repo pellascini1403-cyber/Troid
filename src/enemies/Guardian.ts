@@ -30,6 +30,14 @@ export interface GuardianViewState extends ActorViewState {
   enraged: boolean;
   /** Awake: the crest is lit (false while it waits dormant). */
   awake: boolean;
+  /**
+   * What a body that has its own anatomy (docs/PROMPT24-LOG.md) needs to show what the boss is doing — said by the bosses of the engine, which fill them in; the Warden does not:
+   * the weak point is OPEN (the one the hero can hurt now), the id of the attack in progress, the share of its health that is left and the phase it is in (1-based). They only inform: nothing reads them back.
+   */
+  exposed?: boolean;
+  attackId?: string | null;
+  hpFrac?: number;
+  phaseNo?: number;
 }
 
 /** Fastest the guardian can fall (m/s). */

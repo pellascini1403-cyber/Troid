@@ -20,6 +20,10 @@ export interface LegSpec {
   mat: Material;
   /** Draws what is at the end of the lower bone (a foot, a claw, a hoof) in the space of the bone (+x along it). */
   foot?: (pen: Pen, l2: number) => void;
+  /** How soft the corners of a bone are (the default is a soft tube; 0 is a cut prism). */
+  round?: number;
+  /** Paints over a bone — facets, plates, seams — in its own space (+x along it); `upper` tells which of the two. */
+  detail?: (pen: Pen, len: number, wa: number, wb: number, upper: boolean) => void;
 }
 
 /** A limb of two bones that reaches for a point: set `reach` every frame and the bones turn to meet it. */
@@ -32,9 +36,10 @@ export class Leg {
   constructor(k: Kit, key: string, spec: LegSpec) {
     this.spec = spec;
     this.root = k.group(key);
-    this.upper = k.part(`${key}-upper`, (pen) => pen.shape(taperedOutline(spec.l1, spec.w0, spec.w1), spec.mat));
+    const opts = spec.round === undefined ? {} : { round: spec.round };
+    this.upper = k.part(`${key}-upper`, (pen) => pen.shape(taperedOutline(spec.l1, spec.w0, spec.w1), spec.mat, opts, spec.detail ? (p) => spec.detail!(p, spec.l1, spec.w0, spec.w1, true) : undefined));
     this.lower = k.part(`${key}-lower`, (pen) => {
-      pen.shape(taperedOutline(spec.l2, spec.w1, spec.w2), spec.mat);
+      pen.shape(taperedOutline(spec.l2, spec.w1, spec.w2), spec.mat, opts, spec.detail ? (p) => spec.detail!(p, spec.l2, spec.w1, spec.w2, false) : undefined);
       spec.foot?.(pen, spec.l2);
     });
     this.root.addChild(this.upper);
