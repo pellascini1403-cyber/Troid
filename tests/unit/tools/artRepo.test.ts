@@ -45,7 +45,7 @@ describe('the art of the repository', () => {
     expect(r.ok).toBe(true);
   }, PACKING);
 
-  it('declares the protagonist\'s sprite set `player/hero` — the ten clips of the fifteen the sheet has a drawing for, plus the landing and the run — as a provisional pack that ships; the clips it has no drawing for are NOT declared', () => {
+  it('declares the protagonist\'s sprite set `player/hero` — the ten clips of the fifteen the sheet has a drawing for, the landing and the run, and the six made from them (tag `derived`) — as a provisional pack that ships', () => {
     const raw = JSON.parse(readFileSync(join(root, 'art', 'player', 'player.pack.json'), 'utf8')) as Record<string, unknown>;
     // read the way the packer reads a source manifest: the atlases are what the packer writes
     const sprites = (raw['sprites'] as Array<Record<string, unknown>>).map((sp) => ({ ...sp, atlases: [] }));
@@ -54,19 +54,21 @@ describe('the art of the repository', () => {
     expect(raw['status']).toBe('provisional');
     expect(value).toMatchObject({ id: PLAYER_VISUAL.art.pack, category: 'player' });
     const hero = value!.sprites.find((s) => s.id === PLAYER_VISUAL.art.sprite)!;
-    expect(Object.keys(hero.clips).sort()).toEqual([...IN_THE_SHEET, 'land', 'run'].sort());
-    for (const state of NOT_IN_THE_SHEET) expect(hero.clips[state], `${state} is not declared: the sheet has no drawing for it`).toBeUndefined();
-    // nothing in the manifest is a stand-in (a clip made by moving another action's drawing): what the art has is the sheet's own
+    expect(Object.keys(hero.clips).sort()).toEqual([...IN_THE_SHEET, 'land', 'run', ...NOT_IN_THE_SHEET, 'crouchWalk'].sort());
+    // the six the sheet has no drawing for are declared as DERIVED (made from the owner's drawings by `npm run assets:derive`): no other clip is
+    for (const state of [...NOT_IN_THE_SHEET, 'crouchWalk'] as const) expect(hero.clips[state]?.tags, `${state} is made from the sheet's drawings`).toContain('derived');
+    expect(Object.entries(hero.clips).filter(([, c]) => c!.tags.includes('derived')).map(([s]) => s).sort()).toEqual([...NOT_IN_THE_SHEET, 'crouchWalk'].sort());
+    // nothing in the manifest is a stand-in (a clip the engine repeats under another name): every clip has frames of its own
     expect(Object.values(hero.clips).filter((c) => c!.tags.includes('stand-in'))).toEqual([]);
     expect(hero.height).toBe(1.7);
     expect(hero.missingClips, 'what the art lacks is drawn with the placeholder, not by chaining to the idle').toBe('placeholder');
     // the six to validate first are tagged as such in the declaration, and the blow carries the sword
     expect(Object.entries(hero.clips).filter(([, c]) => c!.tags.includes('first')).map(([s]) => s).sort()).toEqual([...PLAYER_VISUAL.first].sort());
-    expect(Object.entries(hero.clips).filter(([, c]) => c!.tags.includes('sword')).map(([s]) => s).sort()).toEqual(['attack1']);
-    // 44 frames in all, every one of them a file of the folder, and the folder has nothing else
+    expect(Object.entries(hero.clips).filter(([, c]) => c!.tags.includes('sword')).map(([s]) => s).sort()).toEqual(['attack1', 'attack2', 'attackAir', 'attackCrouch']);
+    // 70 frames in all (the sheet's 44 and the 26 made from them), every one of them a file of the folder, and the folder has nothing else
     const files = readdirSync(join(root, 'art', 'player', 'hero')).filter((f) => f.endsWith('.png'));
-    expect(files).toHaveLength(44);
-    expect(Object.values(hero.clips).reduce((n, c) => n + c!.count, 0)).toBe(44);
+    expect(files).toHaveLength(70);
+    expect(Object.values(hero.clips).reduce((n, c) => n + c!.count, 0)).toBe(70);
     // the protagonist, the scenery of the Ruins and the parts of the shortcuts, the boss, the Ink Slime, the light of the effects (shapes and flipbooks) and the set of each of the ten zones after the Ruins: all provisional, all shipped
     expect(dryBuild().packs.map((p) => [p.id, p.status, p.shipped])).toEqual([
       ['player', 'provisional', true],
@@ -95,14 +97,12 @@ describe('the art of the repository', () => {
     expect(existsSync(join(root, 'public', 'art', 'index.json')), 'the generated folder is committed: the game fetches it').toBe(true);
   }, PACKING);
 
-  it('says exactly what is missing: of the fifteen clips, ten have a drawing of their own (the sheet\'s poses) and five do not — none is a stand-in, none is faked: the game draws those states with the placeholder', () => {
+  it('says exactly what is missing: of the fifteen clips the game asks for, all fifteen have frames of their own now — ten the sheet\'s drawings and five made from them — and none is a stand-in: the placeholder is only the way back', () => {
     const d = readDelivery(join(root, 'art'));
-    expect(d).toMatchObject({ pack: 'player', sprite: 'hero', status: 'provisional', delivered: 10, standIns: 0, total: 15 });
-    expect(d.rows.filter((row) => row.delivered).map((row) => row.state).sort()).toEqual([...IN_THE_SHEET].sort());
-    expect(d.rows.filter((row) => !row.delivered).map((row) => row.state).sort()).toEqual([...NOT_IN_THE_SHEET].sort());
-    // the ones that are not delivered are not declared at all (no stand-in, no frame): that is what `assets:missing` says, and what the placeholder is for
-    for (const row of d.rows.filter((r) => !r.delivered)) expect({ state: row.state, prefix: row.prefix, standIn: row.standIn }, 'not declared, not a stand-in').toEqual({ state: row.state, prefix: null, standIn: false });
-    for (const row of d.rows.filter((r) => r.delivered)) expect(row.missing, `${row.state}: every frame it names is there`).toEqual([]);
+    expect(d).toMatchObject({ pack: 'player', sprite: 'hero', status: 'provisional', delivered: 15, standIns: 0, total: 15 });
+    expect(d.rows.filter((row) => row.delivered).map((row) => row.state).sort()).toEqual([...IN_THE_SHEET, ...NOT_IN_THE_SHEET].sort());
+    expect(d.rows.filter((row) => !row.delivered)).toEqual([]);
+    for (const row of d.rows) expect({ state: row.state, standIn: row.standIn, missing: row.missing }, `${row.state}: declared, every frame it names is there`).toEqual({ state: row.state, standIn: false, missing: [] });
   });
 
   it('ships what `npm run assets:pack` writes from `art/`: nobody forgot to pack, nobody edited the generated folder', () => {
@@ -130,10 +130,9 @@ describe('the art of the repository', () => {
     }
   }, PACKING);
 
-  it('verifies: what the game fetches is a valid art folder, with no warning but the one that says which clips of the protagonist the sheet does not have: every piece of the environment the world asks for is delivered', () => {
+  it('verifies: what the game fetches is a valid art folder, with no warning about the protagonist (it has every clip the game asks of it): every piece of the environment the world asks for is delivered', () => {
     const v = verifyArtFolder(join(root, 'public', 'art'));
-    const lacking = `warn player sprites.hero: the protagonist's art lacks ${NOT_IN_THE_SHEET.length} of the 15 clips the game asks of it: ${NOT_IN_THE_SHEET.join(', ')} — the placeholder draws those states`;
-    expect(v.issues.filter((i) => i.level !== 'info').map((i) => `${i.level} ${i.path}: ${i.message}`)).toEqual([lacking, ...STILL_THE_BLOCKOUT]);
+    expect(v.issues.filter((i) => i.level !== 'info').map((i) => `${i.level} ${i.path}: ${i.message}`)).toEqual([...STILL_THE_BLOCKOUT]);
     expect(v.ok).toBe(true);
   }, VERIFYING);
 });

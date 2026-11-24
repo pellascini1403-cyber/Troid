@@ -1,5 +1,9 @@
 # Cómo entregar el arte del protagonista (y qué falta exactamente)
 
+> **Estado (Prompt 24, F5): los seis clips que la hoja no tenía (`attack2`, `attackAir`, `crouch`, `attackCrouch`, `drink` y el gateo `crouchWalk`) ya están en el juego, HECHOS —no entregados— a partir de los dibujos de la dueña** con `npm run assets:derive`
+> (la deformación de títere de `warp.ts` y movimientos rígidos de la figura; solo el frasco y el brazo del `drink` se pintan por código). Se declaran en el manifiesto con la etiqueta `derived`; `npm run assets:intake -- status` los muestra como *derived*, y siguen
+> pedidos en `art/player/requests/`: **un dibujo de la dueña, entregado con `npm run assets:intake -- <clip> --accept`, sustituye al derivado** y `assets:derive` no lo vuelve a hacer. Lo que sigue de esta guía describe la entrega de dibujos propios y sigue valiendo para eso. Ver `docs/PROMPT24-LOG.md` §6.
+
 > **Estado (Prompt 16): el protagonista es OTRO — el de la hoja de personaje que entregó el usuario — y esta guía es la de hoy.** La hoja
 > (`art/player/source/character-sheet.png`, **bit a bit**, 1536 × 1024; `character-sheet.json` dice dónde está cada pose y de qué clip es) es **la única referencia** de cómo se ve: de ella salen
 > **44 fotogramas en 12 clips** (`idle`, `walk`, `run`, `jump`, `fall`, `land`, `attack1`, `cast`, `dash`, `interact`, `hurt`, `death`), solo con operaciones técnicas (quitar el fondo blanco, **una escala por clip**

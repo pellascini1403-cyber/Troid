@@ -417,8 +417,11 @@ function orderedClips(clips: Record<string, unknown>, order: readonly string[]):
 export interface StatusRow {
   clip: string;
   frames: number;
-  /** `delivered`: the clip has a drawing of the sheet. `missing`: the sheet has none and the game draws the state with its placeholder. */
-  kind: 'delivered' | 'missing';
+  /**
+   * `delivered`: the clip has a drawing of the sheet. `derived`: the sheet has none, and the clip is MADE from the owner's drawings (`npm run assets:derive`, docs/PROMPT24-LOG.md F5) — a drawing of the owner's, if it ever comes, replaces it.
+   * `missing`: nothing draws it and the game draws the state with its placeholder.
+   */
+  kind: 'delivered' | 'derived' | 'missing';
   requested: boolean;
   inbox: string;
   report: Level | null;
@@ -439,16 +442,17 @@ export function statusOf(root: string): StatusRow[] {
     const rep = readText(join(reportDir(root, clip), 'report.json'));
     return { clip, frames, kind, requested: requests[clip]?.status === 'requested', inbox, report: rep ? (JSON.parse(rep) as Fingerprint).level : null };
   };
-  const have = Object.entries(clips).map(([clip, c]) => row(clip, c.count, 'delivered'));
+  const have = Object.entries(clips).map(([clip, c]) => row(clip, c.count, c.tags?.includes('derived') ? 'derived' : 'delivered'));
   const lacking = Object.keys(requests).filter((clip) => !(clip in clips)).map((clip) => row(clip, 0, 'missing'));
   return [...have, ...lacking];
 }
 
 export function formatStatus(rows: readonly StatusRow[]): string {
   const lines = ['clip           frames  drawing      still asked for  inbox       last report'];
-  for (const r of rows) lines.push(`${r.clip.padEnd(14)} ${String(r.frames).padStart(6)}  ${(r.kind === 'delivered' ? 'delivered' : 'MISSING').padEnd(11)}  ${(r.requested ? 'yes' : '—').padEnd(15)}  ${r.inbox.padEnd(10)}  ${r.report ?? '—'}`);
+  for (const r of rows) lines.push(`${r.clip.padEnd(14)} ${String(r.frames).padStart(6)}  ${(r.kind === 'delivered' ? 'delivered' : r.kind === 'derived' ? 'derived' : 'MISSING').padEnd(11)}  ${(r.requested ? 'yes' : '—').padEnd(15)}  ${r.inbox.padEnd(10)}  ${r.report ?? '—'}`);
   const have = rows.filter((r) => r.kind === 'delivered').length;
+  const made = rows.filter((r) => r.kind === 'derived').length;
   const lacking = rows.filter((r) => r.kind === 'missing').length;
-  lines.push('', `${rows.length} clips: ${have} drawn (from the character sheet), ${lacking} missing — the sheet has no drawing for them and the game draws their states with its placeholder; ${rows.filter((r) => r.requested).length} are asked for in art/player/requests/`);
+  lines.push('', `${rows.length} clips: ${have} drawn (from the character sheet), ${made} derived (made from those drawings: \`npm run assets:derive\`), ${lacking} missing — nothing draws them and the game draws their states with its placeholder; ${rows.filter((r) => r.requested).length} are asked for in art/player/requests/ (a drawing of the owner's replaces a derived clip)`);
   return lines.join('\n');
 }

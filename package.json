@@ -26,6 +26,7 @@
     "assets:missing": "tsx tools/assets/cli.ts --missing",
     "assets:animate": "tsx tools/assets/animate-cli.ts",
     "assets:intake": "tsx tools/assets/intake-cli.ts",
+    "assets:derive": "tsx tools/assets/derive-cli.ts",
     "art:build": "tsx tools/art/build.ts",
     "hud:cut": "tsx tools/hud/cli.ts",
     "hud:check": "tsx tools/hud/cli.ts --check",

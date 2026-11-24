@@ -798,7 +798,7 @@ describe('what is in the inbox, and the state of the clips', () => {
     expect(() => readInbox(b)).toThrow(/only PNG is read: convert sheet\.webp/);
   });
 
-  it('says what each of the eighteen clips is: drawn from the character sheet, or missing (the sheet has no drawing for it and the game draws its states with the placeholder) — and which are still asked for', () => {
+  it('says what each of the eighteen clips is: drawn from the character sheet, or derived from those drawings (the sheet has none for it: `npm run assets:derive` makes it), or missing — and which are still asked for', () => {
     const rows = statusOf(root);
     expect(rows).toHaveLength(18);
     const requests = JSON.parse(readFileSync(join(root, 'art', 'player', 'requests', 'requests.json'), 'utf8')).clips as Record<string, { status: string }>;
@@ -806,9 +806,11 @@ describe('what is in the inbox, and the state of the clips', () => {
     for (const r of rows) expect(r.requested, r.clip).toBe(requests[r.clip]?.status === 'requested');
     // a clip is delivered when it is in the manifest and its sources are archived; the others are missing — and are the ones still asked for, no more and no fewer
     expect(rows.filter((r) => r.kind === 'delivered').map((r) => r.clip).sort()).toEqual([...readDelivered(root)].sort());
-    expect(rows.filter((r) => r.kind === 'missing').map((r) => r.clip).sort()).toEqual(rows.filter((r) => r.requested).map((r) => r.clip).sort());
+    // the six the sheet has no drawing for are derived, and are still asked for: a drawing of the owner's would replace them
+    expect(rows.filter((r) => r.kind === 'derived').map((r) => r.clip).sort()).toEqual(rows.filter((r) => r.requested).map((r) => r.clip).sort());
+    expect(rows.filter((r) => r.kind === 'missing')).toEqual([]);
     expect(rows.find((r) => r.clip === 'idle')).toMatchObject({ kind: 'delivered', frames: 2, requested: false });
-    expect(rows.find((r) => r.clip === 'crouch')).toMatchObject({ kind: 'missing', frames: 0, requested: true });
+    expect(rows.find((r) => r.clip === 'crouch')).toMatchObject({ kind: 'derived', frames: 2, requested: true });
   });
 });
 
@@ -832,8 +834,11 @@ describe('the production kit', () => {
     const files = [...buildKit(readKitSources(root)).keys()];
     for (const id of asked) for (const f of ['brief.md', 'reference.png']) expect(files, `${id}/${f}`).toContain(`${id}/${f}`);
     for (const id of Object.keys(data.clips).filter((c) => !asked.includes(c))) expect(files.some((f) => f.startsWith(`${id}/`)), `${id} is drawn: nothing is asked for it`).toBe(false);
-    // none of the clips asked for is in the manifest: the game draws them with the placeholder until they are delivered, never with a stand-in
-    for (const id of asked) expect(readClips(root)[id], `${id} is not declared`).toBeUndefined();
+    // every clip asked for is in the manifest as a DERIVED clip (made from the owner's drawings), never as one of the owner's: it has no delivery, and a drawing of the owner's replaces it
+    for (const id of asked) {
+      expect(readClips(root)[id]?.tags, `${id} is declared, derived`).toContain('derived');
+      expect(readDelivered(root), `${id} has no delivery`).not.toContain(id);
+    }
   }, 60_000);
 
   it('says so when nothing is asked for any more — which clips there are — and goes back to asking when a clip is requested again', () => {
@@ -907,6 +912,14 @@ describe('handing a clip over, in a copy of the repository', () => {
     const realInbox = join(root, 'art', 'player', 'inbox');
     const archive = join(root, 'art', 'player', 'archive');
     cpSync(join(root, 'art'), join(tmp, 'art'), { recursive: true, filter: (src) => src !== realInbox && !src.startsWith(`${realInbox}${sep}`) && src !== archive && !src.startsWith(`${archive}${sep}`) });
+    // in the copy `attack2` is as it was when the sheet had no drawing for it: the derived clip that stands in for it in the repository (`npm run assets:derive`) is taken out, and what the tool hands over comes into a manifest that does not have it
+    const heroCopy = join(tmp, 'art', 'player', 'hero');
+    for (const f of readdirSync(heroCopy)) if (f.startsWith(`${clip}_`)) rmSync(join(heroCopy, f));
+    const manifestCopy = join(tmp, 'art', 'player', 'player.pack.json');
+    const mf = JSON.parse(readFileSync(manifestCopy, 'utf8')) as { sprites: Array<{ clips: Record<string, unknown>; frames: Record<string, unknown> }> };
+    delete mf.sprites[0]!.clips[clip];
+    for (const k of Object.keys(mf.sprites[0]!.frames)) if (k.startsWith(`${clip}_`)) delete mf.sprites[0]!.frames[k];
+    writeFileSync(manifestCopy, `${JSON.stringify(mf, null, 2)}\n`);
     // in the copy the clip asks for the test's blow (the data of the real one is what its own delivery will need, not what the tool is tested on)
     const requestsFile = join(tmp, 'art', 'player', 'requests', 'requests.json');
     const data = JSON.parse(readFileSync(requestsFile, 'utf8')) as { clips: Record<string, unknown> };

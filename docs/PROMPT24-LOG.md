@@ -68,7 +68,7 @@ Para pagar el gancho del primer fotograma se **sacó de él** lo que no necesita
 | F2 | 14 criaturas de la primera mitad (la tabla de `RIGS`: murciélago de cueva, trepador de zarza, sapo del cenagal, lomo de piedra, espora luminosa, escupidor de tinta, fuego fatuo de linterna, campana tañedora, fragmentado, esquirla de cristal, dron de pistón, sanguijuela del suelo, tejedora de tinta, sombra del velo) | **hecho** (revisión en el juego: 13 de 14 capturadas en su sala real; la esquirla solo existe en pelea) |
 | F3 | 10 criaturas de la segunda mitad: escarabajo de escoria, polilla de ceniza, medusa de brasas, bestia de horno, centinela de basalto, sapo de obsidiana, gong de ceniza, peso de fragua, cangrejo-horno, segador de brasas — **ninguna es la de la primera mitad con otro color**: cada una tiene otra anatomía para el mismo cerebro | **hecho** (las 10 revisadas en su sala real) |
 | F4 | 10 guardianes, cada uno con otra silueta, otros materiales, otra manera de mostrar su punto débil y otra muerte (§5) | **hecho** (los diez revisados en su sala real, a escala de móvil) |
-| F5 | Los 6 estados pendientes del héroe | pendiente |
+| F5 | Los 6 estados pendientes del héroe (segundo golpe, golpe en el aire, agacharse, gatear, golpe agachado, beber) — 26 fotogramas hechos de los dibujos de la dueña | **hecho** (los seis vistos en el juego, fotograma a fotograma) |
 | F6 | Arenas con identidad y peligros reales | pendiente |
 | F7 | Verificación final y documentación | pendiente |
 
@@ -91,6 +91,21 @@ Los diez comparten **cómo se hacen** (`rigs/kit/boss.ts`: `Opening` suaviza la 
 
 El **Custodio de Tinta** de la Babosa de Tinta sigue siendo arte propio (`GuardianView`), no un rig.
 
-## 6. Cómo se mira
+## 6. El protagonista (F5)
+
+La hoja de la dueña tiene doce acciones y el juego pide dieciocho; los seis estados que faltaban (`attack2`, `crouch`, `crouchWalk`, `aerialAttack`, `crouchAttack`, `drink`) los dibujaba una cápsula gris. **No se rediseña a nadie ni se usa el héroe «ojo rojo + corona dorada»**: los 26 fotogramas se **derivan de los dibujos de la dueña** con lo único que el repositorio ya tenía para mover un dibujo sin inventar un píxel —la deformación de títere de `tools/assets/warp.ts` (mínimos cuadrados móviles, localmente rígida)— y unos pocos movimientos rígidos de la figura entera. Todo está en recetas (`tools/assets/heroDerivedClips.ts`) y lo ejecuta `npm run assets:derive`; `--check` (y `characterArt.test.ts`) exigen que lo commiteado sea, byte a byte, lo que las recetas producen.
+
+| Clip | Fotogramas | De dónde sale |
+|---|---|---|
+| `crouch` | 2, bucle, 2 fps | `land_00` (el aterrizaje de la dueña: rodillas dobladas, cabeza adelantada, bufanda tendida) y su respiración (cabeza y pecho 3 px más arriba) |
+| `crouchWalk` | 4, bucle, 10 fps | el mismo dibujo arrastrado: dos contactos (cabeza adelantada, cuerpo bajo, inclinación ±) y dos pasos (cabeza algo más alta) |
+| `crouchAttack` | 5, una vez, 26 fps | los golpes de `attack1` con el cuerpo bajado (la cabeza y la bufanda conservan su tamaño; solo se aprieta el cuerpecito) — la hoja barre a la altura de la rodilla — y la agachada para asentarse |
+| `attack2` | 5, una vez, 28 fps | los dibujos de `attack1` girados **sobre la mano** para que la hoja **suba** cruzando el pecho donde el primer golpe empuja: enroscarse, el impulso, el tajo ascendente, la estocada, asentarse |
+| `aerialAttack` | 6, una vez, 26 fps | el salto de la dueña para recoger las piernas, los dibujos del primer golpe volcados al otro lado (la hoja **baja** en diagonal por delante) y su caída para prepararse a aterrizar |
+| `drink` | 4, una vez, 10 fps | los dibujos de reposo con **un frasco de vidrio con líquido cian y el brazo pequeño que lo sostiene** (lo único que la hoja no puede prestar), pintados en el mismo oscuro con un filo de luz, la cabeza echada hacia atrás sobre el cuello y el ojo más brillante al final |
+
+Las anclas de la espada de los tres golpes viajan por las mismas operaciones que los píxeles (`hand_r`, `weapon_grip`, `weapon_tip`, `hit_origin`, `vfx_origin`), así que los efectos del tajo nacen de donde está la hoja. Los tiempos, los bucles y las fases son los que pidió el kit de producción (`art/player/requests/requests.json`) y que la simulación mide (`heroContinuity.test.ts`). **La dueña manda**: si algún día entrega un clip (`npm run assets:intake -- <clip> --accept`), sustituye al derivado y `assets:derive` no lo vuelve a hacer. El atlas del héroe pasa de 837 KB a 1294 KB.
+
+## 7. Cómo se mira
 
 `npm run dev` y `?lab=rigs&id=cave_bat` (varias con comas, `all` para todas; `&pick=0,6,8` solo esas poses; `&pose=attack:0.5` una sola; `&crowd=12` una multitud para contar llamadas de dibujo). Cada celda es una pose (el inicio, el medio y el final de cada estado), dibujada por el propio renderizador del juego. La revisión definitiva es **en el juego**: sala real, cámara real (≈ 53 píxeles por metro en un móvil horizontal: una criatura de 0,9 m mide ~48 px, de modo que lo que manda es la silueta, la luz de borde y el halo, y el detalle fino es un premio para el que se acerca).

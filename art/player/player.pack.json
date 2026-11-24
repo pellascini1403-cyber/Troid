@@ -3,7 +3,7 @@
   "id": "player",
   "category": "player",
   "status": "provisional",
-  "comment": "THE PROTAGONIST, from the user's own character sheet (art/player/source/character-sheet.png, kept bit for bit; art/player/source/character-sheet.json says where each pose is and which clip it is): every frame is a pose of that sheet with the white background taken off, scaled once per clip so that the head is the same size in every animation, and placed by a translation — nothing is redrawn, recoloured or deformed. Each clip is handed over with `npm run assets:intake` and its sources are archived in art/player/source/delivered/<clip>/. The clips the sheet has no drawing for are NOT declared here: `npm run assets:missing` lists them and the game draws their states with its placeholder until they are delivered. The design this replaced is kept, in the layout of art/player/, in art/player/archive/design-v1/ (and in git commit 48684b9, the last one that had it in the game).",
+  "comment": "THE PROTAGONIST, from the user's own character sheet (art/player/source/character-sheet.png, kept bit for bit; art/player/source/character-sheet.json says where each pose is and which clip it is): every frame is a pose of that sheet with the white background taken off, scaled once per clip so that the head is the same size in every animation, and placed by a translation — nothing is redrawn, recoloured or deformed. Each clip is handed over with `npm run assets:intake` and its sources are archived in art/player/source/delivered/<clip>/. The six clips the sheet has no drawing for (attack2, crouch, crouchWalk, aerialAttack, crouchAttack, drink) are DERIVED (tag `derived`): `npm run assets:derive` makes them from the owner's own drawings — the puppet warp, a few rigid moves of the whole figure and, for the drink, a vial and a small arm drawn over the owner's idle — following the recipes of tools/assets/heroDerivedClips.ts (docs/PROMPT24-LOG.md, F5); a drawing of the owner's, handed over with `npm run assets:intake -- <clip> --accept`, replaces a derived clip and is never made again. The design this replaced is kept, in the layout of art/player/, in art/player/archive/design-v1/ (and in git commit 48684b9, the last one that had it in the game).",
   "tags": [
     "protagonist"
   ],
@@ -165,6 +165,111 @@
           "loop": false,
           "tags": [],
           "comment": "From the character sheet and handed over through `npm run assets:intake` (Death): 3 frames of the user's own drawing, every pixel the sheet's — the background taken off, scaled once by the size of the head (it turns, so the eye is no fair measure of it), placed by a translation, nothing redrawn"
+        },
+        "attack2": {
+          "frames": "attack2_",
+          "count": 5,
+          "fps": 28,
+          "loop": false,
+          "phases": {
+            "startup": [
+              0,
+              1
+            ],
+            "active": [
+              2,
+              3
+            ],
+            "recovery": [
+              4,
+              4
+            ]
+          },
+          "tags": [
+            "derived",
+            "sword"
+          ],
+          "comment": "The second blow of the combo, made from the first one's drawings turned about the hand so that the blade RISES across the body where the first one thrusts: coil (the first one's wind-up, lower and drawn back), the drive forward, the swing up across the chest, the cut at full reach, the settle."
+        },
+        "crouch": {
+          "frames": "crouch_",
+          "count": 2,
+          "fps": 2,
+          "loop": true,
+          "tags": [
+            "derived"
+          ],
+          "comment": "The held crouch: the owner's own drawing of the body brought low (the landing — knees bent, the head forward, the scarf trailing flat, the sword down and back), and its breath: the same drawing with the head and the chest two pixels higher."
+        },
+        "crouchWalk": {
+          "frames": "crouchWalk_",
+          "count": 4,
+          "fps": 10,
+          "loop": true,
+          "tags": [
+            "derived"
+          ],
+          "comment": "The crawl: the held crouch's drawing shuffled along — the two contacts (the head forward, the body low) and the two passings (the head a little higher, the body under it), the scarf trailing — at the same height as the held crouch."
+        },
+        "aerialAttack": {
+          "frames": "aerialAttack_",
+          "count": 6,
+          "fps": 26,
+          "loop": false,
+          "phases": {
+            "startup": [
+              0,
+              1
+            ],
+            "active": [
+              2,
+              3
+            ],
+            "recovery": [
+              4,
+              5
+            ]
+          },
+          "tags": [
+            "derived",
+            "sword"
+          ],
+          "comment": "The blow in the air: the owner's jump to tuck, the first blow's drawings tipped the other way — about the hand, the blade coming DOWN across the front where the second blow's rises — and the owner's fall to be ready to land."
+        },
+        "crouchAttack": {
+          "frames": "crouchAttack_",
+          "count": 5,
+          "fps": 26,
+          "loop": false,
+          "phases": {
+            "startup": [
+              0,
+              1
+            ],
+            "active": [
+              2,
+              3
+            ],
+            "recovery": [
+              4,
+              4
+            ]
+          },
+          "tags": [
+            "derived",
+            "sword"
+          ],
+          "comment": "The low blow: the first blow's drawings with the body brought down to the crouch — the blade sweeps at knee height — and the held crouch to settle into."
+        },
+        "drink": {
+          "frames": "drink_",
+          "count": 4,
+          "fps": 10,
+          "loop": false,
+          "tags": [
+            "derived"
+          ],
+          "comment": "The drink: the owner's idle drawings with a glass vial of cyan liquid and the small arm that holds it drawn over them (the one thing the sheet cannot lend), the head bent back about the neck for the swallow and the eye brighter at the end."
         }
       },
       "frames": {
@@ -309,6 +414,390 @@
             "projectile_origin": [
               1.015,
               1.015
+            ]
+          }
+        },
+        "attack2_00": {
+          "anchors": {
+            "hand_r": [
+              0.207,
+              0.215
+            ],
+            "weapon_grip": [
+              0.207,
+              0.215
+            ],
+            "weapon_tip": [
+              0.513,
+              0.117
+            ],
+            "hit_origin": [
+              0.468,
+              0.132
+            ],
+            "vfx_origin": [
+              0.354,
+              0.168
+            ]
+          }
+        },
+        "attack2_01": {
+          "anchors": {
+            "hand_r": [
+              0.456,
+              0.346
+            ],
+            "weapon_grip": [
+              0.456,
+              0.346
+            ],
+            "weapon_tip": [
+              0.729,
+              0.065
+            ],
+            "hit_origin": [
+              0.689,
+              0.107
+            ],
+            "vfx_origin": [
+              0.587,
+              0.211
+            ]
+          }
+        },
+        "attack2_02": {
+          "anchors": {
+            "hand_r": [
+              0.523,
+              0.508
+            ],
+            "weapon_grip": [
+              0.523,
+              0.508
+            ],
+            "weapon_tip": [
+              0.928,
+              0.551
+            ],
+            "hit_origin": [
+              0.867,
+              0.544
+            ],
+            "vfx_origin": [
+              0.717,
+              0.529
+            ]
+          }
+        },
+        "attack2_03": {
+          "anchors": {
+            "hand_r": [
+              0.892,
+              0.616
+            ],
+            "weapon_grip": [
+              0.892,
+              0.616
+            ],
+            "weapon_tip": [
+              1.41,
+              0.561
+            ],
+            "hit_origin": [
+              1.332,
+              0.569
+            ],
+            "vfx_origin": [
+              1.141,
+              0.589
+            ]
+          }
+        },
+        "attack2_04": {
+          "anchors": {
+            "hand_r": [
+              0.367,
+              0.356
+            ],
+            "weapon_grip": [
+              0.367,
+              0.356
+            ],
+            "weapon_tip": [
+              0.582,
+              0.075
+            ],
+            "hit_origin": [
+              0.549,
+              0.117
+            ],
+            "vfx_origin": [
+              0.47,
+              0.221
+            ]
+          }
+        },
+        "aerialAttack_00": {
+          "anchors": {
+            "hand_r": [
+              0.296,
+              0.391
+            ],
+            "weapon_grip": [
+              0.296,
+              0.391
+            ],
+            "weapon_tip": [
+              0.606,
+              0.151
+            ],
+            "hit_origin": [
+              0.56,
+              0.187
+            ],
+            "vfx_origin": [
+              0.445,
+              0.276
+            ]
+          }
+        },
+        "aerialAttack_01": {
+          "anchors": {
+            "hand_r": [
+              0.323,
+              0.431
+            ],
+            "weapon_grip": [
+              0.323,
+              0.431
+            ],
+            "weapon_tip": [
+              0.7,
+              0.324
+            ],
+            "hit_origin": [
+              0.644,
+              0.34
+            ],
+            "vfx_origin": [
+              0.504,
+              0.38
+            ]
+          }
+        },
+        "aerialAttack_02": {
+          "anchors": {
+            "hand_r": [
+              0.477,
+              0.539
+            ],
+            "weapon_grip": [
+              0.477,
+              0.539
+            ],
+            "weapon_tip": [
+              0.826,
+              0.33
+            ],
+            "hit_origin": [
+              0.773,
+              0.36
+            ],
+            "vfx_origin": [
+              0.644,
+              0.438
+            ]
+          }
+        },
+        "aerialAttack_03": {
+          "anchors": {
+            "hand_r": [
+              0.846,
+              0.616
+            ],
+            "weapon_grip": [
+              0.846,
+              0.616
+            ],
+            "weapon_tip": [
+              1.187,
+              0.223
+            ],
+            "hit_origin": [
+              1.136,
+              0.282
+            ],
+            "vfx_origin": [
+              1.01,
+              0.427
+            ]
+          }
+        },
+        "aerialAttack_04": {
+          "anchors": {
+            "hand_r": [
+              0.486,
+              0.181
+            ],
+            "weapon_grip": [
+              0.486,
+              0.181
+            ],
+            "weapon_tip": [
+              0.562,
+              -0.165
+            ],
+            "hit_origin": [
+              0.55,
+              -0.113
+            ],
+            "vfx_origin": [
+              0.522,
+              0.015
+            ]
+          }
+        },
+        "aerialAttack_05": {
+          "anchors": {
+            "hand_r": [
+              0.377,
+              0.312
+            ],
+            "weapon_grip": [
+              0.377,
+              0.312
+            ],
+            "weapon_tip": [
+              0.556,
+              0.007
+            ],
+            "hit_origin": [
+              0.529,
+              0.053
+            ],
+            "vfx_origin": [
+              0.463,
+              0.166
+            ]
+          }
+        },
+        "crouchAttack_00": {
+          "anchors": {
+            "hand_r": [
+              0.326,
+              0.14
+            ],
+            "weapon_grip": [
+              0.326,
+              0.14
+            ],
+            "weapon_tip": [
+              0.616,
+              0.041
+            ],
+            "hit_origin": [
+              0.573,
+              0.056
+            ],
+            "vfx_origin": [
+              0.465,
+              0.093
+            ]
+          }
+        },
+        "crouchAttack_01": {
+          "anchors": {
+            "hand_r": [
+              0.422,
+              0.093
+            ],
+            "weapon_grip": [
+              0.422,
+              0.093
+            ],
+            "weapon_tip": [
+              0.709,
+              0.027
+            ],
+            "hit_origin": [
+              0.667,
+              0.037
+            ],
+            "vfx_origin": [
+              0.56,
+              0.062
+            ]
+          }
+        },
+        "crouchAttack_02": {
+          "anchors": {
+            "hand_r": [
+              0.497,
+              0.301
+            ],
+            "weapon_grip": [
+              0.497,
+              0.301
+            ],
+            "weapon_tip": [
+              0.892,
+              0.224
+            ],
+            "hit_origin": [
+              0.833,
+              0.235
+            ],
+            "vfx_origin": [
+              0.687,
+              0.264
+            ]
+          }
+        },
+        "crouchAttack_03": {
+          "anchors": {
+            "hand_r": [
+              0.802,
+              0.325
+            ],
+            "weapon_grip": [
+              0.802,
+              0.325
+            ],
+            "weapon_tip": [
+              1.286,
+              0.172
+            ],
+            "hit_origin": [
+              1.213,
+              0.183
+            ],
+            "vfx_origin": [
+              1.034,
+              0.243
+            ]
+          }
+        },
+        "crouchAttack_04": {
+          "anchors": {
+            "hand_r": [
+              0.354,
+              0.338
+            ],
+            "weapon_grip": [
+              0.354,
+              0.338
+            ],
+            "weapon_tip": [
+              0.554,
+              0.046
+            ],
+            "hit_origin": [
+              0.524,
+              0.09
+            ],
+            "vfx_origin": [
+              0.45,
+              0.198
             ]
           }
         }

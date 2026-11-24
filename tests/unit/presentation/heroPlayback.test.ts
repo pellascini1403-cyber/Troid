@@ -59,14 +59,14 @@ describe('the protagonist\'s clips, as the engine plays them', () => {
     expect(chooseSource('auto', def, 'attack')).toBe('art');
   });
 
-  it('the states the sheet has no drawing for are NOT faked: the second blow repeats the first (the engine\'s declared stand-in, the same drawing and nothing moved or bent); the air blow, the crouch blow, the crouch, the crawl and the drink are drawn by the placeholder', () => {
-    for (const state of NOT_IN_THE_SHEET) expect(def.clips[state], `${state} has no clip of its own`).toBeUndefined();
-    expect(def.clips['crouchWalk']).toBeUndefined();
-    expect(standInFor(def, 'attack2')).toBe('attack1');
+  it('the states the sheet has no drawing for have a clip of their own now — made from the owner\'s drawings by `npm run assets:derive` and tagged `derived`, so nothing of the art is faked as the owner\'s: the art draws them all and the placeholder is only the way back', () => {
+    for (const state of NOT_IN_THE_SHEET) expect(def.clips[state], `${state} has a clip of its own`).toBeDefined();
+    expect(def.clips['crouchWalk']).toBeDefined();
+    expect(standInFor(def, 'attack2')).toBe('attack2');
     expect(chooseSource('auto', def, 'attack2')).toBe('art');
     for (const state of ['attackAir', 'attackCrouch', 'crouch', 'crouchWalk', 'drink'] as AnimState[]) {
-      expect(providesState(def, state), `${state}: nothing of the art can stand for it`).toBe(false);
-      expect(chooseSource('auto', def, state), `${state} is drawn by the placeholder`).toBe('placeholder');
+      expect(providesState(def, state), `${state}: the art has it`).toBe(true);
+      expect(chooseSource('auto', def, state), `${state} is drawn by the art`).toBe('art');
     }
     // `land` and `alert` are held poses of a few ticks: the engine lets the art's own pose (the landing) or its idle stand for them, never the placeholder
     expect(chooseSource('auto', def, 'alert')).toBe('art');
@@ -168,6 +168,6 @@ describe('the protagonist\'s clips, as the engine plays them', () => {
     // and the sprite set is the one the placeholder's contract describes
     expect(def.height).toBe(1.7);
     expect(def.artPxPerMeter).toBe(65);
-    expect(ANIM_STATES.filter((s) => def.clips[s] !== undefined), 'twelve clips: the sheet\'s').toHaveLength(12);
+    expect(ANIM_STATES.filter((s) => def.clips[s] !== undefined), 'eighteen clips: the twelve of the sheet and the six made from them').toHaveLength(18);
   });
 });

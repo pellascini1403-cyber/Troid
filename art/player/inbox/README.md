@@ -25,5 +25,5 @@ npm run assets:intake -- <clip> --accept      lo integra por `delivered` (solo l
 Al aceptar un clip, **la parte de la hoja de la que salió**, sus rectángulos, escala, anclas, colocación, lo que se quitó (`erase.json`), lo aceptado a propósito (`waivers.json`) y el informe quedan archivados en
 `art/player/source/delivered/<clip>/`, que sí se versiona: `deliveries.test.ts` vuelve a preparar cada archivo y exige **los mismos bytes** que los fotogramas del juego.
 
-Lo que la hoja **no** tiene (segundo golpe, golpe en el aire, agacharse, gatear, golpe agachado, beber) está pedido en `../requests/` (qué es cada uno, con su tablero de referencia y su encargo); no se saca de
-otro clip. El diseño anterior está en `../archive/design-v1/` y no es referencia de nada.
+Lo que la hoja **no** tiene (segundo golpe, golpe en el aire, agacharse, gatear, golpe agachado, beber) está **hecho** con `npm run assets:derive` a partir de los dibujos de la hoja (clips `derived`, ver `docs/PROMPT24-LOG.md` §6) y sigue pedido en `../requests/` (qué es cada uno, con su tablero de referencia y su encargo): un dibujo entregado
+con `assets:intake` sustituye al derivado. El diseño anterior está en `../archive/design-v1/` y no es referencia de nada.

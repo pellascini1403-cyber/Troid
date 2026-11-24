@@ -37,8 +37,8 @@ const pack = parseArtPack(JSON.parse(readFileSync(join(root, 'public', 'art', 'p
 const ART: SpriteSetDefinition = toSpriteSetDefinition(pack.id, pack.sprites.find((s) => s.id === PLAYER_VISUAL.art.sprite)!, { resolution: 1 });
 const ART_FRAMES = new Set(Object.keys((JSON.parse(readFileSync(join(root, 'public', 'art', 'player', 'hero_0.json'), 'utf8')) as { frames: Record<string, unknown> }).frames));
 const PLACEHOLDER_FRAMES = new Set(Object.values(PLAYER_PLACEHOLDER.def.clips).flatMap((c) => clipFrameNames(c!)));
-/** The poses the sheet has no drawing for: the placeholder draws them until the six clips of `art/player/requests/` arrive (the second blow repeats the first, a declared stand-in). */
-const NOT_DRAWN_YET: readonly AnimState[] = ['crouch', 'crouchWalk', 'attackAir', 'attackCrouch', 'drink'];
+/** The poses with no drawing of the art: none — the six the sheet has no drawing for are made from the owner's own drawings (`npm run assets:derive`, docs/PROMPT24-LOG.md F5), so the art draws every state and the placeholder is only the way back. */
+const NOT_DRAWN_YET: readonly AnimState[] = [];
 
 // ---------------------------------------------------------------------------------------------------------------- how long each state may last, from the data
 const total = (a: { startup: number; active: number; recovery: number }): number => a.startup + a.active + a.recovery;
@@ -480,7 +480,7 @@ describe('a hero played at random', () => {
     for (const p of ['idle', 'walk', 'run', 'jump', 'fall', 'dash', 'attack', 'attack2', 'attackAir', 'crouch', 'hurt', 'death', 'cast'] as AnimState[]) expect(poses.has(p), `the soak showed ${p}`).toBe(true);
   });
 
-  it('draws every pose with the art but the five it has no drawing for — and those with the placeholder, which has a clip for each of them', () => {
+  it('draws every pose with the art — there is no pose left for the placeholder (which still has a clip for each of them, the way back)', () => {
     const drawn = new Map<AnimState, Set<string>>();
     for (const r of results) for (const [pose, by] of r.watch.looks.drawnBy) for (const b of by) (drawn.get(pose) ?? drawn.set(pose, new Set()).get(pose)!).add(b);
     for (const [pose, by] of drawn) {
@@ -535,17 +535,22 @@ interface Request {
   frames: unknown[];
 }
 
-describe('the six clips still to be drawn fit the simulation they will be played by', () => {
+describe('the six derived clips fit the simulation they are played by', () => {
   const requests = (JSON.parse(readFileSync(join(root, 'art', 'player', 'requests', 'requests.json'), 'utf8')) as { clips: Record<string, Request> }).clips;
   const asked = Object.entries(requests).filter(([, r]) => r.status === 'requested');
   const stateOf = (clip: string): AnimState => (CLIP_ALIASES[clip] ?? clip) as AnimState;
 
-  it('are exactly the poses the art cannot draw yet — the five of the placeholder and the second blow, which repeats the first — and 26 drawings in all', () => {
-    expect(asked.map(([clip]) => stateOf(clip)).sort()).toEqual([...NOT_DRAWN_YET, 'attack2'].sort());
+  it('are exactly the six poses the sheet has no drawing for — each in the committed art now, with the frames, the rate, the loop and the phases the kit asked for — and 26 drawings in all', () => {
+    expect(asked.map(([clip]) => stateOf(clip)).sort()).toEqual(['attack2', 'attackAir', 'attackCrouch', 'crouch', 'crouchWalk', 'drink'].sort());
     expect(asked.reduce((n, [, r]) => n + r.frames.length, 0)).toBe(26);
-    for (const [clip] of asked) {
-      expect(ART.clips[stateOf(clip)], `${clip} has no drawing in the committed art`).toBeUndefined();
-      expect(chooseSource('auto', ART, stateOf(clip)), clip).toBe(stateOf(clip) === 'attack2' ? 'art' : 'placeholder');
+    for (const [clip, r] of asked) {
+      const clipDef = ART.clips[stateOf(clip)];
+      expect(clipDef, `${clip} is drawn by the committed art`).toBeDefined();
+      expect(clipDef!.count, `${clip}: its frames`).toBe(r.frames.length);
+      expect(clipDef!.fps, `${clip}: its rate`).toBe(r.manifest.fps);
+      expect(clipDef!.loop, `${clip}: its loop`).toBe(r.manifest.loop);
+      if (r.manifest.phases) expect(clipDef!.phases, `${clip}: its phases`).toEqual(r.manifest.phases);
+      expect(chooseSource('auto', ART, stateOf(clip)), clip).toBe('art');
     }
   });
 

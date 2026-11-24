@@ -9,7 +9,8 @@ import { verifyArtFolder } from '../../../tools/assets/verify';
 import { bodyOf, boundsOf, cleanliness, headDiameter } from '../../../tools/assets/figure';
 import { clipFrameNames, heroPaths, readClips, readDelivered } from '../../../tools/assets/heroRepo';
 import { cutByBoxes, distanceToFigure, LIMITS, parsePoseBoxes } from '../../../tools/assets/intake';
-import { decodePng, type RgbaImage } from '../../../tools/assets/png';
+import { deriveAll } from '../../../tools/assets/heroDerive';
+import { decodePng, encodePng, type RgbaImage } from '../../../tools/assets/png';
 
 /**
  * THE PROTAGONIST'S FRAMES AS THE GAME HAS THEM (docs/PROMPT16-LOG.md): what is asserted is the state of the art of the repository today — the 44 frames of `art/player/hero/`, made from the user's character sheet — and
@@ -20,7 +21,9 @@ import { decodePng, type RgbaImage } from '../../../tools/assets/png';
  */
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const paths = heroPaths(root);
-const clips = readClips(root);
+const everyClip = readClips(root);
+/** The twelve clips of the owner's sheet — their frames, their deliveries, every rule of the first half of this file. The six others are made from them (`npm run assets:derive`) and answer to the last block. */
+const clips = Object.fromEntries(Object.entries(everyClip).filter(([, c]) => !c.tags?.includes('derived')));
 const frame = (name: string): RgbaImage => decodePng(readFileSync(join(paths.hero, `${name}.png`)));
 const allFrames = Object.entries(clips).flatMap(([clip, c]) => clipFrameNames(c).map((name) => ({ clip, name, img: frame(name) })));
 const manifest = (JSON.parse(readFileSync(paths.manifest, 'utf8')) as { sprites: Array<{ pivotPx: [number, number]; artPxPerMeter: number; frameSize: [number, number]; frames: Record<string, { anchors?: Record<string, [number, number]> }> }> }).sprites[0]!;
@@ -192,7 +195,7 @@ describe('the anchors of the sword and the cast', () => {
   const px = (a: [number, number]): [number, number] => [PIVOT_X + a[0] * PX_PER_M, PIVOT_Y - a[1] * PX_PER_M];
 
   it('only the clips that need them have them — the blow\'s four frames and the cast\'s four — and every anchor lies on the figure it is for (the grip on the hand, the tip on the blade, the origin of the projectile within a hand\'s reach of the hand)', () => {
-    const withAnchors = Object.keys(manifest.frames).filter((f) => manifest.frames[f]!.anchors).sort();
+    const withAnchors = Object.keys(manifest.frames).filter((f) => manifest.frames[f]!.anchors && !/^(attack2|aerialAttack|crouchAttack)_/.test(f)).sort();
     expect(withAnchors).toEqual(['attack1_00', 'attack1_01', 'attack1_02', 'attack1_03', 'cast_00', 'cast_01', 'cast_02', 'cast_03']);
     for (const name of withAnchors) {
       const img = frame(name);
@@ -259,5 +262,75 @@ describe('the way back to the design before', () => {
     const names = Object.values(old.sprites[0]!.clips).flatMap((c) => Array.from({ length: c.count }, (_, k) => `${c.frames}${String(k).padStart(2, '0')}.png`));
     for (const f of names) expect(existsSync(join(paths.archive, 'design-v1', 'hero', f)), `${f} is in the archive`).toBe(true);
     expect(new Set(names).size).toBe(90);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------- the six made from the owner's drawings
+describe('the six clips made from the owner\'s drawings (docs/PROMPT24-LOG.md, F5): no new face, no new colour — the same head, the same ground, the sword where the blade is', () => {
+  const derivedClips = Object.entries(everyClip).filter(([, c]) => c.tags?.includes('derived'));
+  const derivedFrames = derivedClips.flatMap(([clip, c]) => clipFrameNames(c).map((name) => ({ clip, name, img: frame(name) })));
+  const idleHead = median(clipFrameNames(clips['idle']!).map((n) => headDiameter(frame(n))!));
+  const px = (a: [number, number]): [number, number] => [PIVOT_X + a[0] * PX_PER_M, PIVOT_Y - a[1] * PX_PER_M];
+
+  it('are the six the sheet has no drawing for — 26 frames, all of the size of the sprite set, each clip with the rate, the loop and the phases the kit asked for', () => {
+    expect(derivedClips.map(([clip]) => clip).sort()).toEqual(['aerialAttack', 'attack2', 'crouch', 'crouchAttack', 'crouchWalk', 'drink']);
+    expect(derivedFrames).toHaveLength(26);
+    for (const { name, img } of derivedFrames) expect([img.width, img.height], name).toEqual(manifest.frameSize);
+    const asked = (JSON.parse(readFileSync(paths.requests, 'utf8')) as { clips: Record<string, { manifest: { fps: number; loop: boolean; phases: unknown } ; frames: unknown[] }> }).clips;
+    const ask = (clip: string) => asked[clip]!;
+    for (const [clip, c] of derivedClips) {
+      expect(c.count, `${clip}: frames`).toBe(ask(clip).frames.length);
+      expect(c.fps, `${clip}: rate`).toBe(ask(clip).manifest.fps);
+      expect(c.loop, `${clip}: loop`).toBe(ask(clip).manifest.loop);
+      if (ask(clip).manifest.phases) expect(c.phases, `${clip}: phases`).toEqual(ask(clip).manifest.phases);
+    }
+  });
+
+  it('are what the recipes produce: not a frame and not a declaration of the manifest has drifted from tools/assets/heroDerivedClips.ts', () => {
+    const made = deriveAll(root, JSON.parse(readFileSync(paths.manifest, 'utf8')));
+    expect(made.frames.map((f) => f.name)).toEqual(derivedFrames.map((f) => f.name));
+    for (const f of made.frames) expect(Buffer.compare(readFileSync(join(paths.hero, `${f.name}.png`)), encodePng(f.image)), `${f.name} is what its recipe makes`).toBe(0);
+    const declared = (JSON.parse(readFileSync(paths.manifest, 'utf8')) as { sprites: Array<{ clips: Record<string, unknown>; frames: Record<string, unknown> }> }).sprites[0]!;
+    for (const [clip, decl] of Object.entries(made.clips)) expect(declared.clips[clip], clip).toEqual(decl);
+    for (const [name, decl] of Object.entries(made.anchors)) expect(declared.frames[name], name).toEqual(decl);
+  });
+
+  it('keep the owner\'s head: it is moved and turned, never scaled — the head of every frame is within 10 % of the idle\'s', () => {
+    for (const { name, img } of derivedFrames) {
+      const h = headDiameter(img);
+      if (h === null) continue; // a pose where the head is hidden is not read
+      expect(Math.abs(h - idleHead) / idleHead, `${name}: head ${h.toFixed(1)} px, the idle's ${idleHead.toFixed(1)}`).toBeLessThan(0.1);
+    }
+  });
+
+  it('keep the feet on the ground line the crouch is made on, and the margin the contract asks (4 px) all round the figure', () => {
+    for (const { clip, name, img } of derivedFrames) {
+      if (['crouch', 'crouchWalk', 'crouchAttack', 'drink'].includes(clip)) {
+        const body = bodyOf(img, 3, true)!;
+        expect(Math.abs(body.bottom - PIVOT_Y), `${name}: feet at row ${body.bottom}, the ground line at ${PIVOT_Y}`).toBeLessThanOrEqual(4);
+      }
+      const b = boundsOf(img, 1)!;
+      expect(b.x0, `${name}: left margin`).toBeGreaterThanOrEqual(4);
+      expect(b.y0, `${name}: top margin`).toBeGreaterThanOrEqual(4);
+      expect(img.width - 1 - b.x1, `${name}: right margin`).toBeGreaterThanOrEqual(4);
+    }
+  });
+
+  it('carry the sword where the blade is: every frame of the three blows has the grip in the hand and the tip on the blade, and the blade of the frame that strikes reaches ahead', () => {
+    for (const clip of ['attack2', 'aerialAttack', 'crouchAttack']) {
+      const c = everyClip[clip]!;
+      clipFrameNames(c).forEach((name, k) => {
+        const a = manifest.frames[name]!.anchors!;
+        expect(Object.keys(a).sort(), name).toEqual(['hand_r', 'hit_origin', 'vfx_origin', 'weapon_grip', 'weapon_tip']);
+        expect(a['hand_r'], `${name}: the hand holds the grip`).toEqual(a['weapon_grip']);
+        const [lo, hi] = c.phases!['active']!;
+        // the anchors travel with the pixels, so on the frames that strike the tip is on the blade (the startup and the recovery borrow the nearest blow's, and only have to be on the picture)
+        if (k >= lo && k <= hi) for (const key of ['weapon_grip', 'weapon_tip'] as const) expect(distanceToFigure(frame(name), px(a[key]!), LIMITS.anchorOnFigure + 3), `${name} ${key}`).toBeLessThanOrEqual(LIMITS.anchorOnFigure + 2);
+      });
+    }
+    // the second blow rises where the first thrusts: its cut reaches ahead and higher than the first's strike
+    const tip = (name: string): [number, number] => manifest.frames[name]!.anchors!['weapon_tip'] as [number, number];
+    expect(tip('attack2_03')[0]).toBeGreaterThan(0.9);
+    expect(tip('attack2_03')[1]).toBeGreaterThan(tip('attack1_02')[1]);
   });
 });
