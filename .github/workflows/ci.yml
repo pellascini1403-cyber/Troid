@@ -48,28 +48,35 @@ jobs:
       - run: npm run build
       - run: npm run bench:bundle
 
-  # The game in a real browser (docs/PROMPT20-LOG.md, docs/PROMPT25-LOG.md): the production build, driven with real keyboard, pad and touch events in Chromium. EVERY scene of the suite runs here, in one of five jobs side by side
-  # (the runner draws with software and is ~3 times slower than a developer's machine: one after the other they went past an hour): the groups are `tools/e2e/groups.ts`, and a unit test fails when a scene belongs to none of
-  # them — until Prompt 25 only twenty of the sixty-nine were here, and a scene run by hand is a scene that fails unseen. Each job asks for its group by name; this file keeps no list of scenes of its own, so it cannot drift.
+  # The game in a real browser (docs/PROMPT20-LOG.md, docs/PROMPT25-LOG.md): the production build, driven with real keyboard, pad and touch events in Chromium. EVERY scene of the suite runs here, in one of eight jobs side by side
+  # (the runner draws with software and is ~3 times slower than a developer's machine, and from one run to the next it is up to twice as slow again: one after the other the scenes went past an hour, and five groups went from 15 to
+  # 38 minutes): the groups are `tools/e2e/groups.ts`, balanced by the time each scene took on the runner, and a unit test fails when a scene belongs to none of them — until Prompt 25 only twenty of the sixty-nine were here, and a
+  # scene run by hand is a scene that fails unseen. Each job asks for its group by name; this file keeps no list of scenes of its own, so it cannot drift.
   e2e:
     name: e2e (${{ matrix.group.name }})
     needs: check
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         group:
-          # the player's whole way: a first game, the rooms, the pause and its map, the pad, the end of the adventure
+          # the player's first way: a first game, the rooms, the pad, the light that follows the machine
           - name: play
-          # a game that breaks, what it sends and keeps, whether it can be read
+          # the pause and its map, the loss of focus, the end of the adventure
+          - name: pause
+          # a game that breaks, what it sends and keeps, whether it can be read, the sprites
           - name: stability
-          # the whole adventure in one page (docs/PROMPT22-LOG.md §5): ~200 000 ticks of a scripted playthrough from a new game to the way out of the world, replayed bit for bit — it takes minutes on its own (about seven minutes on the machine that wrote this, eleven on the runner)
+          # the whole adventure in one page (docs/PROMPT22-LOG.md §5): ~200 000 ticks of a scripted playthrough from a new game to the way out of the world, replayed bit for bit — it takes minutes on its own (about seven minutes on the machine that wrote this, up to ten on the runner)
           - name: journey
-          # controls and screens: touch, the phone classes, the HUD, the settings, the saves, the sound
-          - name: interface
-          # what is drawn and fought: art, light, effects, the guardians, the hazards
-          - name: world
+          # touch, the phone classes, the HUD, the settings, the words, the text that fits
+          - name: controls
+          # the saved games, the tabs, the checkpoints, the devtools, the sound
+          - name: saves
+          # what is drawn: the hero and the rooms in art, the light, the effects, the cost
+          - name: art
+          # what is fought: the guardians, the bottles, the bolt, the hazards, the arrival at a room
+          - name: fights
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
