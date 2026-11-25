@@ -379,6 +379,7 @@ export const arrival: Scenario = {
       await sess(w.page, 's.flags.set("defeated:r1_slime")');
       w.net.hang = /\/ruins-roots\//;
       await w.page.evaluate('window.__troid.teleport(110, 0)');
+      await w.page.evaluate(RECORDER); // one record per frame: when the indicator is missing, this says whether it was never asked for or never drawn
       const t0 = Date.now();
       await w.page.evaluate('window.__troid.step(90)');
       const took = Date.now() - t0;
@@ -387,7 +388,11 @@ export const arrival: Scenario = {
       assert.equal(last.outcome, 'timeout', 'it gave up');
       assert.ok(last.waited >= 1400 && last.waited < 6000, `after the wait it was told (${last.waited} ms), not before and not long after`);
       assert.equal(a.blocking, false);
-      assert.equal(last.indicator, true, 'the indicator told the player the game was waiting, not frozen');
+      await w.page.evaluate('window.__tlOn = false');
+      const held = ((await w.page.evaluate('window.__tl')) as Frame[]).filter((f) => f.held);
+      const gaps = held.slice(1).map((f, i) => f.t - held[i]!.t);
+      const seen = `${held.length} frames while the world was held, the longest ${Math.round(Math.max(0, ...gaps))} ms apart from the next, the indicator at most ${Math.max(0, ...held.map((f) => f.ind)).toFixed(2)}; stages ${[...new Set(held.map((f) => f.stage))].join('/')}; the wait ${last.waited} ms (${took} ms in all); the page's errors so far: ${JSON.stringify(w.errors.slice(0, 3).map((e) => e.slice(0, 200)))}`;
+      assert.equal(last.indicator, true, `the indicator told the player the game was waiting, not frozen (${seen})`);
       const s = await stateOf(w.page);
       assert.equal(s.room, 'r2_hall');
       assert.equal(s.transition?.phase, 'none');
