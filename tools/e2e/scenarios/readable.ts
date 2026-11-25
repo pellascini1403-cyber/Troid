@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import type { Page } from 'playwright-core';
 import { contrastAudit, type LowContrast } from '../contrast';
+import { describeCut, fitAudit } from '../fit';
 import type { Scenario } from '../scenario';
 
 /**
- * CAN IT BE READ (docs/PROMPT20-LOG.md): the text of every screen of the menu, of the closing of the adventure and of the notice that asks to turn the device, in both languages, measured in the browser — the colour the
+ * CAN IT BE READ — AND IS IT ALL THERE (docs/PROMPT20-LOG.md, docs/PROMPT25-LOG.md): the text of every screen of the menu, of the closing of the adventure and of the notice that asks to turn the device, in both languages, measured in the browser — the colour the
  * browser draws each text with against what it is drawn on, as the WCAG contrast ratio (4.5 : 1, and 3 : 1 for large text) — and the smallest letter on any of them. A text that cannot be read is not an accessible
  * game, however many options it has.
  */
@@ -61,7 +62,10 @@ export const readable: Scenario = {
       assert.deepEqual(failures.map(describe), [], `${label}: every text reaches its contrast`);
       const small = await smallest(page, root);
       assert.ok(small.size >= SMALLEST, `${label}: the smallest letter is ${small.size}px ("${small.text}")`);
-      seen.push(`${label} ${checked} (≥${small.size}px)`);
+      // …and that none of it is cut (a long string of one language in a box made for the other: docs/PROMPT25-LOG.md)
+      const fit = await fitAudit(page, root);
+      assert.deepEqual(fit.failures.map(describeCut), [], `${label}: every text fits its box`);
+      seen.push(`${label} ${checked} (≥${small.size}px, ${fit.checked} fit)`);
     };
 
     // ================================================================================================ the menu, screen by screen, in both languages
