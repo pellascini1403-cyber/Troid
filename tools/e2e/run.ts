@@ -6,9 +6,13 @@
  *   npm run test:e2e -- --only=hazard,soak   exactly the scenarios with those names (a long run can then be resumed where it was cut)
  *   npm run test:e2e -- --group=play         the scenes of one job of the CI (`groups.ts`: the CI runs them all, each scene in exactly one group)
  *   add --prod to run against the production build (run `npm run build` first)
+ * A scene that fails leaves its evidence: the assertion, where in the scene it stood, what the page had written to its console and a screenshot of the page as it was (`.shots/e2e/<scene>-FAILED.png`; the CI
+ * keeps that folder when a job fails). A scene that does not finish in `TROID_E2E_SCENE_LIMIT_S` seconds (25 minutes by default; the longest takes about eleven on the CI's runner) FAILS — it does not hold the job
+ * until the CI's own limit cuts it off without saying which scene it was.
  */
 import { mkdirSync } from 'node:fs';
 import { launchBrowser, openPage, startPreview, startServer, type OpenedPage } from './harness';
+import { withDeadline } from './deadline';
 import { GROUPS } from './groups';
 import { ALL } from './registry';
 import type { Ctx, GameState } from './scenario';
@@ -27,6 +31,9 @@ if (unknown.length > 0) {
   console.error(`unknown scenario(s): ${unknown.join(', ')}`);
   process.exit(2);
 }
+
+/** A scene that hangs is a failure that names the scene, not a job that is cut off an hour later with nothing to read. */
+const SCENE_LIMIT_MS = Number(process.env['TROID_E2E_SCENE_LIMIT_S'] ?? 1500) * 1000;
 
 mkdirSync('.shots/e2e', { recursive: true });
 const server = prod ? await startPreview() : await startServer();
@@ -76,7 +83,7 @@ for (const scenario of selected) {
     },
   };
   try {
-    await scenario.run(ctx);
+    await withDeadline(`scene "${scenario.name}"`, SCENE_LIMIT_MS, scenario.run(ctx));
     if (ctx.errors.length) throw new Error(`console/page errors:\n  - ${ctx.errors.join('\n  - ')}`);
     console.log(`✓ ${scenario.name}  (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
     const warned = [...new Set(ctx.warnings)];
@@ -84,8 +91,18 @@ for (const scenario of selected) {
   } catch (e) {
     failed++;
     console.error(`✗ ${scenario.name}\n  ${(e as Error).message}`);
-    // `TROID_E2E_STACK=1` says WHERE in the scenario it stood (the message alone names the assertion, not the line)
-    if (process.env['TROID_E2E_STACK'] === '1') console.error(((e as Error).stack ?? '').split('\n').filter((l) => l.includes('/tools/e2e/scenarios/')).slice(0, 4).join('\n'));
+    // WHERE in the scenario it stood (the message alone names the assertion, not the line): always on the CI, where the failure cannot be run again at will; `TROID_E2E_STACK=1` asks for it anywhere
+    if (process.env['TROID_E2E_STACK'] === '1' || process.env['CI']) {
+      const where = ((e as Error).stack ?? '').split('\n').filter((l) => l.includes('/tools/e2e/scenarios/')).slice(0, 4);
+      if (where.length > 0) console.error(where.join('\n'));
+    }
+    // what the page said before it failed (a scene that throws does not get to the check of the console above) and how it looked
+    if (ctx.errors.length && !(e as Error).message.startsWith('console/page errors')) console.error(`  the page's console/page errors until then (${ctx.errors.length}):\n    - ${ctx.errors.slice(0, 5).map((m) => m.slice(0, 300)).join('\n    - ')}`);
+    const page = opened.current?.page;
+    if (page) {
+      const file = `.shots/e2e/${scenario.name}-FAILED.png`;
+      await Promise.race([page.screenshot({ path: file }).then(() => console.error(`  the page as it was: ${file}`)), new Promise((resolve) => setTimeout(resolve, 5000))]).catch(() => undefined); // a page that is gone has nothing to show
+    }
   }
   await opened.current?.page.context().close();
 }

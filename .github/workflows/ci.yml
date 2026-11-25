@@ -5,9 +5,15 @@ on:
     branches: ['**']
   pull_request:
 
+# the CI reads the repository and nothing else: no job needs to write to it (a token that cannot write cannot be used to)
+permissions:
+  contents: read
+
 jobs:
+  # typecheck, the whole unit suite and the production build. The suite takes 9–11 minutes on the runner (docs/PROMPT25-LOG.md): the limit is a stop for a hung test, not a budget for a slow one.
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,6 +24,29 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  # The cold-start budget (docs/PROMPT25-LOG.md, P1-1): everything the browser asks for before the first frame of the game, gzipped, against 204 800 B and against the reserve the bench keeps (4 KiB under that). It is a job of its
+  # own, and not a first step of the e2e jobs as it was: a budget that is spent must fail ONE job that says so, not stop five jobs before their scenes run and hide what the scenes would have found.
+  budget:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: |
+          for attempt in 1 2 3; do
+            timeout 420 npx playwright-core install --with-deps chromium && exit 0
+            echo "attempt $attempt did not finish; trying again"
+          done
+          exit 1
+      - run: npm run build
+      - run: npm run bench:bundle
 
   # The game in a real browser (docs/PROMPT20-LOG.md, docs/PROMPT25-LOG.md): the production build, driven with real keyboard, pad and touch events in Chromium. EVERY scene of the suite runs here, in one of five jobs side by side
   # (the runner draws with software and is ~3 times slower than a developer's machine: one after the other they went past an hour): the groups are `tools/e2e/groups.ts`, and a unit test fails when a scene belongs to none of
@@ -57,8 +86,17 @@ jobs:
           done
           exit 1
       - run: npm run build
-      - run: npm run bench:bundle
       - run: npm run test:e2e -- --prod --group=${{ matrix.group.name }}
+      # a scene that fails on the runner (software GL, slower than any machine that writes the game) may not fail anywhere else: the screenshot of the page as it was is the evidence (`.shots` is a hidden folder, which the action leaves out unless it is told)
+      - name: Keep the screenshots of a failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-${{ matrix.group.name }}-shots
+          path: .shots/e2e
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
 
   # The game in the other two engines (docs/PROMPT20-LOG.md §6): Firefox and WebKit — the engine of Safari, on Linux: NOT an iPhone — start the production build, draw it, move the hero, pause, save and bring the game back,
   # and a phone-sized page takes a real tap without the hero striking. Chromium has the whole suite above. A pass is evidence about the engines, not about any device.
