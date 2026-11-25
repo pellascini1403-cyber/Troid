@@ -22,7 +22,7 @@ Continuar F1–F7 (la rama `claude/troid-vertical-slice`, último commit informa
 
 **No medido, y por tanto no afirmado:** nada en un dispositivo físico (iOS, Android, mando, pantalla táctil real), ni el tiempo de un fotograma en un teléfono, ni batería ni temperatura, ni Safari de iPhone (el WebKit de CI es el de Linux). Los números de CPU de este entorno valen para comparar una versión con otra, no como cifras de un móvil.
 
-## 3. Hallazgos (evidencia por área)
+## 4. Hallazgos (evidencia por área)
 
 ### 4.1 El presupuesto de arranque (✅🔎)
 
