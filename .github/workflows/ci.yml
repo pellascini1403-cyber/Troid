@@ -40,8 +40,11 @@ jobs:
       - run: npm ci
       - name: Install Chromium
         run: |
+          # a download that stalls is killed by `timeout`... and the `apt-get` the installer started keeps running with the dpkg lock: the second and third attempts then fail in two seconds ("Could not get lock") and the job is lost
+          # to a slow mirror (the WebKit job of run 162). So apt is told to give up on a transfer that stalls for 30 s, to try it again, and to wait for the lock; and `timeout` follows its signal with a kill
+          printf 'Acquire::http::Timeout "30";\nAcquire::Retries "3";\nDPkg::Lock::Timeout "180";\n' | sudo tee /etc/apt/apt.conf.d/99troid-ci > /dev/null
           for attempt in 1 2 3; do
-            timeout 420 npx playwright-core install --with-deps chromium && exit 0
+            timeout --kill-after=15 420 npx playwright-core install --with-deps chromium && exit 0
             echo "attempt $attempt did not finish; trying again"
           done
           exit 1
@@ -87,8 +90,11 @@ jobs:
       # (the download of a browser and its system libraries sometimes stalls for many minutes: each attempt has its time, and there are three)
       - name: Install Chromium
         run: |
+          # a download that stalls is killed by `timeout`... and the `apt-get` the installer started keeps running with the dpkg lock: the second and third attempts then fail in two seconds ("Could not get lock") and the job is lost
+          # to a slow mirror (the WebKit job of run 162). So apt is told to give up on a transfer that stalls for 30 s, to try it again, and to wait for the lock; and `timeout` follows its signal with a kill
+          printf 'Acquire::http::Timeout "30";\nAcquire::Retries "3";\nDPkg::Lock::Timeout "180";\n' | sudo tee /etc/apt/apt.conf.d/99troid-ci > /dev/null
           for attempt in 1 2 3; do
-            timeout 420 npx playwright-core install --with-deps chromium && exit 0
+            timeout --kill-after=15 420 npx playwright-core install --with-deps chromium && exit 0
             echo "attempt $attempt did not finish; trying again"
           done
           exit 1
@@ -125,8 +131,10 @@ jobs:
       - run: npm ci
       - name: Install ${{ matrix.browser }}
         run: |
+          # (see the install of Chromium above: a stalled download must not leave `apt-get` holding the lock for the attempts that follow)
+          printf 'Acquire::http::Timeout "30";\nAcquire::Retries "3";\nDPkg::Lock::Timeout "180";\n' | sudo tee /etc/apt/apt.conf.d/99troid-ci > /dev/null
           for attempt in 1 2 3; do
-            timeout 420 npx playwright-core install --with-deps ${{ matrix.browser }} && exit 0
+            timeout --kill-after=15 420 npx playwright-core install --with-deps ${{ matrix.browser }} && exit 0
             echo "attempt $attempt did not finish; trying again"
           done
           exit 1

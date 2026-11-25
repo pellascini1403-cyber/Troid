@@ -48,8 +48,10 @@ interface Tally {
   loaded: boolean;
   /** The hero rested at a shrine: life, magic and bottles are given back (docs/PROMPT6-LOG.md S24). */
   rested: boolean;
+  /** Magic given back by a blow that landed (the Siphon Bead): more than a tick of regeneration, and only with the relic. */
+  gained: number;
 }
-const fresh = (): Tally => ({ hurt: 0, died: 0, healed: 0, used: 0, recharged: 0, added: 0, refilled: 0, spent: 0, magicReset: false, casts: 0, denied: 0, drunk: 0, performed: 0, respawned: false, loaded: false, rested: false });
+const fresh = (): Tally => ({ hurt: 0, died: 0, healed: 0, used: 0, recharged: 0, added: 0, refilled: 0, spent: 0, magicReset: false, casts: 0, denied: 0, drunk: 0, performed: 0, respawned: false, loaded: false, rested: false, gained: 0 });
 
 export interface Totals {
   ticks: number;
@@ -120,9 +122,20 @@ export function soak(seed: number, ticks: number, hook?: SoakHook): Result {
   s.bus.on('magic:changed', (e) => {
     if (e.reason === 'spend') t.spent += -e.delta;
     else if (e.reason === 'set' || e.reason === 'restore') t.magicReset = true;
+    // `Magic.gain` (a blow that landed gives some back: the Siphon Bead) is reported as `regen`, with a delta of a whole blow's worth and not a tick's: it is known when the hero owns the relic, and a violation when not.
+    // (docs/PROMPT25-LOG.md §4.16: the first deep hunt, 300 seeds of 20 000 ticks, found ten of these and two of the next — the hero of a long run has picked the relic up)
+    else if (e.reason === 'regen' && e.delta > REGEN_PER_TICK + 1e-9) {
+      if (s.abilities.has('relic_siphon')) t.gained += e.delta;
+      else bad(`magic rose by ${e.delta} in one step without the Siphon Bead`);
+    }
   });
   s.bus.on('skill:cast', (e) => void (t.casts++, totals.casts++, e.cost !== COST && bad(`a cast cost ${e.cost}`)));
-  s.bus.on('skill:denied', () => void (t.denied++, totals.denied++));
+  s.bus.on('skill:denied', () => {
+    t.denied++;
+    totals.denied++;
+    // judged at the moment it happens, which is when the game judged it: a rest at a shrine later in the same tick gives the magic back, and the bar at the END of the tick says nothing about the cast
+    if (s.magic.current >= COST + 1e-9) bad(`a cast was denied with ${s.magic.current} magic`);
+  });
   s.bus.on('interaction:performed', () => void (t.performed++, totals.performed++));
   s.bus.on('death:respawned', () => void (t.respawned = true));
   s.bus.on('checkpoint:set', () => void (t.rested = true));
@@ -218,11 +231,10 @@ export function soak(seed: number, ticks: number, hook?: SoakHook): Result {
       const delta = m - prevMagic;
       if (t.spent > 0) {
         if (Math.abs(delta + t.spent) > 1e-9) bad(`magic went ${prevMagic} → ${m} (a spend of ${t.spent})`);
-      } else if (delta < -1e-9 || delta > REGEN_PER_TICK + 1e-9) bad(`magic changed by ${delta} with nothing spent`);
+      } else if (delta < -1e-9 || delta > REGEN_PER_TICK + t.gained + 1e-9) bad(`magic changed by ${delta} with nothing spent`);
     }
     if (t.casts > 0 && !s.loadout.equipped && s.now - unequippedAt > 8) bad('a cast with no card equipped (and none taken off while it was being prepared)');
     if (t.casts > 0 && Math.abs(t.spent - COST * t.casts) > 1e-9) bad(`${t.casts} cast(s) but ${t.spent} spent`);
-    if (t.denied > 0 && m >= COST + REGEN_PER_TICK + 1e-9) bad(`a cast was denied with ${m} magic`);
     prevMagic = m;
 
     // the life: inside its bar, and it only changes for a reason (a hit, a bottle, or a respawn that gives it back)

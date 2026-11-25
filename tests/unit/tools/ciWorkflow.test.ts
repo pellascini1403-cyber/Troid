@@ -53,8 +53,14 @@ describe('the workflow of the CI keeps what Prompt 25 made of it (docs/PROMPT25-
     expect(all['e2e']).toMatch(/include-hidden-files:\s*true/);
   });
 
-  it('installs the browser with a limit for each attempt, because the download sometimes stalls', () => {
-    for (const name of ['budget', 'e2e', 'engines']) expect(all[name], `job "${name}"`).toMatch(/timeout 420 npx playwright-core install/);
+  it('installs the browser with a limit for each attempt, because the download sometimes stalls — and a stalled download does not leave the next attempts without the dpkg lock', () => {
+    for (const name of ['budget', 'e2e', 'engines']) {
+      expect(all[name], `job "${name}"`).toMatch(/timeout --kill-after=\d+ 420 npx playwright-core install/);
+      // the run 162 lost its WebKit job to this: `timeout` killed the installer, `apt-get` went on holding the lock, and the two attempts that were left failed in two seconds
+      expect(all[name], `job "${name}": apt gives up on a stalled transfer`).toMatch(/Acquire::http::Timeout/);
+      expect(all[name], `job "${name}": apt tries a transfer again`).toMatch(/Acquire::Retries/);
+      expect(all[name], `job "${name}": apt waits for the lock`).toMatch(/DPkg::Lock::Timeout/);
+    }
   });
 
   it('installs with `npm ci` (the lockfile, to the letter) everywhere and never `npm install`', () => {

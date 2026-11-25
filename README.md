@@ -118,9 +118,9 @@ Herramientas de desarrollo (usan el Chromium preinstalado, ver `TROID_CHROMIUM`)
 
 ```bash
 npm run shot -- --out .shots/boot.png --w 844 --h 390   # captura del juego en tamaño teléfono
-npm run test:e2e                                           # los escenarios E2E con Playwright, en Chromium real (--prod: contra el build; un nombre filtra: `-- finale`; `--only=a,b` elige por nombre)
+npm run test:e2e                                           # los escenarios E2E con Playwright, en Chromium real (--prod: contra el build; un nombre filtra: `-- finale`; `--only=a,b` elige por nombre; `--group=<play|pause|stability|journey|controls|saves|art|fights>` corre uno de los ocho grupos de la CI, que juntos son las 69 escenas)
 npm run test:engines -- --browser=firefox                  # humo del build de producción en otro motor (firefox | webkit | chromium): arranca, dibuja, mueve, ataca, pausa, guarda y recarga (en la CI; requiere `npx playwright-core install firefox webkit`)
-npm run bench:bundle                                       # qué descarga un arranque en frío del build de producción (KB gz); FALLA por encima de 204 800 B
+npm run bench:bundle                                       # qué descarga un arranque en frío del build de producción (KB gz); FALLA a menos de 4 KiB del techo de 204 800 B (la reserva) y dice cuánto queda
 npm run licenses                                           # escribe public/THIRD_PARTY_NOTICES.txt (los avisos del software de terceros que el juego lleva); `licenses:check` lo exige el build
 npm run assets:missing                                     # qué arte falta exactamente (protagonista, entorno, y las 22 apariencias de criaturas y guardianes con su tamaño y sus salas); --strict falla mientras falte algo
 npm run assets:check                                       # valida el arte de art/ sin escribir nada (lo ejecuta `build`: el arte roto no compila)
