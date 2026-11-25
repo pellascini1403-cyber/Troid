@@ -42,10 +42,20 @@ const sum = (list: typeof loaded): { raw: number; gz: number } => list.reduce((n
 const cold = sum(coldList);
 for (const f of [...coldList].sort((a, b) => b.gz - a.gz)) console.log(`${(f.gz / 1024).toFixed(1).padStart(7)} KB gz  ${(f.raw / 1024).toFixed(1).padStart(7)} KB raw  ${f.url}`);
 const BUDGET = 200 * 1024;
-console.log(`\nloaded by a cold start of R1 (the code of its first frame): ${coldList.length} scripts, ${(cold.gz / 1024).toFixed(1)} KB gz = ${cold.gz} bytes of the ${BUDGET} the budget allows (${(cold.raw / 1024).toFixed(1)} KB raw)`);
+/**
+ * THE RESERVE (docs/PROMPT25-LOG.md, P1-1). The budget used to be a wall that was reached and then leaned on: at the close of Prompt 24 the cold start was 203 992 bytes of 204 800 — 808 bytes of room, 0.4 % — and the last four prompts each
+ * had to find code to move out of the first frame just to fit the next change. Feature work now answers to the budget MINUS this reserve: the last 4 KiB are for what cannot wait (a Pixi upgrade, an emergency fix) and are not spent
+ * by a feature. Passing it is not forbidden, it is deliberate — the way to do it is to change this number, in a commit that says why, where a reviewer sees it — and what is not deliberate fails the job long before the wall.
+ */
+const RESERVE = 4 * 1024;
+const SPENDABLE = BUDGET - RESERVE;
+console.log(`\nloaded by a cold start of R1 (the code of its first frame): ${coldList.length} scripts, ${(cold.gz / 1024).toFixed(1)} KB gz = ${cold.gz} bytes of the ${BUDGET} the budget allows (${(cold.raw / 1024).toFixed(1)} KB raw); room before the reserve: ${SPENDABLE - cold.gz} bytes, before the wall: ${BUDGET - cold.gz}`);
 // a budget that nothing enforces is a wish: CI runs this, and a cold start over it fails the job
 if (cold.gz > BUDGET) {
   console.error(`OVER THE BUDGET by ${cold.gz - BUDGET} bytes`);
+  process.exitCode = 1;
+} else if (cold.gz > SPENDABLE) {
+  console.error(`INTO THE RESERVE by ${cold.gz - SPENDABLE} bytes: the cold start may not pass ${SPENDABLE} (${BUDGET} less the ${RESERVE} kept back). Move code out of the first frame (a lazy chunk), or — if this really is what the reserve is for — change RESERVE in tools/bench/bundle.ts in a commit that says why.`);
   process.exitCode = 1;
 }
 

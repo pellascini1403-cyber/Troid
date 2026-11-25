@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { pixiDiet } from './tools/build/pixiDiet';
 
 /** The art the game ships is whatever the packer wrote to `public/art` (docs/ART-PIPELINE-2D.md, part C): no index, no art — and no art code is ever asked for. */
 const artIndex = existsSync(fileURLToPath(new URL('./public/art/index.json', import.meta.url))) ? 'art/index.json' : '';
@@ -12,6 +13,8 @@ const audioIndex = existsSync(fileURLToPath(new URL('./public/audio/index.json',
 const SRC = fileURLToPath(new URL('./src/', import.meta.url)).replaceAll('\\', '/');
 
 export default defineConfig({
+  // what the first frame does not carry of Pixi (docs/PROMPT25-LOG.md, P1-1): a production build only
+  plugins: [pixiDiet()],
   // Relative base: the same build runs from a web server, file:// and inside
   // a Capacitor (iOS / Android) WebView.
   base: './',
