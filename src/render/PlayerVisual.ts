@@ -120,7 +120,7 @@ export class PlayerVisualSwitch implements PlayerVisual {
   /** Brings the real art in. `release` gives it back when it is detached (or the visual is disposed). */
   attachArt(set: LoadedSpriteSet<Texture>, release: () => void): void {
     this.detachArt();
-    const sprite = this.makeArt(set, { quietFallbacks: true });
+    const sprite = this.makeArt(set, { quietFallbacks: true, accent: true });
     sprite.root.visible = false;
     this.root.addChild(sprite.root);
     this.art = { sprite, set, release };

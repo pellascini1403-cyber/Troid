@@ -6,6 +6,7 @@ import type { ResolvedAnchor } from '@/presentation/anchors';
 import type { ActorViewState } from '@/presentation/actorViewState';
 import { ActorPresenter } from '@/presentation/ActorPresenter';
 import { visibleRect, worldRect } from '@/presentation/pictureBounds';
+import { createSwingAccent, isAccented, swingAccent } from '@/presentation/swingAccent';
 import type { AnchorId } from '@/presentation/vocabulary';
 import { viewY } from '@/presentation/worldTransform';
 
@@ -16,6 +17,11 @@ export interface ActorSpriteOptions {
   blinkHz?: number;
   /** The set is partial by design (real art next to a placeholder): a state it has no clip for is not worth a note. */
   quietFallbacks?: boolean;
+  /**
+   * The picture takes the accent of the second blow of the combo (`presentation/swingAccent.ts`, docs/PROMPT25-LOG.md P2-1): a shift, a lean and a stretch of the frames it already has, drawn and not simulated. For the hero
+   * only: the anchors and `bounds()` stay those of the frame (data of the art, not of the accent) and no box of the simulation moves.
+   */
+  accent?: boolean;
 }
 
 /**
@@ -40,6 +46,9 @@ export class ActorSprite {
   /** Metres per art pixel of the set (`visualScale / artPxPerMeter`); a frame may scale it further (`FrameMeta.scale`). */
   private baseScale = 1;
   private disposed = false;
+  private readonly swingNow = createSwingAccent();
+  /** The picture is carrying an accent (so the sprite writes its transform again when the accent ends, and not before). */
+  private swung = false;
   private readonly warn = log.scope('sprite');
 
   constructor(
@@ -93,6 +102,7 @@ export class ActorSprite {
     this.root.position.set(pose.x, viewY(pose.y));
     this.root.scale.x = pose.facing;
     this.show(pose.frame);
+    if (this.options.accent) this.swing(view);
     this.body.alpha = pose.alpha;
     const f = pose.flash * pose.alpha;
     this.flash.visible = f > 0.01;
@@ -141,6 +151,20 @@ export class ActorSprite {
     this._presenter.dispose();
     this.root.removeFromParent();
     this.root.destroy({ children: true });
+  }
+
+  /** The accent of the blow on the picture: both sprites (the frame and its flash) take the same transform about the feet, which is where their anchor is. */
+  private swing(view: ActorViewState): void {
+    const k = swingAccent(view.anim, view.phase, view.phaseT, this.swingNow);
+    const now = isAccented(k);
+    if (!now && !this.swung) return;
+    this.swung = now;
+    const s = this.baseScale * this.frameScale(this.shown);
+    for (const sprite of [this.body, this.flash]) {
+      sprite.position.x = k.shift;
+      sprite.rotation = k.lean;
+      sprite.scale.set(s * k.stretchX, s * k.stretchY);
+    }
   }
 
   private show(frame: string | null): void {

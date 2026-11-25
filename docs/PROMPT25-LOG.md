@@ -154,3 +154,195 @@ Diez arenas; cinco ganaron repisas a 3 m en F6 (Pastor, Jardinero, Behemot, Sobe
 - **Fallos de inicialización:** la página de «no se pudo arrancar» (bilingüe, con reintento), el arranque con el arte rechazado o que no llega (la escena `boot`: el juego arranca como *blockout* a los 3 s o a los 11 s), el respaldo de canvas sin WebGL (ahora con las criaturas con sus formas, F7), la pérdida del contexto WebGL (`resilience`) y un fotograma que lanza (el bucle lo salta y avisa tras una racha: `GameLoop.failed`).
 - **Sin política de seguridad de contenido (CSP)** (riesgo bajo, mejora, P3-3): `index.html` no declara una, y añadirla **no es gratis**: Pixi construye funciones con `Function(...)` para sincronizar uniformes (visible en el *build*: `RenderTargetSystem`), así que `script-src 'self'` sin `'unsafe-eval'` rompería el renderizado salvo que se importe `pixi.js/unsafe-eval` (más bytes en el primer fotograma). Se documenta y se deja para cuando haya cáscara nativa.
 
+## 5. El plan priorizado (P0 → P3)
+
+Cada tarea dice: **problema · evidencia · archivos y sistemas · consecuencia para el jugador · dependencias · solución propuesta · cómo comprobar**; la prioridad está en el encabezado y el estado (✅ hecho en esta sesión con el *commit* · ⏳ en curso · ⛔ bloqueado por algo externo · ◻ sin empezar).
+Criterio de prioridad: **P0** = pérdida de progreso, bloqueo, corrupción, fallo de arranque o imposibilidad de publicar; **P1** = hace falta antes de producción; **P2** = calidad y pulido; **P3** = futuro. Revisadas las cinco condiciones de P0 contra el código, **ninguna se cumple dentro del repositorio** (§4.4, §4.15, §4.11); la única es la última, y es externa.
+
+### P0 — críticos
+
+#### P0-1 · No se puede publicar: no hay cáscara nativa ni los insumos de quien publica — ⛔ externo
+- **Problema:** el repositorio contiene un juego completo y probado **como página web**; no contiene proyecto de iOS ni de Android, ni nada de lo que exige una tienda.
+- **Evidencia:** no existen `capacitor.config.*`, `ios/` ni `android/` (✅ `ls`); no hay Xcode ni SDK de Android en el entorno; `docs/PUBLISHING.md` §6 lo dice y es verdad (§4.13).
+- **Archivos / sistemas:** `docs/PUBLISHING.md` §6 (los pasos), `src/app/native*` (la costura: guardado nativo, botón Atrás, segundo plano — ya escrita y probada con un doble), futuros `capacitor.config.ts`, `ios/`, `android/`.
+- **Consecuencia para el jugador:** hoy solo puede jugar abriendo una página alojada; no puede instalarlo desde ninguna tienda.
+- **Dependencias** (todas **externas**, §7): identificador de la aplicación, cuentas de desarrollador de Apple y de Google, certificados y *keystore*, iconos y fichas de tienda, política de privacidad alojada, nombres para los créditos, un Mac con Xcode, Android Studio con su SDK y **dispositivos físicos**.
+- **Solución propuesta:** seguir `docs/PUBLISHING.md` §6 con esos insumos (`npx cap add ios|android`, `npx cap sync`), y recorrer la lista de comprobaciones en dispositivo de §6.3. **No se inventa ninguno de los insumos ni se crea la cáscara con valores falsos**: un identificador provisional acabaría en una ficha de tienda.
+- **Cómo comprobar:** el juego instalado en un iPhone y en un Android reales, con la lista de §6.3 de `PUBLISHING.md` (audio con el interruptor de silencio, muesca, retomar desde segundo plano, botón Atrás) y `npm run bench:bundle` contra el *build* que se empaqueta.
+
+### P1 — necesario antes de producción
+
+#### P1-1 · El arranque en frío estaba a 808 B del techo, y cada fase gastaba el margen de la anterior — ✅ `9cb5fd7`
+- **Problema:** 203 992 B de 204 800 B (0,4 %); ≈ 20 KB de lo que viajaba en el primer fotograma no lo usa el juego (§4.1).
+- **Evidencia:** los mapas de fuentes del *build* (§4.1); `npm run bench:bundle` (arranque medido en Chromium real).
+- **Archivos / sistemas:** `tools/build/pixiDiet.ts` (nuevo), `vite.config.ts`, `tools/bench/bundle.ts`, `tests/unit/app/pixiDiet.test.ts` (nuevo), `.github/workflows/ci.yml`.
+- **Consecuencia para el jugador:** un primer fotograma más pesado tarda más en una conexión lenta de móvil; y cada cambio pequeño del código del primer fotograma rompía el *build* (o empujaba a subir el techo, que es lo que esta tarea **no** hace).
+- **Dependencias:** ninguna.
+- **Solución propuesta (ejecutada):** (a) un *plugin* de Vite, solo en `build`, que responde dos importaciones de efecto lateral de Pixi (`rendering/init`, `spritesheet/init`) con módulos más pequeños: sin el cargador de *spritesheets* y su `Assets`, sin `VideoSource`; (b) una **reserva de 4 KiB**: el banco falla si el arranque entra en ella, no solo si pasa del techo; (c) el presupuesto en un trabajo de CI propio (P1-4); (d) el techo no se toca.
+- **Cómo comprobar:** `npm run build && npm run bench:bundle` → **196 957 B, quedan 7 843 B** (3 747 B antes de la reserva); `npx vitest run tests/unit/app/pixiDiet.test.ts` (falla si Pixi cambia lo que registran esos módulos); escenas `boot`, `rooms`, `room-art`, `render`, `sprites`, `player-art`, `lava` y `resilience` contra el *build* recortado: **8 de 8**.
+
+#### P1-2 · La CI corría 20 de las 69 escenas E2E — ✅ `75ba403`
+- **Problema:** 49 escenas («se corren a mano antes de un lanzamiento») no tenían guardián (§4.2).
+- **Evidencia:** `touch` roja ya antes del Prompt 24; `player-art` hallada roja solo al correr todo.
+- **Archivos / sistemas:** `tools/e2e/registry.ts`, `tools/e2e/groups.ts`, `tools/e2e/run.ts` (`--group=`), `.github/workflows/ci.yml`, `tests/unit/tools/e2eGroups.test.ts`.
+- **Consecuencia para el jugador:** un fallo de controles táctiles, de arte, de un jefe o de las puertas podía llegar a una versión sin que nada lo viera.
+- **Dependencias:** ninguna.
+- **Solución propuesta (ejecutada):** un registro único de escenas, cinco grupos que corren en paralelo (`play`, `stability`, `journey`, `interface`, `world`) y una prueba unitaria que **falla** si una escena no pertenece a exactamente un grupo o si el *workflow* no corre un grupo.
+- **Cómo comprobar:** `npx vitest run tests/unit/tools/e2eGroups.test.ts`; `npm run test:e2e -- --prod --group=<nombre>`; los cinco trabajos de la CI (§6).
+
+#### P1-3 · Las pruebas con el límite por defecto de 5 s fallaban según la carga — ✅ `2eed8c7` (los límites explícitos de `worldAudio` y `artRepo`), `9cb5fd7` (el límite por defecto)
+- **Problema:** una prueba que pasa «casi siempre» es la peor: su rojo parece ruido. `worldAudio` falló en 3 de las 7 ejecuciones rojas (§4.2).
+- **Evidencia:** una pasada de la suite con el límite **a la mitad** (`--testTimeout=2500`) suspende tres pruebas que ya gastan más de la mitad de los 5 s: `noTopLevelAwait` (3,1 s), `hudArt` (3,0 s) y `intake` «una pose dibujada a otra escala» (2,6 s).
+- **Archivos / sistemas:** `vitest.config.ts`, `tests/unit/audio/worldAudio.test.ts`, `tests/unit/tools/artRepo.test.ts`, `tests/helpers/zone.ts`.
+- **Consecuencia para el jugador:** ninguna directa; indirecta: un rojo intermitente enseña a ignorar la CI.
+- **Dependencias:** ninguna.
+- **Solución propuesta (ejecutada):** límite por defecto de **15 s** (con justificación en el archivo de configuración) y límites explícitos y dimensionados en las pruebas lentas (60–300 s); ninguna prueba se desactiva ni se relaja.
+- **Cómo comprobar:** `npx vitest run --testTimeout=7500` (la mitad del nuevo límite) debe pasar entera.
+
+#### P1-4 · La CI no dejaba evidencia, no acotaba nada y acoplaba el presupuesto a las escenas — ✅ `97461f7`
+- **Problema:** un rojo que solo ocurre en el corredor (GL por *software*, más lento que cualquier máquina de desarrollo) solo dejaba el mensaje de la aserción; un trabajo colgado se cortaba a la hora sin decir qué escena era; el presupuesto de arranque era el primer paso de los cinco trabajos E2E y, gastado, los detenía antes de que corrieran sus escenas.
+- **Evidencia:** `.github/workflows/ci.yml` antes de este cambio (§4.2); el ejecutor `tools/e2e/run.ts` no guardaba nada al fallar.
+- **Archivos / sistemas:** `.github/workflows/ci.yml`, `tools/e2e/run.ts`, `tools/e2e/deadline.ts` (nuevo), `tests/unit/tools/ciWorkflow.test.ts` y `deadline.test.ts` (nuevos).
+- **Consecuencia para el jugador:** ninguna directa.
+- **Dependencias:** ninguna.
+- **Solución propuesta (ejecutada):** plazo por escena (1 500 s por defecto: falla con su nombre y las siguientes se siguen corriendo); al fallar, la pila, los errores de la consola y una captura de la página (`.shots/e2e/<escena>-FAILED.png`) que la CI sube como artefacto; `timeout-minutes` en **todos** los trabajos; permisos mínimos (`contents: read`); el presupuesto en el trabajo `budget`.
+- **Cómo comprobar:** `TROID_E2E_SCENE_LIMIT_S=7 npm run test:e2e -- --prod --only=render` falla nombrando la escena y guarda la captura; `npx vitest run tests/unit/tools/ciWorkflow.test.ts` (se comprobó que falla si se quita un tiempo límite o si el trabajo E2E vuelve a llevar el banco).
+
+#### P1-5 · Nada comprobaba que el texto cupiera en su caja — ✅ `6074ace`
+- **Problema:** `readable` comprueba contraste y tamaño de letra; ninguna prueba comprobaba que un texto largo (el nombre de un guardián, el aviso de una habilidad) no se cortara en un teléfono pequeño o en el otro idioma (§4.9).
+- **Evidencia:** no existía detector; con el nuevo (probado contra cortes hechos a propósito), **ningún texto cortado** hoy.
+- **Archivos / sistemas:** `tools/e2e/fit.ts`, `tools/e2e/scenarios/textFit.ts`, `tools/e2e/scenarios/readable.ts`.
+- **Consecuencia para el jugador:** un nombre cortado («Soberano del Corazón de T…») o una instrucción ilegible en un móvil pequeño o en inglés.
+- **Dependencias:** ninguna.
+- **Solución propuesta (ejecutada):** el detector (desbordes ocultos, texto fuera de su contenedor o de la ventana; exenta el texto solo para lectores de pantalla) en cada pantalla del menú y sobre el juego: HUD, barras de los once guardianes, avisos de las once habilidades; es/en × (667×375, 844×390, 1280×720).
+- **Cómo comprobar:** `npm run test:e2e -- --prod textFit readable`.
+
+#### P1-6 · Un rojo de la CI pasó sin verse siete veces seguidas — ✅ práctica adoptada y documentada
+- **Problema:** la CI se miraba al cerrar un trabajo y no en cada fase (§4.2): siete empujes seguidos en rojo.
+- **Evidencia:** las ejecuciones nº 142–148 y su causa una a una (§4.2).
+- **Archivos / sistemas:** el proceso de trabajo (esta bitácora, §6); `gh run list` / `gh run view`.
+- **Consecuencia para el jugador:** ninguna directa; un *build* roto en la rama sigue sin poder publicarse.
+- **Dependencias:** ninguna.
+- **Solución propuesta (ejecutada):** tras cada empuje se consulta la CI y no se sigue sobre una base en rojo; el estado de cada ejecución se anota en §6. **No se afirma que un mecanismo de aviso automático exista:** GitHub avisa por correo a quien empuja un *workflow* fallido según su configuración personal, que no se ha podido ver desde aquí.
+- **Cómo comprobar:** que §6 tenga, por cada fase, la ejecución de la CI y su resultado.
+
+#### P1-7 · Cifras caducadas en la documentación — ⏳ (barrida final, §6)
+- **Problema:** `docs/PUBLISHING.md` dice «204 723 B, quedan 77 B», «5 713 pruebas en 269 archivos», «68 escenas»; el README y otros documentos arrastran cifras de fases anteriores.
+- **Evidencia:** `grep` de las cifras (§6).
+- **Archivos / sistemas:** `docs/PUBLISHING.md`, `README.md`, `docs/ARCHITECTURE-2D.md`, `docs/ROADMAP.md`. Las bitácoras de cada prompt (`PROMPT15…24-LOG.md`) **no se tocan**: dicen lo que era verdad entonces.
+- **Consecuencia para el jugador:** ninguna; para quien publique, una guía con cifras falsas.
+- **Dependencias:** las medidas finales de esta sesión.
+- **Solución propuesta:** actualizar solo lo verificable con la medida de esta sesión y borrar lo que ya no es cierto, sin quitar documentación útil.
+- **Cómo comprobar:** que cada cifra de la guía se pueda reproducir con el comando que la acompaña.
+
+### P2 — calidad y pulido
+
+#### P2-1 · El segundo golpe se leía como el primero — ✅ (§6)
+- **Problema:** el segundo golpe del combo tiene su propio clip, otro arco de luz, más parada de impacto, sacudida y empuje, pero **el cuerpo hace lo mismo las dos veces**: su clip es el primero con la espada más adelantada y el primero tiene un paso adelante en la simulación (`lunge`) que el segundo no tiene (§4.5).
+- **Evidencia:** los fotogramas del combo, tick a tick, antes del cambio (`slash_1`: `attack1_00…03`; `slash_2`: `attack2_00…04`); `src/content/attacks.ts`.
+- **Archivos / sistemas:** `src/presentation/swingAccent.ts` (nuevo, función pura), `src/render/ActorSprite.ts` (opción `accent`), `src/render/PlayerVisual.ts`, `src/app/Game2D.ts`, `tests/unit/sprites/swingAccent.test.ts`.
+- **Consecuencia para el jugador:** el combo se siente como un golpe repetido en vez de «corte y remate»: menos peso en el remate, que es el golpe que más empuja.
+- **Dependencias:** ninguna (no hay dibujos nuevos: se mueve lo que ya está dibujado).
+- **Solución propuesta (ejecutada):** una variación **procedimental solo de presentación**: en `attack2`, el cuadro se recoge hacia atrás en el arranque, se lanza adelante y se estira en el golpe, y se asienta en la recuperación (en el punto más fuerte: 14 cm hacia delante, 6,9° de inclinación y 6 % de estiramiento; topes de 16 cm, 8° y 8 %, bajo prueba, y por debajo de los 20 cm de paso adelante que el primer golpe tiene en la simulación); el primer golpe y todos los demás estados quedan **exactamente** como estaban; la simulación, las cajas, las anclas y `bounds()` no se mueven.
+- **Cómo comprobar:** `npx vitest run tests/unit/sprites/swingAccent.test.ts` (10 pruebas); la hoja de contactos `docs/img/prompt25/combo_second_blow.jpg` (antes, después y diferencia, tick a tick); `heroContinuity` y las escenas `combat`, `crouch`, `death`, `player-art`, `player-anim`, `player-r1`, `player-lab`, `sprites`, `render`, `world-art` y `r1` (11 de 11 contra el *build* con la variación). **No sustituye a una persona jugando**: qué tanto cambia la sensación solo se puede decir con manos en un mando o una pantalla (§7).
+
+#### P2-2 · Criaturas que se salen del mundo y el sistema devuelve a su sitio — ◻
+- **Problema:** durante `fullrun` salen **ocho avisos distintos** `"<criatura>" fell out of "<sala>" and was put back where it was placed` (p. ej. `ink_spitter25` en `rt_bridge`, `mire_toad41` en `mr_edge`) (§4.6).
+- **Evidencia:** la salida de `fullrun` (🔎); `src/gameplay/GameSession.ts:767-777` (el reposicionamiento).
+- **Archivos / sistemas:** `GameSession.ts`, las salas nombradas y los cerebros de esas criaturas (`src/enemies`).
+- **Consecuencia para el jugador:** una criatura que desaparece y reaparece en su sitio inicial en mitad de un pasillo: un tropiezo visual raro, nunca un bloqueo (el sistema la repone con su vida).
+- **Dependencias:** ninguna.
+- **Solución propuesta:** hallar para cada una de las ocho si la causa es un salto o un empuje sobre un hueco sin suelo y corregir en el cerebro (no pisar el borde) o en la sala (un suelo que falta), sin quitar la red de seguridad.
+- **Cómo comprobar:** `fullrun` sin ese aviso; `enemyFall` y `enemySoak` en verde.
+
+#### P2-3 · Una sola copia `.corrupt` por clave — ◻
+- **Problema:** un guardado ilegible se **conserva** como `<clave>.corrupt`, pero una segunda corrupción sobrescribe la primera (`SafeStore.ts:46-47`) (§4.4).
+- **Evidencia:** lectura del código; la prueba de `SafeStore` cubre una corrupción, no dos seguidas.
+- **Archivos / sistemas:** `src/save/SafeStore.ts`, `tests/unit/save`.
+- **Consecuencia para el jugador:** en el caso extremo de dos corrupciones seguidas, la primera copia —que podría haberse rescatado a mano— se pierde.
+- **Dependencias:** ninguna.
+- **Solución propuesta:** rotar a `.corrupt.1`, `.corrupt.2` con un tope de dos o tres copias y un límite de tamaño (el almacenamiento puede estar casi lleno).
+- **Cómo comprobar:** una prueba que corrompa dos veces y compruebe que ambas copias existen y que no se acumulan más de las permitidas.
+
+#### P2-4 · `leech_bite`: aviso de 200 ms con 2 de daño — ◻ (medir antes de tocar)
+- **Problema:** es el único ataque cuyo aviso (12 ticks = 200 ms) queda por debajo del tiempo de reacción visual (≈ 250 ms) y que además hace el doble de daño (§4.7).
+- **Evidencia:** `src/content/creatures.ts:203` y la tabla de avisos de los 25 enemigos y 11 guardianes (🔎 sobre los datos). No se ha **visto** que sea injusto en una pelea.
+- **Archivos / sistemas:** `src/content/creatures.ts`, la IA `leech`, su rig.
+- **Consecuencia para el jugador:** posible daño «sin aviso» del único enemigo emboscador; peor en un móvil con latencia de entrada.
+- **Dependencias:** una medida de partidas con jugadores (o de un bot con latencia de reacción de 250 ms).
+- **Solución propuesta:** **medir primero** (cuántos mordiscos acierta un bot con 250 ms de reacción en las salas donde aparece); solo si acierta de forma desproporcionada, alargar el aviso a 18 ticks o hacer que el rig lo anuncie antes (el hundimiento ya existe: `sinkTicks`). No se cambia la dificultad sin esa medida.
+- **Cómo comprobar:** la medida antes y después en `tools/` o en un *soak*; `creatures.test.ts` y `encounters*.test.ts` siguen en verde.
+
+#### P2-5 · Arenas: ¿qué mecánica de arena añade una decisión de verdad? — ◻ (decisión antes que código)
+- **Problema:** diez arenas con repisas y el peligro de lo que hace cada guardián, pero sin elementos que se rompan, sin elementos interactivos y sin cambios por fase (`PROMPT24-LOG` §7) (§4.8).
+- **Evidencia:** lectura de las salas de los guardianes (`src/content/rooms/*.ts`) y de las reglas que fija `encountersEmber.test.ts`.
+- **Archivos / sistemas:** las salas de los guardianes, `Boss`, `HazardSystem`, `encounters*.test.ts`.
+- **Consecuencia para el jugador:** las peleas son buenas por el guardián, no por la sala; ninguna sala cambia durante la pelea.
+- **Dependencias:** una decisión de diseño de la dueña.
+- **Solución propuesta:** de los tres tipos, el **cambio de la sala por fase solo de presentación** (la luz o las grietas cambian con `phaseNo`) es el de menor coste y riesgo (no añade reglas: `encountersEmber` no se vuelve a ganar) pero también el de menor valor (los guardianes ya señalan sus fases); **destructibles** e **interactivos** añaden reglas y obligan a ganar de nuevo cada pelea. **Recomendación: como mucho UNA arena piloto**, la del guardián cuyo ataque de zona (la lluvia de rocas del Coloso) tiene menos contrajuego posicional, con una pieza destructible que sirva de cobertura que caduca; se adopta solo si da una decisión que hoy no existe, el guardián se sigue ganando con un héroe mortal, y no cuesta más de unas llamadas de dibujo. Sin ese criterio, no se añade complejidad por añadirla.
+- **Cómo comprobar:** el piloto con una prueba de pelea (`encountersEmber`) que gana con y sin la pieza, y la captura de la arena en el *build* de producción.
+
+#### P2-6 · Sonidos propios de las 34 especies y música de las cuatro zonas de la segunda mitad — ◻
+- **Problema:** las 24 criaturas y 10 guardianes nuevos reutilizan los sonidos de su arquetipo; las cuatro zonas de la segunda mitad no tienen música propia (§4.10).
+- **Evidencia:** `src/audio/soundMap.ts`, `npm run audio:check`; 82 sonidos y 8 piezas, todos sintetizados.
+- **Archivos / sistemas:** `tools/audio`, `src/audio`, `public/audio`.
+- **Consecuencia para el jugador:** las criaturas nuevas suenan como las viejas; la segunda mitad se oye como la primera.
+- **Dependencias:** una decisión sobre si el audio será sintetizado o grabado (P3-1).
+- **Solución propuesta:** ampliar el catálogo sintetizado con un timbre por especie y dos o tres piezas para la segunda mitad; todo con el presupuesto de 52 MiB por sala y las pruebas de `worldAudio`.
+- **Cómo comprobar:** `npm run audio:check`, `worldAudio.test.ts` y la escena `audio-cues`.
+
+#### P2-7 · Sin modo de 30 fotogramas por segundo — ◻
+- **Problema:** el gobernador de calidad solo baja la resolución y las partículas; no existe un modo que dibuje a mitad de frecuencia (§4.14).
+- **Evidencia:** `src/presentation/qualityGovernor.ts`; sin medida de batería ni de temperatura (requiere dispositivo).
+- **Archivos / sistemas:** `GameLoop.ts`, `Renderer2D.ts`, los ajustes de calidad.
+- **Consecuencia para el jugador:** en un móvil que no llega a 60 fps, el juego se arrastra o calienta el teléfono en vez de ir fluido a 30.
+- **Dependencias:** medidas en dispositivos reales (§7).
+- **Solución propuesta:** una opción de «ahorro de batería» que dibuje un fotograma de cada dos con la simulación a 60 Hz (la simulación es de ticks fijos, de modo que no cambia nada de lo jugable).
+- **Cómo comprobar:** la escena `adaptive` ampliada; la simulación idéntica (`fullrun`); en un móvil real, batería y temperatura en 20 min.
+
+#### P2-8 · El sonido no arranca con un mando solo, y el juego no lo dice — ◻
+- **Problema:** los navegadores no cuentan un botón de mando como gesto del usuario, así que quien juega solo con mando (en la versión web) no oye nada hasta tocar el teclado, el ratón o la pantalla; el juego no avisa.
+- **Evidencia:** `src/app/audio.ts:95` (`GESTURES`: pointer, touch, mouse, key, click; el comentario lo dice) y ninguna cadena de interfaz sobre el sonido bloqueado (📖 búsqueda en `src/`).
+- **Archivos / sistemas:** `src/app/audio.ts`, `src/audio/engine.ts` (`state: 'locked'`), el menú.
+- **Consecuencia para el jugador:** parece que el juego «no tiene sonido».
+- **Dependencias:** ninguna.
+- **Solución propuesta:** una línea en el menú de inicio mientras el motor esté `locked` («pulsa una tecla o toca la pantalla para activar el sonido»), en los dos idiomas.
+- **Cómo comprobar:** una escena con el motor bloqueado: el aviso se ve y desaparece al primer gesto.
+
+#### P2-9 · Accesibilidad que falta — ◻
+- **Problema:** no hay modo para daltonismo, ni indicación visual de los sonidos (los sonidos no llevan texto), ni tamaño de texto general más allá del HUD, ni alternativa a mantener pulsado; el juego no es utilizable con lector de pantalla (§4.12).
+- **Evidencia:** `src/ui/settings/`, `readable` (mide contraste y tamaño, no estas cosas).
+- **Archivos / sistemas:** ajustes, HUD, avisos de peligro (`vfx`).
+- **Consecuencia para el jugador:** parte de los jugadores con daltonismo, sordera o poca visión lo tiene más difícil.
+- **Dependencias:** decisión sobre el alcance (qué se promete en la tienda).
+- **Solución propuesta:** por orden de coste: el tamaño de texto global; el alternar en lugar de mantener; los avisos de peligro con forma y no solo con color; un filtro de daltonismo.
+- **Cómo comprobar:** `accessibility` y `readable` ampliadas; una revisión con las simulaciones de daltonismo de Chromium (`Emulation.setEmulatedVisionDeficiency`).
+
+#### P2-10 · Más margen de arranque, si hiciera falta — ◻ (no urgente: quedan 7 843 B)
+- **Problema:** lo recuperable que no se tocó (§4.1): ≈ 9 KB de código de canvas (el empaquetador lo une al *chunk* de `Graphics`), ≈ 3,5 KB de pruebas/*placeholders* en los registros del primer fotograma, ≈ 1,4 KB del idioma que no se usa.
+- **Evidencia:** los mapas de fuentes; el experimento de partir el *chunk* de canvas (el grupo absorbía todo el núcleo de Pixi, y sin dependencias recursivas el arranque fallaba con `Invalid extension type`: orden de evaluación) se **revirtió**.
+- **Archivos / sistemas:** `vite.config.ts`, `src/content/core.ts`, `src/i18n/catalogs.ts`.
+- **Consecuencia para el jugador:** ninguna hoy.
+- **Dependencias:** que el margen vuelva a estrecharse.
+- **Solución propuesta:** en este orden de riesgo: cargar el catálogo del otro idioma por separado; sacar los *placeholders* y las salas de prueba de los registros del primer fotograma; el canvas, solo con un empaquetador que lo permita sin romper el orden de evaluación.
+- **Cómo comprobar:** `npm run bench:bundle` y las escenas de arranque.
+
+#### P2-11 · La cobertura de las pruebas no es una herramienta del proyecto — ◻
+- **Problema:** nada mide qué líneas de `src/` ejecuta la suite; se midió una vez para esta auditoría (§4.16) con un paquete que **no se añadió** a `package.json`.
+- **Evidencia:** §4.16.
+- **Archivos / sistemas:** `package.json`, `vitest.config.ts`, la CI.
+- **Consecuencia para el jugador:** ninguna directa.
+- **Dependencias:** que la dueña acepte una dependencia de desarrollo más (`@vitest/coverage-v8`, la misma versión que `vitest`).
+- **Solución propuesta:** un guion `npm run coverage` y el informe como artefacto de la CI, **sin umbral** al principio (la suite es de escenas y de simulación determinista: un porcentaje de líneas dice poco); un umbral solo si una caída sostenida se vuelve un problema.
+- **Cómo comprobar:** el informe se genera en la CI y en local con el mismo número.
+
+### P3 — futuro
+
+- **P3-1 · Audio real** (grabado o compuesto, con voces si las hubiera). *Problema:* todo el audio es sintetizado y provisional (§4.10). *Evidencia:* `npm run audio:build`. *Sistemas:* `tools/audio`, `public/audio`. *Consecuencia:* un juego que suena a prototipo. *Dependencias:* presupuesto y un autor. *Solución:* sustituir el catálogo manteniendo los identificadores. *Comprobar:* `audio:verify`, `worldAudio`.
+- **P3-2 · `grapple` y `swim` declaradas e inertes.** *Problema:* `implemented: false`; ninguna sala ni habilidad las concede (§4.11). *Evidencia:* `src/content/abilities.ts`. *Consecuencia:* ninguna (no aparecen). *Dependencias:* decisión de diseño. *Solución:* implementarlas con salas que las usen, o quitar la declaración. *Comprobar:* `progressionOrder`, `deadEnds`.
+- **P3-3 · Política de seguridad de contenido.** *Problema:* `index.html` no declara CSP, y `script-src 'self'` sin `'unsafe-eval'` rompería Pixi (construye funciones con `Function(...)`) (§4.15). *Evidencia:* `docs/PUBLISHING.md` §7 (probado con tres políticas). *Consecuencia:* defensa en profundidad ausente en la versión web alojada. *Dependencias:* importar `pixi.js/unsafe-eval` (más bytes en el primer fotograma: a medir contra la reserva). *Solución:* CSP con `'unsafe-eval'` acotado y el script en línea por *hash*. *Comprobar:* arrancar con la CSP puesta en Chromium, Firefox y WebKit.
+- **P3-4 · `Game2D.ts` concentra el montaje de todo** (9,4 KB gz). *Problema:* es donde un cambio toca más cosas (§4.3). *Evidencia:* tamaño y acoplamientos; las escenas E2E lo cubren. *Consecuencia:* coste de mantenimiento, no del jugador. *Dependencias:* una razón técnica concreta. *Solución:* partirlo por responsabilidades (vistas, eventos, carga diferida, ciclo de vida) **solo cuando una tarea lo exija**. *Comprobar:* `architecture.test.ts` y las 69 escenas.
+- **P3-5 · Monetización, anuncios, analítica, cuentas.** *Problema:* no existen, **por decisión** (`PUBLISHING.md` §3); no hay nada que simular. *Dependencias:* una decisión de negocio, y después SDK, consentimiento, restauración y validación de compras. *Solución:* cuando se decida, una abstracción de «derechos» en `ProgressData` con migración. *Comprobar:* `privacy` (hoy: ningún dato sale) tendría que cambiar a propósito.
+- **P3-6 · Más idiomas y formatos regionales.** *Problema:* español e inglés; el HUD solo muestra enteros (§4.12). *Solución:* nuevos catálogos con las mismas claves (`catalogs.test.ts` ya lo exige) y carga diferida (P2-10).
+- **P3-7 · Informes de fallos con consentimiento.** *Problema:* ningún dato sale, así que un fallo en el teléfono de una persona no llega a nadie (`src/app/crash.ts` solo muestra la página). *Dependencias:* decisión de privacidad. *Solución:* un envío opcional y explícito.
+- **P3-8 · Guardado en la nube y transferencia entre dispositivos.** *Problema:* el guardado vive en el dispositivo; existe exportar/importar archivo (pasa por `parseProgress`). *Dependencias:* cuentas (P3-5).

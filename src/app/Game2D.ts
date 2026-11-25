@@ -402,7 +402,7 @@ export class Game2D {
     this.lifecycle.add(() => this.roomView.destroy());
     this.interactableViews = new InteractableViews(renderer.layers);
     this.lifecycle.add(() => this.interactableViews.clear());
-    this.playerVisual = new PlayerVisualSwitch(new ActorSprite(playerSet), (set, o) => new ActorSprite(set, o), options.visual, { zIndex: 10 });
+    this.playerVisual = new PlayerVisualSwitch(new ActorSprite(playerSet, { accent: true }), (set, o) => new ActorSprite(set, o), options.visual, { zIndex: 10 });
     renderer.layers.actors.addChild(this.playerVisual.root);
     this.lifecycle.add(() => this.playerVisual.dispose());
     const vfxAtlas = createVfxAtlas();
