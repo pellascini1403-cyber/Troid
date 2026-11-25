@@ -275,7 +275,7 @@ Criterio de prioridad: **P0** = pérdida de progreso, bloqueo, corrupción, fall
 - **Archivos / sistemas:** `.github/workflows/ci.yml`, `tools/e2e/run.ts`, `tools/e2e/deadline.ts` (nuevo), `tests/unit/tools/ciWorkflow.test.ts` y `deadline.test.ts` (nuevos).
 - **Consecuencia para el jugador:** ninguna directa.
 - **Dependencias:** ninguna.
-- **Solución propuesta (ejecutada):** plazo por escena (1 500 s por defecto: falla con su nombre y las siguientes se siguen corriendo); al fallar, la pila, los errores de la consola y una captura de la página (`.shots/e2e/<escena>-FAILED.png`) que la CI sube como artefacto (solo esas capturas: la primera versión subía 46 MB); `timeout-minutes` en **todos** los trabajos; permisos mínimos (`contents: read`); el presupuesto en el trabajo `budget`; y, hallado por la CI nº 162, **la instalación de los navegadores ya no depende de que una descarga no se atasque**: `apt` renuncia a una transferencia parada, la reintenta y espera el cerrojo de `dpkg` (§4.2.1).
+- **Solución propuesta (ejecutada):** plazo por escena (1 500 s por defecto: falla con su nombre y las siguientes se siguen corriendo); al fallar, la pila, los errores de la consola y una captura de la página (`.shots/e2e/<escena>-FAILED.png`) que la CI sube como artefacto (solo esas capturas: la primera versión subía 46 MB); `timeout-minutes` en **todos** los trabajos; permisos mínimos (`contents: read`); el presupuesto en el trabajo `budget`; y, hallado por la CI nº 162, **la instalación de los navegadores ya no depende de que una descarga no se atasque**: `apt` renuncia a una transferencia parada, la reintenta y espera el cerrojo de `dpkg` (§4.2.1); y un *commit* que solo toca `docs/` o el `README.md` de la raíz **no dispara la CI** (`paths-ignore`; ninguna prueba ni herramienta lee esos archivos, y una prueba impide ensanchar la lista): cada *commit* de bitácora lanzaba doce trabajos, y con varios solapados las mismas escenas tardaron hasta 2,5 veces más (CI nº 157).
 - **Cómo comprobar:** `TROID_E2E_SCENE_LIMIT_S=7 npm run test:e2e -- --prod --only=render` falla nombrando la escena y guarda la captura; `npx vitest run tests/unit/tools/ciWorkflow.test.ts` (se comprobó que falla si se quita un tiempo límite o si el trabajo E2E vuelve a llevar el banco).
 
 #### P1-5 · Nada comprobaba que el texto cupiera en su caja — ✅ `6074ace`
@@ -296,14 +296,14 @@ Criterio de prioridad: **P0** = pérdida de progreso, bloqueo, corrupción, fall
 - **Solución propuesta (ejecutada):** tras cada empuje se consulta la CI y no se sigue sobre una base en rojo; el estado de cada ejecución se anota en §6. **No se afirma que un mecanismo de aviso automático exista:** GitHub avisa por correo a quien empuja un *workflow* fallido según su configuración personal, que no se ha podido ver desde aquí.
 - **Cómo comprobar:** que §6 tenga, por cada fase, la ejecución de la CI y su resultado.
 
-#### P1-7 · Cifras caducadas en la documentación — ⏳ (barrida final, §6)
+#### P1-7 · Cifras caducadas en la documentación — ✅ `32604d9`, `1b2127a`, `bdc2a1a`
 - **Problema:** `docs/PUBLISHING.md` dice «204 723 B, quedan 77 B», «5 713 pruebas en 269 archivos», «68 escenas»; el README y otros documentos arrastran cifras de fases anteriores.
 - **Evidencia:** `grep` de las cifras (§6).
 - **Archivos / sistemas:** `docs/PUBLISHING.md`, `README.md`, `docs/ARCHITECTURE-2D.md`, `docs/ROADMAP.md`. Las bitácoras de cada prompt (`PROMPT15…24-LOG.md`) **no se tocan**: dicen lo que era verdad entonces.
 - **Consecuencia para el jugador:** ninguna; para quien publique, una guía con cifras falsas.
 - **Dependencias:** las medidas finales de esta sesión.
-- **Solución propuesta:** actualizar solo lo verificable con la medida de esta sesión y borrar lo que ya no es cierto, sin quitar documentación útil.
-- **Cómo comprobar:** que cada cifra de la guía se pueda reproducir con el comando que la acompaña.
+- **Solución propuesta (ejecutada):** se actualizó solo lo verificable con la medida de esta sesión (`PUBLISHING.md`: el arranque en frío, las pruebas y las escenas de la CI; `README.md`: el estado actual y las órdenes; `ROADMAP.md`: la fila del Prompt 25 y lo que queda; `ARCHITECTURE-2D.md` §21) y se escribió lo que ya no era cierto; ninguna bitácora anterior se tocó y no se quitó documentación útil.
+- **Cómo comprobar:** que cada cifra de la guía se pueda reproducir con el comando que la acompaña: `npm run build && npm run bench:bundle` (197 300 B), `npm test` (6 155 pruebas en 279 archivos), `npm run test:e2e -- --prod --group=<nombre>` (69 escenas en ocho grupos).
 
 ### P2 — calidad y pulido
 

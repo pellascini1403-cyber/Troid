@@ -19,6 +19,16 @@ function jobs(): Record<string, string> {
 describe('the workflow of the CI keeps what Prompt 25 made of it (docs/PROMPT25-LOG.md)', () => {
   const all = jobs();
 
+  it('skips a commit that only touches the documentation, and never one that touches anything a test reads', () => {
+    const list = /^ {4}paths-ignore: \[(.*)\]\s*$/m.exec(ci)?.[1];
+    expect(list, 'the push trigger has a paths-ignore list').toBeDefined();
+    const ignored = list!.split(',').map((x) => x.trim().replace(/^'|'$/g, ''));
+    // exactly the documentation: widening it (`**/*.md` would swallow the READMEs of `art/` that the tools' tests read, `*.json` the manifests) is a decision that goes through this test
+    expect(ignored).toEqual(['docs/**', 'README.md']);
+    // and nothing in `docs/` or the root README is an input of a test (they are named in comments, and read by nobody)
+    expect(ci).not.toMatch(/paths-ignore:[^\n]*(src|tests|tools|\.github|package|public|art)/);
+  });
+
   it('has the jobs it is known by', () => {
     expect(Object.keys(all).sort()).toEqual(['budget', 'check', 'e2e', 'engines']);
   });

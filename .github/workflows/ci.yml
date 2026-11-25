@@ -3,6 +3,9 @@ name: CI
 on:
   push:
     branches: ['**']
+    # a commit that touches only the documentation changes nothing the CI tests — no test and no tool reads `docs/` or the README at the root of the repository (`tests/unit/tools/ciWorkflow.test.ts` keeps this list from growing
+    # by accident) — and it does not take twelve jobs of a runner, which slow down the runs of the commits that do change the game (in the run 157, with eight runs side by side, the same scenes took up to 2.5 times as long)
+    paths-ignore: ['docs/**', 'README.md']
   pull_request:
 
 # the CI reads the repository and nothing else: no job needs to write to it (a token that cannot write cannot be used to)
