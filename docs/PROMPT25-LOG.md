@@ -482,3 +482,70 @@ Cada fase terminó con las pruebas de lo que tocó, las escenas reales que lo ve
 | 162 | `d37e3bf` | ✅ los **ocho** grupos E2E (con `arrival`), `check`, `budget`, `engines (firefox)`; ❌ `engines (webkit)` | **`arrival` pasa en el corredor.** El rojo fue la instalación de WebKit: un `apt-get` atascado (§4.2.1), no una prueba. Tiempos de los grupos (min): `play` 7, `stability` 8, `fights` 9, `saves` 10, `journey` 11, `pause` 13, `controls` 15, `art` 18 |
 
 **La causa de `arrival`, y lo que no está probado.** Dos aserciones distintas, en dos secciones distintas, fallaron en ejecuciones distintas, y las dos cuentan algo **dentro de una ventana de tiempo**: la D, si el indicador de carga llegó a verse durante una espera de 1 500 ms (de los que 450 son de gracia y uno más el fundido de entrada); la F, si las muestras de la proporción descargada pasaron por la mitad de una carga limitada a 260 KB/s (con una ida y vuelta del controlador por muestra). En local pasan siempre, también con un solo núcleo (`taskset -c 0`), con la máquina cargada y tras `progression` y `transition`. **Hipótesis que explica los dos datos** (no confirmada con fotogramas del corredor, que no se tenían): en una sala posterior al Santuario la página compila ≈ 220 KB de JavaScript (los *rigs*, los guardianes) sin dibujar un solo fotograma, y en el corredor eso se come la ventana; la nº 157 lo sugiere (la espera de 1 500 ms tardó 1 873 en notarse cumplida). **No es un fallo del juego:** el indicador sale en cuanto hay fotogramas. Se hizo lo que no relaja lo que se prueba: una espera de 4 s en vez de 1,5 s (lo que se prueba es que una espera que sigue se le dice al jugador) y el muestreo hecho **dentro** de la página (119 muestras de 0,00 a 1,00 donde el controlador veía 30–38), y se dejó el diagnóstico en el mensaje de las aserciones por si hubiera otra causa.
+
+## 7. Lo medido, lo que pide un dispositivo y lo que pide algo externo
+
+### 7.1 Lo que se midió aquí (y cómo se repite)
+
+| Qué | Resultado | Cómo se repite |
+|---|---|---|
+| Arranque en frío del *build* de producción | **197 296 B gz** de 204 800 (con la variación del segundo golpe: +339 B; sin ella 196 957); quedan **7 504 B** del muro y **3 408 B** antes de la reserva; era 203 992 B (quedaban 808) | `npm run build && npm run bench:bundle` (el trabajo `budget` de la CI da la misma cifra al byte) |
+| Suite de pruebas unitarias e integración | todas en verde en la referencia (6 124 pruebas en 274 archivos) y las 31 añadidas en esta fase; la cifra de cierre, con todo el código final, está en §6 | `npm test` |
+| Suite E2E | 69 escenas en 5 grupos (`tools/e2e/groups.ts`), todas bajo la CI | `npm run test:e2e -- --prod --group=<nombre>` |
+| Texto cortado | ninguno: HUD, barras de 11 guardianes y avisos de 11 habilidades, es/en × 3 ventanas | `npm run test:e2e -- --prod textFit readable` |
+| Llamadas de dibujo | peor sala 16, partida completa 23, peleas de los diez guardianes 16 (presupuesto 60) | escenas `rooms`, `fullrun`, `boss` |
+| CPU de los *rigs* | 0,024 ms por criatura y fotograma de media (peor 0,084; diez de las peores a la vez 0,46 ms de 16,7) | laboratorio `?lab=rigs&crowd=10` |
+| Cobertura de líneas de `src/` (unitarias e integración) | 85,5 % (sentencias 84,7 %, ramas 80,5 %); lo que decide el juego, 98–100 %; `app`, `render` y `assets` (el montaje, el renderizador, los laboratorios) solo los ejercen las E2E | §4.16 |
+| *Soaks* profundos | 300 semillas × 20 000 ticks (6 millones de ticks de juego al azar): 12 avisos, todos huecos del oráculo, corregidos; luego **0 violaciones** | `SOAK_SEEDS=300 SOAK_TICKS=20000 npx vitest run tests/integration/soak.test.ts` |
+| Pérdida y recuperación del contexto WebGL con criaturas con *rig* en pantalla | la simulación sigue, sin página de fallo ni errores, la imagen vuelve igual | sondeo de §4.15 |
+| Memoria | *heap* de la partida completa 16 → 16 MB; 30 ciclos de arrancar y cerrar sin fugas (listeners 33 → 33, DOM 611 → 611, temporizadores 1 → 1) | escenas `fullrun`, `resilience` |
+| El segundo golpe | primer golpe **idéntico al píxel** antes y después (0 píxeles distintos en los 9 ticks); segundo golpe distinto en hasta 17 987 de 640 000 píxeles por tick, y vuelve al reposo al acabar | `docs/img/prompt25/combo_second_blow.jpg` |
+| Duración en el corredor (CI nº 162, ocho grupos) | `check` 12 min; grupos E2E: `play` 7, `stability` 8, `fights` 9, `saves` 10, `journey` 11, `pause` 13, `controls` 15, `art` 18 min (con cuatro ejecuciones a la vez; sin solaparse, de un tercio a la mitad menos) | `gh run view` |
+
+### 7.2 Lo que solo se puede saber con un dispositivo físico (no se afirma nada de esto)
+
+1. **Fotogramas por segundo y tiempo de fotograma** en un iPhone y en un Android de gama baja y media (el render por *software* de aquí solo sirve para comparar una versión con otra). Con `?hooks=1` la escena `cost` da el margen de CPU del JavaScript, no el de la GPU.
+2. **Batería y temperatura** tras 20 minutos jugando (justifica o no P2-7, el modo de 30 fps).
+3. **El pulgar sobre un cristal:** tamaño y posición de los botones, zonas muertas, fatiga, multitáctil real (las ventanas de `mobile` son clases de píxeles CSS, no manos).
+4. **Muesca, isla dinámica e indicador de inicio reales** (se simulan con inserciones de seguridad).
+5. **Safari de iOS (WebKit real):** el audio con el interruptor de silencio, el contexto de audio en `interrupted`, `visibilitychange`, la pérdida de contexto WebGL, el límite de memoria de la página (`WKWebView` la mata por encima de un uso que no se puede conocer desde aquí). El WebKit de la CI es el de Linux.
+6. **Android (Chrome/WebView):** el botón Atrás, las políticas de audio, el rendimiento con la pantalla apagada y encendida.
+7. **Un mando físico** (Xbox, PlayStation, Switch Pro, 8BitDo): asignaciones, zona muerta, conexión y desconexión en caliente (`VirtualPad` es un mando abstracto con la forma de `navigator.getGamepads()`).
+8. **Legibilidad real:** nitidez de los PNG reducidos en una pantalla de 3×, el texto de 11 px en un teléfono pequeño.
+9. **Personas jugando:** cuánto dura una partida de verdad (el jugador de guion tarda 53–56 min: es una cota inferior), dónde se pierden, qué les parece justo (P2-4). `npm run session:report` está hecho para recibir esa medida.
+10. **Tabletas, plegables y rotación** (solo hay ventanas emuladas).
+11. **El audio en los altavoces de un móvil y en auriculares:** la mezcla se hizo con medidores, no con oídos.
+
+### 7.3 Lo que pide algo externo: insumos y decisiones
+
+Esto es lo que **impide publicar hoy** (P0-1) y no puede hacerse desde un repositorio:
+
+**iOS:** cuenta del programa de desarrolladores de Apple · identificador de la aplicación (*bundle id*) · certificados y perfiles de aprovisionamiento · un Mac con una versión de Xcode que acepte App Store Connect el día del envío · ficha de la tienda (nombre, subtítulo, descripción en español e inglés, palabras clave, categoría, clasificación por edad) · icono de 1024 × 1024 y capturas por cada tamaño de pantalla exigido · URL de la política de privacidad · declaración de privacidad de la tienda (el juego no recoge datos: `privacy` lo prueba) · TestFlight y la revisión de Apple.
+
+**Android:** cuenta de Google Play Console · identificador de la aplicación (*applicationId*) · firma (clave de subida y firma gestionada por Play) · Android Studio con su SDK y JDK · formato AAB · el nivel de API objetivo que Google exija el día del envío · icono adaptable, gráfico de funciones y capturas · formulario de seguridad de los datos (ninguno) y cuestionario de clasificación de contenido · URL de la política de privacidad · las pruebas cerradas o internas que la consola exija a una cuenta nueva (**comprobar el requisito vigente en la consola**; no se da por conocido).
+
+**Las dos:** política de privacidad alojada (que diga exactamente lo que es verdad: el juego no envía ningún dato) · nombres para los créditos (hoy provisionales) · icono y arte de marca definitivos · textos de ficha en los dos idiomas · decisión de precio y de modelo de negocio (P3-5) · audio definitivo, si se quiere (P3-1).
+
+**Web:** un alojamiento HTTPS de ficheros estáticos para `dist/` con los tipos MIME de `.js`, `.json` y de audio y compresión; los pasos están en `docs/PUBLISHING.md` §7. Abrir `dist/index.html` con doble clic **no arranca** (CORS de los módulos desde `file://`), y el juego lo dice.
+
+**Integraciones que no existen** (y por tanto no se simulan ni se afirman): compras dentro de la aplicación, restauración y validación de compras, anuncios (también los recompensados), protección contra compras duplicadas, consentimiento, analítica, informes de fallos y cuentas o guardado en la nube. La arquitectura **está lista para recibirlas sin reescribir**: un guardado versionado y reparable (un derecho comprado cabría en `ProgressData` con una migración), un almacenamiento nativo (`@capacitor/preferences`) detrás de un adaptador y la prueba `privacy`, que obliga a que añadir un envío de datos sea una decisión visible.
+
+## 8. El estado real de producción, sin adornos
+
+**No está listo para publicarse, y las pruebas en verde no lo cambian.** Lo que sigue dice, área por área, qué se sabe, con qué evidencia y qué falta; «✅» significa «comprobado en este entorno», no «comprobado en el mundo».
+
+| Área | Estado | Qué lo sostiene y qué falta |
+|---|---|---|
+| Simulación, combate, guardado y progresión | ✅ sólida | pruebas de integración, partida completa repetida bit a bit en el navegador, *soaks* de 300 semillas × 20 000 ticks sin violaciones, cobertura de líneas del 98–100 % en estas capas. **Falta:** una persona jugando 3–5 horas (el jugador de guion es una cota inferior) |
+| Arranque y fallos de arranque | ✅ en Chromium, y en Firefox y WebKit **de Linux** | `boot`, `resilience`, humo de los motores. **Falta:** Safari de iPhone, Android WebView, Firefox con GPU |
+| Rendimiento | ⚠️ **sin medir en un dispositivo** | llamadas de dibujo ≤ 23 (presupuesto 60), 0,024 ms de CPU por criatura, *heap* plano. **Falta:** fotogramas por segundo, batería y temperatura en un móvil real |
+| Controles móviles | ✅ en emulación (siete clases de ventana, multitáctil por protocolo) | **Falta:** el pulgar sobre un cristal, la muesca real, un mando físico |
+| Interfaz y textos | ✅ ningún texto cortado, contraste y tamaño mínimos medidos, es/en completos | **Falta:** accesibilidad más allá de lo medido (daltonismo, subtítulos, zoom): P2-9 |
+| Audio | ⚠️ **provisional** (todo sintetizado en este repositorio) | funciona, está mezclado con medidores, sin voces ni música de las cuatro zonas nuevas. **Falta:** la decisión sobre el audio definitivo (P3-1) y oídos |
+| Contenido | ✅ completo para lo que el proyecto promete (11 zonas, 108 salas, 11 guardianes) | todo lo alcanzable se alcanza y todo guardián se vence con un héroe mortal; la duración y el ritmo humanos **no se han medido** |
+| Calidad de la CI | ✅ las 69 escenas E2E, con evidencia, plazos y reintentos que funcionan | **Falta:** tiempo: «estable» se dice tras varias ejecuciones seguidas del mismo *commit* (§6.1) |
+| Seguridad y privacidad | ✅ superficie mínima (ninguna petición a terceros, ningún dato sale, 0 vulnerabilidades en producción) | CSP pendiente (P3-3); 2 avisos altos en dependencias **de desarrollo** (P2-14) |
+| Publicación (iOS, Android) | ❌ **no es posible hoy** | no hay cáscara nativa ni cuentas, certificados, identificador, iconos, política de privacidad alojada ni dispositivos (§7.3) |
+| Monetización | — no existe, por decisión | nada que simular ni verificar (P3-5) |
+
+**Qué haría falta para poder decir «listo para publicar»**, en este orden: (1) los insumos externos de §7.3 y una cáscara nativa de Capacitor creada con ellos; (2) el juego instalado en un iPhone y en un Android reales, con la lista de §6.3 de `docs/PUBLISHING.md` y las medidas de §7.2 (fotogramas por segundo, batería, temperatura); (3) **personas jugando**: al menos una partida entera cada una, con `npm run session:report`; (4) una decisión sobre el audio definitivo y sobre la accesibilidad que se promete en la ficha de la tienda; (5) la CI en verde en varias ejecuciones seguidas del *commit* que se empaqueta.
