@@ -20,8 +20,8 @@ import { verifyArtFolder } from '../../../tools/assets/verify';
  * `NOT_IN_THE_SHEET` lists the clips of the protagonist the sheet has no drawing for.
  */
 const root = fileURLToPath(new URL('../../../', import.meta.url));
-/** Packing the art of the repository is real work (a minute on a slow machine, with eighteen packs): the tests that do it say so. */
-const PACKING = 120_000;
+/** Packing the art of the repository is real work (the two that do it took 77 s and 83 s on a quiet machine, and ran out of 120 s when the machine had something else to do): the tests that do it say so. */
+const PACKING = 300_000;
 /** Verifying it decodes every page of every atlas the game fetches (3 s here, twice that on the CI runner): its limit is not the default five seconds. */
 const VERIFYING = 60_000;
 /**
