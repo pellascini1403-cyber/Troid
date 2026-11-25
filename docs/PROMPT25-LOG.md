@@ -22,6 +22,28 @@ Continuar F1–F7 (la rama `claude/troid-vertical-slice`, último commit informa
 
 **No medido, y por tanto no afirmado:** nada en un dispositivo físico (iOS, Android, mando, pantalla táctil real), ni el tiempo de un fotograma en un teléfono, ni batería ni temperatura, ni Safari de iPhone (el WebKit de CI es el de Linux). Los números de CPU de este entorno valen para comparar una versión con otra, no como cifras de un móvil.
 
+## 3. Resumen ejecutivo
+
+**El juego es, por dentro, sólido; lo que le falta para producción es casi todo externo.** Revisadas las cinco condiciones de «crítico» (pérdida de progreso, bloqueo, corrupción, fallo de arranque, imposibilidad de publicar), **ninguna se cumple dentro del código**: el guardado es la parte mejor construida (§4.4), la simulación es determinista y se repite bit a bit en el navegador (§4.7, §4.11), no hay ciclos de importación ni fugas medibles (§4.3) y cada fallo de arranque que se pudo provocar tiene una salida (§4.15). **Lo único que hoy impide publicar es externo** (§5 P0-1, §7.3): no hay cáscara nativa ni cuentas, certificados, identificadores, iconos de marca, política de privacidad alojada ni dispositivos físicos.
+
+**Lo que sí estaba mal, y se vio fallar** (fallos confirmados):
+
+| Hallazgo | Evidencia | Estado |
+|---|---|---|
+| El arranque en frío estaba a **808 B** (0,4 %) del techo y cada fase gastaba el margen de la anterior | `bench:bundle`, mapas de fuentes (§4.1) | ✅ **7 500 B de margen** sin subir el techo (P1-1) |
+| La CI corría **20 de 69** escenas E2E; el resto no tenía guardián | `.github/workflows/ci.yml` (§4.2) | ✅ las 69, en ocho grupos balanceados (P1-2) |
+| Al entrar en la CI, una de las 49 escenas olvidadas resultó **roja en el corredor y verde en local** (`arrival`) | CI nº 154, 155 y 156 (§4.2.1, §6) | ⏳ en curso: la escena ya dice qué vio al fallar (`b3eb312`); la causa está en §6 |
+| Tres pruebas gastaban más de la mitad del límite por defecto y una de ellas (`worldAudio`) falló en 3 de las 7 CI rojas | pasada con el límite a la mitad (§4.2.1) | ✅ límite de 15 s, ninguna prueba tocada (P1-3) |
+| La CI no dejaba evidencia de un rojo, no acotaba un trabajo colgado y acoplaba el presupuesto a las escenas | `ci.yml` y `run.ts` (§4.2) | ✅ capturas, plazo por escena, límites y trabajo `budget` (P1-4) |
+| **Nada comprobaba que el texto cupiera en su caja** | no existía detector (§4.9) | ✅ detector y escena `textFit`: ningún texto cortado hoy (P1-5) |
+| Siete empujes seguidos en rojo sin que nadie lo viera | CI nº 142–148 (§4.2) | ✅ práctica adoptada: se mira la CI en cada fase (P1-6) |
+
+**Riesgos potenciales** (algo que puede fallar y no se ha visto fallar): criaturas que se salen del mundo (8 avisos en `fullrun`, P2-2); una sola copia `.corrupt` por clave (P2-3); `leech_bite` con aviso de 200 ms y 2 de daño (P2-4); el sonido no arranca con un mando solo y no lo dice (P2-8); sin modo de 30 fps (P2-7); accesibilidad incompleta (P2-9); dos avisos de seguridad de gravedad alta en dependencias **de desarrollo** (P2-14); la CSP exige `unsafe-eval` por Pixi (P3-3).
+
+**Mejoras** (ni fallo ni riesgo): el segundo golpe del combo se leía como el primero (✅ P2-1, solo presentación); una arena piloto con una pieza que añada una decisión (P2-5); audio propio de las 34 especies (P2-6); cobertura como herramienta (P2-11); mapas de fuentes fuera del paquete (P2-12); iconos para instalar la versión web (P2-13).
+
+**Lo que esta auditoría no pudo ver** (§7.2): nada en un dispositivo físico, ni a una persona jugando: fotogramas por segundo en un móvil, batería, el pulgar sobre el cristal, el audio de iOS, un mando físico. Una CI en verde y 6 mil pruebas verdes **no** dicen que el juego esté listo para publicarse.
+
 ## 4. Hallazgos (evidencia por área)
 
 ### 4.1 El presupuesto de arranque (✅🔎)
@@ -66,12 +88,23 @@ Suma de lo **recuperable sin tocar el comportamiento del juego**: ≈ 20 KB (10 
 
 **Lo que la CI no corría** (fallo confirmado, ✅): `.github/workflows/ci.yml` corría **20 de las 69** escenas E2E; las otras 49 («la suite entera se corre a mano antes de un lanzamiento») no tenían guardián: `touch` falló en esta máquina ya en el commit anterior a todo el Prompt 24, y `player-art` solo se halló roja al correr la suite completa en el Prompt 23. Además `bench:bundle` solo corre dentro de los trabajos E2E (no en `check`), de modo que un presupuesto roto se ve después de la compilación, no antes.
 
+#### 4.2.1 Márgenes de las pruebas, dependencia del tiempo y diferencias entre la CI y local (✅🔎)
+
+- **Cómo se midió:** dos pasadas de la suite completa con informe JSON: la de referencia (6 124 pruebas, todas verdes) y otra con el límite por defecto **a la mitad** (`--testTimeout=2500`), que suspende las pruebas que ya gastan más de la mitad de su límite.
+- **Resultado:** la pasada con el límite a la mitad suspende **tres** pruebas —`noTopLevelAwait` (3,1 s), `hudArt` (3,0 s) y `intake` «una pose dibujada a otra escala» (2,6 s)—, entre el 52 y el 62 % de los 5 s por defecto; con una máquina más ocupada pasaban de los 5 s. El límite por defecto sube a **15 s** (margen ≥ 4,8× para esas tres) y **ninguna prueba se toca**. Hay 57 pruebas de más de 2,5 s y todas las de más de 5 s tienen un límite explícito.
+- **Las más lentas y su margen** (duración de referencia / límite explícito): `intake` 123 s / 240 s (1,9×), `artRepo` 112 s / 300 s (2,7×), `engineIndependence` 103 s / 240 s (2,3×), `fullRun` 102 s / 600 s (5,9×), `spire` 21 s / 300 s. Con la instrumentación de cobertura de V8 y la máquina ocupada con otras tareas —una condición hostil a propósito— **ocho pruebas pasaron de su límite** (`engineIndependence`, `artRepo` y seis de `intake`, dos de ellas con el límite por defecto de 15 s); todas son de cálculo puro de CPU, ninguna de espera: el margen práctico de esas tres familias es de **2 a 3 veces**, no más. En la CI (sin cobertura) el trabajo `check` entero —instalación, tipos, suite y *build*— tarda **9,3–10,8 min** en cinco ejecuciones seguidas.
+- **Dependencia del tiempo en las pruebas unitarias y de integración:** `Math.random()` 0 usos, `new Date()` 0, `Date.now()` en 2 archivos (3 usos), `useFakeTimers` en 3; el juego tampoco usa `Math.random()` en la simulación (un solo uso en `src/`, una marca de comprobación del guardado nativo). Es decir, **la suite no depende del reloj de pared**: lo que la hace lenta es el cálculo, no la espera.
+- **Dependencia del tiempo en las escenas E2E:** 253 `waitForTimeout` en 65 archivos y 50 `Date.now()` en 19: esperas fijas para que se dibuje un fotograma, más unas pocas escenas que miden tiempo real **por diseño** (`arrival`, `focus`, `resilience`, `boot`). En el corredor, el tiempo de una misma escena varió **de una a dos veces** entre ejecuciones (`resilience` 244–492 s, `focus` 145–312 s, `pauseMap` 133–269 s), de modo que cualquier espera fija es un riesgo y cualquier aserción sobre cuántos fotogramas caben en un intervalo, también.
+- **Diferencia entre la CI y local, hallada:** al entrar en la CI las 49 escenas que corrían a mano, **una resultó roja en el corredor y verde en local**: `arrival` (sección D, la espera que se rinde: «the indicator told the player the game was waiting, not frozen»), tres ejecuciones de tres. Pasa en esta máquina también con **un solo núcleo**, con la máquina cargada y tras `progression` y `transition`; está en §6 con su causa.
+- **Lo que no cambia el valor de una prueba verde:** que una prueba pase una vez no la hace estable; por eso las cifras de §6 son de varias ejecuciones y los tiempos de los grupos se midieron en cinco.
+
 ### 4.3 Arquitectura y mantenibilidad (✅📖)
 
 - **Ciclos de importación: ninguno** (✅). Un grafo de las importaciones de valor de los 377 archivos de `src/` (estáticas y dinámicas; las importaciones solo de tipos no cuentan, desaparecen al compilar) no tiene un solo componente fuertemente conexo. La prueba `tests/unit/architecture.test.ts` (29 pruebas) ya fija las capas: la simulación no importa la vista, `rigs` no entra en el primer fotograma, etc.
 - **Código muerto:** diez archivos de `src/` no los alcanza nadie desde `main.ts`, y los diez son barriles `index.ts` o módulos solo de tipos (`SkillDefinition`, `EnemyBrain`, `SimEntity`, `PlayerDefinition`, `core/types`): no pesan en el *build*. Otros diez solo los usan herramientas o pruebas (no se envían). No hay código vivo huérfano.
 - **Separación jugabilidad / vista / IA / combate / guardado / audio:** las costuras que el encargo nombra existen y están probadas: la simulación es de ticks fijos y no sabe de Pixi (`engineIndependence.test.ts` la repite con otras funciones trascendentes), las vistas **leen** estado (`ActorViewState`, los campos de vista de los jefes) y los resúmenes de `fullrun` comparan solo estado de simulación; el guardado es un modelo puro (`ProgressData`) sobre un almacén (`SafeStore`) sobre un adaptador (`StorageAdapter`: `localStorage` o `@capacitor/preferences`).
 - **Lo que sí pesa** (riesgo, 📖): `Game2D.ts` es la pieza más grande del primer fotograma (9,4 KB gz) y concentra el montaje de todo (vistas, eventos, carga diferida, ciclo de vida); funciona y está cubierta por las escenas E2E, pero es el sitio donde un cambio toca más cosas a la vez. No se toca sin una razón técnica (§5, P3-4).
+- **Calidad del código** (✅📖): 379 archivos de `src/`, 319 de `tests/` y 198 de `tools/`, todos en TypeScript con `strict`, `noUnusedLocals`, `noUnusedParameters`, `noImplicitReturns`, `noFallthroughCasesInSwitch` y `verbatimModuleSyntax` (el `typecheck` cubre `src`, `tests`, `tools` y la configuración). **No hay linter ni formateador** (solo `.editorconfig`): las reglas de estructura las hacen cumplir pruebas propias (`architecture.test.ts`, 29 pruebas; `noTopLevelAwait.test.ts`; `keyReferences.test.ts`). No es un fallo —la base es coherente—, pero nada impide hoy que un estilo se desvíe (P3-9).
 - **Fugas y recursos:** el ciclo de vida de `Game2D` registra cada escucha y cada recurso en `lifecycle` y lo suelta en `destroy`; `resilience` cuenta, tras 30 ciclos de arrancar y cerrar el juego, los *listeners* (`window` 33 → 33, `document` 4 → 4), los temporizadores (1 → 1) y los nodos del DOM (611 → 611), y el *heap* sube cada vez menos (0,77 → 0,47 → 0,30 MB: sin tendencia de fuga). Las capas de luz de F7 se sueltan solas al destruirse la criatura (una prueba lo fija).
 
 ### 4.4 Guardado, recuperación e integridad (✅📖)
@@ -111,7 +144,7 @@ El apartado que el encargo llama crítico es, con diferencia, **la parte mejor c
 
 ### 4.8 Arenas y encuentros de jefes (✅📖)
 
-Diez arenas; cinco ganaron repisas a 3 m en F6 (Pastor, Jardinero, Behemot, Soberano de Ceniza, Coloso); el Tirano de Raíces y la Matriarca ya tenían las suyas. **Lo que falta** es lo que `PROMPT24-LOG` §7 ya dice: elementos destructibles, elementos interactivos y cambios de arena por fase. Es **mejora** (P2-5/P3), no fallo: cada guardián se gana hoy con las reglas de su arena, `encountersEmber.test.ts` fija esas reglas y añadir una mecánica de arena obliga a volver a ganarlas todas. La decisión de qué arena merece qué mecánica está en §5 (P2-5): cuatro de las diez ganarían con **una sola** cosa cada una (no con todas).
+Diez arenas; cinco ganaron repisas a 3 m en F6 (Pastor, Jardinero, Behemot, Soberano de Ceniza, Coloso); el Tirano de Raíces y la Matriarca ya tenían las suyas. **Lo que falta** es lo que `PROMPT24-LOG` §7 ya dice: elementos destructibles, elementos interactivos y cambios de arena por fase. Es **mejora** (P2-5/P3), no fallo: cada guardián se gana hoy con las reglas de su arena, `encountersEmber.test.ts` fija esas reglas y añadir una mecánica de arena obliga a volver a ganarlas todas. La decisión de qué arena merece qué mecánica está en §5 (P2-5): como mucho **una** arena piloto, y solo si da una decisión que hoy no existe.
 
 ### 4.9 Controles, interfaz y experiencia de usuario (✅🔎)
 
@@ -151,6 +184,7 @@ Diez arenas; cinco ganaron repisas a 3 m en F6 (Pastor, Jardinero, Behemot, Sobe
 ### 4.15 Seguridad y robustez (✅📖)
 
 - **Superficie:** el juego no usa red (`privacy`: «127 peticiones, todas a 127.0.0.1; sin *beacon*, sin *socket* a terceros, sin *cookie*, sin IndexedDB, sin *service worker*; en `localStorage` solo `troid.progress` y `troid.settings`»); no hay `eval`, `new Function` ni `innerHTML =` en `src/` fuera de laboratorios y depuración. **Datos de entrada:** el guardado se valida y repara al leer **y** al escribir (§4.4); un archivo de partida importado pasa por el mismo `parseProgress`.
+- **Dependencias** (✅ `npm audit`): las **de producción** (`pixi.js`, la única) **0 vulnerabilidades**; las **de desarrollo**, **2 avisos de gravedad alta** que no se envían en el juego: `vite` 8.3.0–8.3.2 (el servidor de desarrollo: ejecución de *scripts* de otro origen por un *middleware* propio, lectura de archivos fuera de `server.fs.allow`, y `launch-editor`; el juego publicado no lleva el servidor) y `happy-dom` ≤ 21.0.3 (ejecución de código del anfitrión y SSRF al interpretar HTML **no confiable**: las pruebas solo interpretan el HTML del propio juego). La exposición real es la de quien desarrolla: `npm run dev:lan` (`vite --host`) abre el servidor de desarrollo a la red local. Arreglo: `npm audit fix` sube `vite` y `rolldown` sin rotura (en el archivo de bloqueo: 8.3.2 → ≥ 8.3.3, rolldown 1.2.12 → 1.2.19), pero toca el empaquetador del *build* y exige volver a medir el arranque (P2-14); `happy-dom` 21 es un cambio mayor.
 - **Fallos de inicialización:** la página de «no se pudo arrancar» (bilingüe, con reintento), el arranque con el arte rechazado o que no llega (la escena `boot`: el juego arranca como *blockout* a los 3 s o a los 11 s), el respaldo de canvas sin WebGL (ahora con las criaturas con sus formas, F7), la pérdida del contexto WebGL (`resilience`) y un fotograma que lanza (el bucle lo salta y avisa tras una racha: `GameLoop.failed`).
 - **Sin política de seguridad de contenido (CSP)** (riesgo bajo, mejora, P3-3): `index.html` no declara una, y añadirla **no es gratis**: Pixi construye funciones con `Function(...)` para sincronizar uniformes (visible en el *build*: `RenderTargetSystem`), así que `script-src 'self'` sin `'unsafe-eval'` rompería el renderizado salvo que se importe `pixi.js/unsafe-eval` (más bytes en el primer fotograma). Se documenta y se deja para cuando haya cáscara nativa.
 
@@ -187,8 +221,8 @@ Criterio de prioridad: **P0** = pérdida de progreso, bloqueo, corrupción, fall
 - **Archivos / sistemas:** `tools/e2e/registry.ts`, `tools/e2e/groups.ts`, `tools/e2e/run.ts` (`--group=`), `.github/workflows/ci.yml`, `tests/unit/tools/e2eGroups.test.ts`.
 - **Consecuencia para el jugador:** un fallo de controles táctiles, de arte, de un jefe o de las puertas podía llegar a una versión sin que nada lo viera.
 - **Dependencias:** ninguna.
-- **Solución propuesta (ejecutada):** un registro único de escenas, cinco grupos que corren en paralelo (`play`, `stability`, `journey`, `interface`, `world`) y una prueba unitaria que **falla** si una escena no pertenece a exactamente un grupo o si el *workflow* no corre un grupo.
-- **Cómo comprobar:** `npx vitest run tests/unit/tools/e2eGroups.test.ts`; `npm run test:e2e -- --prod --group=<nombre>`; los cinco trabajos de la CI (§6).
+- **Solución propuesta (ejecutada):** un registro único de escenas, grupos que corren en paralelo y una prueba unitaria que **falla** si una escena no pertenece a exactamente un grupo o si el *workflow* no corre un grupo. Primero cinco grupos (`75ba403`); al medir la CI cinco veces seguidas, el tiempo de un grupo varió entre una y dos veces de una ejecución a otra (`interface` de 18,8 a 37,6 min, `play` de 15,4 a 28,3) y el límite de 60 min quedaba a un 63 % de la peor, así que se repartieron por el tiempo medido en **ocho** (`play`, `pause`, `stability`, `journey`, `controls`, `saves`, `art`, `fights`; 5–16 min de escenas cada uno; `ab182e0`).
+- **Cómo comprobar:** `npx vitest run tests/unit/tools/e2eGroups.test.ts`; `npm run test:e2e -- --prod --group=<nombre>`; los ocho trabajos de la CI (§6).
 
 #### P1-3 · Las pruebas con el límite por defecto de 5 s fallaban según la carga — ✅ `2eed8c7` (los límites explícitos de `worldAudio` y `artRepo`), `9cb5fd7` (el límite por defecto)
 - **Problema:** una prueba que pasa «casi siempre» es la peor: su rojo parece ruido. `worldAudio` falló en 3 de las 7 ejecuciones rojas (§4.2).
@@ -310,7 +344,7 @@ Criterio de prioridad: **P0** = pérdida de progreso, bloqueo, corrupción, fall
 - **Cómo comprobar:** una escena con el motor bloqueado: el aviso se ve y desaparece al primer gesto.
 
 #### P2-9 · Accesibilidad que falta — ◻
-- **Problema:** no hay modo para daltonismo, ni indicación visual de los sonidos (los sonidos no llevan texto), ni tamaño de texto general más allá del HUD, ni alternativa a mantener pulsado; el juego no es utilizable con lector de pantalla (§4.12).
+- **Problema:** el *viewport* de `index.html` impide el zoom de la página (`user-scalable=no`; habitual en un juego de lienzo, cuya compensación es la escala del HUD); no hay modo para daltonismo, ni indicación visual de los sonidos (los sonidos no llevan texto), ni tamaño de texto general más allá del HUD, ni alternativa a mantener pulsado; el juego no es utilizable con lector de pantalla (§4.12).
 - **Evidencia:** `src/ui/settings/`, `readable` (mide contraste y tamaño, no estas cosas).
 - **Archivos / sistemas:** ajustes, HUD, avisos de peligro (`vfx`).
 - **Consecuencia para el jugador:** parte de los jugadores con daltonismo, sordera o poca visión lo tiene más difícil.
@@ -336,6 +370,33 @@ Criterio de prioridad: **P0** = pérdida de progreso, bloqueo, corrupción, fall
 - **Solución propuesta:** un guion `npm run coverage` y el informe como artefacto de la CI, **sin umbral** al principio (la suite es de escenas y de simulación determinista: un porcentaje de líneas dice poco); un umbral solo si una caída sostenida se vuelve un problema.
 - **Cómo comprobar:** el informe se genera en la CI y en local con el mismo número.
 
+#### P2-12 · El paquete que se publica lleva 6,8 MB de mapas de fuentes — ◻
+- **Problema:** `vite.config.ts` fija `build.sourcemap: true`: cada *chunk* sale con su `.map` y con la línea `sourceMappingURL` (6,8 MB de mapas contra 1,7 MB de JavaScript, de los 49 MB de `dist/`).
+- **Evidencia:** ✅ `du` sobre `dist/assets` y la lectura de `vite.config.ts`; nada del repositorio los usa (el banco de arranque no los lee).
+- **Archivos / sistemas:** `vite.config.ts`, el paso que copia `dist/` a la cáscara nativa o al alojamiento.
+- **Consecuencia para el jugador:** un paquete de la tienda más grande por nada (los mapas solo los baja un navegador con las herramientas de desarrollo abiertas).
+- **Dependencias:** ninguna; conviene decidirlo con la cáscara nativa (P0-1).
+- **Solución propuesta:** `sourcemap: 'hidden'` (los mapas se generan sin la línea que los enlaza) y excluir `*.map` al copiar `dist/` al paquete que se publica; conservarlos aparte si algún día hay informes de fallos (P3-7).
+- **Cómo comprobar:** el tamaño del paquete antes y después, y `npm run bench:bundle` (no cambia: mide el JavaScript).
+
+#### P2-13 · Instalar la versión web en la pantalla de inicio — ◻
+- **Problema:** el `manifest.webmanifest` solo declara un icono SVG y `index.html` no trae `apple-touch-icon`; iOS usa entonces una captura de la página como icono. No hay *service worker* (por decisión: `privacy` prueba que no hay ninguno), así que tampoco hay modo sin conexión.
+- **Evidencia:** ✅ lectura de `public/manifest.webmanifest` e `index.html`.
+- **Archivos / sistemas:** `public/`, `index.html`.
+- **Consecuencia para el jugador:** quien añada el juego web a su pantalla de inicio en un iPhone ve un icono que no es el del juego.
+- **Dependencias:** el icono de marca definitivo (P0-1, externo).
+- **Solución propuesta:** iconos PNG de 192, 512 y 180 px (`apple-touch-icon`) a partir del icono final; decidir con la dueña si se quiere un modo sin conexión (cambiaría la política de `privacy`).
+- **Cómo comprobar:** la escena `privacy` sigue en verde; instalar en un iPhone y en un Android reales (§7).
+
+#### P2-14 · Dos avisos de seguridad de gravedad alta en las dependencias de desarrollo — ◻
+- **Problema:** `npm audit` marca `vite` 8.3.0–8.3.2 y `happy-dom` ≤ 21.0.3 (ver §4.15); las dependencias de producción están limpias.
+- **Evidencia:** ✅ `npm audit --omit=dev` (0) y `npm audit` (2 altas); un ensayo de `npm audit fix --package-lock-only` en una copia: arregla `vite` (y sube `rolldown` de 1.2.12 a 1.2.19 y `@oxc-project/types`), y deja `happy-dom` para `--force` (21.0.4, cambio mayor).
+- **Archivos / sistemas:** `package.json`, `package-lock.json`, `vite.config.ts`, `tools/build/pixiDiet.ts`, las pruebas con `// @vitest-environment happy-dom`.
+- **Consecuencia para el jugador:** ninguna (no se envían). Para quien desarrolla: el servidor de desarrollo abierto a la red con `dev:lan`.
+- **Dependencias:** que haya tiempo de volver a medir el empaquetado: un empaquetador nuevo puede mover el tamaño del arranque o el orden de evaluación de los módulos de Pixi (el experimento de partir el *chunk* de canvas ya mostró lo frágil que es).
+- **Solución propuesta:** subir `vite`/`rolldown` por el archivo de bloqueo y comprobar `npm run build`, `npm run bench:bundle` (que no se mueva más de unos cientos de bytes), las escenas de arranque y la suite; `happy-dom` 21 en otro cambio, con la suite de pruebas de DOM. Mientras tanto, no usar `dev:lan` en redes no confiables.
+- **Cómo comprobar:** `npm audit` sin altas; el banco y la suite como antes.
+
 ### P3 — futuro
 
 - **P3-1 · Audio real** (grabado o compuesto, con voces si las hubiera). *Problema:* todo el audio es sintetizado y provisional (§4.10). *Evidencia:* `npm run audio:build`. *Sistemas:* `tools/audio`, `public/audio`. *Consecuencia:* un juego que suena a prototipo. *Dependencias:* presupuesto y un autor. *Solución:* sustituir el catálogo manteniendo los identificadores. *Comprobar:* `audio:verify`, `worldAudio`.
@@ -346,3 +407,4 @@ Criterio de prioridad: **P0** = pérdida de progreso, bloqueo, corrupción, fall
 - **P3-6 · Más idiomas y formatos regionales.** *Problema:* español e inglés; el HUD solo muestra enteros (§4.12). *Solución:* nuevos catálogos con las mismas claves (`catalogs.test.ts` ya lo exige) y carga diferida (P2-10).
 - **P3-7 · Informes de fallos con consentimiento.** *Problema:* ningún dato sale, así que un fallo en el teléfono de una persona no llega a nadie (`src/app/crash.ts` solo muestra la página). *Dependencias:* decisión de privacidad. *Solución:* un envío opcional y explícito.
 - **P3-8 · Guardado en la nube y transferencia entre dispositivos.** *Problema:* el guardado vive en el dispositivo; existe exportar/importar archivo (pasa por `parseProgress`). *Dependencias:* cuentas (P3-5).
+- **P3-9 · Sin linter ni formateador.** *Problema:* solo `.editorconfig` y el compilador estricto (§4.3). *Consecuencia:* ninguna para el jugador; un estilo puede desviarse sin que nada lo avise. *Dependencias:* una decisión de equipo (otra dependencia de desarrollo). *Solución:* un linter con pocas reglas (las que el compilador no cubre: promesas sin esperar, `any` implícito en JSON). *Comprobar:* `npm run lint` en la CI.
