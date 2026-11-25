@@ -18,7 +18,7 @@ export const touch: Scenario = {
   async run(ctx) {
     await ctx.open('room=movement_test&unlock=dash&touch=1', { width: 844, height: 390, touch: true });
     const { page } = ctx;
-    const screen = await new TouchScreen(page).init();
+    const screen = await new TouchScreen(page, true).init();
     await ctx.step(30);
 
     // ================================================================== what is there, and what is not

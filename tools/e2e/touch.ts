@@ -1,4 +1,5 @@
 import type { CDPSession, Page } from 'playwright-core';
+import { frames } from './frames';
 
 /**
  * A touch screen for the browser E2E: REAL touches through the DevTools protocol (`Input.dispatchTouchEvent`), the same events a
@@ -19,7 +20,11 @@ export class TouchScreen {
   private clockMs = 0;
   private baseSeconds = Date.now() / 1000;
 
-  constructor(private readonly page: Page) {}
+  /** `settle`: every operation waits until the page has its events (see `delivered`). Off by default: a scenario that hides the page or holds a finger across a pause does not want its frames waited for. */
+  constructor(
+    private readonly page: Page,
+    private readonly settle = false,
+  ) {}
 
   /** Lets `ms` of the touches' own time pass (a finger resting on the screen). */
   rest(ms: number): void {
@@ -43,17 +48,35 @@ export class TouchScreen {
     });
   }
 
+  /**
+   * Until the page has what was sent. Chromium hands a finger's events over on the page's own frames (a move at the start of the next one) and, with software GL, a frame can be a tenth of a second: what a scenario asks of
+   * the page right after a gesture — the state of the game, a step of the simulation — would otherwise read the finger where it was a move ago (that is how «bringing the finger back up stands again» and «a flick down drops
+   * through the platform» failed, on a slow frame and with no change to the game). The gestures are timed by the events' own timestamps, so waiting changes nothing but what the page has seen.
+   */
+  private async delivered(): Promise<void> {
+    if (!this.settle) return;
+    // (a page that is hidden draws no frames, and one that never draws one must not hang the scenario)
+    if (!((await this.page.evaluate('document.visibilityState === "visible"')) as boolean)) return;
+    await Promise.race([frames(this.page, 2), new Promise<void>((resolve) => setTimeout(resolve, 3000))]);
+  }
+
   /** A finger touches the screen at `(x, y)`. */
   async touch(id: number, x: number, y: number): Promise<void> {
     this.points.set(id, { x, y });
     await this.send('touchStart', [id]);
+    await this.delivered();
+  }
+
+  private async move(id: number, x: number, y: number): Promise<void> {
+    if (!this.points.has(id)) throw new Error(`finger ${id} is not on the screen`);
+    this.points.set(id, { x, y });
+    await this.send('touchMove', [id]);
   }
 
   /** The finger slides to `(x, y)`. */
   async slide(id: number, x: number, y: number): Promise<void> {
-    if (!this.points.has(id)) throw new Error(`finger ${id} is not on the screen`);
-    this.points.set(id, { x, y });
-    await this.send('touchMove', [id]);
+    await this.move(id, x, y);
+    await this.delivered();
   }
 
   /** The finger slides by `(dx, dy)` in `steps` events, `gapMs` of the touches' own time apart (default 10 ms: a flick). */
@@ -64,8 +87,9 @@ export class TouchScreen {
     const y0 = p.y;
     for (let i = 1; i <= steps; i++) {
       this.clockMs += gapMs;
-      await this.slide(id, x0 + (dx * i) / steps, y0 + (dy * i) / steps);
+      await this.move(id, x0 + (dx * i) / steps, y0 + (dy * i) / steps);
     }
+    await this.delivered();
   }
 
   /** The finger lifts. */
@@ -73,12 +97,14 @@ export class TouchScreen {
     if (!this.points.has(id)) return;
     await this.send('touchEnd', [id]);
     this.points.delete(id);
+    await this.delivered();
   }
 
   /** The system takes the touches away (an edge gesture, an incoming call): every finger is cancelled. */
   async cancelAll(): Promise<void> {
     await this.send('touchCancel', []); // the protocol cancels every touch and wants no points listed
     this.points.clear();
+    await this.delivered();
   }
 
   /** A quick tap. */
