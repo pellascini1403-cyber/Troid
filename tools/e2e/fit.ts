@@ -7,7 +7,7 @@ import type { Page } from 'playwright-core';
  * A text is flagged when
  *  - its box holds more than it shows (`scrollWidth` / `scrollHeight` beyond `clientWidth` / `clientHeight`) and its `overflow` hides the rest (`hidden`, `clip`) — an ellipsis included: «Resume the…» is a cut text;
  *  - or the line of text itself reaches past the nearest ancestor that clips it, or past the window.
- * A box that scrolls on purpose (`overflow: auto | scroll`) is not a fault: what it holds is reached by scrolling.
+ * A box that scrolls on purpose (`overflow: auto | scroll`) is not a fault: what it holds is reached by scrolling; nor is text kept only for a screen reader (the box a pixel wide that is clipped away).
  */
 export interface Cut {
   /** Where it is: the tags, ids and classes up to the root. */
@@ -32,14 +32,22 @@ export async function fitAudit(page: Page, root: string): Promise<FitReport> {
     const clipAncestor = (el) => { for (let n = el.parentElement; n; n = n.parentElement) { const s = getComputedStyle(n); if (hides(s.overflowX) || hides(s.overflowY) || s.overflowX === 'auto' || s.overflowX === 'scroll' || s.overflowY === 'auto' || s.overflowY === 'scroll') return n; } return null; };
     const W = window.innerWidth, H = window.innerHeight;
     for (const el of [base, ...base.querySelectorAll('*')]) {
-      const own = [...el.childNodes].filter((n) => n.nodeType === 3 && (n.textContent || '').trim());
-      if (own.length === 0) continue;
+      const ownText = [...el.childNodes].filter((n) => n.nodeType === 3 && (n.textContent || '').trim());
+      if (ownText.length === 0) continue;
       const s = getComputedStyle(el);
       if (s.display === 'none' || s.visibility === 'hidden' || el.closest('[hidden]') || parseFloat(s.opacity) === 0) continue;
       const box = el.getBoundingClientRect();
       if (box.width === 0 || box.height === 0) continue;
+      // text that is there only for a screen reader (the usual «visually hidden» box: a pixel wide, clipped) is not on the screen: it is not cut, it is not shown
+      let hidden = false;
+      for (let n = el; n && n !== base.parentElement; n = n.parentElement) {
+        const b = n.getBoundingClientRect();
+        const cs = getComputedStyle(n);
+        if ((b.width <= 2 || b.height <= 2) && (hides(cs.overflowX) || hides(cs.overflowY) || cs.clip !== 'auto' || cs.clipPath !== 'none')) { hidden = true; break; }
+      }
+      if (hidden) continue;
       out.checked++;
-      const text = own.map((n) => n.textContent.trim()).join(' ').slice(0, 60);
+      const text = ownText.map((n) => n.textContent.trim()).join(' ').slice(0, 60);
       const why = [];
       if (hides(s.overflowX) && el.scrollWidth > el.clientWidth + 1) why.push('shows ' + el.clientWidth + 'px of ' + el.scrollWidth + 'px wide');
       if (hides(s.overflowY) && el.scrollHeight > el.clientHeight + 1) why.push('shows ' + el.clientHeight + 'px of ' + el.scrollHeight + 'px high');
@@ -54,7 +62,9 @@ export async function fitAudit(page: Page, root: string): Promise<FitReport> {
         if (hides(sc.overflowX) && (r.right > c.right + 1.5 || r.left < c.left - 1.5)) why.push('passes its clip by ' + Math.round(Math.max(r.right - c.right, c.left - r.left)) + 'px');
         if (hides(sc.overflowY) && (r.bottom > c.bottom + 1.5 || r.top < c.top - 1.5)) why.push('passes its clip by ' + Math.round(Math.max(r.bottom - c.bottom, c.top - r.top)) + 'px (vertically)');
       }
-      if (r.width > 0 && (r.right > W + 1.5 || r.left < -1.5 || r.bottom > H + 1.5 || r.top < -1.5) && !clip) why.push('is outside the window');
+      // a box that scrolls or clips by itself answers for its own rectangle, not for the whole of what it holds
+      const own = s.overflowX !== 'visible' || s.overflowY !== 'visible' ? box : r;
+      if (own.width > 0 && (own.right > W + 1.5 || own.left < -1.5 || own.bottom > H + 1.5 || own.top < -1.5) && !clip) why.push('is outside the window');
       if (why.length > 0) out.failures.push({ path: label(el), text, why: why.join('; ') });
     }
     return out;
