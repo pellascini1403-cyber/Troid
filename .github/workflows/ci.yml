@@ -56,7 +56,7 @@ jobs:
     name: e2e (${{ matrix.group.name }})
     needs: check
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:

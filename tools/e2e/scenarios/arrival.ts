@@ -18,7 +18,7 @@ import type { GameState, Scenario } from '../scenario';
  *   B · the same walk on a fast line, and the result of the game is the same bit for bit (position, life, magic, flags, enemies, ticks): waiting changes nothing the simulation decides
  *   C · walking toward the way out brings the art of the next room in early: the change of zone finds it in memory even on the slow line, shows no loading indicator, and the files were asked
  *       for before the way out was touched; the zone is given back when the hero turns away
- *   D · what fails does not trap the player at the black: an art that is refused, and one that never answers (`?arrival=1500`), both let the world go on
+ *   D · what fails does not trap the player at the black: an art that is refused, and one that never answers (`?arrival=4000`), both let the world go on
  *   E · back and forth, quickly, on a slow line: every transition finishes, the scene is the one of a room loaded directly (nothing left over, nothing doubled), no timer is left pending
  *   F · a real, limited bandwidth: the loading indicator shows the share of the bytes that have really arrived, growing, never backward
  *   G · the indicator fits the screen of a phone (with a notch) and a desktop, and the black stays black around it
@@ -373,8 +373,10 @@ export const arrival: Scenario = {
       await w.close();
     }
     {
-      // the art of R2 never answers: the wait gives up
-      const w = await world(browser, origin, `arrival=${1500}`, PHONE);
+      // the art of R2 never answers: the wait gives up. It is given FOUR seconds, not one and a half: on the CI's runner the page spends a good part of the first of them compiling the chunks that a room beyond the Sanctum needs
+      // (the rigs, the guardians), with no frame drawn, and the indicator — which comes in after 450 ms of waiting and then fades in over a third of a second — had too few frames left to be seen in a wait that short (three runs of
+      // three, `docs/PROMPT25-LOG.md` §6). What is under test is that a wait that goes on is told to the player, and that is the same in four seconds as in one and a half.
+      const w = await world(browser, origin, `arrival=${4000}`, PHONE);
       await settled(w.page);
       await sess(w.page, 's.flags.set("defeated:r1_slime")');
       w.net.hang = /\/ruins-roots\//;
@@ -386,7 +388,7 @@ export const arrival: Scenario = {
       const a = await arrivalOf(w.page);
       const last = a.history[a.history.length - 1]!;
       assert.equal(last.outcome, 'timeout', 'it gave up');
-      assert.ok(last.waited >= 1400 && last.waited < 6000, `after the wait it was told (${last.waited} ms), not before and not long after`);
+      assert.ok(last.waited >= 3900 && last.waited < 12000, `after the wait it was told (${last.waited} ms), not before and not long after`);
       assert.equal(a.blocking, false);
       await w.page.evaluate('window.__tlOn = false');
       const held = ((await w.page.evaluate('window.__tl')) as Frame[]).filter((f) => f.held);
@@ -461,18 +463,20 @@ export const arrival: Scenario = {
       await cdp.send('Network.enable');
       await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 120, downloadThroughput: 260 * 1024, uploadThroughput: 260 * 1024 });
       await w.page.evaluate('window.__troid.teleport(110, 0)');
+      // the share is written down by the page itself every 25 ms: a sample through the driver costs a round trip that, on a busy runner, is longer than the whole of the middle of the load
+      await w.page.evaluate(`(() => { window.__shares = []; window.__sharesOn = true; const tick = () => { const a = window.__troid.arrival(); if (a.blocking && a.progress && a.progress.fraction !== null && a.progress.fraction !== undefined) window.__shares.push(a.progress.fraction); if (window.__sharesOn) setTimeout(tick, 25); }; tick(); })()`);
       const stepping = w.page.evaluate('window.__troid.step(90)');
-      const shares: number[] = [];
+      let seenByDriver = 0;
       let label = '';
       let shot = false;
       const t0 = Date.now();
       while ((await arrivalOf(w.page)).blocking || Date.now() - t0 < 600) {
         const a = await arrivalOf(w.page);
-        if (a.blocking && a.progress?.fraction !== null && a.progress?.fraction !== undefined) shares.push(a.progress.fraction);
+        if (a.blocking && a.progress?.fraction !== null && a.progress?.fraction !== undefined) seenByDriver++;
         const text = await w.page.locator('[data-testid="arrival-label"]').textContent().catch(() => null);
         if (a.blocking && a.indicator > 0.9 && /\d\s?%/.test(text ?? '')) {
           label = text ?? '';
-          if (!shot && shares.length > 4) {
+          if (!shot && seenByDriver > 4) {
             shot = true;
             await w.page.screenshot({ path: '.shots/e2e/arrival-f-percent.png' });
           }
@@ -482,9 +486,11 @@ export const arrival: Scenario = {
       }
       await stepping;
       await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+      await w.page.evaluate('window.__sharesOn = false');
+      const shares = (await w.page.evaluate('window.__shares')) as number[];
       assert.ok(shares.length >= 3, `the share was measurable while the bytes came (${shares.length} samples)`);
       assert.ok(shares.every((v, i) => v >= 0 && v <= 1 && (i === 0 || v >= shares[i - 1]! - 1e-9)), `the share of the bytes that arrived only grows (${shares.map((v) => v.toFixed(2)).join(' ')})`);
-      assert.ok(Math.max(...shares) > 0.3 && Math.min(...shares) < 0.7, `and it passes through the middle of the load (${Math.min(...shares).toFixed(2)} … ${Math.max(...shares).toFixed(2)})`);
+      assert.ok(Math.max(...shares) > 0.3 && Math.min(...shares) < 0.7, `and it passes through the middle of the load (${Math.min(...shares).toFixed(2)} … ${Math.max(...shares).toFixed(2)} in ${shares.length} samples; the driver saw ${seenByDriver})`);
       assert.match(label, /\d\s?%/, `the number beside the line is written in percent (${JSON.stringify(label)})`);
       assert.equal(shot, true, 'a picture of the percentage was taken');
       await settled(w.page);
