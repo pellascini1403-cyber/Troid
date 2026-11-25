@@ -4,83 +4,22 @@
  *   npm run test:e2e                 all scenarios
  *   npm run test:e2e -- movement     scenarios whose name contains "movement"
  *   npm run test:e2e -- --only=hazard,soak   exactly the scenarios with those names (a long run can then be resumed where it was cut)
+ *   npm run test:e2e -- --group=play         the scenes of one job of the CI (`groups.ts`: the CI runs them all, each scene in exactly one group)
  *   add --prod to run against the production build (run `npm run build` first)
  */
 import { mkdirSync } from 'node:fs';
 import { launchBrowser, openPage, startPreview, startServer, type OpenedPage } from './harness';
-import type { Ctx, GameState, Scenario } from './scenario';
-import { accessibility } from './scenarios/accessibility';
-import { adaptive } from './scenarios/adaptive';
-import { arrival } from './scenarios/arrival';
-import { assets } from './scenarios/assets';
-import { bolt } from './scenarios/bolt';
-import { boot } from './scenarios/boot';
-import { boss } from './scenarios/boss';
-import { bossDeath } from './scenarios/bossDeath';
-import { bottles } from './scenarios/bottles';
-import { bottle4 } from './scenarios/bottle4';
-import { playerAnim } from './scenarios/playerAnim';
-import { playerArt } from './scenarios/playerArt';
-import { playerLab } from './scenarios/playerLab';
-import { audio } from './scenarios/audio';
-import { audioCues } from './scenarios/audioCues';
-import { environment } from './scenarios/environment';
-import { artPerformance } from './scenarios/artPerformance';
-import { roomArt } from './scenarios/roomArt';
-import { playerR1 } from './scenarios/playerR1';
-import { privacy } from './scenarios/privacy';
-import { progression } from './scenarios/progression';
-import { camera } from './scenarios/camera';
-import { checkpoint } from './scenarios/checkpoint';
-import { combat } from './scenarios/combat';
-import { cost } from './scenarios/cost';
-import { crouch } from './scenarios/crouch';
-import { gamepad } from './scenarios/gamepad';
-import { hazard } from './scenarios/hazard';
-import { hud } from './scenarios/hud';
-import { interaction } from './scenarios/interaction';
-import { language } from './scenarios/language';
-import { lava } from './scenarios/lava';
-import { lighting } from './scenarios/lighting';
-import { magic } from './scenarios/magic';
-import { mobile } from './scenarios/mobile';
-import { death } from './scenarios/death';
-import { devtools } from './scenarios/devtools';
-import { ending } from './scenarios/ending';
-import { fallbacks } from './scenarios/fallbacks';
-import { finale } from './scenarios/finale';
-import { fullrun } from './scenarios/fullrun';
-import { focus } from './scenarios/focus';
-import { movement } from './scenarios/movement';
-import { pause } from './scenarios/pause';
-import { pauseMap } from './scenarios/pauseMap';
-import { pauseZone } from './scenarios/pauseZone';
-import { r1 } from './scenarios/r1';
-import { room } from './scenarios/room';
-import { rooms } from './scenarios/rooms';
-import { save } from './scenarios/save';
-import { settings } from './scenarios/settings';
-import { slots } from './scenarios/slots';
-import { readable } from './scenarios/readable';
-import { render } from './scenarios/render';
-import { resilience } from './scenarios/resilience';
-import { slime } from './scenarios/slime';
-import { soak } from './scenarios/soak';
-import { sprites } from './scenarios/sprites';
-import { tabs } from './scenarios/tabs';
-import { stress } from './scenarios/stress';
-import { touch } from './scenarios/touch';
-import { touchEditor } from './scenarios/touchEditor';
-import { transition } from './scenarios/transition';
-import { vertical } from './scenarios/vertical';
-import { vfx } from './scenarios/vfx';
-import { vfxArt } from './scenarios/vfxArt';
-import { textFit } from './scenarios/textFit';
-import { world, worldArt } from './scenarios/world';
+import { GROUPS } from './groups';
+import { ALL } from './registry';
+import type { Ctx, GameState } from './scenario';
 
-const ALL: Scenario[] = [assets, playerArt, playerAnim, playerLab, playerR1, audioCues, audio, environment, artPerformance, cost, adaptive, roomArt, movement, crouch, combat, slime, r1, room, rooms, death, render, camera, sprites, vfx, vfxArt, lighting, fallbacks, boot, stress, touch, touchEditor, gamepad, hud, magic, bolt, bottles, bottle4, progression, interaction, devtools, language, vertical, transition, arrival, world, worldArt, boss, bossDeath, checkpoint, save, settings, pause, pauseMap, pauseZone, slots, tabs, accessibility, hazard, lava, mobile, finale, fullrun, ending, focus, resilience, readable, privacy, soak, textFit];
 const filter = process.argv.slice(2).find((a) => !a.startsWith('--'));
-const only = process.argv.find((a) => a.startsWith('--only='))?.slice('--only='.length).split(',').filter((n) => n !== '');
+const group = process.argv.find((a) => a.startsWith('--group='))?.slice('--group='.length);
+if (group !== undefined && !(group in GROUPS)) {
+  console.error(`unknown group "${group}" (${Object.keys(GROUPS).join(', ')})`);
+  process.exit(2);
+}
+const only = group !== undefined ? [...GROUPS[group]!] : process.argv.find((a) => a.startsWith('--only='))?.slice('--only='.length).split(',').filter((n) => n !== '');
 const prod = process.argv.includes('--prod');
 const selected = ALL.filter((s) => (!filter || s.name.includes(filter)) && (!only || only.includes(s.name)));
 const unknown = (only ?? []).filter((n) => !ALL.some((s) => s.name === n));

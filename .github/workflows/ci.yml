@@ -19,10 +19,9 @@ jobs:
       - run: npm test
       - run: npm run build
 
-  # The game in a real browser (docs/PROMPT20-LOG.md): the production build, driven with real keyboard, pad and touch events in Chromium — the scenes that prove a player's whole way (a first game, the
-  # pause and its map, the pad in the menus, the end of the adventure, a game that breaks, what it sends and keeps, whether it can be read; `sprites` is a lab, there to prove that what the page loads on demand
-  # still starts in the bundled build). The whole suite (`npm run test:e2e`, dev and `-- --prod`) is run by hand before a release: it takes far longer than a push should wait.
-  # Two jobs side by side (the runner draws with software and is ~3 times slower than a developer's machine: one after the other they went past half an hour).
+  # The game in a real browser (docs/PROMPT20-LOG.md, docs/PROMPT25-LOG.md): the production build, driven with real keyboard, pad and touch events in Chromium. EVERY scene of the suite runs here, in one of five jobs side by side
+  # (the runner draws with software and is ~3 times slower than a developer's machine: one after the other they went past an hour): the groups are `tools/e2e/groups.ts`, and a unit test fails when a scene belongs to none of
+  # them — until Prompt 25 only twenty of the sixty-nine were here, and a scene run by hand is a scene that fails unseen. Each job asks for its group by name; this file keeps no list of scenes of its own, so it cannot drift.
   e2e:
     name: e2e (${{ matrix.group.name }})
     needs: check
@@ -32,13 +31,16 @@ jobs:
       fail-fast: false
       matrix:
         group:
+          # the player's whole way: a first game, the rooms, the pause and its map, the pad, the end of the adventure
           - name: play
-            scenes: boot,movement,combat,room,rooms,world,pause,pauseMap,gamepad,focus,ending,finale,adaptive,lava
+          # a game that breaks, what it sends and keeps, whether it can be read
           - name: stability
-            scenes: resilience,privacy,readable,sprites
-          # the whole adventure in one page (docs/PROMPT22-LOG.md §5): ~200 000 ticks (docs/PROMPT23-LOG.md §7.6: the eleven zones) of a scripted playthrough from a new game to the way out of the world, replayed bit for bit — it takes minutes on its own (about seven minutes on the machine that wrote this, eleven on the runner)
+          # the whole adventure in one page (docs/PROMPT22-LOG.md §5): ~200 000 ticks of a scripted playthrough from a new game to the way out of the world, replayed bit for bit — it takes minutes on its own (about seven minutes on the machine that wrote this, eleven on the runner)
           - name: journey
-            scenes: fullrun
+          # controls and screens: touch, the phone classes, the HUD, the settings, the saves, the sound
+          - name: interface
+          # what is drawn and fought: art, light, effects, the guardians, the hazards
+          - name: world
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -56,7 +58,7 @@ jobs:
           exit 1
       - run: npm run build
       - run: npm run bench:bundle
-      - run: npm run test:e2e -- --prod --only=${{ matrix.group.scenes }}
+      - run: npm run test:e2e -- --prod --group=${{ matrix.group.name }}
 
   # The game in the other two engines (docs/PROMPT20-LOG.md §6): Firefox and WebKit — the engine of Safari, on Linux: NOT an iPhone — start the production build, draw it, move the hero, pause, save and bring the game back,
   # and a phone-sized page takes a real tap without the hero striking. Chromium has the whole suite above. A pass is evidence about the engines, not about any device.
