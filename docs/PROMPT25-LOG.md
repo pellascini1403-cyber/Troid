@@ -188,6 +188,40 @@ Diez arenas; cinco ganaron repisas a 3 m en F6 (Pastor, Jardinero, Behemot, Sobe
 - **Fallos de inicialización:** la página de «no se pudo arrancar» (bilingüe, con reintento), el arranque con el arte rechazado o que no llega (la escena `boot`: el juego arranca como *blockout* a los 3 s o a los 11 s), el respaldo de canvas sin WebGL (ahora con las criaturas con sus formas, F7), la pérdida del contexto WebGL (`resilience`) y un fotograma que lanza (el bucle lo salta y avisa tras una racha: `GameLoop.failed`).
 - **Sin política de seguridad de contenido (CSP)** (riesgo bajo, mejora, P3-3): `index.html` no declara una, y añadirla **no es gratis**: Pixi construye funciones con `Function(...)` para sincronizar uniformes (visible en el *build*: `RenderTargetSystem`), así que `script-src 'self'` sin `'unsafe-eval'` rompería el renderizado salvo que se importe `pixi.js/unsafe-eval` (más bytes en el primer fotograma). Se documenta y se deja para cuando haya cáscara nativa.
 
+### 4.16 Pruebas y cobertura (✅🔎)
+
+**La suite** (referencia, antes de esta fase): **274 archivos y 6 124 pruebas**, todas verdes, ≈ 28 min de tiempo de prueba sumado entre procesos (≈ 11 min de reloj en una máquina de 4 núcleos):
+
+| Área | Archivos | Pruebas | Qué cubre |
+|---|---|---|---|
+| `tests/integration` | 71 | 1 689 | la sesión sin cabeza con entradas guiadas: combate, movimiento, jefes (`encounters*`), el mundo (`world/*`: la auditoría del solucionador de cada zona), `fullRun`, los *soaks* (`soak`, `inputSoak`, `enemySoak`, `progressSoak`, `storageSoak`, `touchDomSoak`, `hudSoak`), `engineIndependence`, guardado |
+| `tests/unit/camera` | 4 | 820 | cámara (propiedades) |
+| `tests/unit/ui` | 31 | 660 | HUD, menús, mapa, controles táctiles, ajustes |
+| `tests/unit/tools` | 33 | 426 | herramientas de arte y audio, `intake`, `artRepo`, `animate`, licencias |
+| `tests/unit/rigs` · `presentation` · `audio` · `vfx` · `content` · `input` · `world` · `save` · `app` · `render` | 99 | 2 071 | cada capa de `src/` |
+| el resto (`sprites`, `core`, `assets`, `abilities`, `gameplay`, `i18n`, `enemies`, `interaction`, `combat`, `progression` y la raíz de `tests/unit`) | 36 | 458 | |
+
+**Añadido en esta fase:** 5 archivos y 31 pruebas (`pixiDiet` 4, `e2eGroups` 4, `ciWorkflow` 8, `deadline` 5, `swingAccent` 10) y las escenas `textFit` (nueva) y `arrival` (con diagnóstico); ninguna prueba se desactivó ni se relajó.
+
+**Las E2E:** 69 escenas en Chromium real contra el *build* de producción, repartidas en ocho grupos que la CI corre todos (§4.2, P1-2), y un humo de once comprobaciones en Firefox y en WebKit (`test:engines`).
+
+**Cobertura de líneas** (🔎 medida en esta fase con `@vitest/coverage-v8` 5.0.3 —la misma versión que `vitest`— instalado **fuera de `package.json`** y retirado después; sobre `src/**/*.ts`; sin los tres archivos de pruebas de herramientas, `intake`, `artRepo` y `animate`, que con la instrumentación van 6 veces más lentos; y con `engineIndependence`, que con ella pasó de su límite de 240 s: su cobertura de la simulación no cuenta, pero la de `fullRun` y los *soaks* sí): **sentencias 84,7 %, ramas 80,5 %, funciones 82,6 %, líneas 85,5 %** (20 814 de 24 332).
+
+| Directorio de `src/` | Líneas | Ramas | Lectura |
+|---|---|---|---|
+| `abilities`, `combat`, `content`, `i18n` | 100 % | 87–100 % | |
+| `save`, `gameplay`, `camera`, `input`, `ui`, `enemies`, `audio`, `presentation`, `player`, `vfx` | 98,5–99,8 % | 87–100 % | lo que decide el juego está cubierto casi línea a línea |
+| `world`, `interaction`, `rigs`, `core` | 92–98 % | 85–98 % | |
+| `progression` | 77 % | 76 % | 48 líneas |
+| `render` | **67,5 %** | **48 %** | `Renderer2D.ts` y `RoomArtView.ts` (292 líneas): 0 % de unitaria |
+| `assets` | **63,6 %** | 81 % | `vfxAtlas`, `placeholderAtlas`, `proceduralTextures`: casi 0 % (necesitan un lienzo real); `artIO.ts` 42 % |
+| `app` | **17,5 %** | 20 % | `Game2D.ts` (716 líneas), `testHooks.ts`, `audio.ts`, `devTools.ts` y los laboratorios: **0 %** de unitaria |
+| `debug` | 0 % | | 237 líneas de paneles de desarrollo que un jugador no descarga |
+
+**Lo que dice** (riesgo, 📖): la lógica del juego —simulación, combate, guardado, interfaz, entradas, audio, contenido— está cubierta casi línea a línea; **lo que no tiene ninguna cobertura unitaria es el montaje** (`Game2D.ts` y `testHooks.ts`), **el renderizador de Pixi** (`Renderer2D.ts`, `RoomArtView.ts`) **y los laboratorios**, que solo ejercen las escenas E2E. Eso es coherente con §4.3 (`Game2D.ts` es el sitio donde un cambio toca más cosas) y es la razón por la que las 49 escenas que corrían a mano importaban: **es lo único que prueba esas 1 500 líneas**. Lo que **no se sabe** es qué líneas de ese montaje recorren las escenas: la cobertura de las E2E no se midió (P2-11 la incluye, con la cobertura de JavaScript que Playwright da en Chromium). Tampoco se puede leer un 85 % como «el 85 % del juego funciona»: la cobertura de líneas dice que una línea se ejecutó, no que se comprobó lo correcto.
+
+**Cómo repetirlo:** `npm install --no-save @vitest/coverage-v8@5.0.3 && npx vitest run --coverage.enabled --coverage.provider=v8 --coverage.reporter=json-summary --coverage.reporter=text-summary --coverage.include='src/**/*.ts' --coverage.reportOnFailure=true --exclude='tests/unit/tools/{intake,artRepo,animate}.test.ts'` (en el entorno de la auditoría `npm install --no-save` falla por un defecto de `arborist`; ahí se instaló el paquete con `--legacy-peer-deps` en otra carpeta y se copiaron sus módulos).
+
 ## 5. El plan priorizado (P0 → P3)
 
 Cada tarea dice: **problema · evidencia · archivos y sistemas · consecuencia para el jugador · dependencias · solución propuesta · cómo comprobar**; la prioridad está en el encabezado y el estado (✅ hecho en esta sesión con el *commit* · ⏳ en curso · ⛔ bloqueado por algo externo · ◻ sin empezar).
