@@ -408,3 +408,35 @@ Criterio de prioridad: **P0** = pérdida de progreso, bloqueo, corrupción, fall
 - **P3-7 · Informes de fallos con consentimiento.** *Problema:* ningún dato sale, así que un fallo en el teléfono de una persona no llega a nadie (`src/app/crash.ts` solo muestra la página). *Dependencias:* decisión de privacidad. *Solución:* un envío opcional y explícito.
 - **P3-8 · Guardado en la nube y transferencia entre dispositivos.** *Problema:* el guardado vive en el dispositivo; existe exportar/importar archivo (pasa por `parseProgress`). *Dependencias:* cuentas (P3-5).
 - **P3-9 · Sin linter ni formateador.** *Problema:* solo `.editorconfig` y el compilador estricto (§4.3). *Consecuencia:* ninguna para el jugador; un estilo puede desviarse sin que nada lo avise. *Dependencias:* una decisión de equipo (otra dependencia de desarrollo). *Solución:* un linter con pocas reglas (las que el compilador no cubre: promesas sin esperar, `any` implícito en JSON). *Comprobar:* `npm run lint` en la CI.
+- **P3-10 · Sin respuesta háptica ni bloqueo de pantalla.** *Problema:* el código no usa `navigator.vibrate`, ni un *plugin* de háptica, ni `navigator.wakeLock`, ni bloqueo de orientación (✅ búsqueda en `src/`). *Consecuencia:* en un móvil los botones táctiles y los golpes no devuelven nada al tacto (en Safari de iPhone `vibrate` ni existe), y una pantalla que no se toca un rato (un final largo) puede apagarse. *Dependencias:* la cáscara nativa (P0-1) para iOS: un *plugin* de Capacitor. *Solución:* una capa fina de háptica detrás de un ajuste, y `wakeLock` mientras el juego está en primer plano. *Comprobar:* en un dispositivo real (§7.2).
+
+## 6. La ejecución, fase por fase
+
+Cada fase terminó con las pruebas de lo que tocó, las escenas reales que lo ven, la medida, la documentación y un empuje a la rama; la CI se miró después de cada uno (P1-6).
+
+| Fase | Commit | Qué | Verificación local |
+|---|---|---|---|
+| A0 · medir y leer | `6074ace` | el detector de texto cortado (`tools/e2e/fit.ts`) y la escena `textFit` | `textFit` y `readable` contra producción; el detector, contra cortes hechos a propósito |
+| A1 · hallazgos | `d95f3c6` … `61dca41` | la bitácora: método y hallazgos por área (§4) | — |
+| P1-2 · la CI corre todo | `75ba403` | `registry.ts`, `groups.ts`, `run.ts --group=`, el *workflow* por grupos, `e2eGroups.test.ts` | 4 pruebas unitarias; `--group=` contra producción |
+| P1-1 · arranque con margen | `9cb5fd7` | `tools/build/pixiDiet.ts`, la reserva de 4 KiB en `bench:bundle`, `testTimeout` de 15 s | **203 992 → 196 957 B**; 4 pruebas nuevas; 8 escenas contra el *build* recortado |
+| P1-4 · evidencia y límites | `97461f7` | plazo por escena, captura al fallar, trabajo `budget`, permisos mínimos, `timeout-minutes`, artefactos | 13 pruebas nuevas; una escena colgada a propósito falla con su nombre y guarda su captura |
+| P2-1 · el segundo golpe | `2770544` | `swingAccent.ts`, `ActorSprite.accent`, la hoja de contactos | 10 pruebas nuevas; 11 escenas del héroe; primer golpe idéntico al píxel; +343 B de arranque |
+| CI · `arrival` (1) | `b3eb312` | la escena dice qué vio cuando falla | — |
+| P1-2b · grupos balanceados | `ab182e0` | ocho grupos por el tiempo medido en cinco ejecuciones | `e2eGroups` y `ciWorkflow` |
+| docs | `32604d9` | §3, §4.2.1, §5, `ARCHITECTURE-2D` §21, `PUBLISHING` | — |
+| CI · `arrival` (2) | `d37e3bf` | la espera de la sección D de 4 s y el muestreo de la F dentro de la página; límite del trabajo a 60 min | `arrival` 96,6 s con la máquina cargada |
+
+### 6.1 Lo que dijo la CI
+
+| CI | Commit | Resultado | Qué dijo |
+|---|---|---|---|
+| 149, 150, 151 | `2eed8c7`, `b855e83`, `934a929` | ✅ ✅ ✅ | el punto de partida (20 escenas E2E) |
+| 152, 153 | `6074ace`, `d95f3c6` | ✅ ✅ | con `textFit`, todavía con la lista corta de escenas |
+| 154 | `75ba403` | ❌ `e2e (world)` | **la primera vez que las 49 escenas olvidadas corrían en el corredor, una resultó roja**: `arrival` (sección D) |
+| 155, 156 | `ea635ac`, `61dca41` | ❌ `e2e (world)` | `arrival` (sección D), la misma aserción |
+| 157 | `9cb5fd7` | ❌ `e2e (world)` | `arrival` otra vez, pero **otra aserción** (sección F): la D había pasado |
+| 158 | `97461f7` | ⏳ | `budget` ✅ (196 957 B, **la misma cifra al byte que en local**), `check`, `play`, `stability`, `journey`, `interface` y los dos motores ✅; `world`: pendiente |
+| 159 … | `b3eb312` … | ⏳ | con el diagnóstico de `arrival`, los ocho grupos y la corrección |
+
+**La causa de `arrival`, y lo que no está probado.** Dos aserciones distintas, en dos secciones distintas, fallaron en ejecuciones distintas, y las dos cuentan algo **dentro de una ventana de tiempo**: la D, si el indicador de carga llegó a verse durante una espera de 1 500 ms (de los que 450 son de gracia y uno más el fundido de entrada); la F, si las muestras de la proporción descargada pasaron por la mitad de una carga limitada a 260 KB/s (con una ida y vuelta del controlador por muestra). En local pasan siempre, también con un solo núcleo (`taskset -c 0`), con la máquina cargada y tras `progression` y `transition`. **Hipótesis que explica los dos datos** (no confirmada con fotogramas del corredor, que no se tenían): en una sala posterior al Santuario la página compila ≈ 220 KB de JavaScript (los *rigs*, los guardianes) sin dibujar un solo fotograma, y en el corredor eso se come la ventana; la nº 157 lo sugiere (la espera de 1 500 ms tardó 1 873 en notarse cumplida). **No es un fallo del juego:** el indicador sale en cuanto hay fotogramas. Se hizo lo que no relaja lo que se prueba: una espera de 4 s en vez de 1,5 s (lo que se prueba es que una espera que sigue se le dice al jugador) y el muestreo hecho **dentro** de la página (119 muestras de 0,00 a 1,00 donde el controlador veía 30–38), y se dejó el diagnóstico en el mensaje de las aserciones por si hubiera otra causa.

@@ -464,7 +464,7 @@ export const arrival: Scenario = {
       await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 120, downloadThroughput: 260 * 1024, uploadThroughput: 260 * 1024 });
       await w.page.evaluate('window.__troid.teleport(110, 0)');
       // the share is written down by the page itself every 25 ms: a sample through the driver costs a round trip that, on a busy runner, is longer than the whole of the middle of the load
-      await w.page.evaluate(`(() => { window.__shares = []; window.__sharesOn = true; const tick = () => { const a = window.__troid.arrival(); if (a.blocking && a.progress && a.progress.fraction !== null && a.progress.fraction !== undefined) window.__shares.push(a.progress.fraction); if (window.__sharesOn) setTimeout(tick, 25); }; tick(); })()`);
+      await w.page.evaluate(`(() => { window.__shares = []; window.__raw = []; window.__sharesOn = true; const tick = () => { const a = window.__troid.arrival(); if (a.blocking) { const p = a.progress; window.__raw.push(p ? [p.files, p.active, p.loaded, p.total, p.fraction === null || p.fraction === undefined ? null : Math.round(p.fraction * 100) / 100] : null); if (p && p.fraction !== null && p.fraction !== undefined) window.__shares.push(p.fraction); } if (window.__sharesOn) setTimeout(tick, 25); }; tick(); })()`);
       const stepping = w.page.evaluate('window.__troid.step(90)');
       let seenByDriver = 0;
       let label = '';
@@ -488,9 +488,12 @@ export const arrival: Scenario = {
       await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
       await w.page.evaluate('window.__sharesOn = false');
       const shares = (await w.page.evaluate('window.__shares')) as number[];
+      // what the page saw of the transfers (files, active, bytes arrived, bytes asked for, share), a dozen of them spread over the wait: when the share does not go through the middle, this says why
+      const raw = (await w.page.evaluate('window.__raw')) as Array<[number, number, number, number, number | null] | null>;
+      const spread = JSON.stringify(raw.filter((_, i) => i % Math.max(1, Math.ceil(raw.length / 12)) === 0));
       assert.ok(shares.length >= 3, `the share was measurable while the bytes came (${shares.length} samples)`);
       assert.ok(shares.every((v, i) => v >= 0 && v <= 1 && (i === 0 || v >= shares[i - 1]! - 1e-9)), `the share of the bytes that arrived only grows (${shares.map((v) => v.toFixed(2)).join(' ')})`);
-      assert.ok(Math.max(...shares) > 0.3 && Math.min(...shares) < 0.7, `and it passes through the middle of the load (${Math.min(...shares).toFixed(2)} … ${Math.max(...shares).toFixed(2)} in ${shares.length} samples; the driver saw ${seenByDriver})`);
+      assert.ok(Math.max(...shares) > 0.3 && Math.min(...shares) < 0.7, `and it passes through the middle of the load (${Math.min(...shares).toFixed(2)} … ${Math.max(...shares).toFixed(2)} in ${shares.length} samples of ${raw.length}; the driver saw ${seenByDriver}; [files, active, loaded, total, share]: ${spread})`);
       assert.match(label, /\d\s?%/, `the number beside the line is written in percent (${JSON.stringify(label)})`);
       assert.equal(shot, true, 'a picture of the percentage was taken');
       await settled(w.page);

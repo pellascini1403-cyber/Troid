@@ -48,7 +48,7 @@ describe('the workflow of the CI keeps what Prompt 25 made of it (docs/PROMPT25-
   it('keeps the screenshots of a group that fails (the failure of a runner may not exist anywhere else)', () => {
     expect(all['e2e']).toMatch(/if:\s*failure\(\)/);
     expect(all['e2e']).toMatch(/upload-artifact@v\d+/);
-    expect(all['e2e']).toMatch(/path:\s*\.shots\/e2e/);
+    expect(all['e2e']).toMatch(/path:\s*\.shots\/e2e\/\*-FAILED\.png/);
     // `.shots` is a hidden folder: without this the action uploads nothing and says nothing
     expect(all['e2e']).toMatch(/include-hidden-files:\s*true/);
   });

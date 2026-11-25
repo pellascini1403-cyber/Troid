@@ -94,13 +94,14 @@ jobs:
           exit 1
       - run: npm run build
       - run: npm run test:e2e -- --prod --group=${{ matrix.group.name }}
-      # a scene that fails on the runner (software GL, slower than any machine that writes the game) may not fail anywhere else: the screenshot of the page as it was is the evidence (`.shots` is a hidden folder, which the action leaves out unless it is told)
+      # a scene that fails on the runner (software GL, slower than any machine that writes the game) may not fail anywhere else: the screenshot of the page as it was (`<scene>-FAILED.png`, written by `tools/e2e/run.ts`) is the evidence —
+      # only those, not the forty megabytes of pictures that the scenes of a group take on purpose (`.shots` is a hidden folder, which the action leaves out unless it is told)
       - name: Keep the screenshots of a failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: e2e-${{ matrix.group.name }}-shots
-          path: .shots/e2e
+          path: .shots/e2e/*-FAILED.png
           include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 7
