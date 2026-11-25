@@ -465,8 +465,9 @@ Cada fase terminó con las pruebas de lo que tocó, las escenas reales que lo ve
 | CI · `arrival` (2) | `d37e3bf` | la espera de la sección D de 4 s y el muestreo de la F dentro de la página; límite del trabajo a 60 min | `arrival` 96,6 s con la máquina cargada |
 | CI · `arrival` (3) | `a5dfaa5` | el mensaje de la F da las transferencias que vio la página; el artefacto de un rojo son solo las capturas `*-FAILED.png` | `ciWorkflow` |
 | docs | `814475b` | §4.16 pruebas y cobertura, §6, hallazgos nuevos | — |
-| *soak* profundo | (la siguiente) | el oráculo de `tests/helpers/soak.ts` conoce el relicario *Siphon* y juzga la negación de un conjuro en el momento en que ocurre | 300 semillas × 20 000 ticks: **12 avisos → 0**; los *soaks* de regresión en verde |
-| CI · instalación del navegador | (la siguiente) | `apt` renuncia a una transferencia parada, la reintenta y espera el cerrojo; `timeout --kill-after` | `ciWorkflow` (8 pruebas, la de la instalación ahora exige el arreglo) |
+| *soak* profundo | `8e9a77f` | el oráculo de `tests/helpers/soak.ts` conoce el relicario *Siphon* y juzga la negación de un conjuro en el momento en que ocurre | 300 semillas × 20 000 ticks: **12 avisos → 0**; los *soaks* de regresión en verde |
+| CI · instalación del navegador | `8e9a77f` | `apt` renuncia a una transferencia parada, la reintenta y espera el cerrojo; `timeout --kill-after` | `ciWorkflow` (8 pruebas, la de la instalación ahora exige el arreglo) |
+| docs | `1b2127a` | §7 lo medido y lo externo, §8 el estado real | — |
 
 ### 6.1 Lo que dijo la CI
 
@@ -490,7 +491,7 @@ Cada fase terminó con las pruebas de lo que tocó, las escenas reales que lo ve
 | Qué | Resultado | Cómo se repite |
 |---|---|---|
 | Arranque en frío del *build* de producción | **197 296 B gz** de 204 800 (con la variación del segundo golpe: +339 B; sin ella 196 957); quedan **7 504 B** del muro y **3 408 B** antes de la reserva; era 203 992 B (quedaban 808) | `npm run build && npm run bench:bundle` (el trabajo `budget` de la CI da la misma cifra al byte) |
-| Suite de pruebas unitarias e integración | todas en verde en la referencia (6 124 pruebas en 274 archivos) y las 31 añadidas en esta fase; la cifra de cierre, con todo el código final, está en §6 | `npm test` |
+| Suite de pruebas unitarias e integración | **6 155 pruebas en 279 archivos, todas verdes** (las 6 124 de la referencia más las 31 añadidas), en 7 min en una máquina libre | `npm test` |
 | Suite E2E | 69 escenas en 5 grupos (`tools/e2e/groups.ts`), todas bajo la CI | `npm run test:e2e -- --prod --group=<nombre>` |
 | Texto cortado | ninguno: HUD, barras de 11 guardianes y avisos de 11 habilidades, es/en × 3 ventanas | `npm run test:e2e -- --prod textFit readable` |
 | Llamadas de dibujo | peor sala 16, partida completa 23, peleas de los diez guardianes 16 (presupuesto 60) | escenas `rooms`, `fullrun`, `boss` |
